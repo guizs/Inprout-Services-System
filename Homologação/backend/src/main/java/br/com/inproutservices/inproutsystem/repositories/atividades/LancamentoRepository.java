@@ -1,5 +1,7 @@
 package br.com.inproutservices.inproutsystem.repositories.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
@@ -58,4 +60,22 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "WHERE l.situacaoAprovacao NOT IN ('RASCUNHO', 'PENDENTE_COORDENADOR', 'PENDENTE_CONTROLLER', 'AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO') " +
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);
+
+    @Query("SELECT l FROM Lancamento l JOIN FETCH l.os os JOIN FETCH os.segmento WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
+    List<Lancamento> findLancamentosAprovadosPorPeriodo(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+
+    //Agrega os valores por segmento
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
+            "FROM Lancamento l JOIN l.os o JOIN o.segmento s " +
+            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "GROUP BY s.nome ORDER BY s.nome")
+    List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+
+    //Agrega os valores por prestador
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO(p.prestador, SUM(l.valor), COUNT(l.id)) " +
+            "FROM Lancamento l JOIN l.prestador p " +
+            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "GROUP BY p.prestador ORDER BY p.prestador")
+    List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+
 }

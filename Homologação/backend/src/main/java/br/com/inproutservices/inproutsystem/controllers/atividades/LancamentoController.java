@@ -1,16 +1,15 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoCoordenadorDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoControllerDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoRequestDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO; // Adicione este import
+import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -154,5 +153,14 @@ public class LancamentoController {
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responseList);
+    }
+
+    @GetMapping("/cps/relatorio")
+    public ResponseEntity<CpsResponseDTO> getRelatorioCps(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+
+        CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
+        return ResponseEntity.ok(relatorio);
     }
 }

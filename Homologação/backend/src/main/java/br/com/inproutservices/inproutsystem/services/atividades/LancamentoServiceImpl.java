@@ -1,8 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoControllerDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoCoordenadorDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoRequestDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada;
@@ -30,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -655,4 +654,30 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         return lancamentoRepository.save(lancamento);
     }
-}
+
+    @Override
+    @Transactional(readOnly = true)
+    public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
+        SituacaoAprovacao status = SituacaoAprovacao.APROVADO;
+
+        // 1. Busca os lançamentos detalhados
+        List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(status, dataInicio, dataFim);
+        List<LancamentoResponseDTO> lancamentosDetalhadosDTOs = lancamentosAprovados.stream()
+                .map(LancamentoResponseDTO::new)
+                .collect(Collectors.toList());
+
+        // 2. Busca os valores agregados por segmento
+        List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(status, dataInicio, dataFim);
+
+        // 3. Busca os valores consolidados por prestador
+        List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(status, dataInicio, dataFim);
+
+        // 4. Calcula o valor total geral
+        BigDecimal valorTotalGeral = valoresPorSegmento.stream()
+                .map(ValoresPorSegmentoDTO::valorTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 5. Monta e retorna o DTO de resposta completo
+        return new CpsResponseDTO(valorTotalGeral, valoresPorSegmento, consolidadoPorPrestador, lancamentosDetalhadosDTOs);
+        }
+    }

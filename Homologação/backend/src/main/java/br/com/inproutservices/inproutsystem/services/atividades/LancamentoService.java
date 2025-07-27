@@ -2,9 +2,11 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoControllerDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoCoordenadorDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.CpsResponseDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoRequestDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface LancamentoService {
@@ -44,4 +46,6 @@ public interface LancamentoService {
     Lancamento getLancamentoById(Long id);
 
     List<Lancamento> getAllLancamentos();
+
+    CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim);
 }

@@ -82,6 +82,25 @@
   gap: 1rem;
 }
 
+.table-wrapper {
+  position: relative;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  
+  /* Define uma altura máxima e habilita a rolagem em ambas as direções */
+  max-height: 185px; /* Você pode ajustar esta altura */
+  overflow: auto; 
+}
+
+.sticky-header th {
+  position: sticky;
+  top: 0;
+  /* Garante que o fundo do cabeçalho não seja transparente */
+  background-color: #ffffff; 
+  z-index: 2;
+}
+
+
 @media (max-width: 992px) {
   .dashboard-cards {
     overflow-x: auto;

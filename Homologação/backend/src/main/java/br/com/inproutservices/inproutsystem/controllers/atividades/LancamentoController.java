@@ -10,6 +10,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -157,10 +158,16 @@ public class LancamentoController {
 
     @GetMapping("/cps/relatorio")
     public ResponseEntity<CpsResponseDTO> getRelatorioCps(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+            @RequestParam("dataInicio") String dataInicioStr,
+            @RequestParam("dataFim") String dataFimStr) {
 
+        // 1. Converte as Strings para LocalDate manualmente
+        LocalDate dataInicio = LocalDate.parse(dataInicioStr, DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDate dataFim = LocalDate.parse(dataFimStr, DateTimeFormatter.ISO_LOCAL_DATE);
+
+        // 2. Chama o serviço com as datas já convertidas
         CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
+
         return ResponseEntity.ok(relatorio);
     }
 }

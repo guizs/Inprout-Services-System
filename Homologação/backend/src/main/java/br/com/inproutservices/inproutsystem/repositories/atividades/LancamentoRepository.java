@@ -61,8 +61,24 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);
 
-    @Query("SELECT l FROM Lancamento l JOIN FETCH l.os os JOIN FETCH os.segmento WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
-    List<Lancamento> findLancamentosAprovadosPorPeriodo(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+    // ==================================================================
+    // >>>>> QUERY ATUALIZADA PARA O RELATÓRIO CPS <<<<<
+    // ==================================================================
+    @Query("SELECT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.os os " +
+            "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH l.lpu " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.etapaDetalhada ed " +
+            "LEFT JOIN FETCH ed.etapa e " +
+            "LEFT JOIN FETCH l.manager " + // Adicionado para buscar o gestor
+            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
+    List<Lancamento> findLancamentosAprovadosPorPeriodo(
+            @Param("status") SituacaoAprovacao status,
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
+
 
     //Agrega os valores por segmento
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +

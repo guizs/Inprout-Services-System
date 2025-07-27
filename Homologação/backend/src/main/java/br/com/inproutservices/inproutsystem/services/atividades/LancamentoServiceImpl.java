@@ -62,6 +62,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.lpuRepository = lpuRepository;
     }
 
+    // ... (todos os outros métodos do service permanecem iguais)
     @Override
     @Transactional
     public Lancamento submeterLancamentoManualmente(Long lancamentoId, Long managerId) {
@@ -660,24 +661,30 @@ public class LancamentoServiceImpl implements LancamentoService {
     public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
         SituacaoAprovacao status = SituacaoAprovacao.APROVADO;
 
-        // 1. Busca os lançamentos detalhados
+        // 1. Busca os lançamentos já com todos os dados necessários
         List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(status, dataInicio, dataFim);
-        List<LancamentoResponseDTO> lancamentosDetalhadosDTOs = lancamentosAprovados.stream()
-                .map(LancamentoResponseDTO::new)
+
+        // 2. Converte para o novo DTO detalhado
+        List<CpsResponseDTO.LancamentoCpsDetalheDTO> detalhesDTO = lancamentosAprovados.stream()
+                .map(CpsResponseDTO.LancamentoCpsDetalheDTO::new)
                 .collect(Collectors.toList());
 
-        // 2. Busca os valores agregados por segmento
+        // 3. As consultas agregadas continuam as mesmas
         List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(status, dataInicio, dataFim);
-
-        // 3. Busca os valores consolidados por prestador
         List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(status, dataInicio, dataFim);
 
-        // 4. Calcula o valor total geral
+        // 4. O cálculo do total geral também continua igual
         BigDecimal valorTotalGeral = valoresPorSegmento.stream()
                 .map(ValoresPorSegmentoDTO::valorTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 5. Monta e retorna o DTO de resposta completo
-        return new CpsResponseDTO(valorTotalGeral, valoresPorSegmento, consolidadoPorPrestador, lancamentosDetalhadosDTOs);
-        }
+        // 5. Monta o DTO de resposta final
+        CpsResponseDTO relatorio = new CpsResponseDTO();
+        relatorio.setValorTotalGeral(valorTotalGeral);
+        relatorio.setValoresPorSegmento(valoresPorSegmento);
+        relatorio.setConsolidadoPorPrestador(consolidadoPorPrestador);
+        relatorio.setLancamentosDetalhados(detalhesDTO);
+
+        return relatorio;
     }
+}

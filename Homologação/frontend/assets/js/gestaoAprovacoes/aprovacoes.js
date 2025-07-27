@@ -453,7 +453,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const pendentesResponse = await fetch(`${API_BASE_URL}/solicitacoes/pendentes`, {
                 headers: { 'X-User-Role': userRole }
             });
-            const historicoResponse = await fetch(`${API_BASE_URL}/solicitacoes/historico`);
+            const userId = localStorage.getItem('usuarioId');
+            const historicoResponse = await fetch(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
 
             if (!pendentesResponse.ok || !historicoResponse.ok) {
                 throw new Error('Falha ao carregar solicitações de materiais.');

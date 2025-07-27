@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.getElementById("overlay-loader");
         if (overlay) {
             if (ativo) {
+                renderizarCardsDashboard
                 overlay.classList.remove("d-none");
             } else {
                 overlay.classList.add("d-none");
@@ -167,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. Projetos em Andamento: Contagem de projetos únicos (OS+LPU) cujo último status NÃO é Paralisado ou Finalizado.
         const projetosAtivos = new Set();
         lancamentos.forEach(l => {
-            if (l.situacao !== 'Paralisado' && l.situacao !== 'Finalizado') {
+            if (l.situacao !== 'Paralisado' && l.situacao !== 'Finalizado' && l.os && l.lpu) {
                 const chaveProjeto = `${l.os.id}-${l.lpu.id}`;
                 projetosAtivos.add(chaveProjeto);
             }
@@ -836,10 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Garante que o lançamento tenha uma OS e uma LPU antes de processar
                 if (l.os && l.lpu) {
                     // CORREÇÃO: Acessamos l.os.id e l.lpu.id diretamente
-                    if (l.os && l.lpu) {
-                        const chaveProjeto = `${l.os.id}-${l.lpu.id}`;
-                        projetosAtivos.add(chaveProjeto);
-                    }
+                    const chaveProjeto = `${l.os.id}-${l.lpu.id}`; // Define a chave aqui
 
                     if (!ultimosLancamentos.has(chaveProjeto) || l.id > ultimosLancamentos.get(chaveProjeto).id) {
                         ultimosLancamentos.set(chaveProjeto, l);

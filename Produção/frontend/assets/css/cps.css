@@ -1,0 +1,95 @@
+.overview-banner {
+  background-color: white;
+  border-left: 6px solid var(--accent-color);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #ddd;
+}
+
+.overview-banner .icon {
+  font-size: 1.6rem;
+  color: var(--accent-color);
+}
+
+.dashboard-total {
+  background-color: var(--card-success);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-total .total-label {
+  font-size: 1.1rem;
+  color: var(--text-color);
+  margin-bottom: 0.2rem;
+}
+
+.dashboard-total .total-value {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-color);
+}
+
+.segment-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  transition: transform 0.2s ease-in-out;
+}
+
+.segment-card:hover {
+  transform: translateY(-2px);
+}
+
+.segment-card i {
+  font-size: 1.5rem;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+}
+
+.segment-card span {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.kpi-total {
+  background-color: var(--card-success);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+}
+
+.kpi-total .kpi-label {
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+.kpi-total .kpi-value {
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.segment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 992px) {
+  .dashboard-cards {
+    overflow-x: auto;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .dashboard-cards .card {
+    flex: 0 0 auto;
+    min-width: 180px;
+  }
+}

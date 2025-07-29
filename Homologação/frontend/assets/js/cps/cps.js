@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const segmentGridContainer = document.getElementById('segment-grid-container');
     const startDateInput = document.getElementById('startDate');
     const endDateInput = document.getElementById('endDate');
-    const filterBtn = document.getElementById('filterBtn');
+    const filterBtn = document.getElementById('btn-filter');
     const tableTabs = document.getElementById('table-tabs');
     const tableHead = document.getElementById('table-head');
     const tableBody = document.getElementById('table-body');
@@ -22,6 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const [dia, mes, ano] = dateStr.split('/');
         return `${ano}-${mes}-${dia}`;
     }
+
+    flatpickr("#startDate", {
+        dateFormat: "d/m/Y", // "d/m/Y" resulta em "dd/mm/aaaa"
+        locale: "pt"
+    });
+    flatpickr("#endDate", {
+        dateFormat: "d/m/Y", // "d/m/Y" resulta em "dd/mm/aaaa"
+        locale: "pt"
+    });
 
     function renderSegmentCards(segmentos) {
         segmentGridContainer.innerHTML = '';
@@ -261,10 +270,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function init() {
         const today = new Date();
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
-        startDateInput.value = firstDay;
-        endDateInput.value = lastDay;
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+        // Função para formatar a data como dd/mm/yyyy
+        const formatDate = (date) => {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
+
+        startDateInput.value = formatDate(firstDay);
+        endDateInput.value = formatDate(lastDay);
 
         filterBtn.addEventListener('click', fetchData);
 

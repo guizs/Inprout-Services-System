@@ -63,10 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (el) el.style.display = 'block';
                 });
                 // Define a aba padrão como "Minhas Pendências"
-                tabLancamentos.classList.remove('active');
-                paneLancamentos.classList.remove('show', 'active');
-                tabMinhasPendencias.classList.add('active');
-                paneMinhasPendencias.classList.add('show', 'active');
+                tabLancamentos.classList.add('active');
+                paneLancamentos.classList.add('show', 'active');
                 break;
 
             case 'COORDINATOR':

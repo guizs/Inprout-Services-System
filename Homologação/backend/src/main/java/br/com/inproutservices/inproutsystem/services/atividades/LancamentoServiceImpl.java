@@ -687,4 +687,23 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         return relatorio;
     }
+
+    @Transactional
+    public Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor) {
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + lancamentoId));
+
+        // Atualiza o valor no lançamento
+        lancamento.setValor(novoValor);
+
+        // Recalcula o valor total da OS
+        OS os = lancamento.getOs();
+        BigDecimal novoTotalOs = os.getLancamentos().stream()
+                .map(Lancamento::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        os.setValorTotal(novoTotalOs);
+
+        osRepository.save(os);
+        return lancamentoRepository.save(lancamento);
+    }
 }

@@ -8,10 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -169,5 +171,15 @@ public class LancamentoController {
         CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
 
         return ResponseEntity.ok(relatorio);
+    }
+
+    @PutMapping("/{id}/valor")
+    public ResponseEntity<LancamentoResponseDTO> alterarValorPago(@PathVariable Long id, @RequestBody Map<String, BigDecimal> payload) {
+        BigDecimal novoValor = payload.get("valor");
+        if (novoValor == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        Lancamento lancamentoAtualizado = lancamentoService.alterarValorPago(id, novoValor);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
 }

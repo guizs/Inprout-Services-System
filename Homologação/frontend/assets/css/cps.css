@@ -12,6 +12,25 @@
   color: var(--accent-color);
 }
 
+.overlay-loader {
+  position: fixed;
+  /* Cobre a tela inteira, independente da rolagem */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  /* Fundo branco semitransparente */
+  display: flex;
+  /* Usa flexbox para centralizar o spinner */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  /* Garante que fique acima de todos os outros elementos */
+  transition: opacity 0.3s ease;
+  /* Efeito suave de transição */
+}
+
 .dashboard-total {
   background-color: var(--card-success);
   border-radius: 12px;
@@ -86,17 +105,18 @@
   position: relative;
   border: 1px solid #dee2e6;
   border-radius: 6px;
-  
+
   /* Define uma altura máxima e habilita a rolagem em ambas as direções */
-  max-height: 185px; /* Você pode ajustar esta altura */
-  overflow: auto; 
+  max-height: 185px;
+  /* Você pode ajustar esta altura */
+  overflow: auto;
 }
 
 .sticky-header th {
   position: sticky;
   top: 0;
   /* Garante que o fundo do cabeçalho não seja transparente */
-  background-color: #ffffff; 
+  background-color: #ffffff;
   z-index: 2;
 }
 

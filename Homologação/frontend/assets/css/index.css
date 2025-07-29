@@ -13,6 +13,25 @@
   max-width: 40%;
 }
 
+.overlay-loader {
+  position: fixed;
+  /* Cobre a tela inteira, independente da rolagem */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  /* Fundo branco semitransparente */
+  display: flex;
+  /* Usa flexbox para centralizar o spinner */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  /* Garante que fique acima de todos os outros elementos */
+  transition: opacity 0.3s ease;
+  /* Efeito suave de transição */
+}
+
 .search-box .form-control {
   border-radius: 50px;
   padding: 0.5rem 1rem;

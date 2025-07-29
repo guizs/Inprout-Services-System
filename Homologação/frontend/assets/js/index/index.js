@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.getElementById("overlay-loader");
         if (overlay) {
             if (ativo) {
-                renderizarCardsDashboard
                 overlay.classList.remove("d-none");
             } else {
                 overlay.classList.add("d-none");
@@ -314,13 +313,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
+            // ---> ETAPA 1: EXTRAIR O JSON DA RESPOSTA (ESSA LINHA FALTAVA) <---
             const lancamentosDaApi = await response.json();
 
+            // ---> ETAPA 2: ATUALIZAR A VARIÁVEL GLOBAL COM OS DADOS RECEBIDOS <---
+            // Usando a função de filtro que já tínhamos para garantir que cada usuário veja o que deve
             todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
 
+            // AGORA sim, as funções de renderização têm os dados corretos para trabalhar
             renderizarCardsDashboard(todosLancamentos);
             popularFiltroOS();
             renderizarTodasAsTabelas();
+
         } catch (error) {
             console.error('Falha ao buscar lançamentos:', error);
             mostrarToast('Falha ao carregar dados do servidor.', 'error');

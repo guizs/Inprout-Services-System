@@ -6,6 +6,7 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.CpsResponseDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoRequestDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -48,4 +49,6 @@ public interface LancamentoService {
     List<Lancamento> getAllLancamentos();
 
     CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim);
+
+    Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor);
 }

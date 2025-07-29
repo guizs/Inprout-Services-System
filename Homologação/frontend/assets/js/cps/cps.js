@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://localhost:8080/lancamentos/cps/relatorio';
+    const API_URL = 'http://localhost:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -10,11 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterBtn = document.getElementById('btn-filter');
     const tableTabs = document.getElementById('table-tabs');
     const tableHead = document.getElementById('table-head');
+    const modalAlterarValorEl = document.getElementById('modalAlterarValor');
+    const modalAlterarValor = new bootstrap.Modal(modalAlterarValorEl);
     const tableBody = document.getElementById('table-body');
     const segmentSelectFilter = document.getElementById('segment-select-filter');
 
     let fullData = {};
-    let currentTableView = 'lancamentos';
+    let currentTableView = 'prestadores';
 
     // --- FUNÇÕES DE RENDERIZAÇÃO ---
 
@@ -31,6 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
         dateFormat: "d/m/Y", // "d/m/Y" resulta em "dd/mm/aaaa"
         locale: "pt"
     });
+
+    function toggleLoader(ativo = true) {
+        const overlay = document.getElementById("overlay-loader");
+        if (overlay) {
+            if (ativo) {
+                overlay.classList.remove("d-none");
+            } else {
+                overlay.classList.add("d-none");
+            }
+        }
+    }
 
     function renderSegmentCards(segmentos) {
         segmentGridContainer.innerHTML = '';
@@ -94,115 +107,169 @@ document.addEventListener('DOMContentLoaded', () => {
         tableHead.innerHTML = '';
         tableBody.innerHTML = '';
 
-        if (currentTableView === 'lancamentos') {
-            // Cabeçalho com TODAS as colunas que você solicitou
+        if (currentTableView === 'prestadores') {
             tableHead.innerHTML = `
-                <tr>
-                    <th>DATA ATIVIDADE</th>
-                    <th>OS</th>
-                    <th>SITE</th>
-                    <th>CONTRATO</th>
-                    <th>SEGMENTO</th>
-                    <th>PROJETO</th>
-                    <th>GESTOR TIM</th>
-                    <th>REGIONAL</th>
-                    <th>LOTE</th>
-                    <th>BOQ</th>
-                    <th>PO</th>
-                    <th>ITEM</th>
-                    <th>OBJETO CONTRATADO</th>
-                    <th>UNIDADE</th>
-                    <th>QUANTIDADE</th>
-                    <th>VALOR TOTAL</th>
-                    <th>OBSERVAÇÕES</th>
-                    <th>DATA PO</th>
-                    <th>LPU</th>
-                    <th>EQUIPE</th>
-                    <th>VISTORIA</th>
-                    <th>PLANO DE VISTORIA</th>
-                    <th>DESMOBILIZAÇÃO</th>
-                    <th>PLANO DE DESMOBILIZAÇÃO</th>
-                    <th>INSTALAÇÃO</th>
-                    <th>PLANO DE INSTALAÇÃO</th>
-                    <th>ATIVAÇÃO</th>
-                    <th>PLANO DE ATIVAÇÃO</th>
-                    <th>DOCUMENTAÇÃO</th>
-                    <th>PLANO DE DOCUMENTAÇÃO</th>
-                    <th>ETAPA GERAL</th>
-                    <th>ETAPA DETALHADA</th>
-                    <th>STATUS</th>
-                    <th>SITUAÇÃO</th>
-                    <th>DETALHE DIÁRIO</th>
-                    <th>CÓD. PRESTADOR</th>
-                    <th>PRESTADOR</th>
-                    <th>VALOR</th>
-                    <th>GESTOR</th>
-                </tr>`;
+            <tr>
+                <th>Código do Prestador</th>
+                <th>Prestador</th>
+                <th>Valor Total</th>
+            </tr>`;
 
-            const lancamentos = dataToRender.lancamentosDetalhados;
-            if (lancamentos && lancamentos.length > 0) {
-                lancamentos.forEach(lanc => {
-                    // Células correspondentes a cada cabeçalho
-                    tableBody.innerHTML += `
-                        <tr>
-                            <td>${lanc.dataAtividade || 'N/A'}</td>
-                            <td>${lanc.os || 'N/A'}</td>
-                            <td>${lanc.site || 'N/A'}</td>
-                            <td>${lanc.contrato || 'N/A'}</td>
-                            <td>${lanc.segmento || 'N/A'}</td>
-                            <td>${lanc.projeto || 'N/A'}</td>
-                            <td>${lanc.gestorTim || 'N/A'}</td>
-                            <td>${lanc.regional || 'N/A'}</td>
-                            <td>${lanc.lote || 'N/A'}</td>
-                            <td>${lanc.boq || 'N/A'}</td>
-                            <td>${lanc.po || 'N/A'}</td>
-                            <td>${lanc.item || 'N/A'}</td>
-                            <td>${lanc.objetoContratado || 'N/A'}</td>
-                            <td>${lanc.unidade || 'N/A'}</td>
-                            <td>${lanc.quantidade || 'N/A'}</td>
-                            <td>${formatCurrency(lanc.valorTotal)}</td>
-                            <td>${lanc.observacoes || 'N/A'}</td>
-                            <td>${lanc.dataPo || 'N/A'}</td>
-                            <td>${lanc.lpu || 'N/A'}</td>
-                            <td>${lanc.equipe || 'N/A'}</td>
-                            <td>${lanc.vistoria || 'N/A'}</td>
-                            <td>${lanc.planoDeVistoria || 'N/A'}</td>
-                            <td>${lanc.desmobilizacao || 'N/A'}</td>
-                            <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
-                            <td>${lanc.instalacao || 'N/A'}</td>
-                            <td>${lanc.planoDeInstalacao || 'N/A'}</td>
-                            <td>${lanc.ativacao || 'N/A'}</td>
-                            <td>${lanc.planoDeAtivacao || 'N/A'}</td>
-                            <td>${lanc.documentacao || 'N/A'}</td>
-                            <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
-                            <td>${lanc.etapaGeral || 'N/A'}</td>
-                            <td>${lanc.etapaDetalhada || 'N/A'}</td>
-                            <td>${lanc.status || 'N/A'}</td>
-                            <td>${lanc.situacao || 'N/A'}</td>
-                            <td>${lanc.detalheDiario || 'N/A'}</td>
-                            <td>${lanc.codPrestador || 'N/A'}</td>
-                            <td>${lanc.prestador || 'N/A'}</td>
-                            <td>${formatCurrency(lanc.valor)}</td>
-                            <td>${lanc.gestor || 'N/A'}</td>
-                        </tr>`;
-                });
-            } else {
-                tableBody.innerHTML = `<tr><td colspan="39" class="text-center text-muted p-4">Nenhum lançamento encontrado para o filtro selecionado.</td></tr>`;
-            }
-        } else if (currentTableView === 'prestadores') {
-            // A tabela de prestadores continua a mesma
-            tableHead.innerHTML = `<tr><th>Prestador</th><th>Qtd. Lançamentos</th><th>Valor Total a Pagar</th></tr>`;
-            const prestadores = dataToRender.consolidadoPorPrestador;
-            if (prestadores && prestadores.length > 0) {
+            const prestadores = dataToRender.consolidadoPorPrestador || [];
+            if (prestadores.length > 0) {
                 prestadores.forEach(prest => {
-                    tableBody.innerHTML += `<tr><td>${prest.prestadorNome}</td><td>${prest.totalLancamentos}</td><td>${formatCurrency(prest.valorTotal)}</td></tr>`;
+                    const tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    // Adicionamos os dados no dataset para usar no clique
+                    tr.dataset.codPrestador = prest.codPrestador; // Corrigido para corresponder ao DTO
+                    tr.dataset.nomePrestador = prest.prestadorNome; // Corrigido para corresponder ao DTO
+                    tr.innerHTML = `
+                    <td>${prest.codPrestador || 'N/A'}</td>
+                    <td>${prest.prestadorNome}</td>
+                    <td>${formatCurrency(prest.valorTotal)}</td>
+                `;
+                    tableBody.appendChild(tr);
                 });
             } else {
-                tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-4">Nenhum prestador encontrado para o filtro selecionado.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-4">Nenhum prestador encontrado.</td></tr>`;
             }
+        } else if (currentTableView === 'lancamentos') {
+            renderLancamentosTable(dataToRender.lancamentosDetalhados || []);
         }
-
         syncColumnWidths();
+    }
+
+    function renderLancamentosTable(lancamentos) {
+        // Cabeçalho construído a partir da sua lista de colunas
+        tableHead.innerHTML = `
+        <tr>
+            <th>DATA ATIVIDADE</th>
+            <th>OS</th>
+            <th>SITE</th>
+            <th>CONTRATO</th>
+            <th>SEGMENTO</th>
+            <th>PROJETO</th>
+            <th>GESTOR TIM</th>
+            <th>REGIONAL</th>
+            <th>LOTE</th>
+            <th>BOQ</th>
+            <th>PO</th>
+            <th>ITEM</th>
+            <th>OBJETO CONTRATADO</th>
+            <th>UNIDADE</th>
+            <th>QTD</th>
+            <th>VALOR TOTAL</th>
+            <th>OBSERVAÇÕES</th>
+            <th>DATA PO</th>
+            <th>LPU</th>
+            <th>EQUIPE</th>
+            <th>VISTORIA</th>
+            <th>PLANO DE VISTORIA</th>
+            <th>DESMOBILIZAÇÃO</th>
+            <th>PLANO DESMOB.</th>
+            <th>INSTALAÇÃO</th>
+            <th>PLANO INST.</th>
+            <th>ATIVAÇÃO</th>
+            <th>PLANO ATIVAÇÃO</th>
+            <th>DOCUMENTAÇÃO</th>
+            <th>PLANO DOC.</th>
+            <th>ETAPA GERAL</th>
+            <th>ETAPA DETALHADA</th>
+            <th>STATUS</th>
+            <th>SITUAÇÃO</th>
+            <th>DETALHE DIÁRIO</th>
+            <th>CÓD PRESTADOR</th>
+            <th>PRESTADOR</th>
+            <th>VALOR</th>
+            <th>GESTOR</th>
+            <th>AÇÕES</th>
+        </tr>`;
+
+        tableBody.innerHTML = '';
+
+        if (lancamentos && lancamentos.length > 0) {
+            // Corpo da tabela usando EXATAMENTE a sua lista de <td>
+            lancamentos.forEach(lanc => {
+                tableBody.innerHTML += `
+                <tr>
+                    <td>${lanc.dataAtividade || 'N/A'}</td>
+                    <td>${lanc.os || 'N/A'}</td>
+                    <td>${lanc.site || 'N/A'}</td>
+                    <td>${lanc.contrato || 'N/A'}</td>
+                    <td>${lanc.segmento || 'N/A'}</td>
+                    <td>${lanc.projeto || 'N/A'}</td>
+                    <td>${lanc.gestorTim || 'N/A'}</td>
+                    <td>${lanc.regional || 'N/A'}</td>
+                    <td>${lanc.lote || 'N/A'}</td>
+                    <td>${lanc.boq || 'N/A'}</td>
+                    <td>${lanc.po || 'N/A'}</td>
+                    <td>${lanc.item || 'N/A'}</td>
+                    <td>${lanc.objetoContratado || 'N/A'}</td>
+                    <td>${lanc.unidade || 'N/A'}</td>
+                    <td>${lanc.quantidade || 'N/A'}</td>
+                    <td>${formatCurrency(lanc.valorTotal)}</td>
+                    <td>${lanc.observacoes || 'N/A'}</td>
+                    <td>${lanc.dataPo || 'N/A'}</td>
+                    <td>${lanc.lpu || 'N/A'}</td>
+                    <td>${lanc.equipe || 'N/A'}</td>
+                    <td>${lanc.vistoria || 'N/A'}</td>
+                    <td>${lanc.planoDeVistoria || 'N/A'}</td>
+                    <td>${lanc.desmobilizacao || 'N/A'}</td>
+                    <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
+                    <td>${lanc.instalacao || 'N/A'}</td>
+                    <td>${lanc.planoDeInstalacao || 'N/A'}</td>
+                    <td>${lanc.ativacao || 'N/A'}</td>
+                    <td>${lanc.planoDeAtivacao || 'N/A'}</td>
+                    <td>${lanc.documentacao || 'N/A'}</td>
+                    <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
+                    <td>${lanc.etapaGeral || 'N/A'}</td>
+                    <td>${lanc.etapaDetalhada || 'N/A'}</td>
+                    <td>${lanc.status || 'N/A'}</td>
+                    <td>${lanc.situacao || 'N/A'}</td>
+                    <td>${lanc.detalheDiario || 'N/A'}</td>
+                    <td>${lanc.codPrestador || 'N/A'}</td>
+                    <td>${lanc.prestador || 'N/A'}</td>
+                    <td>${formatCurrency(lanc.valor)}</td>
+                    <td>${lanc.gestor || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        } else {
+            // Colspan corrigido para o número total de colunas (40)
+            tableBody.innerHTML = `<tr><td colspan="40" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
+        }
+    }
+
+    // ADICIONE ESTA NOVA FUNÇÃO ABAIXO DA fetchData
+    async function alterarValorLancamento(lancamentoId, novoValor) {
+        if (typeof toggleLoader === 'function') toggleLoader(true);
+        try {
+            const response = await fetch(`${API_URL}/lancamentos/${lancamentoId}/valor`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${TOKEN}`
+                },
+                body: JSON.stringify({ valor: novoValor })
+            });
+
+            if (!response.ok) {
+                const erroData = await response.json();
+                throw new Error(erroData.message || 'Falha ao atualizar o valor.');
+            }
+
+            mostrarToast('Valor alterado com sucesso!', 'success');
+            await fetchData(); // Recarrega TODOS os dados para atualizar os totais
+
+        } catch (error) {
+            mostrarToast(error.message, 'error');
+        } finally {
+            if (typeof toggleLoader === 'function') toggleLoader(false);
+        }
     }
 
     // --- LÓGICA DE DADOS ---
@@ -222,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
-            const response = await fetch(`${API_URL}?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+            const response = await fetch(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
             if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
 
             fullData = await response.json();
@@ -239,6 +306,46 @@ document.addEventListener('DOMContentLoaded', () => {
             segmentGridContainer.innerHTML = '<p class="text-muted w-100 text-center">Não foi possível carregar os dados.</p>';
             tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">Erro ao carregar dados.</td></tr>`;
         } finally {
+            if (typeof toggleLoader === 'function') toggleLoader(false);
+        }
+    }
+
+    async function fetchDetalhesPorPrestador(codPrestador) {
+        let startDate = startDateInput.value;
+        let endDate = endDateInput.value;
+
+        // Garante que as datas estejam no formato ISO (YYYY-MM-DD) para a API
+        if (startDate.includes('/')) startDate = formatDateToISO(startDate);
+        if (endDate.includes('/')) endDate = formatDateToISO(endDate);
+
+        // Mostra o loader
+        if (typeof toggleLoader === 'function') toggleLoader(true);
+        try {
+            // Nova chamada de API para um endpoint detalhado
+            const response = await fetch(`${API_URL}/lancamentos/cps/detalhado-por-prestador?codPrestador=${codPrestador}&dataInicio=${startDate}&dataFim=${endDate}`, {
+                headers: { 'Authorization': `Bearer ${TOKEN}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erro ao buscar detalhes do prestador: ${response.status}`);
+            }
+
+            const lancamentosDoPrestador = await response.json();
+
+            // Altera a visualização para a aba de lançamentos
+            currentTableView = 'lancamentos';
+            tableTabs.querySelector('.active').classList.remove('active');
+            tableTabs.querySelector('[data-table-view="lancamentos"]').classList.add('active');
+
+            // Renderiza a tabela apenas com os dados recebidos
+            renderLancamentosTable(lancamentosDoPrestador);
+            syncColumnWidths();
+
+        } catch (error) {
+            console.error("Falha ao buscar detalhes do prestador:", error);
+            mostrarToast(error.message, 'error');
+        } finally {
+            // Esconde o loader
             if (typeof toggleLoader === 'function') toggleLoader(false);
         }
     }
@@ -301,12 +408,59 @@ document.addEventListener('DOMContentLoaded', () => {
             renderTable(e.target.value);
         });
 
+        tableBody.addEventListener('click', (e) => {
+            // A lógica para o botão de alterar valor continua a mesma
+            const btnAlterar = e.target.closest('.btn-alterar-valor');
+            if (btnAlterar) {
+                const lancamentoId = btnAlterar.dataset.id;
+                const linha = btnAlterar.closest('tr');
+
+                const nomePrestador = linha.cells[36].textContent;
+                const valorAtual = linha.cells[37].textContent;
+
+                document.getElementById('lancamentoIdAlterar').value = lancamentoId;
+                document.getElementById('prestadorInfo').value = nomePrestador;
+                document.getElementById('valorAtual').value = valorAtual;
+                document.getElementById('novoValor').value = '';
+
+                modalAlterarValor.show();
+                return; // Sai da função para não executar a lógica de clique na linha
+            }
+
+            // Lógica para o clique na linha do prestador (agora chama a API)
+            const linhaPrestador = e.target.closest('tr[data-cod-prestador]');
+            if (linhaPrestador && currentTableView === 'prestadores') {
+                // ALTERAÇÃO: Pegamos o CÓDIGO do prestador, não o nome
+                const codPrestador = linhaPrestador.dataset.codPrestador;
+
+                // ALTERAÇÃO: A lógica de filtro local foi substituída por esta chamada de função
+                fetchDetalhesPorPrestador(codPrestador);
+            }
+        });
+
+        document.getElementById('formAlterarValor').addEventListener('submit', (e) => {
+            e.preventDefault(); // Impede o recarregamento da página
+
+            const lancamentoId = document.getElementById('lancamentoIdAlterar').value;
+            const novoValorStr = document.getElementById('novoValor').value;
+
+            if (novoValorStr) {
+                const novoValor = parseFloat(novoValorStr.replace('.', '').replace(',', '.'));
+                if (!isNaN(novoValor) && novoValor >= 0) {
+                    alterarValorLancamento(lancamentoId, novoValor);
+                    modalAlterarValor.hide(); // Fecha o modal após o envio
+                } else {
+                    // Você pode usar seu `mostrarToast` aqui também se preferir
+                    alert("Valor inválido. Por favor, insira um número válido.");
+                }
+            }
+        });
+
         fetchData();
     }
 
     // --- FUNÇÕES UTILITÁRIAS ---
     const formatCurrency = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-    const formatDate = dateStr => dateStr ? new Date(dateStr).toLocaleDateString('pt-BR') : 'N/A';
 
     init();
 });

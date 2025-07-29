@@ -22,6 +22,7 @@ public class CpsResponseDTO {
 
     public static class LancamentoCpsDetalheDTO {
         @JsonFormat(pattern = "dd/MM/yyyy")
+        private Long id;
         private LocalDate dataAtividade;
         private String os;
         private String site;
@@ -70,6 +71,7 @@ public class CpsResponseDTO {
 
         // O construtor agora funcionará sem erros, pois o 'import' tornou a classe OS visível
         public LancamentoCpsDetalheDTO(Lancamento l) {
+            this.id = l.getId();
             this.dataAtividade = l.getDataAtividade();
             Optional<OS> osOptional = Optional.ofNullable(l.getOs());
             this.os = osOptional.map(OS::getOs).orElse(null);
@@ -119,6 +121,14 @@ public class CpsResponseDTO {
 
         public LocalDate getDataAtividade() {
             return dataAtividade;
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
         }
 
         public void setDataAtividade(LocalDate dataAtividade) {

@@ -87,11 +87,11 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "GROUP BY s.nome ORDER BY s.nome")
     List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
-    //Agrega os valores por prestador
-    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO(p.prestador, SUM(l.valor), COUNT(l.id)) " +
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO(p.codigoPrestador, p.prestador, SUM(l.valor), COUNT(l.id)) " +
             "FROM Lancamento l JOIN l.prestador p " +
             "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
-            "GROUP BY p.prestador ORDER BY p.prestador")
+            "GROUP BY p.codigoPrestador, p.prestador ORDER BY SUM(l.valor) DESC")
     List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+
 
 }

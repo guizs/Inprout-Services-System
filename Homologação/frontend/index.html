@@ -329,6 +329,196 @@
 
   </div>
 
+  <div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalEditarLabel">
+            <i class="bi bi-pencil"></i> Detalhes da Atividade
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+
+        <div class="modal-body">
+          <form id="formEditar" novalidate>
+
+            <h6 class="section-title">Dados Gerais</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="osIdEditar" class="form-label">Ordem de Serviço (OS)</label>
+                <select class="form-select" id="osIdEditar" required disabled>
+                </select>
+              </div>
+              <div class="col-md-6" id="lpuContainerEditar">
+                <label for="lpuIdEditar" class="form-label">Lista de Preços Unitários (LPU)</label>
+                <select class="form-select" id="lpuIdEditar" required></select>
+              </div>
+              <div class="col-md-6">
+                <label for="dataAtividadeEditar" class="form-label">Data da Atividade</label>
+                <input type="date" class="form-control" id="dataAtividadeEditar" required>
+              </div>
+            </div>
+
+            <h6 class="section-title">Dados da OS</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="siteEditar" class="form-label">Site</label>
+                <input type="text" class="form-control" id="siteEditar" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="segmentoEditar" class="form-label">Segmento</label>
+                <input type="text" class="form-control" id="segmentoEditar" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="projetoEditar" class="form-label">Projeto</label>
+                <input type="text" class="form-control" id="projetoEditar" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="contratoEditar" class="form-label">Contrato</label>
+                <input type="text" class="form-control" id="contratoEditar" readonly>
+              </div>
+            </div>
+
+            <h6 class="section-title">Responsáveis</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">GESTOR TIM</label>
+                <input type="text" class="form-control" id="gestorTimEditar" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">REGIONAL</label>
+                <input type="text" class="form-control" id="regionalEditar" readonly>
+              </div>
+            </div>
+
+            <h6 class="section-title">Execução</h6>
+            <div class="etapas-scroll mb-3">
+              <div class="card etapa-card">
+                <h6>Vistoria</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="vistoriaEditar">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoVistoriaEditar">
+              </div>
+              <div class="card etapa-card">
+                <h6>Desmobilização</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="desmobilizacaoEditar">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoDesmobilizacaoEditar">
+              </div>
+              <div class="card etapa-card">
+                <h6>Instalação</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="instalacaoEditar">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoInstalacaoEditar">
+              </div>
+              <div class="card etapa-card">
+                <h6>Ativação</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="ativacaoEditar">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoAtivacaoEditar">
+              </div>
+              <div class="card etapa-card">
+                <h6>Documentação</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="documentacaoEditar">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoDocumentacaoEditar">
+              </div>
+            </div>
+
+            <h6 class="section-title">Etapas</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="etapaGeralSelectEditar" class="form-label">ETAPA GERAL</label>
+                <select class="form-select" id="etapaGeralSelectEditar" required></select>
+              </div>
+              <div class="col-md-6">
+                <label for="etapaDetalhadaIdEditar" class="form-label">ETAPA DETALHADA</label>
+                <select class="form-select" id="etapaDetalhadaIdEditar" required disabled></select>
+              </div>
+              <div class="col-md-6">
+                <label for="statusEditar" class="form-label">STATUS</label>
+                <select class="form-select" id="statusEditar" required disabled></select>
+              </div>
+              <div class="col-md-6">
+                <label for="situacaoEditar" class="form-label">SITUAÇÃO</label>
+                <select class="form-select" id="situacaoEditar">
+                  <option>Não iniciado</option>
+                  <option>Aguardando documentação</option>
+                  <option>Paralisado</option>
+                  <option>Em andamento</option>
+                  <option>Finalizado</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="detalheDiarioEditar" class="form-label">DETALHE DIÁRIO</label>
+              <textarea class="form-control" id="detalheDiarioEditar" rows="2" required></textarea>
+            </div>
+
+            <h6 class="section-title">Financeiro</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-8">
+                <label for="prestadorIdEditar" class="form-label">PRESTADOR</label>
+                <select class="form-select" id="prestadorIdEditar" required></select>
+              </div>
+              <div class="col-md-4">
+                <label for="valorEditar" class="form-label">VALOR DA ATIVIDADE</label>
+                <div class="input-group">
+                  <span class="input-group-text">R$</span>
+                  <input type="text" class="form-control" id="valorEditar" inputmode="numeric" />
+                </div>
+              </div>
+            </div>
+
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg"></i> Fechar
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="btnSalvarRascunhoEditar">
+            <i class="bi bi-save"></i> Salvar Alterações
+          </button>
+          <button type="button" class="btn btn-primary" id="btnSalvarEEnviarEditar">
+            <i class="bi bi-send"></i> Salvar e Enviar
+          </button>
+          <button type="submit" id="btnSubmitEditar" form="formEditar" class="btn btn-success">
+            <i class="bi bi-check-circle"></i> Confirmar Ação
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalSolicitarMaterial" tabindex="-1" aria-labelledby="modalSolicitarMaterialLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -540,10 +730,16 @@
                 </select>
               </div>
 
-              <div class="col-md-6 d-none" id="lpuContainer">
-                <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
-                <select class="form-select" id="lpuId" required>
-                </select>
+              <div class="col-12">
+                <label class="form-label">Selecione as LPUs</label>
+                <div id="lpuChecklistContainer" class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
+                  <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
+                </div>
+              </div>
+
+              <div class="col-12 mt-3 text-end">
+                <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimento"
+                  disabled>Avançar</button>
               </div>
 
               <div class="col-md-6">
@@ -581,118 +777,9 @@
                   <label class="form-label">REGIONAL</label>
                   <input type="text" class="form-control" id="regional" readonly>
                 </div>
-                <div class="col-md-4">
-                  <label for="equipe" class="form-label">EQUIPE</label>
-                  <input type="text" class="form-control" id="equipe">
-                </div>
               </div>
 
-              <h6 class="section-title">Execução</h6>
-              <div class="etapas-scroll">
-                <div class="card etapa-card">
-                  <h6>Vistoria</h6>
-                  <label class="form-label">Status</label>
-                  <select class="form-select" id="vistoria">
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-                  <label class="form-label mt-2">Plano (Data)</label>
-                  <input type="date" class="form-control" id="planoVistoria">
-                </div>
-                <div class="card etapa-card">
-                  <h6>Desmobilização</h6><label class="form-label">Status</label><select class="form-select"
-                    id="desmobilizacao">
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
-                    id="planoDesmobilizacao">
-                </div>
-                <div class="card etapa-card">
-                  <h6>Instalação</h6><label class="form-label">Status</label><select class="form-select"
-                    id="instalacao">
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
-                    id="planoInstalacao">
-                </div>
-                <div class="card etapa-card">
-                  <h6>Ativação</h6><label class="form-label">Status</label><select class="form-select" id="ativacao">
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
-                    id="planoAtivacao">
-                </div>
-                <div class="card etapa-card">
-                  <h6>Documentação</h6><label class="form-label">Status</label><select class="form-select"
-                    id="documentacao">
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
-                    id="planoDocumentacao">
-                </div>
-              </div>
-
-              <h6 class="section-title">Etapas</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label for="etapaGeralSelect" class="form-label">ETAPA GERAL</label>
-                  <select class="form-select" id="etapaGeralSelect" required>
-                    <option value="" selected disabled>Selecione uma etapa geral...</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label for="etapaDetalhadaId" class="form-label">ETAPA DETALHADA</label>
-                  <select class="form-select" id="etapaDetalhadaId" required disabled>
-                    <option value="" selected disabled>Primeiro, selecione a etapa geral</option>
-                  </select>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label">STATUS</label>
-                  <select class="form-select" id="status">
-                    <option>Aguardando documentação</option>
-                    <option>Paralisado</option>
-                    <option>Em andamento</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label">DETALHE DIÁRIO</label>
-                <textarea class="form-control" id="detalheDiario" rows="2" required></textarea>
-              </div>
-
-              <label class="form-label">SITUAÇÃO</label>
-              <select class="form-select" id="situacao">
-                <option>Aguardando documentação</option>
-                <option>Paralisado</option>
-                <option selected>Em andamento</option>
-                <option>Finalizado</option>
-              </select>
-
-
-
-              <h6 class="section-title">Financeiro</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-8">
-                  <label for="prestadorId" class="form-label">PRESTADOR</label>
-                  <select class="form-select" id="prestadorId" required>
-                    <option value="" selected disabled>Selecione um prestador...</option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">VALOR DA ATIVIDADE</label>
-                  <div class="input-group">
-                    <span class="input-group-text">R$</span>
-                    <input type="text" class="form-control" id="valor" inputmode="numeric" />
-                  </div>
-                </div>
-              </div>
+              <div id="formulariosContainer" class="accordion"></div>
 
           </form>
         </div>
@@ -764,348 +851,26 @@
     </div>
   </div>
 
-  <!-- Modal Edição em Lote -->
-  <div class="modal fade" id="modalEditarLote" tabindex="-1" aria-labelledby="modalEditarLoteLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-      <div class="modal-content">
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+      <i class="bi bi-x-circle"></i> Cancelar
+    </button>
+    <button type="submit" form="formEditarLote" class="btn btn-success">
+      <i class="bi bi-check-circle"></i> Aplicar Edições
+    </button>
+  </div>
 
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalEditarLoteLabel">
-            <i class="bi bi-pencil-square"></i> Editar Atividades em Lote
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-
-        <div class="modal-body">
-          <form id="formEditarLote">
-
-            <div class="row g-3 mb-3">
-
-              <!-- Dados Gerais -->
-              <h6 class="section-title">Dados Gerais</h6>
-              <div class="row g-3 mb-3">
-
-                <div class="col-md-3">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    OS
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#osEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="osEditar" disabled>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    SITE
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#siteEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="siteEditar" disabled>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    SEGMENTO
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#segmentoEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="segmentoEditar" disabled>
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    PROJETO
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#projetoEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="projetoEditar" disabled>
-                </div>
-              </div>
-
-              <!-- Responsáveis -->
-              <h6 class="section-title">Responsáveis</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    GESTOR TIM
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#gestorTimEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="gestorTimEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    REGIONAL
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#regionalEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="regionalEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    EQUIPE
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#equipeEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="equipeEditar" disabled>
-                </div>
-              </div>
-
-              <!-- Execução -->
-              <h6 class="section-title">Execução</h6>
-              <div class="etapas-scroll">
-
-                <!-- Vistoria -->
-                <div class="card etapa-card">
-                  <h6>Vistoria</h6>
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    Status
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#vistoriaEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="vistoriaEditar" disabled>
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-
-                  <label class="form-label mt-2 d-flex justify-content-between align-items-center">
-                    Plano (Data)
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#planoVistoriaEditar">
-                    </div>
-                  </label>
-                  <input type="date" class="form-control" id="planoVistoriaEditar" disabled>
-                </div>
-
-                <!-- Desmobilização -->
-                <div class="card etapa-card">
-                  <h6>Desmobilização</h6>
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    Status
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#desmobilizacaoEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="desmobilizacaoEditar" disabled>
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-
-                  <label class="form-label mt-2 d-flex justify-content-between align-items-center">
-                    Plano (Data)
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar"
-                        data-target="#planoDesmobilizacaoEditar">
-                    </div>
-                  </label>
-                  <input type="date" class="form-control" id="planoDesmobilizacaoEditar" disabled>
-                </div>
-
-                <!-- Instalação -->
-                <div class="card etapa-card">
-                  <h6>Instalação</h6>
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    Status
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#instalacaoEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="instalacaoEditar" disabled>
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-
-                  <label class="form-label mt-2 d-flex justify-content-between align-items-center">
-                    Plano (Data)
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar"
-                        data-target="#planoInstalacaoEditar">
-                    </div>
-                  </label>
-                  <input type="date" class="form-control" id="planoInstalacaoEditar" disabled>
-                </div>
-
-                <!-- Ativação -->
-                <div class="card etapa-card">
-                  <h6>Ativação</h6>
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    Status
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#ativacaoEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="ativacaoEditar" disabled>
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-
-                  <label class="form-label mt-2 d-flex justify-content-between align-items-center">
-                    Plano (Data)
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#planoAtivacaoEditar">
-                    </div>
-                  </label>
-                  <input type="date" class="form-control" id="planoAtivacaoEditar" disabled>
-                </div>
-
-                <!-- Documentação -->
-                <div class="card etapa-card">
-                  <h6>Documentação</h6>
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    Status
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#documentacaoEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="documentacaoEditar" disabled>
-                    <option>OK</option>
-                    <option>NOK</option>
-                    <option selected>N/A</option>
-                  </select>
-
-                  <label class="form-label mt-2 d-flex justify-content-between align-items-center">
-                    Plano (Data)
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar"
-                        data-target="#planoDocumentacaoEditar">
-                    </div>
-                  </label>
-                  <input type="date" class="form-control" id="planoDocumentacaoEditar" disabled>
-                </div>
-
-                <div class="scroll-indicator">
-                  <i class="bi bi-arrow-right-circle-fill"></i>
-                </div>
-              </div>
-
-              <!-- Etapas -->
-              <h6 class="section-title">Etapas</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    ETAPA GERAL
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#etapaGeralEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="etapaGeralEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    ETAPA DETALHADA
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#etapaDetalhadaEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="etapaDetalhadaEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    STATUS
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#statusEditar">
-                    </div>
-                  </label>
-                  <select class="form-select" id="statusEditar" disabled>
-                    <option>Aguardando documentação</option>
-                    <option>Paralisado</option>
-                    <option>Em andamento</option>
-                    <option>Finalizado</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Observações -->
-              <h6 class="section-title">Observações</h6>
-              <div class="mb-3">
-                <label class="form-label d-flex justify-content-between align-items-center">
-                  DETALHE DIÁRIO
-                  <div class="form-check form-switch m-0">
-                    <input type="checkbox" class="form-check-input toggle-editar" data-target="#detalheDiarioEditar">
-                  </div>
-                </label>
-                <textarea class="form-control" id="detalheDiarioEditar" rows="2" disabled></textarea>
-              </div>
-
-
-              <!-- Financeiro -->
-              <h6 class="section-title">Financeiro</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    CÓDIGO DO PRESTADOR
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar"
-                        data-target="#codigoPrestadorEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="codigoPrestadorEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    PRESTADOR
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#prestadorEditar">
-                    </div>
-                  </label>
-                  <input type="text" class="form-control" id="prestadorEditar" disabled>
-                </div>
-
-                <div class="col-md-4">
-                  <label class="form-label d-flex justify-content-between align-items-center">
-                    VALOR DA ATIVIDADE
-                    <div class="form-check form-switch m-0">
-                      <input type="checkbox" class="form-check-input toggle-editar" data-target="#valorAtividadeEditar">
-                    </div>
-                  </label>
-                  <div class="input-group">
-                    <span class="input-group-text">R$</span>
-                    <input type="text" class="form-control" id="valorAtividadeEditar" inputmode="numeric" disabled />
-                  </div>
-                </div>
-              </div>
-
-          </form>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="bi bi-x-circle"></i> Cancelar
-          </button>
-          <button type="submit" form="formEditarLote" class="btn btn-success">
-            <i class="bi bi-check-circle"></i> Aplicar Edições
-          </button>
-        </div>
-
-      </div>
-    </div>
+  </div>
+  </div>
   </div>
 
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="assets/js/general/global.js"></script>
-  <script src="assets/js/general/selection.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
   <script src="assets/js/index/calendary.js" type="module"></script>
-  <script src="assets/js/index/editionfields.js"></script>
-  <script src="assets/js/index/search-table.js"></script>
   <script src="assets/js/general/sidebar.js"></script>
-  <script src="assets/js/index/valueformat.js"></script>
   <script src="assets/js/index/auth-filter.js"></script>
   <script src="assets/js/index/index.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>

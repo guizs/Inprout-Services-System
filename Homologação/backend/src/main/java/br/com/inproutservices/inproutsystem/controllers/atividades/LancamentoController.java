@@ -3,7 +3,9 @@ package br.com.inproutservices.inproutsystem.controllers.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -181,5 +183,24 @@ public class LancamentoController {
         }
         Lancamento lancamentoAtualizado = lancamentoService.alterarValorPago(id, novoValor);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
+    }
+
+    @PostMapping("/lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> criarLancamentosEmLote(@RequestBody @Valid List<LancamentoRequestDTO> lancamentosDTO) {
+        // Estamos assumindo que o managerId é o mesmo para todo o lote, então pegamos do primeiro item.
+        // O ideal no futuro seria pegar o ID do usuário logado a partir do token de autenticação.
+        if (lancamentosDTO == null || lancamentosDTO.isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Delega a lógica de criação para o service
+        List<Lancamento> lancamentosSalvos = lancamentoService.criarLancamentosEmLote(lancamentosDTO);
+
+        // Converte a lista de entidades salvas para uma lista de DTOs de resposta
+        List<LancamentoResponseDTO> responseDTOs = lancamentosSalvos.stream()
+                .map(LancamentoResponseDTO::new)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDTOs);
     }
 }

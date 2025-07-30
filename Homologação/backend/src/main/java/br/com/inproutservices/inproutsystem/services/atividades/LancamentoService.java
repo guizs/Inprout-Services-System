@@ -51,4 +51,6 @@ public interface LancamentoService {
     CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim);
 
     Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor);
+
+    List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos);
 }

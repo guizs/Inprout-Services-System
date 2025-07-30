@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -706,4 +707,75 @@ public class LancamentoServiceImpl implements LancamentoService {
         osRepository.save(os);
         return lancamentoRepository.save(lancamento);
     }
+
+    @Transactional
+    public List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos) {
+        if (dtos == null || dtos.isEmpty()) {
+            // Lança uma exceção ou retorna uma lista vazia se não houver dados.
+            throw new BusinessException("A lista de lançamentos para criação não pode ser vazia.");
+        }
+
+        // Pega o ID do manager do primeiro item da lista.
+        Long managerId = dtos.get(0).managerId();
+        Usuario manager = usuarioRepository.findById(managerId)
+                .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
+
+        List<Lancamento> novosLancamentos = new ArrayList<>();
+
+        // Itera sobre cada DTO recebido do frontend
+        for (LancamentoRequestDTO dto : dtos) {
+            // Busca as entidades relacionadas (OS, LPU, Prestador, etc.)
+            OS os = osRepository.findById(dto.osId())
+                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+            Lpu lpu = lpuRepository.findById(dto.lpuId())
+                    .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
+            Prestador prestador = prestadorRepository.findById(dto.prestadorId())
+                    .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
+            EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
+
+            // Cria uma nova entidade Lancamento
+            Lancamento lancamento = new Lancamento();
+
+            // ======================= INÍCIO DA CORREÇÃO =======================
+            // Mapeia TODOS os dados do DTO para a entidade
+            lancamento.setManager(manager);
+            lancamento.setOs(os);
+            lancamento.setLpu(lpu);
+            lancamento.setDataAtividade(dto.dataAtividade());
+            lancamento.setPrestador(prestador);
+            lancamento.setEtapaDetalhada(etapaDetalhada);
+
+            // Campos da seção Execução
+            lancamento.setEquipe(dto.equipe()); // <-- CAMPO ADICIONADO
+            lancamento.setVistoria(dto.vistoria());
+            lancamento.setPlanoVistoria(dto.planoVistoria());
+            lancamento.setDesmobilizacao(dto.desmobilizacao());
+            lancamento.setPlanoDesmobilizacao(dto.planoDesmobilizacao());
+            lancamento.setInstalacao(dto.instalacao());
+            lancamento.setPlanoInstalacao(dto.planoInstalacao());
+            lancamento.setAtivacao(dto.ativacao());
+            lancamento.setPlanoAtivacao(dto.planoAtivacao());
+            lancamento.setDocumentacao(dto.documentacao());
+            lancamento.setPlanoDocumentacao(dto.planoDocumentacao());
+
+            // Campos da seção Etapas
+            lancamento.setStatus(dto.status());
+            lancamento.setSituacao(dto.situacao());
+            lancamento.setDetalheDiario(dto.detalheDiario());
+
+            // Campos da seção Financeiro
+            lancamento.setValor(dto.valor());
+
+            // Define um status padrão na criação
+            lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
+            // ======================== FIM DA CORREÇÃO =========================
+
+            novosLancamentos.add(lancamento);
+        }
+
+        // Salva TODOS os lançamentos na base de dados em uma única operação.
+        return lancamentoRepository.saveAll(novosLancamentos);
+    }
+
 }

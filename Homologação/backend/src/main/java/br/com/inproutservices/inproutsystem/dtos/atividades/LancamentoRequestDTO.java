@@ -3,54 +3,30 @@ package br.com.inproutservices.inproutsystem.dtos.atividades;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
-import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/**
- * DTO para receber os dados de criação de um novo Lançamento.
- */
 public record LancamentoRequestDTO(
         Long osId,
         Long prestadorId,
         Long etapaDetalhadaId,
         Long lpuId,
-
-        // CORREÇÃO: O backend agora espera o formato dd/MM/yyyy
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate dataAtividade,
-
+        LocalDate dataAtividade, // SEM @JsonFormat
         String equipe,
         String vistoria,
-
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate planoVistoria,
-
+        LocalDate planoVistoria, // SEM @JsonFormat
         String desmobilizacao,
-
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate planoDesmobilizacao,
-
+        LocalDate planoDesmobilizacao, // SEM @JsonFormat
         String instalacao,
-
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate planoInstalacao,
-
+        LocalDate planoInstalacao, // SEM @JsonFormat
         String ativacao,
         SituacaoAprovacao situacaoAprovacao,
-
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate planoAtivacao,
-
+        LocalDate planoAtivacao, // SEM @JsonFormat
         String documentacao,
-
-        @JsonFormat(pattern = "dd/MM/yyyy")
-        LocalDate planoDocumentacao,
-
+        LocalDate planoDocumentacao, // SEM @JsonFormat
         StatusEtapa status,
         SituacaoOperacional situacao,
         String detalheDiario,
         BigDecimal valor,
         Long managerId
-) {
-}
+) {}

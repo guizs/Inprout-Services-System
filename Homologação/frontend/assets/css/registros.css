@@ -32,3 +32,11 @@
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
 }
+
+.os-row {
+    cursor: pointer;
+    background-color: #f8f9fa; /* Um cinza bem claro para diferenciar a linha pai */
+}
+.os-row:hover {
+    background-color: #e9ecef; /* Um tom mais escuro ao passar o mouse */
+}

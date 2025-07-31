@@ -3,12 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
-    const lpuChecklistContainer = document.getElementById('lpuChecklistContainer');
-    const btnAvancarParaPreenchimento = document.getElementById('btnAvancarParaPreenchimento');
-    const divisorFormularios = document.getElementById('divisorFormularios');
-    const formulariosContainer = document.getElementById('formulariosContainer');
-    const btnSalvar = document.getElementById('btnSalvar');
-    const modalAdicionarEl = document.getElementById('modalAdicionar');
 
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
@@ -128,9 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const notificacaoPendencias = document.getElementById('notificacao-pendencias');
     let filtrosAtivos = { periodo: null, status: null, osId: null };
     let todosLancamentos = []; // Armazena todos os lançamentos para fácil acesso
-    let todosOsPrestadores = [];
-    let todasAsEtapas = [];
-    let todasAsOS = [];
 
     const colunasPrincipais = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "EQUIPE", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"];
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
@@ -251,7 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Regra: Todos os cargos podem ver os comentários
-                    buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
+                    if (tbodyElement.id !== 'tbody-lancamentos') {
+                        buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
+                    }
 
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
                 } else {
@@ -267,6 +260,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function getDadosFiltrados() {
+        let dadosFiltrados = [...todosLancamentos];
+
+        // 1. Filtro por PERÍODO
+        if (filtrosAtivos.periodo) {
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+
+            dadosFiltrados = dadosFiltrados.filter(l => {
+                const dataAtividade = new Date(l.dataAtividade.split('/').reverse().join('-')); // Converte DD/MM/YYYY para YYYY-MM-DD
+
+                if (filtrosAtivos.periodo.start && filtrosAtivos.periodo.end) {
+                    return dataAtividade >= filtrosAtivos.periodo.start && dataAtividade <= filtrosAtivos.periodo.end;
+                }
+
+                switch (filtrosAtivos.periodo) {
+                    case 'hoje':
+                        return dataAtividade.getTime() === hoje.getTime();
+                    case 'ontem':
+                        const ontem = new Date(hoje);
+                        ontem.setDate(hoje.getDate() - 1);
+                        return dataAtividade.getTime() === ontem.getTime();
+                    case 'semana':
+                        const umaSemanaAtras = new Date(hoje);
+                        umaSemanaAtras.setDate(hoje.getDate() - 6);
+                        return dataAtividade >= umaSemanaAtras;
+                    case 'mes':
+                        const umMesAtras = new Date(hoje);
+                        umMesAtras.setMonth(hoje.getMonth() - 1);
+                        return dataAtividade >= umMesAtras;
+                    default:
+                        return true
+                }
+            });
+        }
+
+        // 2. Filtro por STATUS DE APROVAÇÃO
+        if (filtrosAtivos.status) {
+            dadosFiltrados = dadosFiltrados.filter(l => l.situacaoAprovacao === filtrosAtivos.status);
+        }
+
+        // 3. Filtro por OS
+        if (filtrosAtivos.osId) {
+            dadosFiltrados = dadosFiltrados.filter(l => l.os.id == filtrosAtivos.osId);
+        }
+
+        return dadosFiltrados;
+    }
+
     async function carregarLancamentos() {
         toggleLoader(true); // <-- MOSTRA O LOADER
         try {
@@ -278,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // ---> ETAPA 2: ATUALIZAR A VARIÁVEL GLOBAL COM OS DADOS RECEBIDOS <---
             // Usando a função de filtro que já tínhamos para garantir que cada usuário veja o que deve
-            todosLancamentos = lancamentosDaApi;
+            todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
 
             // AGORA sim, as funções de renderização têm os dados corretos para trabalhar
             renderizarCardsDashboard(todosLancamentos);
@@ -379,6 +421,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // SEÇÃO 3: LÓGICA DO MODAL
     // ==========================================================
+    const modalAdicionarEl = document.getElementById('modalAdicionar');
+    const modalAdicionar = modalAdicionarEl ? new bootstrap.Modal(modalAdicionarEl) : null;
 
     if (modalAdicionarEl) {
         const formAdicionar = document.getElementById('formAdicionar');
@@ -388,49 +432,58 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectOS = document.getElementById('osId');
         const selectPrestador = document.getElementById('prestadorId');
+        const selectEtapaGeral = document.getElementById('etapaGeralSelect');
+        const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
+        const selectStatus = document.getElementById('status');
+        let todasAsOS = [];
+        let todasAsEtapas = [];
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
+            // Pega os elementos do DOM para o container e o select da LPU
+            const lpuContainer = document.getElementById('lpuContainer');
+            const selectLPU = document.getElementById('lpuId');
 
-            // ESTA LINHA É A MAIS IMPORTANTE!
-            // Ela pega o ID da OS selecionada e chama a função para preencher os campos.
-            preencherCamposOS(osId);
-
-            // O resto da sua função que carrega os checkboxes da LPU continua igual...
-            formulariosContainer.innerHTML = '';
-            if (divisorFormularios) divisorFormularios.style.display = 'none';
-            btnAvancarParaPreenchimento.disabled = true;
-            btnAvancarParaPreenchimento.style.display = 'inline-block';
-            if (lpuChecklistContainer.parentElement) lpuChecklistContainer.parentElement.style.display = 'block';
-
+            // Se o usuário desmarcar a OS, esconde o campo de LPU
             if (!osId) {
-                lpuChecklistContainer.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
+                lpuContainer.classList.add('d-none');
                 return;
             }
 
-            lpuChecklistContainer.innerHTML = '<p class="text-muted">Carregando LPUs...</p>';
-
             try {
+                // Mostra um "carregando" (opcional, mas bom para UX)
+                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+                selectLPU.disabled = true;
+                lpuContainer.classList.remove('d-none'); // Mostra o container
+
+                // Busca as LPUs para a OS selecionada
                 const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
+                if (!response.ok) {
+                    throw new Error('Falha ao buscar LPUs para esta OS.');
+                }
+
                 const lpus = await response.json();
 
-                if (lpus.length === 0) {
-                    lpuChecklistContainer.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
+                // Limpa o select e prepara para novas opções
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+
+                if (lpus && lpus.length > 0) {
+                    // Popula o select com as LPUs encontradas
+                    lpus.forEach(lpu => {
+                        // Usamos o formato "CÓDIGO - NOME" para o texto da opção
+                        const option = new Option(`${lpu.codigo} - ${lpu.nome}`, lpu.id);
+                        selectLPU.add(option);
+                    });
+                    selectLPU.disabled = false;
                 } else {
-                    lpuChecklistContainer.innerHTML = lpus.map(lpu => `
-                <div class="form-check">
-                    <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-${lpu.id}" data-nome="${lpu.codigoLpu} - ${lpu.nomeLpu}">
-                    <label class="form-check-label" for="lpu-${lpu.id}">
-                        ${lpu.codigoLpu} - ${lpu.nomeLpu}
-                    </label>
-                </div>
-            `).join('');
+                    // Caso não encontre nenhuma LPU
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
+                    selectLPU.disabled = true;
                 }
+
             } catch (error) {
-                console.error("Erro ao carregar LPUs:", error);
-                lpuChecklistContainer.innerHTML = '<p class="text-danger">Erro ao carregar LPUs.</p>';
                 mostrarToast(error.message, 'error');
+                lpuContainer.classList.add('d-none'); // Esconde se der erro
             }
         });
 
@@ -454,36 +507,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        function preencherCamposOS(osId, sufixo = '') {
-            // Busca a OS selecionada na lista que já temos em memória
+        function preencherCamposOS(osId) {
             const osSelecionada = todasAsOS.find(os => os.id == osId);
-
             if (osSelecionada) {
-                // Usa o sufixo para encontrar os IDs corretos dinamicamente
-                // Ex: para o modal de edição, procura por 'siteEditar', 'segmentoEditar', etc.
-                document.getElementById(`site${sufixo}`).value = osSelecionada.site || '';
-                document.getElementById(`segmento${sufixo}`).value = osSelecionada.segmento ? osSelecionada.segmento.nome : '';
-                document.getElementById(`projeto${sufixo}`).value = osSelecionada.projeto || '';
-                document.getElementById(`contrato${sufixo}`).value = osSelecionada.contrato || '';
-                document.getElementById(`gestorTim${sufixo}`).value = osSelecionada.gestorTim || '';
-                document.getElementById(`regional${sufixo}`).value = osSelecionada.regional || '';
+                document.getElementById('site').value = osSelecionada.site || '';
+                document.getElementById('segmento').value = osSelecionada.segmento ? osSelecionada.segmento.nome : '';
+                document.getElementById('projeto').value = osSelecionada.projeto || '';
+                document.getElementById('contrato').value = osSelecionada.contrato || '';
+                document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
+                document.getElementById('regional').value = osSelecionada.regional || '';
             }
         }
 
-
-        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId, statusId, sufixo = '') {
-            // --- INÍCIO DA CORREÇÃO ---
-            // Seleciona os elementos <select> corretos usando o sufixo ('Editar' ou nada)
-            const selectEtapaDetalhada = document.getElementById(`etapaDetalhadaId${sufixo}`);
-            const selectStatus = document.getElementById(`status${sufixo}`);
-
-            // Uma verificação de segurança para garantir que os elementos foram encontrados no HTML
-            if (!selectEtapaDetalhada || !selectStatus) {
-                console.error(`Não foi possível encontrar os selects de etapa com o sufixo: '${sufixo}'`);
-                return;
-            }
-            // --- FIM DA CORREÇÃO ---
-
+        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId) {
+            // Lógica para popular a Etapa Detalhada (continua igual)
             const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectEtapaDetalhada.disabled = true;
@@ -493,81 +530,80 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
                 });
                 selectEtapaDetalhada.disabled = false;
+                // Se um ID já veio pré-selecionado (modo edição), seleciona ele
                 if (etapaDetalhadaId) {
                     selectEtapaDetalhada.value = etapaDetalhadaId;
                 }
             }
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Lógica para popular o Status, agora de forma mais segura
 
             selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectStatus.disabled = true;
 
             if (etapaDetalhadaId) {
                 let statusDaEtapa = [];
+                // Procura em todas as etapas gerais pela etapa detalhada com o ID correto
                 for (const etapaGeral of todasAsEtapas) {
                     const etapaEncontrada = etapaGeral.etapasDetalhadas.find(detalhe => detalhe.id == etapaDetalhadaId);
                     if (etapaEncontrada) {
                         statusDaEtapa = etapaEncontrada.status || [];
-                        break;
+                        break; // Para a busca quando encontrar
                     }
                 }
 
+                // Se encontrou uma lista de status, popula o select
                 if (statusDaEtapa.length > 0) {
                     statusDaEtapa.forEach(status => {
                         selectStatus.add(new Option(status, status));
                     });
                     selectStatus.disabled = false;
-                    // Se um status veio pré-selecionado (modo edição), seleciona ele
-                    if (statusId) {
-                        selectStatus.value = statusId;
-                    }
                 }
             }
+            // --- FIM DA CORREÇÃO ---
         }
 
-        async function carregarDadosParaModal(id, acao) {
-            // Mostra a UI de edição e esconde a de criação
-            document.getElementById('osId').parentElement.style.display = 'none';
-            if (lpuChecklistContainer) lpuChecklistContainer.parentElement.style.display = 'none';
-            if (btnAvancarParaPreenchimento) btnAvancarParaPreenchimento.style.display = 'none';
+        async function carregarDadosParaModal() {
+            // Busca na API só acontece uma vez para otimizar
+            if (todasAsOS.length === 0) {
+                try {
+                    // --- INÍCIO DA ALTERAÇÃO ---
+                    const usuarioId = localStorage.getItem('usuarioId'); // Pega o ID do usuário logado
+                    if (!usuarioId) {
+                        throw new Error('ID do usuário não encontrado no localStorage.');
+                    }
 
-            // Exibe o container do acordeão para preencher com os dados
-            if (formulariosContainer) formulariosContainer.style.display = 'block';
+                    // Chama o novo endpoint filtrado
+                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    // --- FIM DA ALTERAÇÃO ---
 
-            const formAdicionar = document.getElementById('formAdicionar');
-            const modalTitle = document.getElementById('modalAdicionarLabel');
+                    if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
+                    const osData = await response.json();
 
-            try {
-                const response = await fetch(`http://localhost:8080/lancamentos/${id}`);
-                if (!response.ok) throw new Error('Falha ao buscar dados do lançamento.');
-                const data = await response.json();
+                    // O resto da função continua igual...
+                    const osUnicas = [...new Map(osData.map(os => [os.id, os])).values()];
+                    todasAsOS = osUnicas.sort((a, b) => a.os.localeCompare(b.os));
 
-                // Lógica para definir título e botões
-                if (acao === 'editar-rascunho') {
-                    modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${data.id}`;
-                    document.getElementById('btnSalvarRascunho').style.display = 'inline-block';
-                    document.getElementById('btnSalvarEEnviar').style.display = 'inline-block';
-                    document.getElementById('btnSubmitAdicionar').style.display = 'none';
-                    formAdicionar.dataset.editingId = data.id;
-                } else if (acao === 'retomar') {
-                    modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (criando novo)`;
-                    // Não define editingId, pois será uma nova entrada
+                    selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+
+                    todasAsOS.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.os;
+                        selectOS.appendChild(option);
+                    });
+
+                } catch (error) {
+                    console.error('Erro ao popular o select de OS:', error);
+                    selectOS.innerHTML = `<option value="" selected disabled>Erro ao carregar OS</option>`;
                 }
-
-                // Preenche os dados gerais que são únicos
-                document.getElementById('dataAtividade').value = data.dataAtividade.split('/').reverse().join('-');
-                preencherCamposOS(data.os.id); // Esta função já preenche site, segmento, etc.
-
-                // Gera o HTML do acordeão para o ÚNICO item que está sendo editado/retomado
-                // (Esta é uma simplificação, você pode customizar mais se precisar)
-                const lpuNome = `${data.lpu.codigo} - ${data.lpu.nome}`;
-                formulariosContainer.innerHTML = criarHtmlDoAcordeaoParaItemUnico(data, lpuNome);
-
-                // Popula os selects dentro do acordeão gerado
-                await popularSelectsDoAcordeao(data);
-
-            } catch (error) {
-                console.error("Erro ao carregar dados para o modal:", error);
-                mostrarToast(error.message, 'error');
+            }
+            if (selectPrestador.options.length <= 1) {
+                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+            }
+            if (todasAsEtapas.length === 0) {
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -669,161 +705,134 @@ document.addEventListener('DOMContentLoaded', () => {
             modalInstance.show();
         }
 
-        modalAdicionarEl.addEventListener('show.bs.modal', async function (event) {
-            const button = event.relatedTarget; // Botão que abriu o modal
-            const formAdicionar = document.getElementById('formAdicionar');
-            const modalTitle = document.getElementById('modalAdicionarLabel');
+        modalAdicionarEl.addEventListener('show.bs.modal', async () => {
+            // Se o modal não foi acionado por um botão de edição (ou seja, se é um NOVO lançamento)
+            await carregarDadosParaModal();
 
-            // Reseta o formulário e o estado do modal para o padrão de "Novo Lançamento"
+            if (!formAdicionar.dataset.editingId) {
+                modalTitle.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Nova Atividade';
+
+                // --- INÍCIO DA CORREÇÃO ---
+                document.getElementById('btnSubmitAdicionar').style.display = 'inline-block';
+                document.getElementById('btnSalvarRascunho').style.display = 'none';
+                document.getElementById('btnSalvarEEnviar').style.display = 'none';
+                // --- FIM DA CORREÇÃO ---
+
+                submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Salvar Lançamento';
+                document.getElementById('osId').disabled = false;
+                document.getElementById('dataAtividade').disabled = false;
+            }
+        });
+
+        modalAdicionarEl.addEventListener('hidden.bs.modal', () => {
             formAdicionar.reset();
             delete formAdicionar.dataset.editingId;
-            modalTitle.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Nova Atividade';
 
-            // Mostra a UI de seleção de LPUs e esconde a UI de edição
-            document.getElementById('osId').parentElement.style.display = 'block';
-            if (lpuChecklistContainer) lpuChecklistContainer.parentElement.style.display = 'block';
-            if (btnAvancarParaPreenchimento) btnAvancarParaPreenchimento.style.display = 'inline-block';
-            if (formulariosContainer) formulariosContainer.innerHTML = '';
-            if (formulariosContainer) formulariosContainer.style.display = 'none'; // Começa escondido
+            const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
+            const selectStatus = document.getElementById('status');
 
-            // Mostra/esconde os botões de ação corretos
-            document.getElementById('btnSubmitAdicionar').style.display = 'inline-block';
-            document.getElementById('btnSalvarRascunho').style.display = 'none';
-            document.getElementById('btnSalvarEEnviar').style.display = 'none';
-
-            // AGORA, VERIFICAMOS SE O MODAL FOI ABERTO POR UM BOTÃO DE EDIÇÃO/RETOMAR
-            if (button && button.dataset.id) {
-                const lancamentoId = button.dataset.id;
-                const acao = button.dataset.action; // 'editar', 'retomar', etc.
-
-                // SÓ CHAMA carregarDadosParaModal SE TIVER UM ID
-                await carregarDadosParaModal(lancamentoId, acao);
-            } else {
-                // Se for um NOVO lançamento, apenas carrega os dropdowns padrões
-                await carregarDadosIniciaisParaNovoLancamento();
-            }
+            selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa geral</option>';
+            selectEtapaDetalhada.disabled = true;
+            selectStatus.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>';
+            selectStatus.disabled = true;
+            document.getElementById('osId').disabled = false;
+            document.getElementById('lpuContainer').classList.add('d-none');
+            document.getElementById('lpuId').innerHTML = '';
         });
-
-        document.addEventListener('click', async function (event) {
-            const button = event.target.closest('[data-bs-toggle="modal"]');
-            if (!button) return;
-
-            const lancamentoId = button.dataset.id;
-            const targetModalId = button.getAttribute('data-bs-target');
-
-            if (lancamentoId && targetModalId === '#modalAdicionar') {
-                event.preventDefault(); // Impede a abertura do modal de "Adicionar"
-
-                const acao = button.dataset.action || 'editar-rascunho';
-                const modalEditar = new bootstrap.Modal(document.getElementById('modalEditar'));
-
-                await carregarDadosParaModalEditar(lancamentoId, acao);
-                modalEditar.show();
-            }
-        });
-
-        // Este listener serve apenas para LIMPAR o modal de ADICIONAR sempre que ele for aberto.
-        const modalAdicionar = modalAdicionarEl ? new bootstrap.Modal(modalAdicionarEl) : null;
-        if (modalAdicionarEl) {
-            modalAdicionarEl.addEventListener('show.bs.modal', function () {
-                // Reseta o formulário de adicionar para um estado limpo
-                const formAdicionar = document.getElementById('formAdicionar');
-                formAdicionar.reset();
-                delete formAdicionar.dataset.editingId;
-
-                // Limpa a interface de criação em lote
-                const lpuContainer = document.getElementById('lpuChecklistContainer');
-                const formulariosContainer = document.getElementById('formulariosContainer');
-                const btnAvancar = document.getElementById('btnAvancarParaPreenchimento');
-
-                if (lpuContainer) lpuContainer.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
-                if (formulariosContainer) formulariosContainer.innerHTML = '';
-                if (btnAvancar) btnAvancar.disabled = true;
-
-                // Garante que os campos de seleção fiquem visíveis no modal de Adicionar
-                const osIdSelect = document.getElementById('osId');
-                if (osIdSelect && osIdSelect.parentElement) {
-                    osIdSelect.parentElement.style.display = 'block';
-                }
-                if (lpuContainer && lpuContainer.parentElement) lpuContainer.parentElement.style.display = 'block';
-                if (btnAvancar) btnAvancar.style.display = 'inline-block';
-
-                // Carrega os dados iniciais (lista de OSs) para um novo lançamento
-                carregarDadosIniciaisParaNovoLancamento();
-            });
-        }
 
         document.body.addEventListener('click', async (e) => {
-            // Unificamos a lógica para qualquer botão que precise abrir o modal de edição/detalhes
-            const actionBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
+            const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
 
-            if (actionBtn) { // Se clicou em um botão de ação (Editar, Reenviar, Retomar)
-                const originalContent = actionBtn.innerHTML;
+            if (reenviarBtn) { // Botões que abrem o modal de edição/criação
+                const originalContent = reenviarBtn.innerHTML;
                 try {
-                    actionBtn.disabled = true;
-                    actionBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+                    reenviarBtn.disabled = true;
+                    reenviarBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
-                    const lancamentoId = actionBtn.dataset.id;
-                    if (!lancamentoId) {
-                        throw new Error('ID do lançamento não foi encontrado no botão.');
+                    const lancamentoId = reenviarBtn.dataset.id;
+                    const lancamento = todosLancamentos.find(l => l.id == lancamentoId);
+
+                    if (lancamento) {
+                        // --- INÍCIO DA CORREÇÃO ---
+                        // Verifica se o botão é de 'retomar'. Se for, não há ID de edição (será um novo lançamento).
+                        // Caso contrário, passamos o ID do lançamento que será editado.
+                        const isRetomar = reenviarBtn.classList.contains('btn-retomar');
+                        await abrirModalParaEdicao(lancamento, isRetomar ? null : lancamento.id);
+                        // --- FIM DA CORREÇÃO ---
+                    } else {
+                        throw new Error('Lançamento não encontrado.');
                     }
-
-                    // Identifica a ação baseada na classe do botão
-                    const acao = actionBtn.classList.contains('btn-reenviar') ? 'rejeitado' : 'editar-rascunho';
-
-                    // Pega a instância do modal de EDIÇÃO
-                    const modalEditarEl = document.getElementById('modalEditar');
-                    if (!modalEditarEl) {
-                        throw new Error('O modal de edição #modalEditar não foi encontrado no HTML.');
-                    }
-                    const modalInstance = new bootstrap.Modal(modalEditarEl);
-
-                    // CHAMA A FUNÇÃO CORRETA para carregar dados no modal de EDIÇÃO
-                    await carregarDadosParaModalEditar(lancamentoId, acao);
-
-                    // MOSTRA O MODAL DE EDIÇÃO
-                    modalInstance.show();
-
                 } catch (error) {
-                    console.error("Erro ao preparar modal de edição:", error);
+                    console.error("Erro ao preparar modal:", error);
                     mostrarToast(error.message, 'error');
                 } finally {
-                    actionBtn.disabled = false;
-                    actionBtn.innerHTML = originalContent;
+                    reenviarBtn.disabled = false;
+                    reenviarBtn.innerHTML = originalContent;
                 }
             } else if (comentariosBtn) {
-                // Lógica para comentários (permanece a mesma)
                 const lancamento = todosLancamentos.find(l => l.id == comentariosBtn.dataset.id);
-                if (lancamento) {
-                    exibirComentarios(lancamento);
-                } else {
-                    mostrarToast('Lançamento não encontrado.', 'error');
-                }
+                if (lancamento) exibirComentarios(lancamento);
+                else mostrarToast('Lançamento não encontrado.', 'error');
+
             } else if (submeterBtn) {
-                // Lógica para submissão (permanece a mesma)
                 const lancamentoId = submeterBtn.dataset.id;
+
+                // Pega o botão de confirmação do novo modal
                 const btnConfirmar = document.getElementById('btnConfirmarSubmissao');
+
+                // Guarda o ID do lançamento no botão de confirmação para usá-lo depois
                 btnConfirmar.dataset.lancamentoId = lancamentoId;
+
+                // Abre o modal de confirmação
                 const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
                 modalConfirmacao.show();
             }
         });
 
-        async function carregarDadosIniciaisParaNovoLancamento() {
-            // Passo 1: Garante que a lista de OSs esteja carregada na memória.
-            // A função 'carregarTodasAsOS' já tem a lógica de cache (só busca se for necessário).
-            await carregarTodasAsOS();
+        async function carregarEPopularLPU(osId) {
+            const lpuContainer = document.getElementById('lpuContainer');
+            const selectLPU = document.getElementById('lpuId');
 
-            // Passo 2: Agora que 'todasAsOS' está preenchida, apenas popula o select.
-            const selectOS = document.getElementById('osId');
-            selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+            if (!osId) {
+                lpuContainer.classList.add('d-none');
+                selectLPU.innerHTML = '';
+                return;
+            }
 
-            todasAsOS.forEach(item => {
-                const option = new Option(item.os, item.id);
-                selectOS.add(option);
-            });
+            try {
+                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+                selectLPU.disabled = true;
+                lpuContainer.classList.remove('d-none');
+
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                if (!response.ok) {
+                    throw new Error('Falha ao buscar LPUs para esta OS.');
+                }
+
+                const lpus = await response.json();
+
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+
+                if (lpus && lpus.length > 0) {
+                    lpus.forEach(lpu => {
+                        // --- INÍCIO DA CORREÇÃO ---
+                        // Ajustamos para usar as propriedades corretas: lpu.codigoLpu e lpu.nomeLpu
+                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
+                        // --- FIM DA CORREÇÃO ---
+                        selectLPU.add(option);
+                    });
+                    selectLPU.disabled = false;
+                } else {
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
+                    selectLPU.disabled = true;
+                }
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+                lpuContainer.classList.add('d-none');
+            }
         }
 
         function getProjetosParalisados() {
@@ -841,54 +850,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             // Filtra para retornar apenas os projetos cujo último lançamento está "Paralisado"
             return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
-        }
-
-        async function popularPrestadores(prestadorIdSelecionado, sufixo = '') {
-            const selectPrestador = document.getElementById(`prestadorId${sufixo}`);
-            if (!selectPrestador) {
-                console.error(`Select de prestador com sufixo '${sufixo}' não foi encontrado.`);
-                return;
-            }
-
-            // 1. Busca os dados da API apenas se a lista (cache) estiver vazia
-            if (todosOsPrestadores.length === 0) {
-                try {
-                    const response = await fetch('http://localhost:8080/index/prestadores/ativos');
-                    if (!response.ok) throw new Error('Falha ao buscar prestadores de serviço.');
-                    todosOsPrestadores = await response.json();
-                } catch (error) {
-                    console.error("Erro ao carregar prestadores:", error);
-                    selectPrestador.innerHTML = '<option value="">Erro ao carregar</option>';
-                    return; // Sai da função se a busca falhar
-                }
-            }
-
-            // 2. Popula o <select> com os dados da lista (cache)
-            selectPrestador.innerHTML = '<option value="" disabled>Selecione...</option>';
-            todosOsPrestadores.forEach(p => {
-                selectPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id));
-            });
-
-            // 3. Seleciona o prestador correto se um ID for fornecido
-            if (prestadorIdSelecionado) {
-                selectPrestador.value = prestadorIdSelecionado;
-            }
-        }
-
-        async function carregarTodasAsEtapas() {
-            // Só faz a busca na API se a variável ainda estiver vazia
-            if (todasAsEtapas.length === 0) {
-                try {
-                    const response = await fetch('http://localhost:8080/index/etapas');
-                    if (!response.ok) throw new Error('Falha ao buscar os dados das etapas.');
-                    todasAsEtapas = await response.json(); // Armazena na variável global
-                } catch (error) {
-                    console.error('Erro fatal ao carregar etapas:', error);
-                    mostrarToast(error.message, 'error');
-                    // Retorna um array vazio em caso de erro para não quebrar outras funções
-                    todasAsEtapas = [];
-                }
-            }
         }
 
         // Listener para o botão de confirmação final de submissão
@@ -930,535 +891,123 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        selectOS.addEventListener('change', async (e) => {
+            const osId = e.target.value;
+            preencherCamposOS(osId); // Função que você já tem, para preencher site, segmento, etc.
 
-        lpuChecklistContainer.addEventListener('change', (e) => {
+            const lpuContainer = document.getElementById('lpuContainer');
+            const selectLPU = document.getElementById('lpuId');
 
-            if (e.target.classList.contains('lpu-checkbox')) {
-
-                const algumCheckboxMarcado = lpuChecklistContainer.querySelector('.lpu-checkbox:checked');
-
-                btnAvancarParaPreenchimento.disabled = !algumCheckboxMarcado;
-
-            }
-
-        });
-
-        // VERSÃO CORRIGIDA (para colar no lugar)
-        btnAvancarParaPreenchimento.addEventListener('click', async () => {
-            // Mostra a área dos formulários
-            formulariosContainer.style.display = 'block';
-
-            const lpusSelecionadas = document.querySelectorAll('.lpu-checkbox:checked');
-            if (lpusSelecionadas.length === 0) return;
-
-            // Busca os dados de Etapas e Prestadores uma única vez
-            const [etapas, prestadores] = await Promise.all([
-                fetch('http://localhost:8080/index/etapas').then(res => res.json()),
-                fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json())
-            ]);
-
-            // Gera o HTML do acordeão (esta parte continua igual à anterior)
-            formulariosContainer.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
-                const lpuId = checkbox.value;
-                const lpuNome = checkbox.dataset.nome;
-                const isPrimeiroItem = index === 0;
-
-                return `
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading-${lpuId}">
-                    <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
-                        LPU: ${lpuNome}
-                    </button>
-                </h2>
-                <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
-                    <div class="accordion-body">
-                        <h6 class="section-title">Execução</h6>
-                        <div class="etapas-scroll mb-3">
-                            <div class="card etapa-card">
-                                <h6>Vistoria</h6>
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="vistoria-lpu-${lpuId}">
-                                    <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                </select>
-                                <label class="form-label mt-2">Plano (Data)</label>
-                                <input type="date" class="form-control" id="planoVistoria-lpu-${lpuId}">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Desmobilização</h6>
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="desmobilizacao-lpu-${lpuId}">
-                                    <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                </select>
-                                <label class="form-label mt-2">Plano (Data)</label>
-                                <input type="date" class="form-control" id="planoDesmobilizacao-lpu-${lpuId}">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Instalação</h6>
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="instalacao-lpu-${lpuId}">
-                                    <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                </select>
-                                <label class="form-label mt-2">Plano (Data)</label>
-                                <input type="date" class="form-control" id="planoInstalacao-lpu-${lpuId}">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Ativação</h6>
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="ativacao-lpu-${lpuId}">
-                                    <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                </select>
-                                <label class="form-label mt-2">Plano (Data)</label>
-                                <input type="date" class="form-control" id="planoAtivacao-lpu-${lpuId}">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Documentação</h6>
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="documentacao-lpu-${lpuId}">
-                                    <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                </select>
-                                <label class="form-label mt-2">Plano (Data)</label>
-                                <input type="date" class="form-control" id="planoDocumentacao-lpu-${lpuId}">
-                            </div>
-                        </div>
-                        <h6 class="section-title">Etapas</h6>
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label for="etapaGeral-lpu-${lpuId}" class="form-label">ETAPA GERAL</label>
-                                <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${lpuId}" data-lpu-id="${lpuId}" required></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="etapaDetalhadaId-lpu-${lpuId}" class="form-label">ETAPA DETALHADA</label>
-                                <select class="form-select etapa-detalhada-select" id="etapaDetalhadaId-lpu-${lpuId}" required disabled></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="status-lpu-${lpuId}" class="form-label">STATUS</label>
-                                <select class="form-select status-select" id="status-lpu-${lpuId}" required disabled></select>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="detalheDiario-lpu-${lpuId}" class="form-label">DETALHE DIÁRIO</label>
-                            <textarea class="form-control" id="detalheDiario-lpu-${lpuId}" rows="2" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="situacao-lpu-${lpuId}" class="form-label">SITUAÇÃO</label>
-                            <select class="form-select" id="situacao-lpu-${lpuId}">
-                                <option>Não iniciado</option>
-                                <option>Aguardando documentação</option>
-                                <option>Paralisado</option>
-                                <option selected>Em andamento</option>
-                                <option>Finalizado</option>
-                            </select>
-                        </div>
-                        <h6 class="section-title">Financeiro</h6>
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-8">
-                                <label for="prestadorId-lpu-${lpuId}" class="form-label">PRESTADOR</label>
-                                <select class="form-select" id="prestadorId-lpu-${lpuId}" required></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="valor-lpu-${lpuId}" class="form-label">VALOR DA ATIVIDADE</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">R$</span>
-                                    <input type="text" class="form-control" id="valor-lpu-${lpuId}" inputmode="numeric" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-            }).join('');
-
-            // Popula os selects (o resto da função continua igual)
-            lpusSelecionadas.forEach(checkbox => {
-                const lpuId = checkbox.value;
-                const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
-                prestadores.forEach(p => selectPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
-                const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);
-                etapas.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
-            });
-
-            formulariosContainer.addEventListener('change', (e) => {
-                if (e.target.classList.contains('etapa-geral-select')) {
-                    const lpuId = e.target.dataset.lpuId;
-                    const etapaGeralId = e.target.value;
-                    const selectDetalhada = document.getElementById(`etapaDetalhadaId-lpu-${lpuId}`);
-                    const selectStatus = document.getElementById(`status-lpu-${lpuId}`);
-                    const etapaSelecionada = etapas.find(etapa => etapa.id == etapaGeralId);
-                    selectDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-                    selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-                    selectDetalhada.disabled = true;
-                    selectStatus.disabled = true;
-                    if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
-                        etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
-                            selectDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
-                        });
-                        selectDetalhada.disabled = false;
-                    }
-                }
-                if (e.target.classList.contains('etapa-detalhada-select')) {
-                    const lpuId = e.target.closest('.accordion-body').querySelector('.etapa-geral-select').dataset.lpuId;
-                    const etapaGeralId = e.target.closest('.accordion-body').querySelector('.etapa-geral-select').value;
-                    const etapaDetalhadaId = e.target.value;
-                    const selectStatus = document.getElementById(`status-lpu-${lpuId}`);
-                    const etapaGeral = etapas.find(e => e.id == etapaGeralId);
-                    const etapaDetalhada = etapaGeral?.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaId);
-                    selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-                    selectStatus.disabled = true;
-                    if (etapaDetalhada && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
-                        selectStatus.disabled = false;
-                    }
-                }
-            });
-
-            flatpickr("#formulariosContainer input[type=date]", {
-                dateFormat: "d/m/Y",
-                locale: "pt"
-            });
-
-            btnSalvar.disabled = false;
-        });
-
-        async function carregarDadosParaModalEditar(id, acao) {
-            // Garante que todos os dados de suporte estejam carregados (usando cache)
-            await carregarTodasAsOS();
-            await carregarTodasAsEtapas();
-            await popularPrestadores(null, 'Editar');
-
-            const form = document.getElementById('formEditar');
-            const modalTitle = document.getElementById('modalEditarLabel');
-            form.reset();
-            form.dataset.editingId = id;
-
-            // ... (declaração de botões e função formatarDataParaInput) ...
-            const btnSubmit = document.getElementById('btnSubmitEditar');
-            const btnSalvarRascunho = document.getElementById('btnSalvarRascunhoEditar');
-            const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviarEditar');
-            const formatarDataParaInput = (dataString) => {
-                if (!dataString) return '';
-                const [dia, mes, ano] = dataString.split('/');
-                return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-            };
-
-            try {
-                const response = await fetch(`http://localhost:8080/lancamentos/${id}`);
-                if (!response.ok) throw new Error('Falha ao buscar dados do lançamento.');
-                const data = await response.json();
-
-                // 1. Preenche Dados Gerais e da OS
-                const selectOS = document.getElementById('osIdEditar');
-                if (!Array.from(selectOS.options).some(opt => opt.value == data.os.id)) {
-                    selectOS.add(new Option(data.os.os, data.os.id));
-                }
-                selectOS.value = data.os.id;
-                preencherCamposOS(data.os.id, 'Editar');
-                document.getElementById('dataAtividadeEditar').value = formatarDataParaInput(data.dataAtividade);
-
-                // 2. Preenche a LPU
-                const selectLPU = document.getElementById('lpuIdEditar');
-                selectLPU.innerHTML = '';
-                if (data.lpu) {
-                    selectLPU.add(new Option(`${data.lpu.codigo} - ${data.lpu.nome}`, data.lpu.id));
-                    selectLPU.value = data.lpu.id;
-                } else {
-                    selectLPU.innerHTML = '<option value="">LPU não informada</option>';
-                }
-                selectLPU.disabled = true;
-
-                // 3. Preenche a seção de Execução
-                document.getElementById('vistoriaEditar').value = data.vistoria || 'N/A';
-                document.getElementById('planoVistoriaEditar').value = formatarDataParaInput(data.planoVistoria);
-                document.getElementById('desmobilizacaoEditar').value = data.desmobilizacao || 'N/A';
-                document.getElementById('planoDesmobilizacaoEditar').value = formatarDataParaInput(data.planoDesmobilizacao);
-                document.getElementById('instalacaoEditar').value = data.instalacao || 'N/A';
-                document.getElementById('planoInstalacaoEditar').value = formatarDataParaInput(data.planoInstalacao);
-                document.getElementById('ativacaoEditar').value = data.ativacao || 'N/A';
-                document.getElementById('planoAtivacaoEditar').value = formatarDataParaInput(data.planoAtivacao);
-                document.getElementById('documentacaoEditar').value = data.documentacao || 'N/A';
-                document.getElementById('planoDocumentacaoEditar').value = formatarDataParaInput(data.planoDocumentacao);
-
-                // 4. Preenche a seção de Etapas (LÓGICA FINALMENTE CORRIGIDA)
-                // --- INÍCIO DA CORREÇÃO PRINCIPAL ---
-                let etapaGeralId = null;
-                let etapaDetalhadaId = null;
-
-                // Verifica se o objeto 'etapa' existe na resposta da sua API
-                if (data.etapa) {
-                    etapaDetalhadaId = data.etapa.id; // Temos o ID da etapa detalhada diretamente
-
-                    // Loop para encontrar a Etapa Geral 'mãe' da Etapa Detalhada
-                    for (const etapaGeral of todasAsEtapas) {
-                        const detalheEncontrado = etapaGeral.etapasDetalhadas.find(ed => ed.id === etapaDetalhadaId);
-                        if (detalheEncontrado) {
-                            etapaGeralId = etapaGeral.id; // Se achou o filho, pegamos o ID do pai
-                            break; // Para o loop pois já encontramos
-                        }
-                    }
-                }
-                // --- FIM DA CORREÇÃO PRINCIPAL ---
-
-                const selectEtapaGeral = document.getElementById('etapaGeralSelectEditar');
-                selectEtapaGeral.innerHTML = '<option value="" disabled>Selecione...</option>';
-                todasAsEtapas.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
-
-                if (etapaGeralId) {
-                    selectEtapaGeral.value = etapaGeralId; // Seleciona a Etapa Geral correta
-                }
-
-                // Agora, esta função receberá os IDs corretos para popular o restante
-                await popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId, data.status, 'Editar');
-
-                document.getElementById('situacaoEditar').value = data.situacao;
-                document.getElementById('detalheDiarioEditar').value = data.detalheDiario || '';
-
-                // 5. Preenche a seção Financeira
-                document.getElementById('prestadorIdEditar').value = data.prestador.id;
-                document.getElementById('valorEditar').value = (data.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-
-                // 6. Configura o Título e Botões
-                // ... (o resto da função continua igual) ...
-                modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Detalhes da Atividade #${id}`;
-                btnSubmit.style.display = 'none';
-                btnSalvarRascunho.style.display = 'none';
-                btnSalvarEEnviar.style.display = 'none';
-
-                if (data.situacaoAprovacao === 'RASCUNHO') {
-                    btnSalvarRascunho.style.display = 'inline-block';
-                    btnSalvarEEnviar.style.display = 'inline-block';
-                } else if (data.situacaoAprovacao === 'REJEITADO') {
-                    btnSubmit.innerHTML = '<i class="bi bi-send"></i> Reenviar';
-                    btnSubmit.style.display = 'inline-block';
-                }
-
-            } catch (error) {
-                console.error("Erro ao carregar dados para o modal de edição:", error);
-                mostrarToast(error.message, 'error');
-            }
-        }
-
-        async function handleFormSubmitEditar(acao, submitButton) {
-            const form = document.getElementById('formEditar');
-            const editingId = form.dataset.editingId;
-            if (!editingId) {
-                mostrarToast('ID de edição não encontrado. Não é possível salvar.', 'error');
+            if (!osId) {
+                lpuContainer.classList.add('d-none');
                 return;
             }
 
-            const originalContent = submitButton.innerHTML;
-            submitButton.disabled = true;
-            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
-
-            // Função auxiliar para formatar datas para o formato YYYY-MM-DD que o backend espera
-            const formatarDataParaAPI = (dataString) => {
-                if (!dataString) return null;
-                if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) return dataString; // Já está no formato correto
-                if (dataString.includes('/')) {
-                    const [dia, mes, ano] = dataString.split('/');
-                    return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-                }
-                return null; // Formato inválido
-            };
-
             try {
-                // Coleta todos os dados do formulário de EDIÇÃO
-                const dadosParaEnviar = {
-                    managerId: localStorage.getItem('usuarioId'),
-                    osId: document.getElementById('osIdEditar').value,
-                    lpuId: document.getElementById('lpuIdEditar').value,
-                    dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividadeEditar').value),
-                    prestadorId: document.getElementById('prestadorIdEditar').value,
-                    etapaDetalhadaId: document.getElementById('etapaDetalhadaIdEditar').value,
-                    vistoria: document.getElementById('vistoriaEditar').value,
-                    planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoriaEditar').value),
-                    desmobilizacao: document.getElementById('desmobilizacaoEditar').value,
-                    planoDesmobilizacao: formatarDataParaAPI(document.getElementById('planoDesmobilizacaoEditar').value),
-                    instalacao: document.getElementById('instalacaoEditar').value,
-                    planoInstalacao: formatarDataParaAPI(document.getElementById('planoInstalacaoEditar').value),
-                    ativacao: document.getElementById('ativacaoEditar').value,
-                    planoAtivacao: formatarDataParaAPI(document.getElementById('planoAtivacaoEditar').value),
-                    documentacao: document.getElementById('documentacaoEditar').value,
-                    planoDocumentacao: formatarDataParaAPI(document.getElementById('planoDocumentacaoEditar').value),
-                    status: document.getElementById('statusEditar').value,
-                    situacao: document.getElementById('situacaoEditar').value,
-                    detalheDiario: document.getElementById('detalheDiarioEditar').value,
-                    valor: parseFloat(document.getElementById('valorEditar').value.replace(/\./g, '').replace(',', '.')) || 0,
-                };
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
-                // Define o status de aprovação com base no botão que foi clicado
-                if (acao === 'salvar') {
-                    dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
-                } else if (acao === 'enviar' || acao === 'reenviar') {
-                    dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
+                const lpus = await response.json();
+
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+                if (lpus && lpus.length > 0) {
+                    lpus.forEach(lpu => {
+                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
+                        selectLPU.add(option);
+                    });
+                    selectLPU.disabled = false;
+                } else {
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
+                    selectLPU.disabled = true;
                 }
+                lpuContainer.classList.remove('d-none'); // Mostra o campo de LPU
 
-                // Envia a requisição PUT para o backend
-                const resposta = await fetch(`http://localhost:8080/lancamentos/${editingId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dadosParaEnviar)
-                });
-
-                if (!resposta.ok) {
-                    const errorData = await resposta.json();
-                    throw new Error(errorData.message || 'Erro ao salvar alterações.');
-                }
-
-                // Se deu tudo certo, mostra feedback e atualiza a tela
-                mostrarToast('Lançamento atualizado com sucesso!', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('modalEditar')).hide();
-                await carregarLancamentos();
-
-            } catch (erro) {
-                mostrarToast(erro.message, 'error');
-            } finally {
-                // Restaura o estado do botão
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalContent;
-                }
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+                lpuContainer.classList.add('d-none'); // Esconde se der erro
             }
+        });
+
+        function formatarDataParaAPI(dataString) {
+            if (!dataString) return null; // Se não houver data, retorna nulo
+
+            const partes = dataString.split('/'); // Ex: "31/07/2025" -> ["31", "07", "2025"]
+            if (partes.length !== 3) return null; // Retorna nulo se o formato for inválido
+
+            // Remonta a string no formato AAAA-MM-DD
+            return `${partes[2]}-${partes[1]}-${partes[0]}`;
         }
 
+        // Função central para lidar com o envio do formulário, chamada por diferentes botões
         async function handleFormSubmit(acao, submitButton) {
             const editingId = formAdicionar.dataset.editingId;
 
+            // Lógica de "carregando..." no botão que foi clicado
             const originalContent = submitButton.innerHTML;
             submitButton.disabled = true;
-            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
+            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Carregando...`;
 
-            // Função auxiliar para formatar a data para o padrão que o backend espera (YYYY-MM-DD)
-            const formatarDataParaAPI = (dataString) => {
-                if (!dataString || !dataString.includes('/')) {
-                    return null; // Retorna nulo se a data for vazia ou inválida
-                }
-                const [dia, mes, ano] = dataString.split('/');
-                return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+            const dadosParaEnviar = {
+                managerId: localStorage.getItem('usuarioId'),
+                osId: document.getElementById('osId').value,
+                lpuId: document.getElementById('lpuId').value,
+                dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividade').value), // <== MODIFICADO
+                prestadorId: document.getElementById('prestadorId').value,
+                etapaDetalhadaId: document.getElementById('etapaDetalhadaId').value,
+                equipe: document.getElementById('equipe').value,
+                vistoria: document.getElementById('vistoria').value,
+                planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoria').value), // <== MODIFICADO
+                desmobilizacao: document.getElementById('desmobilizacao').value,
+                planoDesmobilizacao: formatarDataParaAPI(document.getElementById('planoDesmobilizacao').value), // <== MODIFICADO
+                instalacao: document.getElementById('instalacao').value,
+                planoInstalacao: formatarDataParaAPI(document.getElementById('planoInstalacao').value), // <== MODIFICADO
+                ativacao: document.getElementById('ativacao').value,
+                planoAtivacao: formatarDataParaAPI(document.getElementById('planoAtivacao').value), // <== MODIFICADO
+                documentacao: document.getElementById('documentacao').value,
+                planoDocumentacao: formatarDataParaAPI(document.getElementById('planoDocumentacao').value), // <== MODIFICADO
+                status: document.getElementById('status').value,
+                situacao: document.getElementById('situacao').value,
+                detalheDiario: document.getElementById('detalheDiario').value,
+                valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
             };
 
+            // Define o status de aprovação e o método HTTP com base na ação
+            let method = 'POST';
+            let url = 'http://localhost:8080/lancamentos';
+
+            if (acao === 'salvar') { // Salvar alterações de um Rascunho
+                dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
+                method = 'PUT';
+                url = `http://localhost:8080/lancamentos/${editingId}`;
+            } else if (acao === 'enviar') { // Salvar e Enviar um Rascunho
+                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
+                method = 'PUT';
+                url = `http://localhost:8080/lancamentos/${editingId}`;
+            } else if (acao === 'reenviar') { // Reenviar um item Rejeitado
+                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
+                method = 'PUT';
+                url = `http://localhost:8080/lancamentos/${editingId}`;
+            }
+            // Se a acao for 'criar' (Retomar ou Novo), o método e URL padrão são usados
+
             try {
-                // A condição foi ajustada para ser mais explícita: só entra no modo lote se NÃO houver editingId.
-                if (!editingId) {
-                    // MODO NOVO: CRIAÇÃO EM LOTE
-                    const lpusSelecionadas = document.querySelectorAll('.lpu-checkbox:checked');
-                    if (lpusSelecionadas.length === 0) {
-                        throw new Error("Nenhuma LPU foi selecionada.");
-                    }
+                const resposta = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dadosParaEnviar)
+                });
+                if (!resposta.ok) throw new Error((await resposta.json()).message || 'Erro ao salvar.');
 
-                    const lancamentosEmLote = [];
-                    const osId = document.getElementById('osId').value;
-                    const dataAtividade = document.getElementById('dataAtividade').value;
-
-                    if (!dataAtividade) {
-                        throw new Error('A Data da Atividade é obrigatória.');
-                    }
-
-                    lpusSelecionadas.forEach(checkbox => {
-                        const lpuId = checkbox.value;
-
-                        // Monta o objeto de dados para cada LPU
-                        const dadosLpu = {
-                            managerId: localStorage.getItem('usuarioId'),
-                            osId: osId,
-                            lpuId: lpuId,
-                            dataAtividade: formatarDataParaAPI(dataAtividade), // <-- CORREÇÃO FINAL APLICADA AQUI
-
-                            // Campos da seção Execução
-                            vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
-                            planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
-                            desmobilizacao: document.getElementById(`desmobilizacao-lpu-${lpuId}`).value,
-                            planoDesmobilizacao: formatarDataParaAPI(document.getElementById(`planoDesmobilizacao-lpu-${lpuId}`).value),
-                            instalacao: document.getElementById(`instalacao-lpu-${lpuId}`).value,
-                            planoInstalacao: formatarDataParaAPI(document.getElementById(`planoInstalacao-lpu-${lpuId}`).value),
-                            ativacao: document.getElementById(`ativacao-lpu-${lpuId}`).value,
-                            planoAtivacao: formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${lpuId}`).value),
-                            documentacao: document.getElementById(`documentacao-lpu-${lpuId}`).value,
-                            planoDocumentacao: formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${lpuId}`).value),
-
-                            // Campos da seção Etapas
-                            etapaDetalhadaId: document.getElementById(`etapaDetalhadaId-lpu-${lpuId}`).value,
-                            status: document.getElementById(`status-lpu-${lpuId}`).value,
-                            situacao: document.getElementById(`situacao-lpu-${lpuId}`).value,
-                            detalheDiario: document.getElementById(`detalheDiario-lpu-${lpuId}`).value,
-
-                            // Campos da seção Financeiro
-                            prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
-                            valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
-                        };
-                        lancamentosEmLote.push(dadosLpu);
-                    });
-
-                    const resposta = await fetch('http://localhost:8080/lancamentos/lote', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(lancamentosEmLote)
-                    });
-
-                    if (!resposta.ok) {
-                        const errorText = await resposta.text();
-                        console.error("Erro do backend:", errorText);
-                        throw new Error('Erro ao salvar lançamentos. Verifique o console para detalhes.');
-                    }
-
-                } else {
-                    // MODO ANTIGO: EDIÇÃO DE UM ÚNICO ITEM
-                    const dadosParaEnviar = {
-                        managerId: localStorage.getItem('usuarioId'),
-                        osId: document.getElementById('osId').value,
-                        lpuId: document.getElementById('lpuId').value,
-                        dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividade').value), // Formata a data também na edição
-                        prestadorId: document.getElementById('prestadorId').value,
-                        etapaDetalhadaId: document.getElementById('etapaDetalhadaId').value,
-                        equipe: document.getElementById('equipe').value,
-                        vistoria: document.getElementById('vistoria').value,
-                        planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoria').value),
-                        desmobilizacao: document.getElementById('desmobilizacao').value,
-                        planoDesmobilizacao: formatarDataParaAPI(document.getElementById('planoDesmobilizacao').value),
-                        instalacao: document.getElementById('instalacao').value,
-                        planoInstalacao: formatarDataParaAPI(document.getElementById('planoInstalacao').value),
-                        ativacao: document.getElementById('ativacao').value,
-                        planoAtivacao: formatarDataParaAPI(document.getElementById('planoAtivacao').value),
-                        documentacao: document.getElementById('documentacao').value,
-                        planoDocumentacao: formatarDataParaAPI(document.getElementById('planoDocumentacao').value),
-                        status: document.getElementById('status').value,
-                        situacao: document.getElementById('situacao').value,
-                        detalheDiario: document.getElementById('detalheDiario').value,
-                        valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
-                    };
-
-                    let method = 'PUT';
-                    let url = `http://localhost:8080/lancamentos/${editingId}`;
-
-                    if (acao === 'salvar') {
-                        dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
-                    } else if (acao === 'enviar' || acao === 'reenviar') {
-                        dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                    }
-
-                    const resposta = await fetch(url, {
-                        method: method,
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(dadosParaEnviar)
-                    });
-
-                    if (!resposta.ok) throw new Error((await resposta.json()).message || 'Erro ao salvar.');
-                }
-
-                // Se chegou até aqui, a operação foi um sucesso
                 mostrarToast('Ação realizada com sucesso!', 'success');
                 modalAdicionar.hide();
                 await carregarLancamentos();
                 renderizarTodasAsTabelas();
 
             } catch (erro) {
-                // Exibe qualquer erro que tenha ocorrido no processo
                 mostrarToast(erro.message, 'error');
             } finally {
-                // Este bloco sempre será executado, reativando o botão
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalContent;
-                }
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalContent;
             }
         }
 
@@ -1481,24 +1030,16 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFormSubmit(isEditing ? 'reenviar' : 'criar', e.currentTarget);
         });
 
-    }
 
-    async function carregarTodasAsOS() {
-        if (todasAsOS.length === 0) { // Só busca na API se a lista estiver vazia
-            try {
-                const usuarioId = localStorage.getItem('usuarioId');
-                if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
-
-                const osData = await response.json();
-                todasAsOS = osData.sort((a, b) => a.os.localeCompare(b.os)); // Armazena na variável global
-            } catch (error) {
-                console.error('Erro ao carregar OSs:', error);
-                mostrarToast('Erro ao carregar Ordens de Serviço.', 'error');
-            }
-        }
+        selectOS.addEventListener('change', (e) => {
+            carregarEPopularLPU(e.target.value);
+        });
+        selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
+        selectEtapaDetalhada.addEventListener('change', (e) => {
+            const etapaGeralId = selectEtapaGeral.value;
+            popularDropdownsDependentes(etapaGeralId, e.target.value, null);
+        });
     }
 
     function exibirComentarios(lancamento) {
@@ -1683,6 +1224,40 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Evento para carregar LPUs quando uma OS é selecionada
+        selectOS.addEventListener('change', async (e) => {
+            const osId = e.target.value;
+            selectLPU.disabled = true; // Mantém desabilitado enquanto carrega
+            selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+
+            // Se o usuário deselecionar a OS, reseta e desabilita o campo de LPU
+            if (!osId) {
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const lpus = await response.json();
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+
+                if (lpus && lpus.length > 0) {
+                    lpus.forEach(lpu => {
+                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
+                        selectLPU.add(option);
+                    });
+                    // SÓ HABILITA SE ENCONTRAR LPUs
+                    selectLPU.disabled = false;
+                } else {
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
+                }
+
+            } catch (error) {
+                console.error("Erro ao buscar LPUs:", error);
+                selectLPU.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        });
+
         // Evento para adicionar um novo item à solicitação
         btnAdicionarItem.addEventListener('click', () => {
             const novoItemRow = listaItensContainer.firstElementChild.cloneNode(true);
@@ -1759,23 +1334,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Listener para o botão 'Salvar Alterações' do modal de EDIÇÃO
-    document.getElementById('btnSalvarRascunhoEditar').addEventListener('click', function (e) {
-        // O primeiro argumento 'salvar' fará com que a situacaoAprovacao seja 'RASCUNHO'
-        handleFormSubmitEditar('salvar', e.currentTarget);
-    });
-
-    // Listener para o botão 'Salvar e Enviar' do modal de EDIÇÃO
-    document.getElementById('btnSalvarEEnviarEditar').addEventListener('click', function (e) {
-        // O primeiro argumento 'enviar' fará com que a situacaoAprovacao seja 'PENDENTE_COORDENADOR'
-        handleFormSubmitEditar('enviar', e.currentTarget);
-    });
-
-    // Listener para o botão de submit principal do modal de EDIÇÃO (Reenviar um item rejeitado)
-    document.getElementById('btnSubmitEditar').addEventListener('click', function (e) {
-        handleFormSubmitEditar('reenviar', e.currentTarget);
-    });
-
 
     // ==========================================================
     // SEÇÃO 4: EXECUÇÃO INICIAL
@@ -1791,4 +1349,5 @@ document.addEventListener('DOMContentLoaded', () => {
     inicializarCabecalhos();
     carregarLancamentos();
     configurarVisibilidadePorRole();
-});
+    window.carregarLancamentos = carregarLancamentos;
+}); td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;

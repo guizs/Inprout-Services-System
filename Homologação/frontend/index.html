@@ -6,15 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sistema de Controle de Atividades</title>
 
-  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <!-- Flatpickr CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_green.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
-  <!-- Styles  -->
   <link rel="stylesheet" href="assets/css/root.css" />
   <link rel="stylesheet" href="assets/css/global.css" />
   <link rel="stylesheet" href="assets/css/index.css" />
@@ -22,7 +19,6 @@
 </head>
 
 <body>
-  <!-- Navbar Top -->
   <nav class="navbar navbar-expand-lg">
     <div class="container-fluid">
       <button class="btn toggle-sidebar" id="menu-toggle">
@@ -43,7 +39,6 @@
     </div>
   </nav>
 
-  <!-- Sidebar -->
   <div id="sidebar-container"></div>
 
   <div class="container-fluid my-4">
@@ -188,32 +183,11 @@
           id="btnSolicitarMaterial"> <i class="bi bi-box-seam me-1"></i> Solicitar material
         </a>
 
-        <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalAdicionar"
-          id="btnNovoLancamento"> <i class="bi bi-plus-circle me-1"></i> Novo lançamento
+        <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalAdicionarEmLote"
+          id="btnNovoLancamento">
+          <i class="bi bi-plus-circle me-1"></i> Novo lançamento
         </a>
 
-        <!-- <div class="dropdown">
-          <button class="btn btn-dropdown" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-gear me-1"></i> Ações
-          </button>
-          <ul class="dropdown-menu dropdown-menu-end">
-            <li>
-              <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalEditarLote">
-                <i class="bi bi-pencil-square me-2"></i> Editar em lote
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="#">
-                <i class="bi bi-trash me-2"></i> Excluir
-              </a>
-            </li>
-            <li>
-              <a class="dropdown-item" href="#">
-                <i class="bi bi-file-earmark-excel me-2"></i> Exportar
-              </a>
-            </li>
-          </ul>
-        </div> -->
       </div>
 
     </div>
@@ -280,9 +254,8 @@
         <div class="table-responsive custom-scroll">
 
           <table class="table modern-table align-middle">
-            <thead> <!-- cabeçalho javascript --></thead>
+            <thead> </thead>
             <tbody id="tbody-lancamentos">
-              <!-- conteúdo javascript -->
             </tbody>
 
           </table>
@@ -294,9 +267,8 @@
         <div class="table-responsive custom-scroll">
 
           <table class="table modern-table align-middle">
-            <thead> <!-- cabeçalho javascript --></thead>
+            <thead> </thead>
             <tbody id="tbody-pendentes">
-              <!-- conteúdo javascript -->
             </tbody>
 
           </table>
@@ -316,205 +288,12 @@
         <div class="table-responsive custom-scroll">
 
           <table class="table modern-table align-middle">
-            <thead> <!-- cabeçalho javascript --></thead>
+            <thead> </thead>
             <tbody id="tbody-historico">
-              <!-- conteúdo javascript -->
             </tbody>
 
           </table>
         </div>
-      </div>
-    </div>
-
-
-  </div>
-
-  <div class="modal fade" id="modalEditar" tabindex="-1" aria-labelledby="modalEditarLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h5 class="modal-title" id="modalEditarLabel">
-            <i class="bi bi-pencil"></i> Detalhes da Atividade
-          </h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-        </div>
-
-        <div class="modal-body">
-          <form id="formEditar" novalidate>
-
-            <h6 class="section-title">Dados Gerais</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="osIdEditar" class="form-label">Ordem de Serviço (OS)</label>
-                <select class="form-select" id="osIdEditar" required disabled>
-                </select>
-              </div>
-              <div class="col-md-6" id="lpuContainerEditar">
-                <label for="lpuIdEditar" class="form-label">Lista de Preços Unitários (LPU)</label>
-                <select class="form-select" id="lpuIdEditar" required></select>
-              </div>
-              <div class="col-md-6">
-                <label for="dataAtividadeEditar" class="form-label">Data da Atividade</label>
-                <input type="date" class="form-control" id="dataAtividadeEditar" required>
-              </div>
-            </div>
-
-            <h6 class="section-title">Dados da OS</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="siteEditar" class="form-label">Site</label>
-                <input type="text" class="form-control" id="siteEditar" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="segmentoEditar" class="form-label">Segmento</label>
-                <input type="text" class="form-control" id="segmentoEditar" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="projetoEditar" class="form-label">Projeto</label>
-                <input type="text" class="form-control" id="projetoEditar" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="contratoEditar" class="form-label">Contrato</label>
-                <input type="text" class="form-control" id="contratoEditar" readonly>
-              </div>
-            </div>
-
-            <h6 class="section-title">Responsáveis</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label class="form-label">GESTOR TIM</label>
-                <input type="text" class="form-control" id="gestorTimEditar" readonly>
-              </div>
-              <div class="col-md-4">
-                <label class="form-label">REGIONAL</label>
-                <input type="text" class="form-control" id="regionalEditar" readonly>
-              </div>
-            </div>
-
-            <h6 class="section-title">Execução</h6>
-            <div class="etapas-scroll mb-3">
-              <div class="card etapa-card">
-                <h6>Vistoria</h6>
-                <label class="form-label">Status</label>
-                <select class="form-select" id="vistoriaEditar">
-                  <option>OK</option>
-                  <option>NOK</option>
-                  <option selected>N/A</option>
-                </select>
-                <label class="form-label mt-2">Plano (Data)</label>
-                <input type="date" class="form-control" id="planoVistoriaEditar">
-              </div>
-              <div class="card etapa-card">
-                <h6>Desmobilização</h6>
-                <label class="form-label">Status</label>
-                <select class="form-select" id="desmobilizacaoEditar">
-                  <option>OK</option>
-                  <option>NOK</option>
-                  <option selected>N/A</option>
-                </select>
-                <label class="form-label mt-2">Plano (Data)</label>
-                <input type="date" class="form-control" id="planoDesmobilizacaoEditar">
-              </div>
-              <div class="card etapa-card">
-                <h6>Instalação</h6>
-                <label class="form-label">Status</label>
-                <select class="form-select" id="instalacaoEditar">
-                  <option>OK</option>
-                  <option>NOK</option>
-                  <option selected>N/A</option>
-                </select>
-                <label class="form-label mt-2">Plano (Data)</label>
-                <input type="date" class="form-control" id="planoInstalacaoEditar">
-              </div>
-              <div class="card etapa-card">
-                <h6>Ativação</h6>
-                <label class="form-label">Status</label>
-                <select class="form-select" id="ativacaoEditar">
-                  <option>OK</option>
-                  <option>NOK</option>
-                  <option selected>N/A</option>
-                </select>
-                <label class="form-label mt-2">Plano (Data)</label>
-                <input type="date" class="form-control" id="planoAtivacaoEditar">
-              </div>
-              <div class="card etapa-card">
-                <h6>Documentação</h6>
-                <label class="form-label">Status</label>
-                <select class="form-select" id="documentacaoEditar">
-                  <option>OK</option>
-                  <option>NOK</option>
-                  <option selected>N/A</option>
-                </select>
-                <label class="form-label mt-2">Plano (Data)</label>
-                <input type="date" class="form-control" id="planoDocumentacaoEditar">
-              </div>
-            </div>
-
-            <h6 class="section-title">Etapas</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="etapaGeralSelectEditar" class="form-label">ETAPA GERAL</label>
-                <select class="form-select" id="etapaGeralSelectEditar" required></select>
-              </div>
-              <div class="col-md-6">
-                <label for="etapaDetalhadaIdEditar" class="form-label">ETAPA DETALHADA</label>
-                <select class="form-select" id="etapaDetalhadaIdEditar" required disabled></select>
-              </div>
-              <div class="col-md-6">
-                <label for="statusEditar" class="form-label">STATUS</label>
-                <select class="form-select" id="statusEditar" required disabled></select>
-              </div>
-              <div class="col-md-6">
-                <label for="situacaoEditar" class="form-label">SITUAÇÃO</label>
-                <select class="form-select" id="situacaoEditar">
-                  <option>Não iniciado</option>
-                  <option>Aguardando documentação</option>
-                  <option>Paralisado</option>
-                  <option>Em andamento</option>
-                  <option>Finalizado</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label for="detalheDiarioEditar" class="form-label">DETALHE DIÁRIO</label>
-              <textarea class="form-control" id="detalheDiarioEditar" rows="2" required></textarea>
-            </div>
-
-            <h6 class="section-title">Financeiro</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-8">
-                <label for="prestadorIdEditar" class="form-label">PRESTADOR</label>
-                <select class="form-select" id="prestadorIdEditar" required></select>
-              </div>
-              <div class="col-md-4">
-                <label for="valorEditar" class="form-label">VALOR DA ATIVIDADE</label>
-                <div class="input-group">
-                  <span class="input-group-text">R$</span>
-                  <input type="text" class="form-control" id="valorEditar" inputmode="numeric" />
-                </div>
-              </div>
-            </div>
-
-          </form>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="bi bi-x-lg"></i> Fechar
-          </button>
-          <button type="button" class="btn btn-outline-primary" id="btnSalvarRascunhoEditar">
-            <i class="bi bi-save"></i> Salvar Alterações
-          </button>
-          <button type="button" class="btn btn-primary" id="btnSalvarEEnviarEditar">
-            <i class="bi bi-send"></i> Salvar e Enviar
-          </button>
-          <button type="submit" id="btnSubmitEditar" form="formEditar" class="btn btn-success">
-            <i class="bi bi-check-circle"></i> Confirmar Ação
-          </button>
-        </div>
-
       </div>
     </div>
   </div>
@@ -538,7 +317,7 @@
             <div class="row g-3 mb-3">
 
               <div class="col-md-6">
-                <label for="osSolicitacao" class="form-label">Ordem de <s></s>erviço (OS)</label>
+                <label for="osSolicitacao" class="form-label">Ordem de Serviço (OS)</label>
                 <select class="form-select" id="osSolicitacao">
                   <option selected disabled value="">Selecione a OS...</option>
                   <option value="1">OS-2025-001</option>
@@ -611,7 +390,6 @@
     </div>
   </div>
 
-  <!-- Modal Minha Conta -->
   <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
     <div class="modal-dialog modal-md modal-dialog-centered">
       <div class="modal-content">
@@ -706,7 +484,6 @@
     </div>
   </div>
 
-  <!-- Modal adicionar nova atividade-->
   <div class="modal fade" id="modalAdicionar" tabindex="-1" aria-labelledby="modalAdicionarLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered">
       <div class="modal-content">
@@ -730,57 +507,157 @@
                 </select>
               </div>
 
-              <div class="col-12">
-                <label class="form-label">Selecione as LPUs</label>
-                <div id="lpuChecklistContainer" class="border rounded p-2" style="max-height: 150px; overflow-y: auto;">
-                  <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
-                </div>
-              </div>
-
-              <div class="col-12 mt-3 text-end">
-                <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimento"
-                  disabled>Avançar</button>
+              <div class="col-md-6 d-none" id="lpuContainer">
+                <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
+                <select class="form-select" id="lpuId" required>
+                </select>
               </div>
 
               <div class="col-md-6">
                 <label for="dataAtividade" class="form-label">Data da Atividade</label>
                 <input type="date" class="form-control" id="dataAtividade" required>
               </div>
+            </div>
 
-              <h6 class="section-title">Dados da OS</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                  <label for="site" class="form-label">Site</label>
-                  <input type="text" class="form-control" id="site" readonly>
-                </div>
-                <div class="col-md-6">
-                  <label for="segmento" class="form-label">Segmento</label>
-                  <input type="text" class="form-control" id="segmento" readonly>
-                </div>
-                <div class="col-md-6">
-                  <label for="projeto" class="form-label">Projeto</label>
-                  <input type="text" class="form-control" id="projeto" readonly>
-                </div>
-                <div class="col-md-6">
-                  <label for="contrato" class="form-label">Contrato</label>
-                  <input type="text" class="form-control" id="contrato" readonly>
-                </div>
+            <h6 class="section-title">Dados da OS</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="site" class="form-label">Site</label>
+                <input type="text" class="form-control" id="site" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="segmento" class="form-label">Segmento</label>
+                <input type="text" class="form-control" id="segmento" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="projeto" class="form-label">Projeto</label>
+                <input type="text" class="form-control" id="projeto" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="contrato" class="form-label">Contrato</label>
+                <input type="text" class="form-control" id="contrato" readonly>
+              </div>
+            </div>
+
+            <h6 class="section-title">Responsáveis</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label class="form-label">GESTOR TIM</label>
+                <input type="text" class="form-control" id="gestorTim" readonly>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">REGIONAL</label>
+                <input type="text" class="form-control" id="regional" readonly>
+              </div>
+              <div class="col-md-4">
+                <label for="equipe" class="form-label">EQUIPE</label>
+                <input type="text" class="form-control" id="equipe">
+              </div>
+            </div>
+
+            <h6 class="section-title">Execução</h6>
+            <div class="etapas-scroll">
+              <div class="card etapa-card">
+                <h6>Vistoria</h6>
+                <label class="form-label">Status</label>
+                <select class="form-select" id="vistoria">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select>
+                <label class="form-label mt-2">Plano (Data)</label>
+                <input type="date" class="form-control" id="planoVistoria">
+              </div>
+              <div class="card etapa-card">
+                <h6>Desmobilização</h6><label class="form-label">Status</label><select class="form-select"
+                  id="desmobilizacao">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
+                  id="planoDesmobilizacao">
+              </div>
+              <div class="card etapa-card">
+                <h6>Instalação</h6><label class="form-label">Status</label><select class="form-select" id="instalacao">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
+                  id="planoInstalacao">
+              </div>
+              <div class="card etapa-card">
+                <h6>Ativação</h6><label class="form-label">Status</label><select class="form-select" id="ativacao">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
+                  id="planoAtivacao">
+              </div>
+              <div class="card etapa-card">
+                <h6>Documentação</h6><label class="form-label">Status</label><select class="form-select"
+                  id="documentacao">
+                  <option>OK</option>
+                  <option>NOK</option>
+                  <option selected>N/A</option>
+                </select><label class="form-label mt-2">Plano (Data)</label><input type="date" class="form-control"
+                  id="planoDocumentacao">
+              </div>
+            </div>
+
+            <h6 class="section-title">Etapas</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label for="etapaGeralSelect" class="form-label">ETAPA GERAL</label>
+                <select class="form-select" id="etapaGeralSelect" required>
+                  <option value="" selected disabled>Selecione uma etapa geral...</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label for="etapaDetalhadaId" class="form-label">ETAPA DETALHADA</label>
+                <select class="form-select" id="etapaDetalhadaId" required disabled>
+                  <option value="" selected disabled>Primeiro, selecione a etapa geral</option>
+                </select>
               </div>
 
-              <h6 class="section-title">Responsáveis</h6>
-              <div class="row g-3 mb-3">
-                <div class="col-md-4">
-                  <label class="form-label">GESTOR TIM</label>
-                  <input type="text" class="form-control" id="gestorTim" readonly>
-                </div>
-                <div class="col-md-4">
-                  <label class="form-label">REGIONAL</label>
-                  <input type="text" class="form-control" id="regional" readonly>
+              <div class="col-md-4">
+                <label class="form-label">STATUS</label>
+                <select class="form-select" id="status">
+                  <option>Aguardando documentação</option>
+                  <option>Paralisado</option>
+                  <option>Em andamento</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">DETALHE DIÁRIO</label>
+              <textarea class="form-control" id="detalheDiario" rows="2" required></textarea>
+            </div>
+
+            <label class="form-label">SITUAÇÃO</label>
+            <select class="form-select" id="situacao">
+              <option>Aguardando documentação</option>
+              <option>Paralisado</option>
+              <option selected>Em andamento</option>
+              <option>Finalizado</option>
+            </select>
+
+            <h6 class="section-title">Financeiro</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-8">
+                <label for="prestadorId" class="form-label">PRESTADOR</label>
+                <select class="form-select" id="prestadorId" required>
+                  <option value="" selected disabled>Selecione um prestador...</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">VALOR DA ATIVIDADE</label>
+                <div class="input-group">
+                  <span class="input-group-text">R$</span>
+                  <input type="text" class="form-control" id="valor" inputmode="numeric" />
                 </div>
               </div>
-
-              <div id="formulariosContainer" class="accordion"></div>
-
+            </div>
           </form>
         </div>
 
@@ -800,6 +677,103 @@
           <button type="button" class="btn btn-primary" id="btnSalvarEEnviar">
             <i class="bi bi-send"></i> Salvar e Enviar
           </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalAdicionarEmLote" tabindex="-1" aria-labelledby="modalAdicionarEmLoteLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalAdicionarEmLoteLabel">
+            <i class="bi bi-plus-circle"></i> Adicionar novo lançamento
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <form id="formAdicionarEmLote" novalidate>
+
+            <h6 class="section-title">Dados Gerais</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="osIdLote" class="form-label">Ordem de Serviço (OS)</label>
+                <select class="form-select" id="osIdLote" required>
+                  <option value="" selected disabled>Selecione uma OS...</option>
+                </select>
+              </div>
+
+              <div class="col-md-6">
+                <label for="dataAtividadeLote" class="form-label">Data da Atividade</label>
+                <input type="text" class="form-control" id="dataAtividadeLote" placeholder="Selecione a data..."
+                  required autocomplete="off">
+              </div>
+
+              <div class="col-12">
+                <label class="form-label">Selecione as LPUs</label>
+                <div id="lpuChecklistContainerLote" class="border rounded p-2"
+                  style="max-height: 150px; overflow-y: auto;">
+                  <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
+                </div>
+              </div>
+
+              <div class="col-12 mt-3 text-end">
+                <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimentoLote"
+                  disabled>Avançar</button>
+              </div>
+
+            </div>
+
+            <h6 class="section-title">Dados da OS</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="siteLote" class="form-label">Site</label>
+                <input type="text" class="form-control" id="siteLote" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="segmentoLote" class="form-label">Segmento</label>
+                <input type="text" class="form-control" id="segmentoLote" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="projetoLote" class="form-label">Projeto</label>
+                <input type="text" class="form-control" id="projetoLote" readonly>
+              </div>
+              <div class="col-md-6">
+                <label for="contratoLote" class="form-label">Contrato</label>
+                <input type="text" class="form-control" id="contratoLote" readonly>
+              </div>
+            </div>
+
+            <h6 class="section-title">Responsáveis</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-4">
+                <label for="gestorTimLote" class="form-label">GESTOR TIM</label>
+                <input type="text" class="form-control" id="gestorTimLote" readonly>
+              </div>
+              <div class="col-md-4">
+                <label for="regionalLote" class="form-label">REGIONAL</label>
+                <input type="text" class="form-control" id="regionalLote" readonly>
+              </div>
+            </div>
+
+            <div id="formulariosContainerLote" class="accordion"></div>
+
+          </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-lg"></i> Fechar
+          </button>
+
+          <button type="submit" id="btnSubmitAdicionarLote" form="formAdicionarEmLote" class="btn btn-success">
+            <i class="bi bi-check-circle"></i> Salvar Lançamento
+          </button>
+
         </div>
 
       </div>
@@ -836,14 +810,11 @@
     </div>
   </div>
 
-  <!-- Toast Container -->
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
-    <!-- Toast Dinâmico -->
     <div id="toastMensagem" class="toast align-items-center border-0 text-bg-success" role="alert" aria-live="assertive"
       aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body" id="toastTexto">
-          <!-- Via JavaScript -->
         </div>
         <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
           aria-label="Fechar"></button>
@@ -851,28 +822,19 @@
     </div>
   </div>
 
-  <div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-      <i class="bi bi-x-circle"></i> Cancelar
-    </button>
-    <button type="submit" form="formEditarLote" class="btn btn-success">
-      <i class="bi bi-check-circle"></i> Aplicar Edições
-    </button>
-  </div>
-
-  </div>
-  </div>
-  </div>
-
-  <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="assets/js/general/global.js"></script>
+  <script src="assets/js/general/selection.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
   <script src="assets/js/index/calendary.js" type="module"></script>
+  <script src="assets/js/index/editionfields.js"></script>
+  <script src="assets/js/index/search-table.js"></script>
   <script src="assets/js/general/sidebar.js"></script>
+  <script src="assets/js/index/valueformat.js"></script>
   <script src="assets/js/index/auth-filter.js"></script>
   <script src="assets/js/index/index.js"></script>
+  <script src="assets/js/index/lancamento-lote.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
 </body>

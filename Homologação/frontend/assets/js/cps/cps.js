@@ -287,6 +287,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // --- INÍCIO DA CORREÇÃO ---
+        // 1. Salva o valor do segmento que está selecionado ANTES de fazer a chamada
+        const segmentoSelecionadoAnteriormente = segmentSelectFilter.value;
+        // --- FIM DA CORREÇÃO ---
+
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
             const response = await fetch(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
@@ -297,6 +302,12 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiTotalValueEl.textContent = formatCurrency(fullData.valorTotalGeral || 0);
             renderSegmentCards(fullData.valoresPorSegmento);
             renderSegmentFilter(fullData.valoresPorSegmento || []);
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // 2. Restaura o valor do segmento no dropdown
+            segmentSelectFilter.value = segmentoSelecionadoAnteriormente;
+            // --- FIM DA CORREÇÃO ---
+
             renderTable(segmentSelectFilter.value);
 
         } catch (error) {
@@ -311,39 +322,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchDetalhesPorPrestador(codPrestador) {
-        let startDate = startDateInput.value;
-        let endDate = endDateInput.value;
-
-        // Garante que as datas estejam no formato ISO (YYYY-MM-DD) para a API
-        if (startDate.includes('/')) startDate = formatDateToISO(startDate);
-        if (endDate.includes('/')) endDate = formatDateToISO(endDate);
-
         // Mostra o loader
         if (typeof toggleLoader === 'function') toggleLoader(true);
+
         try {
-            // Nova chamada de API para um endpoint detalhado
-            const response = await fetch(`${API_URL}/lancamentos/cps/detalhado-por-prestador?codPrestador=${codPrestador}&dataInicio=${startDate}&dataFim=${endDate}`, {
-                headers: { 'Authorization': `Bearer ${TOKEN}` }
-            });
+            // PASSO 1: Filtra a lista de lançamentos que já está na memória (fullData),
+            // em vez de fazer uma nova chamada para a API.
+            const lancamentosDoPrestador = fullData.lancamentosDetalhados.filter(
+                lanc => lanc.codPrestador === codPrestador
+            );
 
-            if (!response.ok) {
-                throw new Error(`Erro ao buscar detalhes do prestador: ${response.status}`);
-            }
-
-            const lancamentosDoPrestador = await response.json();
-
-            // Altera a visualização para a aba de lançamentos
+            // PASSO 2: Altera a visualização para a aba de lançamentos, como antes.
             currentTableView = 'lancamentos';
             tableTabs.querySelector('.active').classList.remove('active');
             tableTabs.querySelector('[data-table-view="lancamentos"]').classList.add('active');
 
-            // Renderiza a tabela apenas com os dados recebidos
+            // PASSO 3: Renderiza a tabela apenas com os dados filtrados.
             renderLancamentosTable(lancamentosDoPrestador);
             syncColumnWidths();
 
         } catch (error) {
-            console.error("Falha ao buscar detalhes do prestador:", error);
-            mostrarToast(error.message, 'error');
+            // Este erro seria improvável, mas é mantido por segurança.
+            console.error("Falha ao filtrar detalhes do prestador localmente:", error);
+            mostrarToast('Ocorreu um erro ao exibir os detalhes.', 'error');
         } finally {
             // Esconde o loader
             if (typeof toggleLoader === 'function') toggleLoader(false);
@@ -351,25 +352,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function filterDataBySegment(data, segmento) {
+        // Se o filtro for 'todos' ou não houver dados detalhados, retorna os dados originais
         if (!segmento || segmento === 'todos' || !data.lancamentosDetalhados) {
             return data;
         }
 
+        // Filtra os lançamentos detalhados pelo segmento selecionado
         const filteredLancamentos = data.lancamentosDetalhados.filter(l => l.segmento === segmento);
 
+        // Cria um novo mapa para agrupar os valores por prestador
         const prestadorMap = new Map();
+
+        // Itera sobre os lançamentos já filtrados por segmento
         filteredLancamentos.forEach(l => {
-            const prestadorNome = l.prestador?.nome || 'Não identificado';
-            const prestador = prestadorMap.get(prestadorNome) || { prestadorNome: prestadorNome, totalLancamentos: 0, valorTotal: 0 };
-            prestador.totalLancamentos++;
-            prestador.valorTotal += l.valor;
-            prestadorMap.set(prestadorNome, prestador);
+            // Usa o 'codPrestador' como a chave única para o agrupamento
+            const key = l.codPrestador;
+            if (!key) return; // Pula lançamentos que não tenham um código de prestador
+
+            // Busca o prestador no mapa. Se não existir, cria um novo objeto para ele.
+            const prestadorData = prestadorMap.get(key) || {
+                codPrestador: l.codPrestador, // Garante que o código seja mantido
+                prestadorNome: l.prestador || 'Não identificado', // Pega o nome do prestador corretamente
+                valorTotal: 0
+            };
+
+            // Soma o valor do lançamento atual ao total do prestador
+            prestadorData.valorTotal += l.valor;
+
+            // Atualiza o mapa com os dados do prestador
+            prestadorMap.set(key, prestadorData);
         });
 
+        // Retorna um novo objeto de dados
         return {
-            ...data,
-            lancamentosDetalhados: filteredLancamentos,
-            consolidadoPorPrestador: Array.from(prestadorMap.values())
+            ...data, // Mantém os dados gerais originais (valorTotalGeral, etc.)
+            lancamentosDetalhados: filteredLancamentos, // A lista de lançamentos filtrada por segmento
+            consolidadoPorPrestador: Array.from(prestadorMap.values()) // A nova lista de prestadores, consolidada e correta
         };
     }
 
@@ -402,10 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentTableView = link.dataset.tableView;
                 renderTable(segmentSelectFilter.value);
             }
-        });
-
-        segmentSelectFilter.addEventListener('change', (e) => {
-            renderTable(e.target.value);
         });
 
         tableBody.addEventListener('click', (e) => {

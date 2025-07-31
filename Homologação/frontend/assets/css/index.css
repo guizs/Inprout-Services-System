@@ -57,6 +57,92 @@
   transition: background-color 0.2s ease-in-out;
 }
 
+/* ========================================================== */
+/* ======== ESTILOS PARA MODAL DE LANÇAMENTO EM LOTE ======== */
+/* ========================================================== */
+
+/* 1. Estilizando a caixa de seleção das LPUs */
+#lpuChecklistContainerLote {
+  background-color: #f5fdf7;
+  /* Um tom de verde bem claro, mais suave que o branco puro */
+  border: 1px solid #d6f5e3;
+  /* Borda sutil no tom verde do tema */
+  border-radius: 8px;
+  /* Bordas arredondadas */
+  padding: 0.5rem;
+  max-height: 180px;
+  /* Aumentando um pouco a altura máxima */
+}
+
+/* Estilo para cada item (checkbox) da lista de LPU */
+#lpuChecklistContainerLote .form-check {
+  padding: 0.6rem 0.75rem;
+  transition: background-color 0.2s ease-in-out;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#lpuChecklistContainerLote .form-check:hover {
+  background-color: #e9f5ee;
+  /* Destaque suave ao passar o mouse */
+}
+
+#lpuChecklistContainerLote .form-check {
+  /* Aumentamos o padding, especialmente na esquerda/direita, para o texto respirar */
+  padding: 0.6rem 2rem; 
+  /* Adicionamos uma pequena margem inferior para separar melhor as linhas */
+  margin-bottom: 4px;
+  transition: background-color 0.2s ease-in-out;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* Melhorando a barra de rolagem para combinar com o tema */
+#lpuChecklistContainerLote::-webkit-scrollbar {
+  width: 8px;
+}
+
+#lpuChecklistContainerLote::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 8px;
+}
+
+#lpuChecklistContainerLote::-webkit-scrollbar-thumb {
+  background-color: #b8d8c5;
+  /* Cor do tema para a barra de rolagem */
+  border-radius: 8px;
+}
+
+
+/* 2. Estilizando o botão "Avançar" */
+#btnAvancarParaPreenchimentoLote {
+  background-color: var(--accent-color);
+  /* Cor de destaque principal do sistema */
+  color: white;
+  border: none;
+  font-weight: 500;
+  padding: 0.6rem 1.5rem;
+  border-radius: 50px;
+  /* Mesmo arredondamento dos outros botões */
+  transition: all 0.2s ease-in-out;
+}
+
+/* Efeito ao passar o mouse */
+#btnAvancarParaPreenchimentoLote:not(:disabled):hover {
+  background-color: #5ca98c;
+  /* Cor mais escura para o hover, igual ao .btn-dropdown */
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Aparência do botão quando desabilitado */
+#btnAvancarParaPreenchimentoLote:disabled {
+  background-color: var(--secondary-color);
+  /* Cor secundária para estado desabilitado */
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 .btn-dropdown:hover {
   background-color: #5ca98c;
 }
@@ -476,17 +562,18 @@ label.form-label.d-flex {
 }
 
 .modern-table thead th {
-    background-color: var(--primary-color);
-    color: var(--text-color);
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.85rem;
-    padding: 0.75rem 1rem;
-    text-align: center;
-    border-bottom: 1px solid #e2e8e4;
-    position: sticky; /* Mantém o cabeçalho fixo no topo ao rolar */
-    top: 0;
-    z-index: 10;
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  padding: 0.75rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid #e2e8e4;
+  position: sticky;
+  /* Mantém o cabeçalho fixo no topo ao rolar */
+  top: 0;
+  z-index: 10;
 }
 
 /* ========================================================== */
@@ -555,13 +642,15 @@ label.form-label.d-flex {
 
 /* Cor de Perigo/Ação Urgente (Laranja/Vermelho do seu root) */
 .card-stat.card-perigo {
-  background-color: #ffab91 !important; /* Um tom de laranja/vermelho claro */
+  background-color: #ffab91 !important;
+  /* Um tom de laranja/vermelho claro */
   border-left: 5px solid var(--bs-orange);
 }
+
 .card-stat.card-perigo p,
 .card-stat.card-perigo h5 {
-    color: #b95000 !important;
-    font-weight: 600;
+  color: #b95000 !important;
+  font-weight: 600;
 }
 
 
@@ -573,8 +662,9 @@ label.form-label.d-flex {
 
 /* Cor de Informação (Azul do seu tema) */
 .card-stat.card-info {
-    background-color: #bbdefb !important; /* Um azul claro para diferenciar */
-    border-left: 5px solid #64b5f6;
+  background-color: #bbdefb !important;
+  /* Um azul claro para diferenciar */
+  border-left: 5px solid #64b5f6;
 }
 
 @media (max-width: 768px) {
@@ -627,18 +717,22 @@ label.form-label.d-flex {
 /* ======== ESTILOS RESPONSIVOS PARA O DROPDOWN DE FILTROS ======== */
 
 .filtros-dropdown {
-  width: 550px; /* Largura padrão para telas maiores */
-  max-width: 90vw; /* Garante que não ultrapasse a largura da tela */
+  width: 550px;
+  /* Largura padrão para telas maiores */
+  max-width: 90vw;
+  /* Garante que não ultrapasse a largura da tela */
 }
 
 .filtros-dropdown .dropdown-item {
-  flex: 1 1 45%; /* Permite que os botões de período ocupem o espaço */
+  flex: 1 1 45%;
+  /* Permite que os botões de período ocupem o espaço */
 }
 
 /* Para telas de tablet e menores (abaixo de 768px) */
 @media (max-width: 768px) {
   .filtros-dropdown {
-    width: 320px; /* Uma largura mais adequada para telas menores */
+    width: 320px;
+    /* Uma largura mais adequada para telas menores */
   }
 
   /* Faz com que as seções de Status e OS fiquem uma em cima da outra */
@@ -650,10 +744,12 @@ label.form-label.d-flex {
 /* Para telas de celular (abaixo de 400px) */
 @media (max-width: 400px) {
   .filtros-dropdown {
-    width: 90vw; /* Ocupa quase toda a largura da tela */
+    width: 90vw;
+    /* Ocupa quase toda a largura da tela */
   }
 
   .filtros-dropdown .dropdown-item {
-    flex-basis: 100%; /* Um botão por linha */
+    flex-basis: 100%;
+    /* Um botão por linha */
   }
 }

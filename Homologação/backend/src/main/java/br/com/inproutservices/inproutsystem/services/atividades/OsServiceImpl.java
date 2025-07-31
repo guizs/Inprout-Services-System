@@ -1,11 +1,16 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
+import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Contrato;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
+import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.ContratoRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
@@ -20,6 +25,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class OsServiceImpl implements OsService {
@@ -29,13 +35,15 @@ public class OsServiceImpl implements OsService {
     private final ContratoRepository contratoRepository;
     private final SegmentoRepository segmentoRepository;
     private final UsuarioRepository usuarioRepository;
+    private final LancamentoRepository lancamentoRepository;
 
-    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository) {
+    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
         this.contratoRepository = contratoRepository;
         this.segmentoRepository = segmentoRepository;
         this.usuarioRepository = usuarioRepository;
+        this.lancamentoRepository = lancamentoRepository;
     }
 
     @Override
@@ -166,6 +174,30 @@ public class OsServiceImpl implements OsService {
             throw new EntityNotFoundException("OS não encontrada com o ID: " + id);
         }
         osRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LpuComLancamentoDto> getLpusWithLastApprovedLaunch(Long osId) {
+        OS os = osRepository.findById(osId)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o id: " + osId));
+
+        return os.getLpus().stream()
+                .map(lpu -> {
+                    // 1. Busca a entidade
+                    Lancamento ultimoLancamentoEntity = lancamentoRepository
+                            .findFirstByLpuIdAndSituacaoAprovacaoOrderByIdDesc(lpu.getId(), SituacaoAprovacao.APROVADO)
+                            .orElse(null);
+
+                    // 2. Converte a entidade para o DTO COMPLETO
+                    LancamentoResponseDTO ultimoLancamentoDto = (ultimoLancamentoEntity != null)
+                            ? new LancamentoResponseDTO(ultimoLancamentoEntity)
+                            : null;
+
+                    // 3. Retorna o DTO final
+                    return new LpuComLancamentoDto(lpu, ultimoLancamentoDto);
+                })
+                .collect(Collectors.toList());
     }
 
 }

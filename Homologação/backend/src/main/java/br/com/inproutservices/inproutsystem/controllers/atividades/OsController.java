@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
@@ -109,6 +110,12 @@ public class OsController {
     public ResponseEntity<List<LpuResponseDTO>> getLpusPorOs(@PathVariable Long osId) {
         List<LpuResponseDTO> lpus = lpuService.findLpusByOsId(osId);
         return ResponseEntity.ok(lpus);
+    }
+
+    @GetMapping("/{osId}/lpu-lancamentos")
+    public ResponseEntity<List<LpuComLancamentoDto>> getLpusWithLastLaunch(@PathVariable Long osId) {
+        List<LpuComLancamentoDto> data = osService.getLpusWithLastApprovedLaunch(osId);
+        return ResponseEntity.ok(data);
     }
 
 }

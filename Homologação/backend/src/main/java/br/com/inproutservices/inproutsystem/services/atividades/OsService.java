@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 
@@ -18,6 +19,8 @@ public interface OsService {
      * @return A entidade OS criada e salva no banco de dados.
      */
     OS createOs(OsRequestDto osDto);
+
+    List<LpuComLancamentoDto> getLpusWithLastApprovedLaunch(Long osId);
 
     /**
      * Retorna uma lista de Ordens de Serviço filtradas pelos segmentos

@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
+import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Contrato;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
@@ -184,18 +185,19 @@ public class OsServiceImpl implements OsService {
 
         return os.getLpus().stream()
                 .map(lpu -> {
-                    // 1. Busca a entidade
+                    // *** CORREÇÃO APLICADA AQUI ***
+                    // Busca o último lançamento para a combinação OS+LPU, independentemente do status
                     Lancamento ultimoLancamentoEntity = lancamentoRepository
-                            .findFirstByLpuIdAndSituacaoAprovacaoOrderByIdDesc(lpu.getId(), SituacaoAprovacao.APROVADO)
+                            .findFirstByOsIdAndLpuIdOrderByIdDesc(osId, lpu.getId())
                             .orElse(null);
 
-                    // 2. Converte a entidade para o DTO COMPLETO
                     LancamentoResponseDTO ultimoLancamentoDto = (ultimoLancamentoEntity != null)
                             ? new LancamentoResponseDTO(ultimoLancamentoEntity)
                             : null;
 
-                    // 3. Retorna o DTO final
-                    return new LpuComLancamentoDto(lpu, ultimoLancamentoDto);
+                    LpuResponseDTO lpuDto = new LpuResponseDTO(lpu);
+
+                    return new LpuComLancamentoDto(lpuDto, ultimoLancamentoDto);
                 })
                 .collect(Collectors.toList());
     }

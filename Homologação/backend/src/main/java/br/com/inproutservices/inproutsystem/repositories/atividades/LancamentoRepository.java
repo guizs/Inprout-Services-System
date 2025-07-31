@@ -93,6 +93,6 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "GROUP BY p.codigoPrestador, p.prestador ORDER BY SUM(l.valor) DESC")
     List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
-    Optional<Lancamento> findFirstByLpuIdAndSituacaoAprovacaoOrderByIdDesc(Long lpuId, SituacaoAprovacao situacao);
+    Optional<Lancamento> findFirstByOsIdAndLpuIdOrderByIdDesc(Long osId, Long lpuId);
 
 }

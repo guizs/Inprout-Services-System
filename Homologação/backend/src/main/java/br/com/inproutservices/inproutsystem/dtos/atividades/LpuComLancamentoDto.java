@@ -1,30 +1,29 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO; // Importe o DTO
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 
-// Sem anotações do Lombok
 public class LpuComLancamentoDto {
 
-    private Lpu lpu;
+    private LpuResponseDTO lpu; // Alterado de Lpu para LpuResponseDTO
     private LancamentoResponseDTO ultimoLancamento;
 
-    // 1. Construtor padrão (sem argumentos)
     public LpuComLancamentoDto() {
     }
 
-    // 2. Construtor com todos os argumentos
-    public LpuComLancamentoDto(Lpu lpu, LancamentoResponseDTO ultimoLancamento) {
+    // O construtor agora receberá o DTO
+    public LpuComLancamentoDto(LpuResponseDTO lpu, LancamentoResponseDTO ultimoLancamento) {
         this.lpu = lpu;
         this.ultimoLancamento = ultimoLancamento;
     }
 
-    // 3. Getters e Setters para todos os campos
-    public Lpu getLpu() {
+    // Getters e Setters atualizados
+    public LpuResponseDTO getLpu() {
         return lpu;
     }
 
-    public void setLpu(Lpu lpu) {
+    public void setLpu(LpuResponseDTO lpu) {
         this.lpu = lpu;
     }
 

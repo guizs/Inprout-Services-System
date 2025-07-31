@@ -29,7 +29,7 @@ function addEventListeners() {
  */
 async function loadOsRecords() {
     const tableBody = document.getElementById('registros-table-body');
-    tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Carregando Ordens de Serviço...</td></tr>';
+    tableBody.innerHTML = '<tr><td colspan="2" class="text-center">Carregando Ordens de Serviço...</td></tr>';
 
     try {
         const response = await fetch(`${API_BASE_URL}/os`, {
@@ -43,7 +43,7 @@ async function loadOsRecords() {
         tableBody.innerHTML = '';
 
         if (osList.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center">Nenhuma Ordem de Serviço encontrada.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="2" class="text-center">Nenhuma Ordem de Serviço encontrada.</td></tr>';
             return;
         }
 
@@ -51,119 +51,135 @@ async function loadOsRecords() {
             const osRow = document.createElement('tr');
             osRow.className = 'os-row fw-bold';
             osRow.dataset.osId = os.id;
-            osRow.setAttribute('title', 'Clique para expandir'); // Dica para o usuário
+            osRow.setAttribute('title', 'Clique para expandir');
 
-            const cellIcon = osRow.insertCell();
-            cellIcon.innerHTML = '<i class="bi bi-chevron-right"></i>';
-
-            const cellOsInfo = osRow.insertCell();
-            cellOsInfo.colSpan = 7;
-            cellOsInfo.textContent = `Ordem de Serviço: ${os.os} (Contrato: ${os.contrato.numero})`;
+            // Célula 1: Ícone
+            osRow.innerHTML = `
+                <td><i class="bi bi-chevron-right toggle-icon"></i></td>
+                <td>Ordem de Serviço: ${os.os} (Contrato: ${os.contrato || 'N/A'})</td>
+            `;
 
             tableBody.appendChild(osRow);
         });
 
     } catch (error) {
         console.error('Falha ao carregar as Ordens de Serviço:', error);
-        tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Erro ao carregar dados. Verifique a API.</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="2" class="text-center text-danger">Erro ao carregar dados. Verifique a API.</td></tr>`;
     }
 }
 
 /**
- * Mostra ou esconde as linhas de LPU para uma determinada OS.
+ * Mostra ou esconde a tabela de LPUs para uma determinada OS.
  * @param {string} osId - O ID da OS que foi clicada.
  * @param {HTMLElement} osRow - O elemento <tr> da OS.
  */
 async function toggleLpuRows(osId, osRow) {
-    const icon = osRow.querySelector('i');
-    const isExpanded = osRow.classList.contains('expanded');
+    const icon = osRow.querySelector('.toggle-icon');
+    const detailsRow = document.getElementById(`details-for-os-${osId}`);
 
-    // Se já estiver expandido, apenas recolhe
-    if (isExpanded) {
-        osRow.classList.remove('expanded');
+    if (detailsRow) {
+        detailsRow.remove();
         icon.classList.replace('bi-chevron-down', 'bi-chevron-right');
-        // Remove todas as linhas de LPU associadas a esta OS
-        document.querySelectorAll(`.lpu-row[data-os-parent='${osId}']`).forEach(row => row.remove());
+        osRow.classList.remove('expanded');
         return;
     }
 
-    // Marca como expandido e muda o ícone
-    osRow.classList.add('expanded');
     icon.classList.replace('bi-chevron-right', 'bi-chevron-down');
+    osRow.classList.add('expanded');
 
-    // Exibe uma linha de "carregando"
-    const loadingRow = insertLoadingRow(osRow, 8);
+    const newDetailsRow = document.createElement('tr');
+    newDetailsRow.id = `details-for-os-${osId}`;
+    newDetailsRow.className = 'lpu-details-container-row';
+
+    const detailsCell = newDetailsRow.insertCell();
+    detailsCell.colSpan = 2;
+    detailsCell.innerHTML = '<div class="p-3">Carregando LPUs...</div>';
+    osRow.after(newDetailsRow);
 
     try {
-        // **Endpoint que precisaremos criar no back-end**
-        const response = await fetch(`${API_BASE_URL}/os/${osId}/lpu-lancamentos`, {
-             headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
-        });
-        if (!response.ok) {
-            throw new Error(`Erro na API: ${response.statusText}`);
-        }
-        const lpuData = await response.json();
-        loadingRow.remove(); // Remove o "carregando"
+        // *** CORREÇÃO APLICADA AQUI: Busca os dados da OS e das LPUs em paralelo ***
+        const [osResponse, lpuResponse] = await Promise.all([
+            fetch(`${API_BASE_URL}/os/${osId}`),
+            fetch(`${API_BASE_URL}/os/${osId}/lpu-lancamentos`)
+        ]);
 
-        if (lpuData.length === 0) {
-            const emptyRow = osRow.insertAdjacentElement('afterend', document.createElement('tr'));
-            emptyRow.className = `lpu-row text-muted`;
-            emptyRow.dataset.osParent = osId;
-            emptyRow.innerHTML = `<td colspan="8" class="text-center fst-italic">Nenhuma LPU associada a esta OS.</td>`;
-            return;
+        if (!osResponse.ok || !lpuResponse.ok) {
+            throw new Error(`Erro na API`);
         }
         
-        // Adiciona as linhas de LPU
-        lpuData.reverse().forEach(item => { // .reverse() para inserir na ordem correta
-            const lpuRow = document.createElement('tr');
-            lpuRow.className = 'lpu-row';
-            lpuRow.dataset.osParent = osId; // Vincula a linha filha à linha pai
-
-            // O `item` deve conter o objeto da LPU e o objeto do último lançamento (ou null)
-            const lpu = item.lpu;
-            const lancamento = item.ultimoLancamento;
-
-            lpuRow.innerHTML = `
-                <td></td> <td>${lpu.lpu}</td>
-                <td>${lpu.item || ''}</td>
-                <td>${lpu.descricao || ''}</td>
-                <td>${lancamento ? lancamento.etapaDetalhadaNome : ''}</td>
-
-                <td>${lancamento ? lancamento.status : ''}</td>
-                <td>${lancamento ? lancamento.situacao : ''}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" title="Novo Lançamento">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Histórico">
-                        <i class="bi bi-clock-history"></i>
-                    </button>
-                </td>
-            `;
-            osRow.insertAdjacentElement('afterend', lpuRow);
-        });
+        const osData = await osResponse.json();
+        const lpuData = await lpuResponse.json();
+        
+        // Passa os dados da OS clicada para a função que constrói a tabela
+        const innerTableHTML = buildInnerTable(lpuData, osData);
+        detailsCell.innerHTML = `<div class="p-2">${innerTableHTML}</div>`;
 
     } catch (error) {
         console.error(`Falha ao buscar LPUs para a OS ${osId}:`, error);
-        loadingRow.remove();
-        const errorRow = insertErrorRow(osRow, 8, "Falha ao carregar LPUs.");
-        errorRow.dataset.osParent = osId;
+        detailsCell.innerHTML = `<div class="p-3 text-center text-danger">Falha ao carregar LPUs.</div>`;
     }
 }
 
-// --- Funções Utilitárias ---
+/**
+ * Constrói o HTML da tabela interna com os dados das LPUs e seus lançamentos.
+ * @param {Array} data - A lista de LPU com seus últimos lançamentos.
+ * @param {object} os - O objeto da OS principal (pai).
+ * @returns {string} O HTML completo da tabela.
+ */
+function buildInnerTable(data, os) { // Recebe a OS como parâmetro
+    const headers = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "EQUIPE", "VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "AÇÕES"];
+    
+    let table = '<div class="table-responsive"><table class="table table-bordered table-sm modern-table">';
+    
+    table += '<thead><tr>';
+    headers.forEach(h => table += `<th>${h}</th>`);
+    table += '</tr></thead>';
 
-function insertLoadingRow(afterElement, colspan) {
-    const row = document.createElement('tr');
-    row.innerHTML = `<td colspan="${colspan}" class="text-center fst-italic">Carregando...</td>`;
-    afterElement.insertAdjacentElement('afterend', row);
-    return row;
-}
+    table += '<tbody>';
+    if (data.length === 0) {
+        table += `<tr><td colspan="${headers.length}" class="text-center text-muted">Nenhuma LPU encontrada para esta OS.</td></tr>`;
+    } else {
+        data.forEach(item => {
+            const lpu = item.lpu;
+            const lancamento = item.ultimoLancamento;
 
-function insertErrorRow(afterElement, colspan, message) {
-    const row = document.createElement('tr');
-    row.className = 'lpu-row';
-    row.innerHTML = `<td colspan="${colspan}" class="text-center text-danger">${message}</td>`;
-    afterElement.insertAdjacentElement('afterend', row);
-    return row;
+            const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+            const get = (obj, path, defaultValue = '') => path.split('.').reduce((a, b) => (a && a[b] ? a[b] : defaultValue), obj);
+
+            table += '<tr>';
+            // *** CORREÇÃO APLICADA AQUI: Usa o objeto 'os' para os dados da OS ***
+            table += `<td><span class="badge rounded-pill text-bg-secondary">${get(lancamento, 'situacaoAprovacao', 'N/A').replace(/_/g, ' ')}</span></td>`;
+            table += `<td>${get(lancamento, 'dataAtividade', '')}</td>`;
+            table += `<td>${os.os}</td>`; // <-- Dado da OS pai
+            table += `<td>${os.site}</td>`; // <-- Dado da OS pai
+            table += `<td>${get(os, 'segmento.nome', '')}</td>`; // <-- Dado da OS pai
+            table += `<td>${os.projeto}</td>`; // <-- Dado da OS pai
+            table += `<td>${lpu.codigoLpu} - ${lpu.nomeLpu}</td>`;
+            table += `<td>${os.gestorTim}</td>`; // <-- Dado da OS pai
+            table += `<td>${os.regional}</td>`; // <-- Dado da OS pai
+            table += `<td>${get(lancamento, 'equipe', '')}</td>`;
+            table += `<td>${get(lancamento, 'vistoria', '')}</td>`;
+            table += `<td>${get(lancamento, 'instalacao', '')}</td>`;
+            table += `<td>${get(lancamento, 'ativacao', '')}</td>`;
+            table += `<td>${get(lancamento, 'documentacao', '')}</td>`;
+            table += `<td>${get(lancamento, 'etapa.nomeGeral', '')}</td>`;
+            table += `<td>${get(lancamento, 'etapa.nomeDetalhado', '')}</td>`;
+            table += `<td>${get(lancamento, 'status', '')}</td>`;
+            table += `<td>${get(lancamento, 'situacao', '')}</td>`;
+            table += `<td>${get(lancamento, 'detalheDiario', '')}</td>`;
+            table += `<td>${get(lancamento, 'prestador.codigo', '')}</td>`;
+            table += `<td>${get(lancamento, 'prestador.nome', '')}</td>`;
+            table += `<td>${formatarMoeda(get(lancamento, 'valor', null))}</td>`;
+            table += `<td>${get(lancamento, 'manager.nome', '')}</td>`;
+            table += `
+                <td>
+                    <button class="btn btn-sm btn-outline-primary" title="Novo Lançamento"><i class="bi bi-plus-lg"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" title="Ver Histórico"><i class="bi bi-clock-history"></i></button>
+                </td>
+            `;
+            table += '</tr>';
+        });
+    }
+    table += '</tbody></table></div>';
+    return table;
 }

@@ -18,3 +18,7 @@
 .custom-scroll {
     max-height: calc(100vh - 225px); /* Aumenta a altura da área da tabela */
 }
+
+.search-box {
+  max-width: 80rem; /* Você pode ajustar este valor como preferir */
+}

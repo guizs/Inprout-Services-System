@@ -56,22 +56,24 @@ public record OsResponseDto(
                 os.getSite(),
                 os.getContrato(),
                 os.getSegmento() != null ? new SegmentoSimpleDTO(os.getSegmento()) : null,
-                // ================== INÍCIO DA LÓGICA ATUALIZADA ==================
+                // ================== INÍCIO DA CORREÇÃO ==================
                 os.getLpus().stream()
                         .map(lpu -> new LpuComLancamentoDto(
                                 new LpuSimpleDTO(lpu),
-                                lpu.getLancamentos().stream()
-                                        // 1. Filtra para pegar apenas os lançamentos com status APROVADO
+                                // 1. Filtra a partir dos lançamentos da OS atual
+                                os.getLancamentos().stream()
+                                        // 2. Garante que o lançamento pertence à LPU correta dentro desta OS
+                                        .filter(lancamento -> lancamento.getLpu() != null && lancamento.getLpu().getId().equals(lpu.getId()))
+                                        // 3. Filtra para pegar apenas os lançamentos com status APROVADO
                                         .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO)
-                                        // 2. Encontra o lançamento com o maior ID (o mais recente) entre os aprovados
+                                        // 4. Encontra o lançamento mais recente (maior ID)
                                         .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
-                                        // 3. Mapeia para o DTO de resposta
+                                        // 5. Mapeia para o DTO de resposta ou retorna null se não houver
                                         .map(LancamentoResponseDTO::new)
-                                        // 4. Se nenhum for encontrado, retorna null
                                         .orElse(null)
                         ))
                         .collect(Collectors.toList()),
-                // =================== FIM DA LÓGICA ATUALIZADA ===================
+                // =================== FIM DA CORREÇÃO ===================
                 os.getProjeto(),
                 os.getGestorTim(),
                 os.getRegional(),

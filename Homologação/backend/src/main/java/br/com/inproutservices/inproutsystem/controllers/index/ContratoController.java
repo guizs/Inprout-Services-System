@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.controllers.index;
 
+import br.com.inproutservices.inproutsystem.dtos.index.ContratoResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.index.Contrato;
 import br.com.inproutservices.inproutsystem.services.index.ContratoService;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +25,9 @@ public class ContratoController {
      * Endpoint para listar todos os Contratos ATIVOS.
      */
     @GetMapping
-    public ResponseEntity<List<Contrato>> listarContratosAtivos() {
-        List<Contrato> contratos = contratoService.listarContratosAtivos();
+    public ResponseEntity<List<ContratoResponseDTO>> listarContratosAtivos() {
+        // Chama o método do serviço que já retorna a lista de DTOs
+        List<ContratoResponseDTO> contratos = contratoService.listarContratosAtivos();
         return ResponseEntity.ok(contratos);
     }
 

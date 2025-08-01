@@ -40,6 +40,13 @@ body {
     font-weight: 600;
 }
 
+.custom-scroll {
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
 /* =================================================================== */
 /* ============= LAYOUT DE CARDS ============= */
 /* Componente específico desta página

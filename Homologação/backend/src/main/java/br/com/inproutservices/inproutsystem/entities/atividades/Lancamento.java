@@ -27,6 +27,7 @@ public class Lancamento {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lpu_id")
+    @JsonIgnore
     private Lpu lpu;
 
     @ManyToOne(fetch = FetchType.LAZY)

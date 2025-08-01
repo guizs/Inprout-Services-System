@@ -13,7 +13,7 @@ public record LpuResponseDTO(
         BigDecimal valorSemImposto,
         BigDecimal valorComImposto,
         boolean ativo,
-        ContratoResponseDTO contrato
+        ContratoSimpleDTO contrato
 ) {
     // --- INÍCIO DA CORREÇÃO: ADICIONE ESTE CONSTRUTOR ---
     /**
@@ -31,7 +31,7 @@ public record LpuResponseDTO(
                 lpu.isAtivo(),
                 // Cria o DTO de contrato aninhado, tratando o caso de ser nulo para evitar erros
                 (lpu.getContrato() != null)
-                        ? new ContratoResponseDTO(lpu.getContrato().getId(), lpu.getContrato().getNome())
+                        ? new ContratoSimpleDTO(lpu.getContrato().getId(), lpu.getContrato().getNome())
                         : null
         );
     }

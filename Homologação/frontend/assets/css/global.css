@@ -222,12 +222,8 @@ table td:last-child {
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
 }
 
-.table-responsive {
-    max-height: 100vh;
-}
-
 .custom-scroll {
-  max-height: calc(100vh - 320px);
+  max-height: calc(100vh - 340px);
   overflow-y: auto;
   border: 1px solid #ccc;
   border-radius: 8px;

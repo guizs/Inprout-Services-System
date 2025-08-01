@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.index;
 
+import br.com.inproutservices.inproutsystem.dtos.index.ContratoResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.index.Contrato;
 import br.com.inproutservices.inproutsystem.repositories.index.ContratoRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
@@ -9,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ContratoService {
@@ -41,8 +43,14 @@ public class ContratoService {
      * @return Lista de Contratos ativos.
      */
     @Transactional(readOnly = true)
-    public List<Contrato> listarContratosAtivos() {
-        return contratoRepository.findAllByOrderByNomeAsc();
+    public List<ContratoResponseDTO> listarContratosAtivos() {
+        // A busca no repositório continua a mesma
+        List<Contrato> contratos = contratoRepository.findAllByOrderByNomeAsc();
+
+        // A conversão para DTO é feita aqui
+        return contratos.stream()
+                .map(ContratoResponseDTO::new)
+                .collect(Collectors.toList());
     }
 
     /**

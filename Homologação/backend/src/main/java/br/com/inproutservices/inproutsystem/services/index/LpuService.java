@@ -1,6 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.index;
 
-import br.com.inproutservices.inproutsystem.dtos.index.ContratoResponseDTO;
+import br.com.inproutservices.inproutsystem.dtos.index.ContratoSimpleDTO;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.index.Contrato;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
@@ -62,23 +62,9 @@ public class LpuService {
 
     @Transactional(readOnly = true)
     public LpuResponseDTO buscarLpuPorIdDTO(Long id) {
-        // Busca a entidade LPU do banco (o lazy loading não é problema aqui)
-        Lpu lpu = lpuRepository.findById(id)
+        Lpu lpu = lpuRepository.findByIdWithContrato(id)
                 .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + id));
-
-        // Mapeia a entidade para o DTO
-        ContratoResponseDTO contratoDTO = new ContratoResponseDTO(lpu.getContrato().getId(), lpu.getContrato().getNome());
-
-        return new LpuResponseDTO(
-                lpu.getId(),
-                lpu.getCodigoLpu(),
-                lpu.getNomeLpu(),
-                lpu.getUnidade(),
-                lpu.getValorSemImposto(),
-                lpu.getValorComImposto(),
-                lpu.isAtivo(),
-                contratoDTO
-        );
+        return new LpuResponseDTO(lpu);
     }
 
     /**

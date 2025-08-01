@@ -41,7 +41,7 @@ body {
 }
 
 .custom-scroll {
-  max-height: calc(100vh - 100px);
+  max-height: calc(100vh - px);
   overflow-y: auto;
   border: 1px solid #ccc;
   border-radius: 8px;

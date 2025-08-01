@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 locale: 'pt', // Usa a tradução para português
                 dateFormat: 'd/m/Y', // Formato de data visível: 31/12/2025
                 allowInput: true, // Permite que o usuário digite a data
-                onOpen: function(selectedDates, dateStr, instance) {
+                onOpen: function (selectedDates, dateStr, instance) {
                     // Limpa a data selecionada toda vez que o calendário é aberto
                     // se o campo de input estiver vazio.
                     if (instance.input.value === '') {
@@ -150,11 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
             } else {
                 // A lógica para criar os checkboxes continua a mesma
-                lpuChecklistContainerLote.innerHTML = lpus.map(lpu => `
+                lpuChecklistContainerLote.innerHTML = lpus.map(item => `
                 <div class="form-check">
-                    <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${lpu.codigo} - ${lpu.nome}">
-                    <label class="form-check-label" for="lpu-lote-${lpu.id}">
-                        ${lpu.codigo} - ${lpu.nome}
+                    <input class="form-check-input lpu-checkbox" type="checkbox" value="${item.lpu.id}" id="lpu-lote-${item.lpu.id}" data-nome="${item.lpu.codigo} - ${item.lpu.nome}">
+                    <label class="form-check-label" for="lpu-lote-${item.lpu.id}">
+                        ${item.lpu.codigo} - ${item.lpu.nome}
                     </label>
                 </div>
             `).join('');

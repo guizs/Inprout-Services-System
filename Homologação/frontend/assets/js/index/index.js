@@ -1350,4 +1350,4 @@ document.addEventListener('DOMContentLoaded', () => {
     carregarLancamentos();
     configurarVisibilidadePorRole();
     window.carregarLancamentos = carregarLancamentos;
-}); td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
+});

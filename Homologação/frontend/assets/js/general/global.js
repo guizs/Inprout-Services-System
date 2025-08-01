@@ -189,6 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    
 });
 
 // Corrige cache quando navega com botão "voltar" do navegador

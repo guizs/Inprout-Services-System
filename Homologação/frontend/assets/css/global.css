@@ -9,20 +9,37 @@ body {
   color: var(--text-color);
 }
 
-h1, h2, h3, h4, h5 {
+h1,
+h2,
+h3,
+h4,
+h5 {
   font-weight: 600;
   letter-spacing: 0.5px;
 }
 
-h1 { font-size: 1.8rem; }
-h2 { font-size: 1.5rem; }
-h3 { font-size: 1.3rem; }
-table, .btn, .nav-link, .navbar-text {
+h1 {
+  font-size: 1.8rem;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.3rem;
+}
+
+table,
+.btn,
+.nav-link,
+.navbar-text {
   font-size: 0.9rem;
 }
 
 
-html, body {
+html,
+body {
   height: 100vh;
   margin: 0;
   padding: 0;
@@ -112,9 +129,9 @@ html, body {
 }
 
 .user-dropdown {
-  font-size: 0.9rem; 
-  padding: 0.6rem 1rem; 
-  border-radius: 10px; 
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -142,15 +159,18 @@ html, body {
 }
 
 /* ======== TABELA ======== */
-.table, .modern-table {
+.table,
+.modern-table {
   min-width: 1400px;
   font-size: 0.9rem;
   border-collapse: collapse;
   background-color: #fff;
 }
 
-.table th, .table td,
-.modern-table th, .modern-table td {
+.table th,
+.table td,
+.modern-table th,
+.modern-table td {
   white-space: nowrap;
   padding: 0.5rem 1rem;
   text-align: center;
@@ -158,13 +178,14 @@ html, body {
   border-right: 1px solid #ddd;
 }
 
-.modern-table th, .modern-table td {
+.modern-table th,
+.modern-table td {
   font-size: 0.85rem;
   color: #333;
 }
 
 .ocultar-forcado {
-    display: none !important;
+  display: none !important;
 }
 
 .modern-table thead th {
@@ -174,12 +195,13 @@ html, body {
 }
 
 .table thead {
-    position: sticky;
-    top: 0;
-    z-index: 100;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.table thead, .modern-table thead {
+.table thead,
+.modern-table thead {
   background-color: var(--primary-color);
   color: var(--text-color);
   font-weight: 600;
@@ -214,7 +236,8 @@ table td:last-child {
 }
 
 /* ======== SCROLL DA TABELA ======== */
-.table-responsive, .custom-scroll {
+.table-responsive,
+.custom-scroll {
   overflow-x: auto;
   border-radius: 0.5rem;
   background-color: white;
@@ -249,23 +272,73 @@ tr.selected {
 }
 
 .overlay-loader {
-  position: fixed; /* Garante que ele flutue sobre a página */
+  position: fixed;
+  /* Garante que ele flutue sobre a página */
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.8); /* Fundo branco semitransparente */
-  z-index: 9999; /* Z-index altíssimo para ficar na frente de tudo */
+  background: rgba(255, 255, 255, 0.8);
+  /* Fundo branco semitransparente */
+  z-index: 9999;
+  /* Z-index altíssimo para ficar na frente de tudo */
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.3s ease; /* Transição suave */
+  transition: opacity 0.3s ease;
+  /* Transição suave */
+}
+
+/* Define a altura máxima e a barra de rolagem para a lista de opções */
+.choices__list--dropdown .choices__list {
+  max-height: 220px;
+  /* Você pode ajustar esta altura como preferir */
+  overflow-y: auto;
+}
+
+/* Melhora a aparência do campo de seleção principal */
+.choices__inner {
+  background-color: #fff;
+  border-radius: 8px !important;
+  /* Mantém o padrão do seu projeto */
+  border: 1px solid #ccc !important;
+  padding: 0.375rem 0.75rem !important;
+  min-height: auto;
+  /* Ajusta a altura mínima */
+  font-size: 0.9rem;
+  /* Alinha com o tamanho da fonte dos outros inputs */
+}
+
+/* Estiliza o campo quando está focado/ativo */
+.is-focused .choices__inner {
+  border-color: #5ca98c !important;
+  box-shadow: 0 0 0 0.15rem rgba(92, 169, 140, 0.25) !important;
+}
+
+/* Melhora a aparência da barra de rolagem dentro do dropdown */
+.choices__list--dropdown .choices__list::-webkit-scrollbar {
+  width: 8px;
+  background-color: #f0f0f0;
+}
+
+.choices__list--dropdown .choices__list::-webkit-scrollbar-thumb {
+  background-color: #b8d8c5;
+  /* Cor verde do seu tema */
+  border-radius: 8px;
 }
 
 @keyframes pulse {
-  0% { opacity: 0.4; }
-  50% { opacity: 1; }
-  100% { opacity: 0.4; }
+  0% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.4;
+  }
 }
 
 @media (max-width: 768px) {

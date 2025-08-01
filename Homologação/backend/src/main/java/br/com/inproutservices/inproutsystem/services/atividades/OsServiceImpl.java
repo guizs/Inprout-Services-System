@@ -11,6 +11,7 @@ import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
+import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.ContratoRepository;
@@ -18,6 +19,8 @@ import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.SegmentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -115,11 +118,51 @@ public class OsServiceImpl implements OsService {
         return osRepository.findAllBySegmentoIn(segmentosDoUsuario);
     }
 
+    // --- MÉTODO ALTERADO ---
     @Override
     @Transactional(readOnly = true)
     public List<OS> getAllOs() {
-        return osRepository.findAllWithDetails();
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        String userEmail;
+        if (principal instanceof UserDetails) {
+            userEmail = ((UserDetails) principal).getUsername();
+        } else {
+            userEmail = principal.toString();
+        }
+
+        if ("anonymousUser".equals(userEmail)) {
+            return osRepository.findAllWithDetails();
+        }
+
+        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
+
+        Role role = usuarioLogado.getRole();
+
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            return osRepository.findAllWithDetails();
+        }
+
+        if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
+            if (segmentosDoUsuario.isEmpty()) {
+                return Collections.emptyList();
+            }
+            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
+                    .map(Segmento::getId)
+                    .collect(Collectors.toSet());
+
+            List<OS> todasAsOs = osRepository.findAllWithDetails();
+
+            return todasAsOs.stream()
+                    .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
+                    .collect(Collectors.toList());
+        }
+
+        return Collections.emptyList();
     }
+
 
     @Override
     @Transactional
@@ -185,8 +228,6 @@ public class OsServiceImpl implements OsService {
 
         return os.getLpus().stream()
                 .map(lpu -> {
-                    // *** CORREÇÃO APLICADA AQUI ***
-                    // Busca o último lançamento para a combinação OS+LPU, independentemente do status
                     Lancamento ultimoLancamentoEntity = lancamentoRepository
                             .findFirstByOsIdAndLpuIdOrderByIdDesc(osId, lpu.getId())
                             .orElse(null);

@@ -1,14 +1,16 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
-import br.com.inproutservices.inproutsystem.entities.index.Lpu;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento; // ADICIONE ESTE IMPORT
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.index.Lpu;
+import br.com.inproutservices.inproutsystem.entities.index.Segmento;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao; // Import necessário
 import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public record OsResponseDto(
@@ -16,8 +18,8 @@ public record OsResponseDto(
         String os,
         String site,
         String contrato,
-        SegmentoSimpleDTO segmento, // ALTERADO DE String PARA SegmentoSimpleDTO
-        Set<LpuSimpleDTO> lpus,
+        SegmentoSimpleDTO segmento,
+        List<LpuComLancamentoDto> lpus,
         String projeto,
         String gestorTim,
         String regional,
@@ -47,21 +49,29 @@ public record OsResponseDto(
         String usuarioAtualizacao,
         String statusRegistro
 ) {
-    /**
-     * Construtor que converte uma entidade OS para este DTO de resposta.
-     * @param os A entidade OS vinda do banco de dados.
-     */
     public OsResponseDto(OS os) {
         this(
                 os.getId(),
                 os.getOs(),
                 os.getSite(),
                 os.getContrato(),
-                // LÓGICA DE MAPEAMENTO DO SEGMENTO
                 os.getSegmento() != null ? new SegmentoSimpleDTO(os.getSegmento()) : null,
+                // ================== INÍCIO DA LÓGICA ATUALIZADA ==================
                 os.getLpus().stream()
-                        .map(LpuSimpleDTO::new)
-                        .collect(Collectors.toSet()),
+                        .map(lpu -> new LpuComLancamentoDto(
+                                new LpuSimpleDTO(lpu),
+                                lpu.getLancamentos().stream()
+                                        // 1. Filtra para pegar apenas os lançamentos com status APROVADO
+                                        .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO)
+                                        // 2. Encontra o lançamento com o maior ID (o mais recente) entre os aprovados
+                                        .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
+                                        // 3. Mapeia para o DTO de resposta
+                                        .map(LancamentoResponseDTO::new)
+                                        // 4. Se nenhum for encontrado, retorna null
+                                        .orElse(null)
+                        ))
+                        .collect(Collectors.toList()),
+                // =================== FIM DA LÓGICA ATUALIZADA ===================
                 os.getProjeto(),
                 os.getGestorTim(),
                 os.getRegional(),
@@ -93,21 +103,17 @@ public record OsResponseDto(
         );
     }
 
-    /**
-     * DTO aninhado e simplificado para LPU, para evitar loops de serialização.
-     */
     public record LpuSimpleDTO(Long id, String codigo, String nome) {
         public LpuSimpleDTO(Lpu lpu) {
             this(lpu.getId(), lpu.getCodigoLpu(), lpu.getNomeLpu());
         }
     }
 
-    /**
-     * NOVO DTO ANINHADO: DTO simplificado para Segmento.
-     */
     public record SegmentoSimpleDTO(Long id, String nome) {
         public SegmentoSimpleDTO(Segmento segmento) {
             this(segmento.getId(), segmento.getNome());
         }
     }
+
+    public record LpuComLancamentoDto(LpuSimpleDTO lpu, LancamentoResponseDTO ultimoLancamento) {}
 }

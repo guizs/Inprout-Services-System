@@ -1,6 +1,6 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
-import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO; // Importe o DTO
+import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 

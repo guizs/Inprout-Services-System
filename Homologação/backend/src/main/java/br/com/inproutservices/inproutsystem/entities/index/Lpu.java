@@ -1,11 +1,13 @@
 package br.com.inproutservices.inproutsystem.entities.index;
 
+import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
-import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 
 @Entity
 @Table(name = "lpu", uniqueConstraints = {
@@ -25,6 +27,10 @@ public class Lpu {
     @JoinColumn(name = "contrato_id", nullable = false)
     @JsonBackReference
     private Contrato contrato;
+
+    // ADICIONADO: Relacionamento para acessar os lançamentos da LPU
+    @OneToMany(mappedBy = "lpu", fetch = FetchType.LAZY)
+    private List<Lancamento> lancamentos = new ArrayList<>();
 
     @Column(name = "codigo_lpu", nullable = false, length = 50)
     private String codigoLpu;
@@ -52,6 +58,17 @@ public class Lpu {
 
     public Lpu() {
     }
+
+    // ADICIONADO: Getter e Setter para a nova lista
+    public List<Lancamento> getLancamentos() {
+        return lancamentos;
+    }
+
+    public void setLancamentos(List<Lancamento> lancamentos) {
+        this.lancamentos = lancamentos;
+    }
+
+    // (O restante da classe permanece igual...)
 
     public SituacaoOperacional getSituacaoProjeto() {
         return situacaoProjeto;

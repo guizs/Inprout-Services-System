@@ -16,6 +16,7 @@ public record MaterialResponseDTO(
         BigDecimal custoMedioPonderado,
         BigDecimal custoTotal,
         String observacoes,
+        String empresa,
         List<EntradaMaterialResponseDTO> entradas // NOVO CAMPO
 ) {
     public MaterialResponseDTO(Material entity) {
@@ -30,6 +31,7 @@ public record MaterialResponseDTO(
                         ? entity.getSaldoFisico().multiply(entity.getCustoMedioPonderado()).setScale(2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO,
                 entity.getObservacoes(),
+                entity.getEmpresa(),
                 // Mapeia a lista de entidades para a lista de DTOs
                 entity.getEntradas() != null ?
                         entity.getEntradas().stream()

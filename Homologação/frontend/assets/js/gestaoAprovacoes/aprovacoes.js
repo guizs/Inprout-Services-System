@@ -9,6 +9,18 @@ const modalComentarios = document.getElementById('modalComentarios') ? new boots
 const modalAprovarMaterial = document.getElementById('modalAprovarMaterial') ? new bootstrap.Modal(document.getElementById('modalAprovarMaterial')) : null;
 const modalRecusarMaterial = document.getElementById('modalRecusarMaterial') ? new bootstrap.Modal(document.getElementById('modalRecusarMaterial')) : null;
 let todosOsLancamentosGlobais = [];
+const tbodyHistoricoMateriais = document.getElementById('tbody-historico-materiais');
+const filtroSegmentoMateriais = document.getElementById('filtro-segmento-materiais');
+const acoesLoteContainer = document.getElementById('acoes-lote-container');
+const btnAprovarSelecionados = document.getElementById('btn-aprovar-selecionados');
+const contadorSelecionados = document.getElementById('contador-selecionados');
+const contadorAprovacao = document.getElementById('contador-aprovacao'); // ID atualizado
+const btnRecusarSelecionados = document.getElementById('btn-recusar-selecionados');
+const contadorRecusa = document.getElementById('contador-recusa');
+const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-selecionados');
+const contadorPrazo = document.getElementById('contador-prazo');
+let todasPendenciasMateriais = []; // Variável global para guardar os dados
+let todosHistoricoMateriais = [];
 const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais (sem alterações)
@@ -163,7 +175,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const theadHistorico = document.getElementById('thead-historico');
     const tbodyHistorico = document.getElementById('tbody-historico');
     const tbodyPendentesMateriais = document.getElementById('tbody-pendentes-materiais');
-    const tbodyHistoricoMateriais = document.getElementById('tbody-historico-materiais');
 
     if (userRole === 'MANAGER') {
         // Seleciona as abas que devem ser escondidas
@@ -215,9 +226,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- RENDERIZAÇÃO DA TABELA (VERSÃO COMPLETA) ---
     const colunas = [
-        "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO",
-        "GESTOR TIM", "REGIONAL", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL",
-        "OBSERVAÇÕES", "DATA PO", "LPU", "EQUIPE", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO",
+        '<input type="checkbox" id="selecionar-todos-checkbox">', "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO",
+        "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL",
+        "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO",
         "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO",
         "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"
     ];
@@ -226,13 +237,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!theadPendentes) return;
         theadPendentes.innerHTML = '';
         const tr = document.createElement('tr');
+
         colunas.forEach(textoColuna => {
             // Não renderiza a coluna de prazo para o Controller
             if (textoColuna === 'PRAZO AÇÃO' && userRole === 'CONTROLLER') {
                 return;
             }
             const th = document.createElement('th');
-            th.textContent = textoColuna;
+            // A lógica do checkbox no header está aqui
+            if (textoColuna.includes('checkbox')) {
+                th.innerHTML = textoColuna;
+            } else {
+                th.textContent = textoColuna;
+            }
             if (textoColuna === 'AÇÕES') th.classList.add('text-center');
             tr.appendChild(th);
         });
@@ -268,6 +285,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
+
+            tr.dataset.id = lancamento.id;
+            tr.classList.add('linha-selecionavel');
 
             // Define as ações com base no perfil do usuário
             let acoesHtml = '';
@@ -322,6 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const mapaDeCelulas = {
+                '<input type="checkbox" id="selecionar-todos-checkbox">': `<input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}">`,
                 "AÇÕES": acoesHtml,
                 "PRAZO AÇÃO": userRole === 'COORDINATOR' ? `<span class="badge bg-danger">${formatarData(lancamento.dataPrazo)}</span>` : '',
                 "STATUS APROVAÇÃO": statusHtml,
@@ -334,6 +355,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PROJETO": (lancamento.os || {}).projeto || '',
                 "GESTOR TIM": (lancamento.os || {}).gestorTim || '',
                 "REGIONAL": (lancamento.os || {}).regional || '',
+                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '',
                 "LOTE": (lancamento.os || {}).lote || '',
                 "BOQ": (lancamento.os || {}).boq || '',
                 "PO": (lancamento.os || {}).po || '',
@@ -345,8 +367,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "OBSERVAÇÕES": (lancamento.os || {}).observacoes || '',
                 "DATA PO": (lancamento.os || {}).dataPo || '',
                 // Dados do Lançamento
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '',
-                "EQUIPE": lancamento.equipe || '',
                 "VISTORIA": lancamento.vistoria || '',
                 "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
                 "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
@@ -445,27 +465,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarDadosMateriais() {
-        // Só executa se os elementos da tabela de materiais existirem na página
         if (!document.getElementById('tbody-pendentes-materiais')) return;
 
         try {
-            // Passa o perfil do usuário no cabeçalho para o backend saber quais pendências retornar
             const pendentesResponse = await fetch(`${API_BASE_URL}/solicitacoes/pendentes`, {
-                headers: { 'X-User-Role': userRole }
+                headers: {
+                    'X-User-Role': userRole,
+                    'X-User-ID': userId
+                }
             });
-            const userId = localStorage.getItem('usuarioId');
             const historicoResponse = await fetch(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
 
             if (!pendentesResponse.ok || !historicoResponse.ok) {
                 throw new Error('Falha ao carregar solicitações de materiais.');
             }
 
-            const pendentes = await pendentesResponse.json();
-            const historico = await historicoResponse.json();
+            todasPendenciasMateriais = await pendentesResponse.json();
+            todosHistoricoMateriais = await historicoResponse.json();
 
-            // Chama as funções para desenhar as tabelas (vamos criá-las no próximo passo)
-            renderizarTabelaPendentesMateriais(pendentes);
-            renderizarTabelaHistoricoMateriais(historico);
+            // Popula o filtro e renderiza as tabelas
+            popularFiltroSegmento();
+            renderizarTabelaPendentesMateriais();
+            renderizarTabelaHistoricoMateriais();
 
         } catch (error) {
             console.error("Erro ao carregar dados de materiais:", error);
@@ -473,9 +494,37 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    function popularFiltroSegmento() {
+        const segmentos = new Set();
+        // Junta os dados de pendentes e histórico para pegar todos os segmentos possíveis
+        [...todasPendenciasMateriais, ...todosHistoricoMateriais].forEach(s => {
+            if (s.os.segmento) {
+                // Usa JSON para garantir que objetos idênticos não sejam duplicados
+                segmentos.add(JSON.stringify(s.os.segmento));
+            }
+        });
+
+        filtroSegmentoMateriais.innerHTML = '<option value="todos">Todos os Segmentos</option>'; // Limpa o select
+
+        Array.from(segmentos)
+            .map(s => JSON.parse(s)) // Converte de volta para objeto
+            .sort((a, b) => a.nome.localeCompare(b.nome)) // Ordena por nome
+            .forEach(segmento => {
+                const option = new Option(segmento.nome, segmento.id);
+                filtroSegmentoMateriais.add(option);
+            });
+    }
+
+
     function renderizarTabelaPendentesMateriais(solicitacoes) {
         const tbody = tbodyPendentesMateriais;
         if (!tbody) return;
+
+        const filtroSegmentoId = filtroSegmentoMateriais.value;
+        const solicitacoesFiltradas = filtroSegmentoId === 'todos'
+            ? todasPendenciasMateriais
+            : todasPendenciasMateriais.filter(s => s.os.segmento && s.os.segmento.id == filtroSegmentoId);
+
 
         const thead = tbody.previousElementSibling;
         thead.innerHTML = '';
@@ -483,30 +532,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Define as colunas com base no perfil do usuário
         let colunasHtml = `
-        <th>Ações</th>
-        <th>Data Solicitação</th>
-        <th>Solicitante</th>
-        <th>OS</th>
-        <th>LPU</th>
-        <th>Item Solicitado</th>
-        <th class="text-center">Unidade</th>
-        <th class="text-center">Qtd. Solicitada</th>
-        <th class="text-center">Qtd. em Estoque</th>
-        <th>Justificativa</th>
-    `;
+    <th>Ações</th>
+    <th>Data Solicitação</th>
+    <th>Solicitante</th>
+    <th>OS</th>
+    <th>Segmento</th>
+    <th>LPU</th>
+    <th>Item Solicitado</th>
+    <th class="text-center">Unidade</th>
+    <th class="text-center">Qtd. Solicitada</th>
+    <th class="text-center">Qtd. em Estoque</th>
+    <th>Justificativa</th>
+`;
         if (userRole === 'CONTROLLER') {
             colunasHtml += '<th>Status</th>';
         }
         thead.innerHTML = `<tr>${colunasHtml}</tr>`;
 
         // Ajusta o colspan para a mensagem de "nenhuma pendência"
-        const colspan = userRole === 'CONTROLLER' ? 11 : 10;
-        if (!solicitacoes || solicitacoes.length === 0) {
+        const colspan = userRole === 'CONTROLLER' ? 12 : 11;
+        if (!solicitacoesFiltradas || solicitacoesFiltradas.length === 0) {
             tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
             return;
         }
 
-        solicitacoes.forEach(s => {
+        solicitacoesFiltradas.forEach(s => {
             const item = s.itens[0];
             if (!item) return;
 
@@ -517,70 +567,73 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (userRole === 'CONTROLLER') {
                 if (s.status === 'PENDENTE_CONTROLLER') {
-                    // Se a pendência está com o Controller, mostra os botões de ação
                     acoesHtml = `
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
-                    statusHtml = `<span class="badge rounded-pill text-bg-warning">PENDENTE CONTROLLER</span>`;
-                } else {
-                    // Se está com o Coordenador, não mostra nenhuma ação
-                    acoesHtml = `—`; // Um traço para indicar que não há ação
-                    statusHtml = `<span class="badge rounded-pill text-bg-info">PENDENTE COORDENADOR</span>`;
-                }
-            } else { // Lógica para o Coordenador
-                acoesHtml = `
                 <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
                 <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
+                    statusHtml = `<span class="badge rounded-pill text-bg-warning">PENDENTE CONTROLLER</span>`;
+                } else {
+                    acoesHtml = `—`;
+                    statusHtml = `<span class="badge rounded-pill text-bg-info">PENDENTE COORDENADOR</span>`;
+                }
+            } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') { // <-- AQUI a permissão é dada ao Manager
+                acoesHtml = `
+            <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
             }
 
             tr.innerHTML = `
-            <td data-label="Ações" class="text-center">${acoesHtml}</td>
-            <td data-label="Data">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
-            <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
-            <td data-label="OS">${s.os.os}</td>
-            <td data-label="LPU">${s.lpu.codigoLpu}</td>
-            <td data-label="Item Solicitado">${item.material.descricao}</td>
-            <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
-            <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
-            <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
-            <td data-label="Justificativa">${s.justificativa || ''}</td>
-            ${userRole === 'CONTROLLER' ? `<td data-label="Status">${statusHtml}</td>` : ''}
-        `;
+        <td data-label="Ações" class="text-center">${acoesHtml}</td>
+        <td data-label="Data">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
+        <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
+        <td data-label="OS">${s.os.os}</td>
+        <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
+        <td data-label="LPU">${s.lpu.codigoLpu}</td>
+        <td data-label="Item Solicitado">${item.material.descricao}</td>
+        <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
+        <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
+        <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
+        <td data-label="Justificativa">${s.justificativa || ''}</td>
+        ${userRole === 'CONTROLLER' ? `<td data-label="Status">${statusHtml}</td>` : ''}
+    `;
             tbody.appendChild(tr);
         });
     }
 
-    function renderizarTabelaHistoricoMateriais(solicitacoes) {
+    function renderizarTabelaHistoricoMateriais() {
         const tbody = tbodyHistoricoMateriais;
         if (!tbody) return;
+
+        const filtroSegmentoId = filtroSegmentoMateriais.value;
+        const solicitacoes = filtroSegmentoId === 'todos'
+            ? todosHistoricoMateriais
+            : todosHistoricoMateriais.filter(s => s.os.segmento && s.os.segmento.id == filtroSegmentoId);
 
         const thead = tbody.previousElementSibling;
         thead.innerHTML = '';
         tbody.innerHTML = '';
 
-        // Novas colunas, alinhadas com a tabela de pendências + colunas de histórico
         thead.innerHTML = `
-        <tr>
-            <th>Data Ação</th>
-            <th>Status</th>
-            <th>Data Solicitação</th>
-            <th>Solicitante</th>
-            <th>OS</th>
-            <th>Segmento</th> <th>LPU</th>
-            <th>Item Solicitado</th>
-            <th class="text-center">Unidade</th>
-            <th class="text-center">Qtd. Solicitada</th>
-            <th>Aprovador</th>
-            <th>Motivo Recusa</th>
-        </tr>
-    `;
+    <tr>
+        <th>Data Ação</th>
+        <th>Status</th>
+        <th>Data Solicitação</th>
+        <th>Solicitante</th>
+        <th>OS</th>
+        <th>Segmento</th>
+        <th>LPU</th>
+        <th>Item Solicitado</th>
+        <th class="text-center">Unidade</th>
+        <th class="text-center">Qtd. Solicitada</th>
+        <th>Aprovador</th>
+        <th>Motivo Recusa</th>
+    </tr>
+`;
 
         if (!solicitacoes || solicitacoes.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">Nenhum histórico encontrado.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted">Nenhum histórico encontrado.</td></tr>`;
             return;
         }
 
-        // Ordena as solicitações pela data da ação, da mais recente para a mais antiga
         solicitacoes.sort((a, b) => {
             const dateA = new Date(a.dataAcaoController || a.dataAcaoCoordenador);
             const dateB = new Date(b.dataAcaoController || b.dataAcaoCoordenador);
@@ -592,29 +645,28 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!item) return;
 
             const tr = document.createElement('tr');
-
-            // Formata o badge de status (APROVADA ou REJEITADA)
             const statusBadge = s.status === 'APROVADA'
                 ? `<span class="badge bg-success">${s.status}</span>`
                 : `<span class="badge bg-danger">${s.status}</span>`;
 
-            // Determina qual aprovador e qual data de ação mostrar
             const dataAcao = s.dataAcaoController || s.dataAcaoCoordenador;
+            const dataAcaoFormatada = dataAcao ? new Date(dataAcao).toLocaleString('pt-BR') : 'Pendente';
             const nomeAprovador = s.nomeAprovadorController || s.nomeAprovadorCoordenador;
 
             tr.innerHTML = `
-                <td data-label="Data Ação">${new Date(dataAcao).toLocaleString('pt-BR')}</td>
-                <td data-label="Status">${statusBadge}</td>
-                <td data-label="Data Solicitação">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
-                <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
-                <td data-label="OS">${s.os.os}</td>
-                <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td> <td data-label="LPU">${s.lpu.codigoLpu}</td>
-                <td data-label="Item Solicitado">${item.material.descricao}</td>
-                <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
-                <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
-                <td data-label="Aprovador">${nomeAprovador || 'N/A'}</td>
-                <td data-label="Motivo Recusa">${s.motivoRecusa || '—'}</td>
-            `;
+            <td data-label="Data Ação">${dataAcaoFormatada}</td>
+            <td data-label="Status">${statusBadge}</td>
+            <td data-label="Data Solicitação">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
+            <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
+            <td data-label="OS">${s.os.os}</td>
+            <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
+            <td data-label="LPU">${s.lpu.codigoLpu}</td>
+            <td data-label="Item Solicitado">${item.material.descricao}</td>
+            <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
+            <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
+            <td data-label="Aprovador">${nomeAprovador || 'N/A'}</td>
+            <td data-label="Motivo Recusa">${s.motivoRecusa || '—'}</td>
+        `;
             tbody.appendChild(tr);
         });
     }
@@ -690,7 +742,7 @@ document.addEventListener('DOMContentLoaded', function () {
         tbodyHistorico.innerHTML = '';
 
         // Adiciona a nova coluna "COMENTÁRIOS"
-        const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO")];
+        const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO" && !c.includes('checkbox'))];
 
         if (theadHistorico) {
             theadHistorico.innerHTML = `<tr>${colunasHistorico.map(c => `<th>${c}</th>`).join('')}</tr>`;
@@ -807,22 +859,25 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         const btn = document.getElementById('btnConfirmarRecusa');
-        setButtonLoading(btn, true);
+        const motivo = document.getElementById('motivoRecusa').value;
+        const isAcaoEmLote = modalRecusar._element.dataset.acaoEmLote === 'true';
 
-        const lancamentoId = document.getElementById('recusarLancamentoId').value;
-        const comentario = document.getElementById('motivoRecusa').value;
+        const ids = isAcaoEmLote
+            ? Array.from(document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked')).map(cb => cb.dataset.id)
+            : [document.getElementById('recusarLancamentoId').value];
 
         let payload = {};
         let endpoint = '';
 
-        if (userRole === 'COORDINATOR') {
-            payload = { coordenadorId: userId, comentario };
-            endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-rejeitar`;
+        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+            payload = { lancamentoIds: ids, aprovadorId: userId, comentario: motivo };
+            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-rejeitar`;
         } else if (userRole === 'CONTROLLER') {
-            payload = { controllerId: userId, motivoRejeicao: comentario };
-            endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/controller-rejeitar`;
+            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo };
+            endpoint = `${API_BASE_URL}/lancamentos/lote/controller-rejeitar`;
         }
 
+        setButtonLoading(btn, true);
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -831,13 +886,15 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             if (!response.ok) throw new Error((await response.json()).message || 'Falha ao recusar.');
 
-            mostrarToast('Lançamento recusado com sucesso!', 'success');
+            mostrarToast('Ação de recusa realizada com sucesso!', 'success');
             modalRecusar.hide();
             await carregarDadosAtividades();
+            atualizarEstadoAcoesLote();
         } catch (error) {
-            mostrarToast(`Erro ao recusar: ${error.message}`, 'error');
+            mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(btn, false);
+            delete modalRecusar._element.dataset.acaoEmLote; // Limpa o marcador
         }
     });
 
@@ -845,40 +902,28 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('formComentarPrazo')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         const btn = document.getElementById('btnEnviarComentario');
-        setButtonLoading(btn, true);
+        const isAcaoEmLote = modalComentar._element.dataset.acaoEmLote === 'true';
 
-        const lancamentoId = document.getElementById('comentarLancamentoId').value;
+        const ids = isAcaoEmLote
+            ? Array.from(document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked')).map(cb => cb.dataset.id)
+            : [document.getElementById('comentarLancamentoId').value];
 
         let payload = {};
         let endpoint = '';
 
-        if (userRole === 'COORDINATOR') {
+        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
             payload = {
+                lancamentoIds: ids,
                 coordenadorId: userId,
                 comentario: document.getElementById('comentarioCoordenador').value,
                 novaDataSugerida: document.getElementById('novaDataProposta').value
             };
-            if (!payload.comentario || !payload.novaDataSugerida) {
-                mostrarToast('É necessário preencher o comentário e sugerir uma nova data.', 'error');
-                setButtonLoading(btn, false);
-                return;
-            }
-            endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-solicitar-prazo`;
-
+            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`;
         } else if (userRole === 'CONTROLLER') {
-            payload = {
-                controllerId: userId,
-                motivoRejeicao: document.getElementById('comentarioCoordenador').value,
-                novaDataPrazo: document.getElementById('novaDataProposta').value
-            };
-            if (!payload.motivoRejeicao || !payload.novaDataPrazo) {
-                mostrarToast('É necessário preencher o motivo e definir um novo prazo.', 'error');
-                setButtonLoading(btn, false);
-                return;
-            }
-            endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/prazo/rejeitar`;
+            // Lógica para Controller, se necessário
         }
 
+        setButtonLoading(btn, true);
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -890,12 +935,73 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`Ação realizada com sucesso!`, 'success');
             modalComentar.hide();
             await carregarDadosAtividades();
+            atualizarEstadoAcoesLote();
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(btn, false);
+            delete modalComentar._element.dataset.acaoEmLote; // Limpa o marcador
         }
     });
+
+    function atualizarEstadoAcoesLote() {
+        const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
+        const totalSelecionado = checkboxesSelecionados.length;
+
+        // 1. Reseta a aparência dos botões para o padrão
+        btnAprovarSelecionados.querySelector('.bi').className = 'bi bi-check-lg';
+        btnAprovarSelecionados.childNodes[1].textContent = ` Aprovar (`; // O número é adicionado depois
+        btnRecusarSelecionados.querySelector('.bi').className = 'bi bi-x-lg';
+        btnRecusarSelecionados.childNodes[1].textContent = ` Recusar (`;
+
+        // 2. Esconde todos os botões por padrão
+        acoesLoteContainer.classList.add('d-none');
+        [btnAprovarSelecionados, btnRecusarSelecionados, btnSolicitarPrazo].forEach(btn => btn.style.display = 'none');
+
+        if (totalSelecionado > 0) {
+            acoesLoteContainer.classList.remove('d-none');
+            const idsSelecionados = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
+            const lancamentosSelecionados = todosOsLancamentosGlobais.filter(l => idsSelecionados.includes(String(l.id)));
+
+            const primeiroStatus = lancamentosSelecionados.length > 0 ? lancamentosSelecionados[0].situacaoAprovacao : null;
+            const todosMesmoStatus = lancamentosSelecionados.every(l => l.situacaoAprovacao === primeiroStatus);
+
+            if (todosMesmoStatus) {
+                // Lógica para Coordenador e Manager
+                if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+                    if (primeiroStatus === 'PENDENTE_COORDENADOR') {
+                        [btnAprovarSelecionados, btnRecusarSelecionados, btnSolicitarPrazo].forEach(btn => btn.style.display = 'inline-block');
+                        contadorAprovacao.textContent = totalSelecionado;
+                        contadorRecusa.textContent = totalSelecionado;
+                        contadorPrazo.textContent = totalSelecionado;
+                    }
+                    // Lógica para Controller
+                } else if (userRole === 'CONTROLLER') {
+                    if (primeiroStatus === 'PENDENTE_CONTROLLER') {
+                        [btnAprovarSelecionados, btnRecusarSelecionados].forEach(btn => btn.style.display = 'inline-block');
+                        contadorAprovacao.textContent = totalSelecionado;
+                        contadorRecusa.textContent = totalSelecionado;
+                    } else if (primeiroStatus === 'AGUARDANDO_EXTENSAO_PRAZO') {
+                        [btnAprovarSelecionados, btnRecusarSelecionados].forEach(btn => btn.style.display = 'inline-block');
+                        // Ajusta texto e ícone para o contexto de prazo
+                        btnAprovarSelecionados.querySelector('.bi').className = 'bi bi-calendar-check';
+                        btnAprovarSelecionados.childNodes[1].textContent = ` Aprovar Prazo (`;
+                        btnRecusarSelecionados.querySelector('.bi').className = 'bi bi-calendar-x';
+                        btnRecusarSelecionados.childNodes[1].textContent = ` Recusar Prazo (`;
+                        contadorAprovacao.textContent = totalSelecionado;
+                        contadorRecusa.textContent = totalSelecionado;
+                    }
+                }
+            }
+        }
+
+        // Lógica para marcar/desmarcar o checkbox "Selecionar Todos"
+        const totalLinhas = document.querySelectorAll('#tbody-pendentes .linha-checkbox').length;
+        const selecionarTodosCheckbox = document.getElementById('selecionar-todos-checkbox');
+        if (selecionarTodosCheckbox) {
+            selecionarTodosCheckbox.checked = totalSelecionado > 0 && totalSelecionado === totalLinhas;
+        }
+    }
 
     async function carregarTodosOsDados() {
         toggleLoader(true);
@@ -968,6 +1074,87 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    btnRecusarSelecionados.addEventListener('click', () => {
+        // Adiciona um marcador para o modal saber que é uma ação em lote
+        modalRecusar._element.dataset.acaoEmLote = 'true';
+        recusarLancamento(null); // Abre o modal sem um ID específico
+    });
+
+    btnSolicitarPrazo.addEventListener('click', () => {
+        modalComentar._element.dataset.acaoEmLote = 'true';
+        comentarLancamento(null); // Abre o modal sem um ID específico
+    });
+
+    if (filtroSegmentoMateriais) {
+        filtroSegmentoMateriais.addEventListener('change', () => {
+            renderizarTabelaPendentesMateriais();
+            renderizarTabelaHistoricoMateriais();
+        });
+    }
+
+    tbodyPendentes.addEventListener('change', (e) => {
+        if (e.target.classList.contains('linha-checkbox')) {
+            const linha = e.target.closest('tr');
+            linha.classList.toggle('table-active', e.target.checked);
+            atualizarEstadoAcoesLote();
+        }
+    });
+
+    theadPendentes.addEventListener('change', (e) => {
+        if (e.target.id === 'selecionar-todos-checkbox') {
+            const isChecked = e.target.checked;
+            document.querySelectorAll('#tbody-pendentes .linha-checkbox').forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const linha = checkbox.closest('tr');
+                linha.classList.toggle('table-active', isChecked);
+            });
+            atualizarEstadoAcoesLote();
+        }
+    });
+
+    // Listener para o botão de aprovar em lote
+    btnAprovarSelecionados.addEventListener('click', async () => {
+        const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
+        const idsParaAprovar = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
+
+        if (idsParaAprovar.length === 0) {
+            mostrarToast('Nenhum item selecionado para aprovar.', 'error');
+            return;
+        }
+
+        setButtonLoading(btnAprovarSelecionados, true);
+
+        try {
+            const endpoint = userRole === 'CONTROLLER'
+                ? `${API_BASE_URL}/lancamentos/lote/controller-aprovar`
+                : `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Assumindo que você usa token
+                },
+                body: JSON.stringify({
+                    lancamentoIds: idsParaAprovar,
+                    aprovadorId: userId
+                })
+            });
+
+            if (!response.ok) throw new Error('Falha ao aprovar lançamentos em lote.');
+
+            mostrarToast(`${idsParaAprovar.length} lançamento(s) aprovado(s) com sucesso!`, 'success');
+            await carregarDadosAtividades(); // Recarrega os dados para atualizar a tabela
+            atualizarEstadoAcoesLote();
+            acoesLoteContainer.classList.add('d-none'); // Esconde o botão novamente
+
+        } catch (error) {
+            mostrarToast(error.message, 'error');
+        } finally {
+            setButtonLoading(btnAprovarSelecionados, false);
+        }
+    });
 
 
     // --- INICIALIZAÇÃO ---

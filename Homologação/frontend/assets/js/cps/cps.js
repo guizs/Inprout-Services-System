@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalAlterarValor = new bootstrap.Modal(modalAlterarValorEl);
     const tableBody = document.getElementById('table-body');
     const segmentSelectFilter = document.getElementById('segment-select-filter');
+    const modalAdiantamentoEl = document.getElementById('modalAdiantamento'); // <<< Adicione esta linha
+    const modalAdiantamento = new bootstrap.Modal(modalAdiantamentoEl);
 
     let fullData = {};
     let currentTableView = 'prestadores';
@@ -140,106 +142,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderLancamentosTable(lancamentos) {
-        // Cabeçalho construído a partir da sua lista de colunas
         tableHead.innerHTML = `
-        <tr>
-            <th>DATA ATIVIDADE</th>
-            <th>OS</th>
-            <th>SITE</th>
-            <th>CONTRATO</th>
-            <th>SEGMENTO</th>
-            <th>PROJETO</th>
-            <th>GESTOR TIM</th>
-            <th>REGIONAL</th>
-            <th>LOTE</th>
-            <th>BOQ</th>
-            <th>PO</th>
-            <th>ITEM</th>
-            <th>OBJETO CONTRATADO</th>
-            <th>UNIDADE</th>
-            <th>QTD</th>
-            <th>VALOR TOTAL</th>
-            <th>OBSERVAÇÕES</th>
-            <th>DATA PO</th>
-            <th>LPU</th>
-            <th>EQUIPE</th>
-            <th>VISTORIA</th>
-            <th>PLANO DE VISTORIA</th>
-            <th>DESMOBILIZAÇÃO</th>
-            <th>PLANO DESMOB.</th>
-            <th>INSTALAÇÃO</th>
-            <th>PLANO INST.</th>
-            <th>ATIVAÇÃO</th>
-            <th>PLANO ATIVAÇÃO</th>
-            <th>DOCUMENTAÇÃO</th>
-            <th>PLANO DOC.</th>
-            <th>ETAPA GERAL</th>
-            <th>ETAPA DETALHADA</th>
-            <th>STATUS</th>
-            <th>SITUAÇÃO</th>
-            <th>DETALHE DIÁRIO</th>
-            <th>CÓD PRESTADOR</th>
-            <th>PRESTADOR</th>
-            <th>VALOR</th>
-            <th>GESTOR</th>
-            <th>AÇÕES</th>
-        </tr>`;
+    <tr>
+        <th>DATA ATIVIDADE</th> <th>OS</th> <th>SITE</th> <th>CONTRATO</th> <th>SEGMENTO</th>
+        <th>PROJETO</th> <th>GESTOR TIM</th> <th>REGIONAL</th> <th>LOTE</th> <th>BOQ</th> <th>PO</th>
+        <th>ITEM</th> <th>OBJETO CONTRATADO</th> <th>UNIDADE</th> <th>QTD</th> <th>VALOR TOTAL</th>
+        <th>OBSERVAÇÕES</th> <th>DATA PO</th> <th>LPU</th> <th>EQUIPE</th> <th>VISTORIA</th> <th>PLANO DE VISTORIA</th>
+        <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
+        <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
+        <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
+        <th>VALOR PAGO</th> <th>ADIANTAMENTO</th> <th>AÇÕES</th>
+    </tr>`;
 
         tableBody.innerHTML = '';
 
         if (lancamentos && lancamentos.length > 0) {
-            // Corpo da tabela usando EXATAMENTE a sua lista de <td>
             lancamentos.forEach(lanc => {
                 tableBody.innerHTML += `
-                <tr>
-                    <td>${lanc.dataAtividade || 'N/A'}</td>
-                    <td>${lanc.os || 'N/A'}</td>
-                    <td>${lanc.site || 'N/A'}</td>
-                    <td>${lanc.contrato || 'N/A'}</td>
-                    <td>${lanc.segmento || 'N/A'}</td>
-                    <td>${lanc.projeto || 'N/A'}</td>
-                    <td>${lanc.gestorTim || 'N/A'}</td>
-                    <td>${lanc.regional || 'N/A'}</td>
-                    <td>${lanc.lote || 'N/A'}</td>
-                    <td>${lanc.boq || 'N/A'}</td>
-                    <td>${lanc.po || 'N/A'}</td>
-                    <td>${lanc.item || 'N/A'}</td>
-                    <td>${lanc.objetoContratado || 'N/A'}</td>
-                    <td>${lanc.unidade || 'N/A'}</td>
-                    <td>${lanc.quantidade || 'N/A'}</td>
-                    <td>${formatCurrency(lanc.valorTotal)}</td>
-                    <td>${lanc.observacoes || 'N/A'}</td>
-                    <td>${lanc.dataPo || 'N/A'}</td>
-                    <td>${lanc.lpu || 'N/A'}</td>
-                    <td>${lanc.equipe || 'N/A'}</td>
-                    <td>${lanc.vistoria || 'N/A'}</td>
-                    <td>${lanc.planoDeVistoria || 'N/A'}</td>
-                    <td>${lanc.desmobilizacao || 'N/A'}</td>
-                    <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
-                    <td>${lanc.instalacao || 'N/A'}</td>
-                    <td>${lanc.planoDeInstalacao || 'N/A'}</td>
-                    <td>${lanc.ativacao || 'N/A'}</td>
-                    <td>${lanc.planoDeAtivacao || 'N/A'}</td>
-                    <td>${lanc.documentacao || 'N/A'}</td>
-                    <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
-                    <td>${lanc.etapaGeral || 'N/A'}</td>
-                    <td>${lanc.etapaDetalhada || 'N/A'}</td>
-                    <td>${lanc.status || 'N/A'}</td>
-                    <td>${lanc.situacao || 'N/A'}</td>
-                    <td>${lanc.detalheDiario || 'N/A'}</td>
-                    <td>${lanc.codPrestador || 'N/A'}</td>
-                    <td>${lanc.prestador || 'N/A'}</td>
-                    <td>${formatCurrency(lanc.valor)}</td>
-                    <td>${lanc.gestor || 'N/A'}</td>
-                    <td>
-                        <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
-                            <i class="bi bi-pencil-square"></i>
-                        </button>
-                    </td>
-                </tr>`;
+            <tr>
+                <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
+                <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td> <td>${lanc.projeto || 'N/A'}</td>
+                <td>${lanc.gestorTim || 'N/A'}</td> <td>${lanc.regional || 'N/A'}</td> <td>${lanc.lote || 'N/A'}</td>
+                <td>${lanc.boq || 'N/A'}</td> <td>${lanc.po || 'N/A'}</td> <td>${lanc.item || 'N/A'}</td>
+                <td>${lanc.objetoContratado || 'N/A'}</td> <td>${lanc.unidade || 'N/A'}</td> <td>${lanc.quantidade || 'N/A'}</td>
+                <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.observacoes || 'N/A'}</td> <td>${lanc.dataPo || 'N/A'}</td>
+                <td>${lanc.lpu || 'N/A'}</td> <td>${lanc.equipe || 'N/A'}</td> <td>${lanc.vistoria || 'N/A'}</td>
+                <td>${lanc.planoDeVistoria || 'N/A'}</td> <td>${lanc.desmobilizacao || 'N/A'}</td> <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
+                <td>${lanc.instalacao || 'N/A'}</td> <td>${lanc.planoDeInstalacao || 'N/A'}</td> <td>${lanc.ativacao || 'N/A'}</td>
+                <td>${lanc.planoDeAtivacao || 'N/A'}</td> <td>${lanc.documentacao || 'N/A'}</td> <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
+                <td>${lanc.etapaGeral || 'N/A'}</td> <td>${lanc.etapaDetalhada || 'N/A'}</td> <td>${lanc.status || 'N/A'}</td>
+                <td>${lanc.situacao || 'N/A'}</td> <td>${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
+                <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
+                <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
+                        <i class="bi bi-cash-coin"></i>
+                    </button>
+                </td>
+            </tr>`;
             });
         } else {
-            // Colspan corrigido para o número total de colunas (40)
             tableBody.innerHTML = `<tr><td colspan="40" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
         }
     }
@@ -273,10 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- LÓGICA DE DADOS ---
-
     async function fetchData() {
+        // ▼▼▼ CORREÇÃO PRINCIPAL AQUI ▼▼▼
+        // Pega os valores de texto ATUAIS dos inputs de data toda vez que a função é chamada
         let startDate = startDateInput.value;
         let endDate = endDateInput.value;
+        // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
 
         // se tiver no formato brasileiro (com "/"), converte pra ISO
         if (startDate.includes('/')) startDate = formatDateToISO(startDate);
@@ -287,10 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // 1. Salva o valor do segmento que está selecionado ANTES de fazer a chamada
         const segmentoSelecionadoAnteriormente = segmentSelectFilter.value;
-        // --- FIM DA CORREÇÃO ---
 
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
@@ -299,21 +243,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             fullData = await response.json();
 
-            kpiTotalValueEl.textContent = formatCurrency(fullData.valorTotalGeral || 0);
+            // LÓGICA DE CÁLCULO DOS TOTAIS
+            const totalBruto = fullData.valorTotalGeral || 0;
+            const totalAdiantado = (fullData.lancamentosDetalhados || []).reduce((acc, lanc) => acc + (lanc.valorAdiantamento || 0), 0);
+            const totalLiquido = totalBruto - totalAdiantado;
+
+            // Atualiza os KPIs
+            const kpiTotalBrutoEl = document.getElementById('kpi-total-bruto');
+            const kpiTotalAdiantadoEl = document.getElementById('kpi-total-adiantado');
+            const kpiTotalLiquidoEl = document.getElementById('kpi-total-liquido');
+
+            if (kpiTotalBrutoEl) kpiTotalBrutoEl.textContent = formatCurrency(totalBruto);
+            if (kpiTotalAdiantadoEl) kpiTotalAdiantadoEl.textContent = formatCurrency(totalAdiantado);
+            if (kpiTotalLiquidoEl) kpiTotalLiquidoEl.textContent = formatCurrency(totalLiquido);
+
             renderSegmentCards(fullData.valoresPorSegmento);
             renderSegmentFilter(fullData.valoresPorSegmento || []);
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // 2. Restaura o valor do segmento no dropdown
             segmentSelectFilter.value = segmentoSelecionadoAnteriormente;
-            // --- FIM DA CORREÇÃO ---
-
             renderTable(segmentSelectFilter.value);
 
         } catch (error) {
             console.error("Falha ao buscar dados do CPS:", error);
             mostrarToast('Não foi possível carregar os dados. Tente novamente mais tarde.', 'error');
-            kpiTotalValueEl.textContent = formatCurrency(0);
+            const kpiTotalBrutoEl = document.getElementById('kpi-total-bruto');
+            const kpiTotalAdiantadoEl = document.getElementById('kpi-total-adiantado');
+            const kpiTotalLiquidoEl = document.getElementById('kpi-total-liquido');
+            if (kpiTotalBrutoEl) kpiTotalBrutoEl.textContent = formatCurrency(0);
+            if (kpiTotalAdiantadoEl) kpiTotalAdiantadoEl.textContent = formatCurrency(0);
+            if (kpiTotalLiquidoEl) kpiTotalLiquidoEl.textContent = formatCurrency(0);
+
             segmentGridContainer.innerHTML = '<p class="text-muted w-100 text-center">Não foi possível carregar os dados.</p>';
             tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">Erro ao carregar dados.</td></tr>`;
         } finally {
@@ -423,12 +382,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         tableBody.addEventListener('click', (e) => {
-            // A lógica para o botão de alterar valor continua a mesma
             const btnAlterar = e.target.closest('.btn-alterar-valor');
+            const btnAdiantamento = e.target.closest('.btn-adiantamento');
+
             if (btnAlterar) {
                 const lancamentoId = btnAlterar.dataset.id;
                 const linha = btnAlterar.closest('tr');
-
                 const nomePrestador = linha.cells[36].textContent;
                 const valorAtual = linha.cells[37].textContent;
 
@@ -438,17 +397,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('novoValor').value = '';
 
                 modalAlterarValor.show();
-                return; // Sai da função para não executar a lógica de clique na linha
+                return;
             }
 
-            // Lógica para o clique na linha do prestador (agora chama a API)
+            if (btnAdiantamento) {
+                const lancamentoId = btnAdiantamento.dataset.id;
+                const linha = btnAdiantamento.closest('tr');
+                const nomePrestador = linha.cells[36].textContent;
+
+                document.getElementById('lancamentoIdAdiantamento').value = lancamentoId;
+                document.getElementById('prestadorInfoAdiantamento').value = nomePrestador;
+                document.getElementById('valorAdiantamento').value = '';
+
+                modalAdiantamento.show();
+                return;
+            }
+
             const linhaPrestador = e.target.closest('tr[data-cod-prestador]');
             if (linhaPrestador && currentTableView === 'prestadores') {
-                // ALTERAÇÃO: Pegamos o CÓDIGO do prestador, não o nome
                 const codPrestador = linhaPrestador.dataset.codPrestador;
-
-                // ALTERAÇÃO: A lógica de filtro local foi substituída por esta chamada de função
                 fetchDetalhesPorPrestador(codPrestador);
+            }
+        });
+
+        document.getElementById('formAdiantamento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const lancamentoId = document.getElementById('lancamentoIdAdiantamento').value;
+            const valorStr = document.getElementById('valorAdiantamento').value;
+
+            if (valorStr) {
+                const valor = parseFloat(valorStr.replace('.', '').replace(',', '.'));
+                if (!isNaN(valor) && valor >= 0) {
+                    toggleLoader(true);
+                    try {
+                        const response = await fetch(`${API_URL}/lancamentos/${lancamentoId}/adiantamento`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ valor: valor })
+                        });
+                        if (!response.ok) throw new Error('Falha ao registrar adiantamento.');
+
+                        mostrarToast('Adiantamento registrado com sucesso!', 'success');
+                        await fetchData(); // Recarrega todos os dados para atualizar a tela
+                    } catch (error) {
+                        mostrarToast(error.message, 'error');
+                    } finally {
+                        toggleLoader(false);
+                        modalAdiantamento.hide();
+                    }
+                } else {
+                    mostrarToast("Valor inválido.", 'error');
+                }
             }
         });
 

@@ -1,3 +1,4 @@
+// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/backend/src/main/java/br/com/inproutservices/inproutsystem/entities/materiais/Material.java
 package br.com.inproutservices.inproutsystem.entities.materiais;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -33,6 +34,9 @@ public class Material {
 
     @Column(columnDefinition = "TEXT")
     private String observacoes;
+
+    @Column(length = 50)
+    private String empresa;
 
     @OneToMany(mappedBy = "material", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonManagedReference
@@ -113,6 +117,14 @@ public class Material {
 
     public void setObservacoes(String observacoes) {
         this.observacoes = observacoes;
+    }
+
+    public String getEmpresa() {
+        return empresa;
+    }
+
+    public void setEmpresa(String empresa) {
+        this.empresa = empresa;
     }
 
     public List<EntradaMaterial> getEntradas() {

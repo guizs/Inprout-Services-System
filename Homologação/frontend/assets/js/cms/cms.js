@@ -1,3 +1,4 @@
+// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/frontend/assets/js/cms/cms.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores de Elementos ---
     const tbodyMateriais = document.getElementById('tbody-cms');
@@ -154,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <p><strong>Código:</strong> ${material.codigo}</p>
                 <p><strong>Descrição:</strong> ${material.descricao}</p>
                 <p><strong>Unidade:</strong> ${material.unidadeMedida}</p>
+                <p><strong>Empresa:</strong> ${material.empresa}</p>
                 <p><strong>Quantidade em Estoque:</strong> ${material.saldoFisico}</p>
                 <p><strong>Custo Médio Ponderado:</strong> ${formatarMoeda(material.custoMedioPonderado)}</p>
                 <p><strong>Custo Total em Estoque:</strong> ${formatarMoeda(material.custoTotal)}</p>
@@ -229,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saldoFisicoInicial: document.getElementById('materialSaldo').value,
             custoUnitarioInicial: parseFloat(document.getElementById('materialCustoUnitario').value.replace(/\./g, '').replace(',', '.')),
             observacoes: document.getElementById('materialObservacoes').value,
+            empresa: document.getElementById('materialEmpresa').value
         };
 
         try {

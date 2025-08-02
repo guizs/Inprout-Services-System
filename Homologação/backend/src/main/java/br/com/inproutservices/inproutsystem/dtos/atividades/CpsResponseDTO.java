@@ -68,6 +68,7 @@ public class CpsResponseDTO {
         private String prestador;
         private BigDecimal valor;
         private String gestor;
+        private BigDecimal valorAdiantamento;
 
         // O construtor agora funcionará sem erros, pois o 'import' tornou a classe OS visível
         public LancamentoCpsDetalheDTO(Lancamento l) {
@@ -95,6 +96,7 @@ public class CpsResponseDTO {
             this.observacoes = osOptional.map(OS::getObservacoes).orElse(null);
             this.dataPo = osOptional.map(OS::getDataPo).orElse(null);
 
+
             // Mapeamento dos outros campos (LPU, Prestador, etc.)
             this.lpu = Optional.ofNullable(l.getLpu()).map(lpu -> lpu.getCodigoLpu() + " - " + lpu.getNomeLpu()).orElse(null);
             this.equipe = l.getEquipe();
@@ -117,6 +119,7 @@ public class CpsResponseDTO {
             this.prestador = Optional.ofNullable(l.getPrestador()).map(p -> p.getPrestador()).orElse(null);
             this.valor = l.getValor();
             this.gestor = Optional.ofNullable(l.getManager()).map(u -> u.getNome()).orElse(null);
+            this.valorAdiantamento = l.getValorAdiantamento();
         }
 
         public LocalDate getDataAtividade() {
@@ -437,6 +440,14 @@ public class CpsResponseDTO {
 
         public void setGestor(String gestor) {
             this.gestor = gestor;
+        }
+
+        public BigDecimal getValorAdiantamento() {
+            return valorAdiantamento;
+        }
+
+        public void setValorAdiantamento(BigDecimal valorAdiantamento) {
+            this.valorAdiantamento = valorAdiantamento;
         }
     }
 

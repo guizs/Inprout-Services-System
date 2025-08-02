@@ -132,6 +132,16 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional
     public Lancamento criarLancamento(LancamentoRequestDTO dto, Long managerId) {
+
+        boolean projetoFinalizado = lancamentoRepository.existsByOsIdAndLpuIdAndSituacao(
+                dto.osId(),
+                dto.lpuId(),
+                SituacaoOperacional.FINALIZADO
+        );
+
+        if (projetoFinalizado) {
+            throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
+        }
         // 1. Validação da Data da Atividade (lógica que já tínhamos)
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida;
@@ -691,6 +701,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Transactional
     public Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor) {
+        // AQUI: O serviço usa o REPOSITÓRIO
         Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + lancamentoId));
 
@@ -705,6 +716,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         os.setValorTotal(novoTotalOs);
 
         osRepository.save(os);
+        // AQUI: O serviço usa o REPOSITÓRIO
         return lancamentoRepository.save(lancamento);
     }
 
@@ -776,6 +788,159 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         // Salva TODOS os lançamentos na base de dados em uma única operação.
         return lancamentoRepository.saveAll(novosLancamentos);
+    }
+    @Override
+    @Transactional
+    public void aprovarLotePeloCoordenador(List<Long> lancamentoIds, Long aprovadorId) {
+        Usuario aprovador = usuarioRepository.findById(aprovadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        if (aprovador.getRole() != Role.COORDINATOR && aprovador.getRole() != Role.MANAGER && aprovador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR) {
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_CONTROLLER);
+                lancamento.setUltUpdate(LocalDateTime.now());
+                // Opcional: registrar quem aprovou, se tiver o campo.
+            }
+            // Lançamentos com status diferente são simplesmente ignorados
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public void aprovarLotePeloController(List<Long> lancamentoIds, Long aprovadorId) {
+        Usuario aprovador = usuarioRepository.findById(aprovadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        if (aprovador.getRole() != Role.CONTROLLER && aprovador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_CONTROLLER) {
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
+                lancamento.setUltUpdate(LocalDateTime.now());
+
+                Lpu lpuDoLancamento = lancamento.getLpu();
+                if (lpuDoLancamento != null) {
+                    lpuDoLancamento.setSituacaoProjeto(lancamento.getSituacao());
+                    lpuRepository.save(lpuDoLancamento);
+                }
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public void rejeitarLotePeloCoordenador(List<Long> lancamentoIds, Long aprovadorId, String motivo) {
+        Usuario aprovador = usuarioRepository.findById(aprovadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        if (aprovador.getRole() != Role.COORDINATOR && aprovador.getRole() != Role.MANAGER && aprovador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new BusinessException("O motivo da rejeição é obrigatório.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR) {
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_COORDENADOR);
+                lancamento.setUltUpdate(LocalDateTime.now());
+
+                Comentario comentarioRejeicao = new Comentario();
+                comentarioRejeicao.setLancamento(lancamento);
+                comentarioRejeicao.setAutor(aprovador);
+                comentarioRejeicao.setTexto("Rejeitado pelo Coordenador. Motivo: " + motivo);
+                lancamento.getComentarios().add(comentarioRejeicao);
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public void rejeitarLotePeloController(List<Long> lancamentoIds, Long controllerId, String motivo) {
+        Usuario aprovador = usuarioRepository.findById(controllerId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        if (aprovador.getRole() != Role.CONTROLLER && aprovador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new BusinessException("O motivo da rejeição é obrigatório.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_CONTROLLER) {
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_CONTROLLER);
+                lancamento.setUltUpdate(LocalDateTime.now());
+
+                Comentario comentarioRejeicao = new Comentario();
+                comentarioRejeicao.setLancamento(lancamento);
+                comentarioRejeicao.setAutor(aprovador);
+                comentarioRejeicao.setTexto("Rejeitado pelo Controller. Motivo: " + motivo);
+                lancamento.getComentarios().add(comentarioRejeicao);
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public void solicitarPrazoLote(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaData) {
+        Usuario coordenador = usuarioRepository.findById(coordenadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário Coordenador não encontrado."));
+
+        if (coordenador.getRole() != Role.COORDINATOR && coordenador.getRole() != Role.MANAGER && coordenador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+        if (novaData == null) {
+            throw new BusinessException("Uma nova data para o prazo deve ser sugerida.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR) {
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO);
+                lancamento.setDataPrazoProposta(novaData);
+                lancamento.setUltUpdate(LocalDateTime.now());
+
+                Comentario novoComentario = new Comentario();
+                novoComentario.setLancamento(lancamento);
+                novoComentario.setAutor(coordenador);
+                novoComentario.setTexto(comentario);
+                lancamento.getComentarios().add(novoComentario);
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public Lancamento registrarAdiantamento(Long lancamentoId, BigDecimal valorAdiantamento) {
+        // AQUI: O serviço usa o REPOSITÓRIO
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + lancamentoId));
+
+        if (valorAdiantamento.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException("O valor do adiantamento não pode ser negativo.");
+        }
+
+        lancamento.setValorAdiantamento(valorAdiantamento);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // AQUI: O serviço usa o REPOSITÓRIO
+        return lancamentoRepository.save(lancamento);
     }
 
 }

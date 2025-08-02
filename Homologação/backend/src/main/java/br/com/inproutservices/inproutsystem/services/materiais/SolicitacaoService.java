@@ -111,13 +111,21 @@ public class SolicitacaoService {
     }
 
     @Transactional(readOnly = true)
-    public List<Solicitacao> listarPendentes(String role) {
+    public List<Solicitacao> listarPendentes(String role, Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
+        Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
+
         if ("COORDINATOR".equalsIgnoreCase(role)) {
-            return solicitacaoRepository.findByStatus(StatusSolicitacao.PENDENTE_COORDENADOR);
+            if (segmentosDoUsuario.isEmpty()) return List.of();
+            return solicitacaoRepository.findByStatusInAndOsSegmentoIn(List.of(StatusSolicitacao.PENDENTE_COORDENADOR), segmentosDoUsuario);
         } else if ("CONTROLLER".equalsIgnoreCase(role)) {
-            // Controller vê as pendências dele e as que estão com o Coordenador
             List<StatusSolicitacao> statuses = Arrays.asList(StatusSolicitacao.PENDENTE_CONTROLLER, StatusSolicitacao.PENDENTE_COORDENADOR);
+            // Controller vê todos os segmentos, então não aplicamos o filtro de segmento para ele.
             return solicitacaoRepository.findByStatusIn(statuses);
+        } else if ("MANAGER".equalsIgnoreCase(role)){
+            if (segmentosDoUsuario.isEmpty()) return List.of();
+            return solicitacaoRepository.findByStatusInAndOsSegmentoIn(List.of(StatusSolicitacao.PENDENTE_COORDENADOR, StatusSolicitacao.PENDENTE_CONTROLLER), segmentosDoUsuario);
         }
         return List.of();
     }

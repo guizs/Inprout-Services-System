@@ -41,8 +41,10 @@ public class SolicitacaoController {
     }
 
     @GetMapping("/pendentes")
-    public ResponseEntity<List<SolicitacaoResponseDTO>> listarSolicitacoesPendentes(@RequestHeader("X-User-Role") String role) {
-        List<SolicitacaoResponseDTO> list = solicitacaoService.listarPendentes(role)
+    public ResponseEntity<List<SolicitacaoResponseDTO>> listarSolicitacoesPendentes(
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-User-ID") Long usuarioId) { // Adicionado User-ID
+        List<SolicitacaoResponseDTO> list = solicitacaoService.listarPendentes(role, usuarioId) // Passa o ID para o serviço
                 .stream()
                 .map(SolicitacaoResponseDTO::new)
                 .collect(Collectors.toList());

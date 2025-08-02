@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const colunasPorRole = {
         'MANAGER': [
-            "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "EQUIPE",
+            "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU",
             "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO",
             "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA",
             "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR",
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ],
         'DEFAULT': [
             "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM",
-            "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "EQUIPE",
+            "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO",
             "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO",
             "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO",
             "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR",
@@ -48,7 +48,6 @@ document.addEventListener('DOMContentLoaded', function () {
         "OBSERVAÇÕES": (os) => get(os, 'observacoes'),
         "DATA PO": (os) => get(os, 'dataPo'),
         "LPU": (os, lpuItem) => lpuItem ? `${get(lpuItem.lpu, 'codigo')}` : 'N/A',
-        "EQUIPE": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.equipe'),
         "VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.vistoria'),
         "PLANO VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoVistoria'),
         "DESMOBILIZAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.desmobilizacao'),

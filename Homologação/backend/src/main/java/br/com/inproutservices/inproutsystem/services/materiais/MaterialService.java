@@ -50,6 +50,7 @@ public class MaterialService {
         material.setUnidadeMedida(dto.unidadeMedida());
         material.setSaldoFisico(dto.saldoFisicoInicial());
         material.setObservacoes(dto.observacoes());
+        material.setEmpresa(dto.empresa());
 
         // A primeira entrada define o custo médio inicial
         material.setCustoMedioPonderado(dto.custoUnitarioInicial());

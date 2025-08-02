@@ -41,9 +41,21 @@
   <div class="container-fluid my-4">
     <div class="card overview-card shadow-sm mb-4">
       <div class="card-body">
-        <div class="kpi-total mb-4">
-          <div class="kpi-label">Valor Total no Período</div>
-          <div class="kpi-value" id="kpi-total-value">R$ 0,00</div>
+        <div class="kpi-total d-flex justify-content-around align-items-center mb-4">
+          <div>
+            <div class="kpi-label">Valor Total Bruto</div>
+            <div class="kpi-value" id="kpi-total-bruto">R$ 0,00</div>
+          </div>
+          <div class="text-secondary">-</div>
+          <div>
+            <div class="kpi-label">Total Adiantado</div>
+            <div class="kpi-value" id="kpi-total-adiantado">R$ 0,00</div>
+          </div>
+          <div class="text-secondary">=</div>
+          <div>
+            <div class="kpi-label">Valor Total Líquido</div>
+            <div class="kpi-value" id="kpi-total-liquido">R$ 0,00</div>
+          </div>
         </div>
         <div class="segment-grid" id="segment-grid-container">
         </div>
@@ -210,6 +222,44 @@
           </button>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalAdiantamento" tabindex="-1" aria-labelledby="modalAdiantamentoLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalAdiantamentoLabel">
+            <i class="bi bi-cash-coin me-2"></i> Registrar Adiantamento
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formAdiantamento">
+            <input type="hidden" id="lancamentoIdAdiantamento">
+            <div class="mb-3">
+              <label for="prestadorInfoAdiantamento" class="form-label">Prestador</label>
+              <input type="text" class="form-control" id="prestadorInfoAdiantamento" readonly disabled>
+            </div>
+            <div class="mb-3">
+              <label for="valorAdiantamento" class="form-label fw-bold">Valor do Adiantamento</label>
+              <div class="input-group">
+                <span class="input-group-text">R$</span>
+                <input type="text" class="form-control" id="valorAdiantamento" placeholder="0,00" required>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+          <button type="submit" class="btn btn-success" id="btnSalvarAdiantamento" form="formAdiantamento">
+            <i class="bi bi-check-circle"></i> Salvar Adiantamento
+          </button>
+        </div>
       </div>
     </div>
   </div>

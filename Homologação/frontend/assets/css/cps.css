@@ -1,134 +1,111 @@
-.overview-banner {
-  background-color: white;
-  border-left: 6px solid var(--accent-color);
-  border-radius: 8px;
-  padding: 1rem 1.2rem;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #ddd;
+/* ===============================================
+ * ESTILOS GERAIS DA PÁGINA DE CPS
+ * =============================================== */
+
+/* Card principal que agrupa os KPIs e segmentos */
+.overview-card {
+    margin-bottom: 1rem !important; /* Espaço abaixo do card principal */
 }
 
-.overview-banner .icon {
-  font-size: 1.6rem;
-  color: var(--accent-color);
-}
-
-.overlay-loader {
-  position: fixed;
-  /* Cobre a tela inteira, independente da rolagem */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.7);
-  /* Fundo branco semitransparente */
-  display: flex;
-  /* Usa flexbox para centralizar o spinner */
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  /* Garante que fique acima de todos os outros elementos */
-  transition: opacity 0.3s ease;
-  /* Efeito suave de transição */
-}
-
-.dashboard-total {
-  background-color: var(--card-success);
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.dashboard-total .total-label {
-  font-size: 1.1rem;
-  color: var(--text-color);
-  margin-bottom: 0.2rem;
-}
-
-.dashboard-total .total-value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--text-color);
-}
-
-.segment-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  transition: transform 0.2s ease-in-out;
-}
-
-.segment-card:hover {
-  transform: translateY(-2px);
-}
-
-.segment-card i {
-  font-size: 1.5rem;
-  color: var(--accent-color);
-  margin-bottom: 0.5rem;
-}
-
-.segment-card span {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
+/* Container dos 3 totais (Bruto, Adiantado, Líquido) */
 .kpi-total {
-  background-color: var(--card-success);
-  border-radius: 12px;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+    background-color: var(--card-success); /* COR VERDE RESTAURADA */
+    border-radius: 12px;
+    padding: 0.75rem; /* Espaçamento interno reduzido */
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    margin-bottom: 1rem; /* Espaço abaixo dos totais */
 }
 
 .kpi-total .kpi-label {
-  font-size: 1.1rem;
-  color: var(--text-color);
+    font-size: 0.9rem;
+    color: var(--text-color);
+    margin-bottom: 0.1rem;
 }
 
 .kpi-total .kpi-value {
-  font-size: 2rem;
-  font-weight: bold;
+    font-size: 1.5rem;
+    font-weight: bold;
 }
 
+/* Grid para os cards de segmento individuais */
 .segment-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
 }
 
-.table-wrapper {
-  position: relative;
-  border: 1px solid #dee2e6;
-  border-radius: 6px;
+.segment-card {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 0.5rem; /* Espaçamento interno ainda mais reduzido */
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
+    text-align: center;
+    transition: transform 0.2s ease-in-out;
+}
 
-  /* Define uma altura máxima e habilita a rolagem em ambas as direções */
-  max-height: 185px;
-  /* Você pode ajustar esta altura */
-  overflow: auto;
+.segment-card:hover {
+    transform: translateY(-2px);
+}
+
+/* ÍCONES DOS SEGMENTOS MENORES */
+.segment-card i {
+    font-size: 1.1rem; /* Tamanho do ícone reduzido */
+    color: var(--accent-color);
+    margin-bottom: 0.15rem; /* Margem inferior reduzida */
+}
+
+.segment-card span {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+/* Card de Filtros */
+.card.p-3.mb-3 {
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+}
+
+/* Container da Tabela com Scroll (ALTURA AUMENTADA) */
+.table-wrapper {
+    position: relative;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    max-height: 150px;/* ALTURA DA TABELA AUMENTADA */
+    overflow: auto;
 }
 
 .sticky-header th {
-  position: sticky;
-  top: 0;
-  /* Garante que o fundo do cabeçalho não seja transparente */
-  background-color: #ffffff;
-  z-index: 2;
+    position: sticky;
+    top: 0;
+    background-color: #ffffff;
+    z-index: 2;
 }
 
+/* Loader */
+.overlay-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+}
 
+/* Responsividade */
 @media (max-width: 992px) {
-  .dashboard-cards {
-    overflow-x: auto;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  }
+    .dashboard-cards {
+        overflow-x: auto;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
 
-  .dashboard-cards .card {
-    flex: 0 0 auto;
-    min-width: 180px;
-  }
+    .dashboard-cards .card {
+        flex: 0 0 auto;
+        min-width: 180px;
+    }
 }

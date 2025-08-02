@@ -52,5 +52,15 @@ public interface LancamentoService {
 
     Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor);
 
+    void aprovarLotePeloCoordenador(List<Long> lancamentoIds, Long aprovadorId);
+
+    void aprovarLotePeloController(List<Long> lancamentoIds, Long aprovadorId);
+
+    void rejeitarLotePeloCoordenador(List<Long> lancamentoIds, Long aprovadorId, String motivo);
+    void rejeitarLotePeloController(List<Long> lancamentoIds, Long controllerId, String motivo);
+    void solicitarPrazoLote(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaData);
+
     List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos);
+
+    Lancamento registrarAdiantamento(Long lancamentoId, BigDecimal valorAdiantamento);
 }

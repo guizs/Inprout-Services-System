@@ -231,6 +231,14 @@
               <input type="text" class="form-control" id="materialCustoUnitario" required>
             </div>
             <div class="mb-3">
+                <label for="materialEmpresa" class="form-label">Empresa</label>
+                <select class="form-select" id="materialEmpresa" required>
+                    <option value="">Selecione...</option>
+                    <option value="INPROUT">INPROUT</option>
+                    <option value="CLIENTE">CLIENTE</option>
+                </select>
+            </div>
+            <div class="mb-3">
               <label for="materialObservacoes" class="form-label">Observações</label>
               <textarea class="form-control" id="materialObservacoes" rows="2"></textarea>
             </div>
@@ -280,7 +288,6 @@
     </div>
   </div>
 
-  <!-- Modal Minha Conta -->
   <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
     <div class="modal-dialog modal-md modal-dialog-centered">
       <div class="modal-content">

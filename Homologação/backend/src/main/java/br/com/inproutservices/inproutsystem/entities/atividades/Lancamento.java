@@ -90,6 +90,7 @@ public class Lancamento {
     private StatusEtapa status;
     private String detalheDiario;
     private BigDecimal valor;
+    private BigDecimal valorAdiantamento;
     private String coordenador; // Este campo pode ser revisto/removido no futuro
     @Enumerated(EnumType.STRING)
     @Column(name = "situacao") // Mapeia para a coluna existente 'situacao'
@@ -178,6 +179,14 @@ public class Lancamento {
 
     public void setDataPrazoProposta(LocalDate dataPrazoProposta) {
         this.dataPrazoProposta = dataPrazoProposta;
+    }
+
+    public BigDecimal getValorAdiantamento() {
+        return valorAdiantamento;
+    }
+
+    public void setValorAdiantamento(BigDecimal valorAdiantamento) {
+        this.valorAdiantamento = valorAdiantamento;
     }
 
     public Set<Comentario> getComentarios() {

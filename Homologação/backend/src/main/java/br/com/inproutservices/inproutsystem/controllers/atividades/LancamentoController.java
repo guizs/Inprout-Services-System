@@ -2,7 +2,11 @@ package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
+import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -13,10 +17,17 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+record AprovacaoLoteRequest(List<Long> lancamentoIds, Long aprovadorId) {}
+record RejeicaoLoteCoordenadorRequest(List<Long> lancamentoIds, Long aprovadorId, String comentario) {}
+record SolicitarPrazoLoteRequest(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaDataSugerida) {}
+record RejeicaoLoteControllerRequest(List<Long> lancamentoIds, Long controllerId, String motivoRejeicao) {}
+
 
 @RestController
 @RequestMapping("/lancamentos")
@@ -181,6 +192,7 @@ public class LancamentoController {
         if (novoValor == null) {
             return ResponseEntity.badRequest().build();
         }
+
         Lancamento lancamentoAtualizado = lancamentoService.alterarValorPago(id, novoValor);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
@@ -202,5 +214,45 @@ public class LancamentoController {
                 .collect(Collectors.toList());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDTOs);
+    }
+    @PostMapping("/lote/coordenador-aprovar")
+    public ResponseEntity<Void> aprovarLotePeloCoordenador(@RequestBody AprovacaoLoteRequest request) {
+        lancamentoService.aprovarLotePeloCoordenador(request.lancamentoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/controller-aprovar")
+    public ResponseEntity<Void> aprovarLotePeloController(@RequestBody AprovacaoLoteRequest request) {
+        lancamentoService.aprovarLotePeloController(request.lancamentoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/coordenador-rejeitar")
+    public ResponseEntity<Void> rejeitarLotePeloCoordenador(@RequestBody RejeicaoLoteCoordenadorRequest request) {
+        lancamentoService.rejeitarLotePeloCoordenador(request.lancamentoIds(), request.aprovadorId(), request.comentario());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/controller-rejeitar")
+    public ResponseEntity<Void> rejeitarLotePeloController(@RequestBody RejeicaoLoteControllerRequest request) {
+        lancamentoService.rejeitarLotePeloController(request.lancamentoIds(), request.controllerId(), request.motivoRejeicao());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/coordenador-solicitar-prazo")
+    public ResponseEntity<Void> solicitarPrazoLote(@RequestBody SolicitarPrazoLoteRequest request) {
+        lancamentoService.solicitarPrazoLote(request.lancamentoIds(), request.coordenadorId(), request.comentario(), request.novaDataSugerida());
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}/adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> registrarAdiantamento(@PathVariable Long id, @RequestBody Map<String, BigDecimal> payload) {
+        BigDecimal valorAdiantamento = payload.get("valor");
+        if (valorAdiantamento == null) {
+            return ResponseEntity.badRequest().build();
+        }
+
+        Lancamento lancamentoAtualizado = lancamentoService.registrarAdiantamento(id, valorAdiantamento);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
 }

@@ -171,6 +171,46 @@ body {
     max-width: none !important;
 }
 
+/* 1. Definição das Cores */
+.btn-lote-success {
+    --btn-color-borda: #198754; /* Verde do Bootstrap */
+    --btn-color-fundo-hover: #198754;
+    --btn-color-texto-hover: white;
+}
+
+.btn-lote-danger {
+    --btn-color-borda: #dc3545; /* Vermelho do Bootstrap */
+    --btn-color-fundo-hover: #dc3545;
+    --btn-color-texto-hover: white;
+}
+
+.btn-lote-warning {
+    --btn-color-borda: #ffc107; /* Amarelo do Bootstrap */
+    --btn-color-fundo-hover: #ffc107;
+    --btn-color-texto-hover: #212529; /* Texto escuro para contraste */
+}
+
+/* 2. Estilo Base e Efeito Hover */
+.btn-acao-lote {
+    font-size: 0.8rem; /* Pequeno para não ocupar muito espaço */
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px; /* Arredondado como outros botões do sistema */
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    
+    /* Aplica as variáveis de cor */
+    background-color: transparent;
+    border: 1px solid var(--btn-color-borda);
+    color: var(--btn-color-borda);
+}
+
+.btn-acao-lote:hover {
+    background-color: var(--btn-color-fundo-hover);
+    color: var(--btn-color-texto-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
 /* =================================================================== */
 /* ============= ESTILOS RESPONSIVOS (MOBILE) ============= */
 /* Bloco inteiro é específico para o layout de cards desta página

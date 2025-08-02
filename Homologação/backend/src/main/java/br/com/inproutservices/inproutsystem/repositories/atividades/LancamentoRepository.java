@@ -5,6 +5,7 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDT
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -94,5 +95,7 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     Optional<Lancamento> findFirstByOsIdAndLpuIdOrderByIdDesc(Long osId, Long lpuId);
+
+    boolean existsByOsIdAndLpuIdAndSituacao(Long osId, Long lpuId, SituacaoOperacional situacao);
 
 }

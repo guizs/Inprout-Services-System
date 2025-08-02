@@ -8,5 +8,6 @@ public record MaterialRequestDTO(
         String unidadeMedida,
         BigDecimal saldoFisicoInicial,
         BigDecimal custoUnitarioInicial, // NOVO
-        String observacoes // NOVO
+        String observacoes, // NOVO
+        String empresa
 ) {}

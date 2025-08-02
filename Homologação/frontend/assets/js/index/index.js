@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
+    const searchInput = document.getElementById('searchInput');
 
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
@@ -123,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let filtrosAtivos = { periodo: null, status: null, osId: null };
     let todosLancamentos = []; // Armazena todos os lançamentos para fácil acesso
 
-    const colunasPrincipais = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "EQUIPE", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"];
+    const colunasPrincipais = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"];
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
     const colunasMinhasPendencias = colunasLancamentos;
 
@@ -220,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
             const mapaDeCelulas = {
-                "DATA ATIVIDADE": lancamento.dataAtividade || '', "OS": lancamento.os.os || '', "SITE": lancamento.os.site || '', "SEGMENTO": lancamento.os.segmento ? lancamento.os.segmento.nome : '', "PROJETO": lancamento.os.projeto || '', "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '', "GESTOR TIM": lancamento.os.gestorTim || '', "REGIONAL": lancamento.os.regional || '', "EQUIPE": lancamento.equipe || '', "VISTORIA": lancamento.vistoria || '', "PLANO DE VISTORIA": lancamento.planoVistoria || '', "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '', "PLANO DE DESMOBILIZAÇÃO": lancamento.planoDesmobilizacao || '', "INSTALAÇÃO": lancamento.instalacao || '', "PLANO DE INSTALAÇÃO": lancamento.planoInstalacao || '', "ATIVAÇÃO": lancamento.ativacao || '', "PLANO DE ATIVAÇÃO": lancamento.planoAtivacao || '', "DOCUMENTAÇÃO": lancamento.documentacao || '', "PLANO DE DOCUMENTAÇÃO": lancamento.planoDocumentacao || '', "ETAPA GERAL": lancamento.etapa ? lancamento.etapa.nomeGeral : '', "ETAPA DETALHADA": lancamento.etapa ? lancamento.etapa.nomeDetalhado : '', "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '', "CÓD. PRESTADOR": lancamento.prestador ? lancamento.prestador.codigo : '', "PRESTADOR": lancamento.prestador ? lancamento.prestador.nome : '', "VALOR": formatarMoeda(lancamento.valor), "GESTOR": lancamento.manager ? lancamento.manager.nome : '', "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`
+                "DATA ATIVIDADE": lancamento.dataAtividade || '', "OS": lancamento.os.os || '', "SITE": lancamento.os.site || '', "SEGMENTO": lancamento.os.segmento ? lancamento.os.segmento.nome : '', "PROJETO": lancamento.os.projeto || '', "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '', "GESTOR TIM": lancamento.os.gestorTim || '', "REGIONAL": lancamento.os.regional || '', "VISTORIA": lancamento.vistoria || '', "PLANO DE VISTORIA": lancamento.planoVistoria || '', "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '', "PLANO DE DESMOBILIZAÇÃO": lancamento.planoDesmobilizacao || '', "INSTALAÇÃO": lancamento.instalacao || '', "PLANO DE INSTALAÇÃO": lancamento.planoInstalacao || '', "ATIVAÇÃO": lancamento.ativacao || '', "PLANO DE ATIVAÇÃO": lancamento.planoAtivacao || '', "DOCUMENTAÇÃO": lancamento.documentacao || '', "PLANO DE DOCUMENTAÇÃO": lancamento.planoDocumentacao || '', "ETAPA GERAL": lancamento.etapa ? lancamento.etapa.nomeGeral : '', "ETAPA DETALHADA": lancamento.etapa ? lancamento.etapa.nomeDetalhado : '', "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '', "CÓD. PRESTADOR": lancamento.prestador ? lancamento.prestador.codigo : '', "PRESTADOR": lancamento.prestador ? lancamento.prestador.nome : '', "VALOR": formatarMoeda(lancamento.valor), "GESTOR": lancamento.manager ? lancamento.manager.nome : '', "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`
             };
 
             colunas.forEach(nomeColuna => {
@@ -262,6 +263,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getDadosFiltrados() {
         let dadosFiltrados = [...todosLancamentos];
+        const termoBusca = searchInput.value.toLowerCase().trim();
+
+        // FILTRO DE TEXTO (BUSCA)
+        if (termoBusca) {
+            dadosFiltrados = dadosFiltrados.filter(l => {
+                // Concatena todos os campos pesquisáveis em uma única string para facilitar a busca
+                const textoPesquisavel = [
+                    l.os.os,
+                    l.os.site,
+                    l.os.segmento?.nome,
+                    l.os.projeto,
+                    l.lpu?.nome,
+                    l.prestador?.nome,
+                    l.etapa?.nomeDetalhado
+                ].join(' ').toLowerCase();
+                return textoPesquisavel.includes(termoBusca);
+            });
+        }
 
         // 1. Filtro por PERÍODO
         if (filtrosAtivos.periodo) {
@@ -269,7 +288,8 @@ document.addEventListener('DOMContentLoaded', () => {
             hoje.setHours(0, 0, 0, 0);
 
             dadosFiltrados = dadosFiltrados.filter(l => {
-                const dataAtividade = new Date(l.dataAtividade.split('/').reverse().join('-')); // Converte DD/MM/YYYY para YYYY-MM-DD
+                const partesData = l.dataAtividade.split('/');
+                const dataAtividade = new Date(partesData[2], partesData[1] - 1, partesData[0]);
 
                 if (filtrosAtivos.periodo.start && filtrosAtivos.periodo.end) {
                     return dataAtividade >= filtrosAtivos.periodo.start && dataAtividade <= filtrosAtivos.periodo.end;
@@ -291,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         umMesAtras.setMonth(hoje.getMonth() - 1);
                         return dataAtividade >= umMesAtras;
                     default:
-                        return true
+                        return true;
                 }
             });
         }
@@ -333,62 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             toggleLoader(false); // <-- ESCONDE O LOADER (no sucesso ou no erro)
         }
-    }
-
-    filtrosAtivos = { periodo: null, status: null, osId: null };
-
-    function getDadosFiltrados() {
-        let dadosFiltrados = [...todosLancamentos];
-
-        // 1. Filtro por PERÍODO
-        if (filtrosAtivos.periodo) {
-            const hoje = new Date();
-            hoje.setHours(0, 0, 0, 0);
-
-            dadosFiltrados = dadosFiltrados.filter(l => {
-                // --- INÍCIO DA CORREÇÃO ---
-                // Transforma a string "DD/MM/YYYY" em uma data na timezone local, não em UTC.
-                const partesData = l.dataAtividade.split('/'); // -> ["15", "07", "2025"]
-                // O mês é -1 porque em JavaScript os meses vão de 0 (Janeiro) a 11 (Dezembro).
-                const dataAtividade = new Date(partesData[2], partesData[1] - 1, partesData[0]);
-                // --- FIM DA CORREÇÃO ---
-
-                if (filtrosAtivos.periodo.start && filtrosAtivos.periodo.end) {
-                    return dataAtividade >= filtrosAtivos.periodo.start && dataAtividade <= filtrosAtivos.periodo.end;
-                }
-
-                switch (filtrosAtivos.periodo) {
-                    case 'hoje':
-                        return dataAtividade.getTime() === hoje.getTime();
-                    case 'ontem':
-                        const ontem = new Date(hoje);
-                        ontem.setDate(hoje.getDate() - 1);
-                        return dataAtividade.getTime() === ontem.getTime();
-                    case 'semana':
-                        const umaSemanaAtras = new Date(hoje);
-                        umaSemanaAtras.setDate(hoje.getDate() - 6);
-                        return dataAtividade >= umaSemanaAtras;
-                    case 'mes':
-                        const umMesAtras = new Date(hoje);
-                        umMesAtras.setMonth(hoje.getMonth() - 1);
-                        return dataAtividade >= umMesAtras;
-                    default:
-                        return true;
-                }
-            });
-        }
-
-        // 2. Filtro por STATUS DE APROVAÇÃO
-        if (filtrosAtivos.status) {
-            dadosFiltrados = dadosFiltrados.filter(l => l.situacaoAprovacao === filtrosAtivos.status);
-        }
-
-        // 3. Filtro por OS
-        if (filtrosAtivos.osId) {
-            dadosFiltrados = dadosFiltrados.filter(l => l.os.id == filtrosAtivos.osId);
-        }
-
-        return dadosFiltrados;
     }
 
     function renderizarTodasAsTabelas() {
@@ -643,7 +607,6 @@ document.addEventListener('DOMContentLoaded', () => {
             dataAtividadeInput.value = lancamento.dataAtividade || '';
             dataAtividadeInput.disabled = !!editingId;
 
-            document.getElementById('equipe').value = lancamento.equipe || '';
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
@@ -954,7 +917,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividade').value), // <== MODIFICADO
                 prestadorId: document.getElementById('prestadorId').value,
                 etapaDetalhadaId: document.getElementById('etapaDetalhadaId').value,
-                equipe: document.getElementById('equipe').value,
                 vistoria: document.getElementById('vistoria').value,
                 planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoria').value), // <== MODIFICADO
                 desmobilizacao: document.getElementById('desmobilizacao').value,
@@ -1142,6 +1104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         calendario.clear();
         filtroStatusEl.value = "";
         filtroOsEl.value = "";
+        searchInput.value = "";
+        renderizarTodasAsTabelas();
+    });
+
+    searchInput.addEventListener('input', () => {
         renderizarTodasAsTabelas();
     });
 
@@ -1180,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const preencherOpcoes = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Selecione o material...</option>';
             todosOsMateriais.forEach(material => {
-                const option = new Option(`${material.codigo} - ${material.descricao}`, material.codigo);
+                const option = new Option(`${material.empresa} - ${material.codigo} - ${material.descricao}`, material.codigo);
                 selectElement.add(option);
             });
         };

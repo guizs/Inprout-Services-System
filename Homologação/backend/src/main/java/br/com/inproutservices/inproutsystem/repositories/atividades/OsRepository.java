@@ -27,4 +27,6 @@ public interface OsRepository extends JpaRepository<OS, Long> {
      * Busca todas as OSs que pertencem a um conjunto de segmentos.
      */
     List<OS> findAllBySegmentoIn(Set<Segmento> segmentos);
+
+    Optional<OS> findByOs(String os);
 }

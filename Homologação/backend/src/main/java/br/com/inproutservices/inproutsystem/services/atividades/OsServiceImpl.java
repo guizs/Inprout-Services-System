@@ -28,6 +28,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -53,47 +54,63 @@ public class OsServiceImpl implements OsService {
     @Override
     @Transactional
     public OS createOs(OsRequestDto osDto) {
-        // 1. Cria a nova entidade OS e preenche os dados simples do DTO
-        OS novaOs = new OS();
-        novaOs.setOs(osDto.getOs());
-        novaOs.setSite(osDto.getSite());
-        novaOs.setContrato(osDto.getContrato());
-        novaOs.setProjeto(osDto.getProjeto());
-        novaOs.setGestorTim(osDto.getGestorTim());
-        novaOs.setRegional(osDto.getRegional());
-        novaOs.setLote(osDto.getLote());
-        novaOs.setBoq(osDto.getBoq());
-        novaOs.setPo(osDto.getPo());
-        novaOs.setItem(osDto.getItem());
-        novaOs.setObjetoContratado(osDto.getObjetoContratado());
-        novaOs.setUnidade(osDto.getUnidade());
-        novaOs.setQuantidade(osDto.getQuantidade());
-        novaOs.setValorTotal(osDto.getValorTotal());
-        novaOs.setObservacoes(osDto.getObservacoes());
-        novaOs.setDataPo(osDto.getDataPo());
+        // --- INÍCIO DA CORREÇÃO ---
+        Optional<OS> osExistenteOpt = osRepository.findByOs(osDto.getOs());
 
-        if (osDto.getSegmentoId() != null) {
-            Segmento segmento = segmentoRepository.findById(osDto.getSegmentoId())
-                    .orElseThrow(() -> new EntityNotFoundException("Segmento não encontrado com o ID: " + osDto.getSegmentoId()));
-            novaOs.setSegmento(segmento);
-        }
+        OS osParaSalvar;
 
-        // 2. Associa a coleção de LPUs selecionadas
-        if (osDto.getLpuIds() != null && !osDto.getLpuIds().isEmpty()) {
-            List<Lpu> lpusParaAssociar = lpuRepository.findAllById(osDto.getLpuIds());
-            if (lpusParaAssociar.size() != osDto.getLpuIds().size()) {
-                throw new EntityNotFoundException("Uma ou mais LPUs com os IDs fornecidos não foram encontradas.");
+        if (osExistenteOpt.isPresent()) {
+            // A OS JÁ EXISTE: Vamos apenas adicionar a nova LPU a ela.
+            osParaSalvar = osExistenteOpt.get();
+
+            if (osDto.getLpuIds() != null && !osDto.getLpuIds().isEmpty()) {
+                List<Lpu> lpusParaAdicionar = lpuRepository.findAllById(osDto.getLpuIds());
+                osParaSalvar.getLpus().addAll(lpusParaAdicionar); // Adiciona as novas LPUs ao conjunto existente
             }
-            novaOs.setLpus(new HashSet<>(lpusParaAssociar));
+            osParaSalvar.setDataAtualizacao(LocalDateTime.now());
+            osParaSalvar.setUsuarioAtualizacao("sistema-import"); // Indica que a atualização veio da importação
+
+        } else {
+            // A OS NÃO EXISTE: Criamos uma nova, como antes.
+            osParaSalvar = new OS();
+            osParaSalvar.setOs(osDto.getOs());
+            osParaSalvar.setSite(osDto.getSite());
+            osParaSalvar.setContrato(osDto.getContrato());
+            osParaSalvar.setProjeto(osDto.getProjeto());
+            osParaSalvar.setGestorTim(osDto.getGestorTim());
+            osParaSalvar.setRegional(osDto.getRegional());
+            osParaSalvar.setLote(osDto.getLote());
+            osParaSalvar.setBoq(osDto.getBoq());
+            osParaSalvar.setPo(osDto.getPo());
+            osParaSalvar.setItem(osDto.getItem());
+            osParaSalvar.setObjetoContratado(osDto.getObjetoContratado());
+            osParaSalvar.setUnidade(osDto.getUnidade());
+            osParaSalvar.setQuantidade(osDto.getQuantidade());
+            osParaSalvar.setValorTotal(osDto.getValorTotal());
+            osParaSalvar.setObservacoes(osDto.getObservacoes());
+            osParaSalvar.setDataPo(osDto.getDataPo());
+
+            if (osDto.getSegmentoId() != null) {
+                Segmento segmento = segmentoRepository.findById(osDto.getSegmentoId())
+                        .orElseThrow(() -> new EntityNotFoundException("Segmento não encontrado com o ID: " + osDto.getSegmentoId()));
+                osParaSalvar.setSegmento(segmento);
+            }
+
+            if (osDto.getLpuIds() != null && !osDto.getLpuIds().isEmpty()) {
+                List<Lpu> lpusParaAssociar = lpuRepository.findAllById(osDto.getLpuIds());
+                if (lpusParaAssociar.size() != osDto.getLpuIds().size()) {
+                    throw new EntityNotFoundException("Uma ou mais LPUs com os IDs fornecidos não foram encontradas.");
+                }
+                osParaSalvar.setLpus(new HashSet<>(lpusParaAssociar));
+            }
+
+            osParaSalvar.setDataCriacao(LocalDateTime.now());
+            osParaSalvar.setUsuarioCriacao("sistema-import");
+            osParaSalvar.setStatusRegistro("ATIVO");
         }
 
-        // 3. Define os campos de auditoria
-        novaOs.setDataCriacao(LocalDateTime.now());
-        novaOs.setUsuarioCriacao("sistema");
-        novaOs.setStatusRegistro("ATIVO");
-
-        // 4. Salva a OS
-        return osRepository.save(novaOs);
+        return osRepository.save(osParaSalvar);
+        // --- FIM DA CORREÇÃO ---
     }
 
     @Override

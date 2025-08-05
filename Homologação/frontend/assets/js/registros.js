@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'http://3.128.248.3:8080';
     let todasAsLinhas = [];
 
     const get = (obj, path, defaultValue = 'N/A') => path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : defaultValue), obj);

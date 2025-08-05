@@ -67,17 +67,38 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
-            const osOrdenadas = osData.sort((a, b) => a.os.localeCompare(b.os));
 
+            // --- INÍCIO DA CORREÇÃO ---
+
+            // 1. Usamos um Map para garantir que cada OS seja listada apenas uma vez.
+            // A chave do Map será o ID da OS, e o valor será o objeto da OS.
+            const osUnicasMap = new Map();
+            osData.forEach(item => {
+                // Se o Map ainda não tiver uma OS com este ID, nós a adicionamos.
+                if (!osUnicasMap.has(item.id)) {
+                    osUnicasMap.set(item.id, item);
+                }
+            });
+
+            // 2. Convertemos os valores únicos do Map de volta para um array.
+            const osUnicasArray = Array.from(osUnicasMap.values());
+
+            // 3. Agora, ordenamos o array de OSs únicas.
+            const osOrdenadas = osUnicasArray.sort((a, b) => a.os.localeCompare(b.os));
+
+            // 4. Populamos o select com a lista já corrigida e sem duplicatas.
             selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
             osOrdenadas.forEach(item => {
+                // Usamos item.os para o texto e item.id para o valor da option.
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
+
+            // --- FIM DA CORREÇÃO ---
 
         } catch (error) {
             console.error('Erro ao carregar OSs:', error);
@@ -135,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // --- ALTERAÇÃO PRINCIPAL ---
             // Fazemos UMA ÚNICA chamada para o endpoint que retorna TUDO
-            const response = await fetch(`http://localhost:8080/os/${osId}`);
+            const response = await fetch(`http://3.128.248.3:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
 
             const osData = await response.json();
@@ -187,10 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Busca os dados de Etapas e Prestadores uma única vez para otimizar
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetch('http://localhost:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetch('http://3.128.248.3:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetch('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
             }
 
             // Gera o HTML do acordeão para cada LPU selecionada
@@ -460,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetch('http://localhost:8080/lancamentos/lote', {
+            const response = await fetch('http://3.128.248.3:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)

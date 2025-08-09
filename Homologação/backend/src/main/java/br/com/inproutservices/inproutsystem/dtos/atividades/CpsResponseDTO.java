@@ -70,7 +70,6 @@ public class CpsResponseDTO {
         private String gestor;
         private BigDecimal valorAdiantamento;
 
-        // O construtor agora funcionará sem erros, pois o 'import' tornou a classe OS visível
         public LancamentoCpsDetalheDTO(Lancamento l) {
             this.id = l.getId();
             this.dataAtividade = l.getDataAtividade();
@@ -89,16 +88,24 @@ public class CpsResponseDTO {
             this.boq = osOptional.map(OS::getBoq).orElse(null);
             this.po = osOptional.map(OS::getPo).orElse(null);
             this.item = osOptional.map(OS::getItem).orElse(null);
-            this.objetoContratado = osOptional.map(OS::getObjetoContratado).orElse(null);
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // O campo "objetoContratado" agora busca o NOME da LPU.
+            this.objetoContratado = Optional.ofNullable(l.getLpu())
+                    .map(lpu -> lpu.getNomeLpu())
+                    .orElse(osOptional.map(OS::getObjetoContratado).orElse(null));
+
+            // O campo "lpu" agora busca apenas o CÓDIGO da LPU.
+            this.lpu = Optional.ofNullable(l.getLpu()).map(lpu -> lpu.getCodigoLpu()).orElse(null);
+            // --- FIM DA CORREÇÃO ---
+
             this.unidade = osOptional.map(OS::getUnidade).orElse(null);
             this.quantidade = osOptional.map(OS::getQuantidade).orElse(null);
             this.valorTotal = osOptional.map(OS::getValorTotal).orElse(null);
             this.observacoes = osOptional.map(OS::getObservacoes).orElse(null);
             this.dataPo = osOptional.map(OS::getDataPo).orElse(null);
 
-
-            // Mapeamento dos outros campos (LPU, Prestador, etc.)
-            this.lpu = Optional.ofNullable(l.getLpu()).map(lpu -> lpu.getCodigoLpu() + " - " + lpu.getNomeLpu()).orElse(null);
+            // Mapeamento dos outros campos (Equipe, Prestador, etc.)
             this.equipe = l.getEquipe();
             this.vistoria = l.getVistoria();
             this.planoDeVistoria = l.getPlanoVistoria();

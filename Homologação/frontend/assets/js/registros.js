@@ -41,12 +41,14 @@ document.addEventListener('DOMContentLoaded', function () {
         "BOQ": (os) => get(os, 'boq'),
         "PO": (os) => get(os, 'po'),
         "ITEM": (os) => get(os, 'item'),
-        "OBJETO CONTRATADO": (os) => get(os, 'objetoContratado'),
+        // CORREÇÃO 1: Objeto Contratado agora busca o nome da LPU da linha.
+        "OBJETO CONTRATADO": (os, lpuItem) => get(lpuItem, 'lpu.nome', 'N/A'),
         "UNIDADE": (os) => get(os, 'unidade'),
         "QUANTIDADE": (os) => get(os, 'quantidade'),
         "VALOR TOTAL OS": (os, lpuItem, formatarMoeda) => formatarMoeda(get(os, 'valorTotal', null)),
         "OBSERVAÇÕES": (os) => get(os, 'observacoes'),
         "DATA PO": (os) => get(os, 'dataPo'),
+        // CORREÇÃO 2: LPU agora mostra apenas o código.
         "LPU": (os, lpuItem) => lpuItem ? `${get(lpuItem.lpu, 'codigo')}` : 'N/A',
         "VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.vistoria'),
         "PLANO VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoVistoria'),

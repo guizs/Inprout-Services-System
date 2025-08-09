@@ -360,18 +360,18 @@ public class OsServiceImpl implements OsService {
         String contratoDaLinha = getStringCellValue(row, 2).toUpperCase();
         String codigoLpuDaLinha = getStringCellValue(row, 7).toUpperCase();
 
-        // Cria a chave composta para buscar no mapa de LPUs
         String chaveLpuComposta = contratoDaLinha + "::" + codigoLpuDaLinha;
         Lpu lpu = lpuMap.get(chaveLpuComposta);
 
         if (lpu != null) {
             dto.setLpuIds(List.of(lpu.getId()));
+            // MUDANÇA AQUI: Preenche o Objeto Contratado com o nome da LPU
+            dto.setObjetoContratado(lpu.getNomeLpu());
         }
 
-        // O restante do mapeamento continua igual
         dto.setOs(getStringCellValue(row, 0));
         dto.setSite(getStringCellValue(row, 1));
-        dto.setContrato(getStringCellValue(row, 2)); // Mantém o nome do contrato no DTO
+        dto.setContrato(getStringCellValue(row, 2));
 
         String nomeSegmento = getStringCellValue(row, 3).toUpperCase();
         Segmento segmento = segmentoMap.get(nomeSegmento);
@@ -386,7 +386,6 @@ public class OsServiceImpl implements OsService {
         dto.setBoq(getStringCellValue(row, 9));
         dto.setPo(getStringCellValue(row, 10));
         dto.setItem(getStringCellValue(row, 11));
-        dto.setObjetoContratado(getStringCellValue(row, 12));
         dto.setUnidade(getStringCellValue(row, 13));
         dto.setQuantidade(getIntegerCellValue(row, 14));
         dto.setValorTotal(getBigDecimalCellValue(row, 15));

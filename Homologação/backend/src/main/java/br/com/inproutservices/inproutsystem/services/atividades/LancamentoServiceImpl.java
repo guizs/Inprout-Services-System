@@ -215,14 +215,13 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional
     public void submeterLancamentosDiarios() {
-        // 1. Define a data que será usada no filtro (o dia anterior)
+        // 1. Define a data que será usada como limite (o dia anterior)
         LocalDate ontem = LocalDate.now().minusDays(1);
 
-        // 2. Busca apenas os rascunhos com a data da atividade de ontem
-        List<Lancamento> rascunhosDeOntem = lancamentoRepository.findBySituacaoAprovacaoAndDataAtividade(SituacaoAprovacao.RASCUNHO, ontem);
+        List<Lancamento> rascunhosPendentes = lancamentoRepository.findBySituacaoAprovacaoAndDataAtividadeLessThanEqual(SituacaoAprovacao.RASCUNHO, ontem);
 
-        // 3. O resto da lógica continua a mesma, mas agora iterando sobre a lista filtrada
-        for (Lancamento lancamento : rascunhosDeOntem) {
+        // 3. O resto da lógica continua a mesma, mas agora iterando sobre a lista correta
+        for (Lancamento lancamento : rascunhosPendentes) {
             LocalDate novoPrazo = prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3);
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());

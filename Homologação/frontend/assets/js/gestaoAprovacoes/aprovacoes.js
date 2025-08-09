@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- RENDERIZAÇÃO DA TABELA (VERSÃO COMPLETA) ---
     const colunas = [
-        '<input type="checkbox" id="selecionar-todos-checkbox">', "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO",
+        '<input type="checkbox" id="selecionar-todos-checkbox">', "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "CONTRATO", "SEGMENTO", "OBJETO CONTRATADO", "PROJETO", // <-- ADICIONADO AQUI
         "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL",
         "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO",
         "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO",
@@ -355,12 +355,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PROJETO": (lancamento.os || {}).projeto || '',
                 "GESTOR TIM": (lancamento.os || {}).gestorTim || '',
                 "REGIONAL": (lancamento.os || {}).regional || '',
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '',
+                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo}` : '',
                 "LOTE": (lancamento.os || {}).lote || '',
                 "BOQ": (lancamento.os || {}).boq || '',
                 "PO": (lancamento.os || {}).po || '',
                 "ITEM": (lancamento.os || {}).item || '',
-                "OBJETO CONTRATADO": (lancamento.os || {}).objetoContratado || '',
+                "OBJETO CONTRATADO": (lancamento.lpu) ? `${lancamento.lpu.nome}` : '',
                 "UNIDADE": (lancamento.os || {}).unidade || '',
                 "QUANTIDADE": (lancamento.os || {}).quantidade || '',
                 "VALOR TOTAL": formatarMoeda((lancamento.os || {}).valorTotal),

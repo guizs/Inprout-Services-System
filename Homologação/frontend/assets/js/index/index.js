@@ -31,76 +31,76 @@ document.addEventListener('DOMContentLoaded', () => {
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-        // Seleciona os ITENS (<li>) da navegação por aba
+        // --- Seletores ---
         const navMinhasPendencias = document.getElementById('nav-item-minhas-pendencias');
         const navLancamentos = document.getElementById('nav-item-lancamentos');
         const navPendentes = document.getElementById('nav-item-pendentes');
         const navParalisados = document.getElementById('nav-item-paralisados');
         const navHistorico = document.getElementById('nav-item-historico');
 
-        // Seleciona os BOTÕES de ação principais
-        const btnNovoLancamento = document.getElementById('btnNovoLancamento');
-        const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
+        // Seletores dos containers da toolbar (MUITO MAIS ROBUSTO)
+        const searchFilterContainer = document.getElementById('search-filter-container');
+        const actionButtonsContainer = document.getElementById('action-buttons-container');
 
         // Seletores para ativar a aba correta
         const tabLancamentos = document.getElementById('lancamentos-tab');
         const paneLancamentos = document.getElementById('lancamentos-pane');
-        const tabHistorico = document.getElementById('historico-tab');
-        const paneHistorico = document.getElementById('historico-pane');
-        const tabMinhasPendencias = document.getElementById('minhasPendencias-tab');
-        const paneMinhasPendencias = document.getElementById('minhasPendencias-pane');
+        const tabPendentes = document.getElementById('pendentes-tab');
+        const panePendentes = document.getElementById('pendentes-pane');
 
-        // Oculta tudo por padrão para começar do zero
-        [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+        // Oculta todos os elementos controlados por padrão
+        [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'none';
         });
+        if (searchFilterContainer) searchFilterContainer.style.display = 'none';
+        if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
+
 
         // Aplica as regras de visibilidade para cada cargo
         switch (userRole) {
             case 'MANAGER':
-                // Mostra todas as abas e os botões de ação
-                [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+            case 'ADMIN':
+                // Mostra tudo
+                [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
-                // Define a aba padrão como "Minhas Pendências"
-                tabLancamentos.classList.add('active');
-                paneLancamentos.classList.add('show', 'active');
+                if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
+                if (actionButtonsContainer) actionButtonsContainer.style.display = 'flex';
+
+                // Define a aba padrão
+                if (tabLancamentos && paneLancamentos) {
+                    tabLancamentos.classList.add('active');
+                    paneLancamentos.classList.add('show', 'active');
+                }
                 break;
 
             case 'COORDINATOR':
-                // Mostra "Pendente aprovação", "Paralisados" e "Histórico"
-                [navPendentes, navParalisados, navHistorico].forEach(el => {
-                    if (el) el.style.display = 'block';
-                });
-                // Define a aba padrão como "Pendente aprovação"
-                tabLancamentos.classList.remove('active');
-                paneLancamentos.classList.remove('show', 'active');
-                // (Opcional) Se quiser que "Pendente Aprovação" seja a aba padrão para o coordenador:
-                const tabPendentes = document.getElementById('pendentes-tab');
-                const panePendentes = document.getElementById('pendentes-pane');
-                if (tabPendentes) tabPendentes.classList.add('active');
-                if (panePendentes) panePendentes.classList.add('show', 'active');
-                break;
-
             case 'CONTROLLER':
-                // Mostra todas as abas, exceto "Minhas Pendências"
+                // Mostra abas e busca/filtro, mas esconde botões de ação
                 [navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
-                break;
+                if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
+                if (actionButtonsContainer) actionButtonsContainer.style.display = 'none'; // Garante que está escondido
 
-            case 'ADMIN':
-                // Mostra todas as abas, exceto "Minhas Pendências", e mostra os botões de ação
-                [navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
-                    if (el) el.style.display = 'block';
-                });
+                // Define a aba "Pendente aprovação" como padrão
+                if (tabLancamentos && paneLancamentos) {
+                    tabLancamentos.classList.remove('active');
+                    paneLancamentos.classList.remove('show', 'active');
+                }
+                if (tabPendentes && panePendentes) {
+                    tabPendentes.classList.add('active');
+                    panePendentes.classList.add('show', 'active');
+                }
                 break;
 
             default:
-                // Comportamento padrão para outros cargos (se houver)
+                // Comportamento para outros cargos: vê abas e busca, sem botões de ação
                 [navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
+                if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
+                if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
                 break;
         }
     }

@@ -98,4 +98,6 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     boolean existsByOsIdAndLpuIdAndSituacao(Long osId, Long lpuId, SituacaoOperacional situacao);
 
+    List<Lancamento> findBySituacaoAprovacaoAndDataAtividadeLessThanEqual(SituacaoAprovacao situacao, LocalDate data);
+
 }

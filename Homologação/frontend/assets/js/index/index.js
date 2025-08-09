@@ -503,32 +503,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
             // Lógica para popular o Status, agora de forma mais segura
-
             selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectStatus.disabled = true;
 
             if (etapaDetalhadaId) {
-                let statusDaEtapa = [];
+                let etapaDetalhada;
                 // Procura em todas as etapas gerais pela etapa detalhada com o ID correto
                 for (const etapaGeral of todasAsEtapas) {
                     const etapaEncontrada = etapaGeral.etapasDetalhadas.find(detalhe => detalhe.id == etapaDetalhadaId);
                     if (etapaEncontrada) {
-                        statusDaEtapa = etapaEncontrada.status || [];
+                        etapaDetalhada = etapaEncontrada;
                         break; // Para a busca quando encontrar
                     }
                 }
 
-                // Se encontrou uma lista de status, popula o select
-                if (statusDaEtapa.length > 0) {
-                    statusDaEtapa.forEach(status => {
-                        selectStatus.add(new Option(status, status));
-                    });
-                    selectStatus.disabled = false;
+                if (etapaDetalhada) {
+                    // Se a etapa detalhada tiver uma lista de status, popule o select com eles.
+                    if (etapaDetalhada.status && etapaDetalhada.status.length > 0) {
+                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
+                        selectStatus.disabled = false;
+                    } else {
+                        // Se a lista de status estiver vazia, adicione a opção "N/A" e habilite o campo.
+                        selectStatus.add(new Option("N/A", "NAO_APLICAVEL"));
+                        selectStatus.disabled = false;
+                    }
                 }
             }
-            // --- FIM DA CORREÇÃO ---
         }
 
         async function carregarDadosParaModal() {

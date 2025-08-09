@@ -7,7 +7,8 @@ public enum StatusEtapa {
     // Para cada constante, associamos a sua descrição
     TRABALHADO("Trabalhado"),
     TRABALHO_PARCIAL("Trabalho Parcial"),
-    NAO_TRABALHADO("Não trabalhado");
+    NAO_TRABALHADO("Não trabalhado"),
+    NAO_APLICAVEL("N/A");
 
     private final String descricao;
 

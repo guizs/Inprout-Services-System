@@ -1,0 +1,24 @@
+/* Estilos específicos que permanecem necessários para a página de registros */
+
+.os-row {
+    cursor: pointer;
+    background-color: #f8f9fa; /* Um cinza bem claro para diferenciar a linha pai */
+}
+.os-row:hover {
+    background-color: #e9ecef; /* Um tom mais escuro ao passar o mouse */
+}
+
+/* Ajuste fino nos botões para alinhamento com o padrão global, se necessário */
+.btn {
+  font-size: 0.9rem; /* Alinhando com o tamanho de fonte de outros botões */
+  border-radius: 50px; /* Padronizando o arredondamento */
+  padding: 0.5rem 1.2rem;
+}
+
+.custom-scroll {
+    max-height: calc(100vh - 225px); /* Aumenta a altura da área da tabela */
+}
+
+.search-box {
+  max-width: 80rem; /* Você pode ajustar este valor como preferir */
+}

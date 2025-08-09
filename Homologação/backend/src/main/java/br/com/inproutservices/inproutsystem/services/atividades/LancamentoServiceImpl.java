@@ -83,7 +83,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         return lancamentoRepository.save(lancamento);
     }
 
-    @Scheduled(cron = "0 0 0 * * ?") // Roda todo dia à meia-noite
+    //@Scheduled(cron = "0 0 0 * * ?") // Roda todo dia à meia-noite
     @Transactional
     public void criarLancamentosParaProjetosEmAndamento() {
         // 1. Precisamos de uma forma de encontrar o último lançamento de cada projeto (OS/LPU)

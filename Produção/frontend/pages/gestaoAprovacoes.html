@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestão de Aprovações - INPROUT SERVICES</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_green.css">
+
+    <link rel="stylesheet" href="../assets/css/root.css" />
+    <link rel="stylesheet" href="../assets/css/global.css" />
+    <link rel="stylesheet" href="../assets/css/index.css" />
+    <link rel="stylesheet" href="../assets/css/gestao.css" />
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <button class="btn toggle-sidebar" id="menu-toggle"><i class="bi bi-grid fs-5"></i></button>
+            <img src="../assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+            <div class="dropdown ms-auto">
+                <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle"></i> <span id="nomeUsuario">Olá, Usuário</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal"
+                            data-bs-target="#modalMinhaConta">Minha Conta</button></li>
+                    <li><a class="dropdown-item" href="#" id="logoutBtn">Sair</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div id="sidebar-container"></div>
+
+    <div class="container-fluid my-4">
+
+        <div class="card overview-card shadow-sm mb-4">
+            <div class="card-header bg-white p-0">
+                <a href="#collapseAprovacoesCards" data-bs-toggle="collapse" role="button" aria-expanded="false"
+                    aria-controls="collapseAprovacoesCards"
+                    class="d-flex justify-content-between align-items-center w-100 p-3 text-decoration-none text-dark">
+                    <div class="d-flex align-items-center gap-3">
+                        <i class="bi bi-speedometer2 text-success"></i>
+                        <h5 class="mb-0">Visão geral de aprovações</h5>
+                    </div>
+                    <i class="bi bi-chevron-down text-secondary"></i>
+                </a>
+            </div>
+            <div class="collapse" id="collapseAprovacoesCards">
+                <div class="card-body">
+                    <div id="dashboard-container" class="d-flex flex-wrap gap-2 dashboard-cards">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-3" id="aprovacoesTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="atividades-tab" data-bs-toggle="tab"
+                    data-bs-target="#atividades-pane" type="button" role="tab" aria-controls="atividades-pane"
+                    aria-selected="true">
+                    <i class="bi bi-card-checklist me-1"></i> Aprovações de atividades
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-atividades-tab" data-bs-toggle="tab"
+                    data-bs-target="#historico-atividades-pane" type="button" role="tab"
+                    aria-controls="historico-atividades-pane" aria-selected="false">
+                    <i class="bi bi-calendar-check me-1"></i> Histórico de atividades
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="materiais-tab" data-bs-toggle="tab" data-bs-target="#materiais-pane"
+                    type="button" role="tab" aria-controls="materiais-pane">
+                    <i class="bi bi-box-seam me-1"></i> Aprovações de Materiais
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-materiais-tab" data-bs-toggle="tab"
+                    data-bs-target="#historico-materiais-pane" type="button" role="tab"
+                    aria-controls="historico-materiais-pane">
+                    <i class="bi bi-archive me-1"></i> Histórico de Materiais
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="aprovacoesTabContent">
+            <div class="tab-pane fade show active" id="atividades-pane" role="tabpanel" aria-labelledby="atividades-tab"
+                tabindex="0">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 card-title-modern" id="titulo-tabela"><i
+                                    class="bi bi-clock-history me-2"></i>
+                                Pendências de Aprovação
+                            </h5>
+                            <div id="acoes-lote-container" class="d-none">
+                                <button class="btn-acao-lote btn-lote-success" id="btn-aprovar-selecionados">
+                                    <i class="bi bi-check-lg"></i> Aprovar (<span id="contador-aprovacao">0</span>)
+                                </button>
+                                <button class="btn-acao-lote btn-lote-danger" id="btn-recusar-selecionados">
+                                    <i class="bi bi-x-lg"></i> Recusar (<span id="contador-recusa">0</span>)
+                                </button>
+                                <button class="btn-acao-lote btn-lote-warning" id="btn-solicitar-prazo-selecionados">
+                                    <i class="bi bi-calendar-plus"></i> Solicitar Prazo (<span
+                                        id="contador-prazo">0</span>)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive custom-scroll">
+                            <table class="table modern-table align-middle">
+                                <thead id="thead-pendentes"></thead>
+                                <tbody id="tbody-pendentes"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="historico-atividades-pane" role="tabpanel"
+                aria-labelledby="historico-atividades-tab" tabindex="0">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 card-title-modern"><i class="bi bi-calendar-check me-2"></i>Histórico de
+                            Atividades</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive custom-scroll">
+                            <table class="table modern-table align-middle">
+                                <thead id="thead-historico"></thead>
+                                <tbody id="tbody-historico"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab" tabindex="0">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 card-title-modern"><i class="bi bi-inbox-fill me-2"></i> Pendências de Materiais
+                        </h5>
+
+                        <div style="width: 250px;">
+                            <select class="form-select form-select-sm" id="filtro-segmento-materiais">
+                                <option value="todos">Todos os Segmentos</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive custom-scroll">
+                            <table class="table modern-table align-middle">
+                                <thead id="thead-pendentes-materiais"></thead>
+                                <tbody id="tbody-pendentes-materiais"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="historico-materiais-pane" role="tabpanel"
+                aria-labelledby="historico-materiais-tab" tabindex="0">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h5 class="mb-0 card-title-modern"><i class="bi bi-archive-fill me-2"></i> Histórico de
+                            Solicitações de Materiais</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive custom-scroll">
+                            <table class="table modern-table align-middle">
+                                <thead id="thead-historico-materiais"></thead>
+                                <tbody id="tbody-historico-materiais"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalAprovarLancamento" tabindex="-1" aria-labelledby="modalAprovarLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalAprovarLabel"><i
+                                class="bi bi-check-circle-fill text-success me-2"></i>Confirmar Aprovação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Você tem certeza que deseja aprovar este lançamento?</p>
+                        <p class="text-muted small">Ele será encaminhado para a próxima etapa de aprovação.</p>
+                        <input type="hidden" id="aprovarLancamentoId">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i
+                                class="bi bi-x-circle me-1"></i>Cancelar</button>
+                        <button type="button" class="btn btn-success d-flex align-items-center"
+                            id="btnConfirmarAprovacao">
+                            <span class="spinner-border spinner-border-sm d-none me-2" role="status"
+                                aria-hidden="true"></span>
+                            <i class="bi bi-check-lg me-1"></i>
+                            Sim, Aprovar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalComentarPrazo" tabindex="-1" aria-labelledby="modalComentarPrazoLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalComentarPrazoLabel"><i
+                                class="bi bi-chat-left-text-fill text-warning me-2"></i>Comentar ou Solicitar Prazo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formComentarPrazo">
+                            <input type="hidden" id="comentarLancamentoId">
+                            <p class="small text-muted">Adicione um comentário ou solicite um novo prazo. O status será
+                                alterado e o Controller será notificado.</p>
+
+                            <div class="mb-3">
+                                <label for="comentarioCoordenador" class="form-label">Comentário / Justificativa</label>
+                                <textarea class="form-control" id="comentarioCoordenador" rows="4"
+                                    placeholder="Ex: Preciso de mais evidências fotográficas da instalação para poder aprovar."
+                                    required></textarea>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="novaDataProposta" class="form-label">Sugerir Novo Prazo</label>
+                                <input type="text" class="form-control" id="novaDataProposta"
+                                    placeholder="Selecione uma data..." readonly>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i
+                                class="bi bi-x-circle me-1"></i>Cancelar</button>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center" form="formComentarPrazo"
+                            id="btnEnviarComentario">
+                            <span class="spinner-border spinner-border-sm d-none me-2" role="status"
+                                aria-hidden="true"></span>
+                            <i class="bi bi-send me-1"></i>
+                            Enviar Solicitação
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalRecusarLancamento" tabindex="-1" aria-labelledby="modalRecusarLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalRecusarLabel"><i
+                                class="bi bi-x-circle-fill text-danger me-2"></i>Recusar Lançamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formRecusarLancamento">
+                            <input type="hidden" id="recusarLancamentoId">
+                            <p class="small text-muted">O lançamento será devolvido ao gestor com o status "Recusado".
+                            </p>
+                            <div class="mb-3">
+                                <label for="motivoRecusa" class="form-label">Motivo da Recusa (Obrigatório)</label>
+                                <textarea class="form-control" id="motivoRecusa" rows="4"
+                                    placeholder="Ex: Faltam evidências na documentação." required></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i
+                                class="bi bi-x-circle me-1"></i>Cancelar</button>
+                        <button type="submit" class="btn btn-danger d-flex align-items-center"
+                            form="formRecusarLancamento" id="btnConfirmarRecusa">
+                            <span class="spinner-border spinner-border-sm d-none me-2" role="status"
+                                aria-hidden="true"></span>
+                            <i class="bi bi-send-x me-1"></i>
+                            Confirmar Recusa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalComentarios" tabindex="-1" aria-labelledby="modalComentariosLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalComentariosLabel">
+                            <i class="bi bi-chat-left-text-fill"></i> Comentários do Lançamento
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body" id="modalComentariosBody">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalAprovarMaterial" tabindex="-1" aria-labelledby="modalAprovarMaterialLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalAprovarMaterialLabel"><i
+                                class="bi bi-check-circle-fill text-success me-2"></i>Confirmar Aprovação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Você tem certeza que deseja aprovar esta solicitação de material?</p>
+                        <p class="text-muted small" id="aprovarMaterialInfo"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-success" id="btnConfirmarAprovacaoMaterial">Sim,
+                            Aprovar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalRecusarMaterial" tabindex="-1" aria-labelledby="modalRecusarMaterialLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalRecusarMaterialLabel"><i
+                                class="bi bi-x-circle-fill text-danger me-2"></i>Recusar Solicitação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formRecusarMaterial">
+                            <input type="hidden" id="recusarMaterialId">
+                            <p>Você está recusando a solicitação para <strong id="recusarMaterialInfo"></strong>.</p>
+                            <div class="mb-3">
+                                <label for="motivoRecusaMaterial" class="form-label">Motivo da Recusa
+                                    (Obrigatório)</label>
+                                <textarea class="form-control" id="motivoRecusaMaterial" rows="3" required></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger" form="formRecusarMaterial"
+                            id="btnConfirmarRecusaMaterial">Confirmar Recusa</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalEditarLancamento" tabindex="-1" aria-labelledby="modalEditarLancamentoLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="formEditarLancamento" novalidate>
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="modalEditarLancamentoLabel">
+                                <i class="bi bi-pencil-fill"></i> Editar Lançamento
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <input type="hidden" id="idLancamentoEditar">
+
+                            <h6 class="section-title">Dados Gerais</h6>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Ordem de Serviço (OS)</label>
+                                    <input type="text" class="form-control" id="osDisplay_editar" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="dataAtividade_editar" class="form-label">Data da Atividade</label>
+                                    <input type="date" class="form-control" id="dataAtividade_editar" required>
+                                </div>
+                            </div>
+
+                            <h6 class="section-title">Responsáveis e Detalhes</h6>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="prestadorId_editar" class="form-label">Prestador</label>
+                                    <select class="form-select" id="prestadorId_editar" required>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="equipe_editar" class="form-label">Equipe</label>
+                                    <input type="text" class="form-control" id="equipe_editar">
+                                </div>
+                            </div>
+
+                            <h6 class="section-title">Execução e Status</h6>
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4">
+                                    <label for="etapaDetalhadaId_editar" class="form-label">Etapa Detalhada</label>
+                                    <select class="form-select" id="etapaDetalhadaId_editar" required>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="status_editar" class="form-label">Status</label>
+                                    <select class="form-select" id="status_editar">
+                                        <option>Aguardando documentação</option>
+                                        <option>Paralisado</option>
+                                        <option>Em andamento</option>
+                                        <option>Finalizado</option>
+                                        <option>Não iniciado</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="valor_editar" class="form-label">Valor da Atividade</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="text" class="form-control" id="valor_editar" inputmode="numeric" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="detalheDiario_editar" class="form-label">Detalhe Diário</label>
+                                <textarea class="form-control" id="detalheDiario_editar" rows="2" required></textarea>
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </button>
+                            <button type="submit" class="btn btn-success" id="btnSalvarEdicao">
+                                <i class="bi bi-check-circle"></i> Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast-container position-fixed bottom-0 end-0 p-3">
+            <div id="toastMensagem" class="toast align-items-center border-0" role="alert" aria-live="assertive"
+                aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body" id="toastTexto">
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                        aria-label="Fechar"></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="overlay-loader" class="overlay-loader d-none">
+            <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+        </div>
+
+        <!-- Modal Minha Conta -->
+        <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
+            <div class="modal-dialog modal-md modal-dialog-centered">
+                <div class="modal-content">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalMinhaContaLabel">
+                            <i class="bi bi-person-circle me-2"></i> Minha Conta
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <div class="text-center mb-3">
+                            <i class="bi bi-person-circle" style="font-size: 4rem; color: #198754;"></i>
+                            <h5 class="mt-2" id="nomeUsuarioModal">Nome do Usuário</h5>
+                            <p class="text-muted" id="emailUsuarioModal">email@dominio.com</p>
+                            <div id="userInfoDetalhes" class="mt-2"></div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#alterarEmail" aria-expanded="false">
+                                <i class="bi bi-envelope"></i> Alterar E-mail
+                            </button>
+
+                            <div class="collapse mt-2" id="alterarEmail">
+                                <form id="formAlterarEmail">
+                                    <div class="mb-2">
+                                        <label class="form-label">Novo E-mail</label>
+                                        <input type="email" class="form-control" id="novoEmail"
+                                            placeholder="Digite seu novo e-mail">
+                                    </div>
+                                </form>
+                            </div>
+
+                            <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#alterarSenha" aria-expanded="false">
+                                <i class="bi bi-shield-lock"></i> Alterar Senha
+                            </button>
+
+                            <div class="collapse mt-2" id="alterarSenha">
+                                <form id="formAlterarSenha">
+                                    <div class="mb-2">
+                                        <label class="form-label">Nova Senha</label>
+                                        <input type="password" class="form-control" id="novaSenha"
+                                            placeholder="Digite sua nova senha">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Confirmar Nova Senha</label>
+                                        <input type="password" class="form-control" id="confirmarSenha"
+                                            placeholder="Confirme sua nova senha">
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </button>
+                        <button type="button" class="btn btn-success" id="btnSalvarAlteracoes">
+                            <i class="bi bi-check-circle"></i> Salvar Alterações
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+        <script src="../assets/js/general/global.js"></script>
+        <script src="../assets/js/general/sidebar.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js"></script>
+
+</body>
+
+</html>

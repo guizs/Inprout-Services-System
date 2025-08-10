@@ -1,4 +1,4 @@
-package br.com.inproutservices.inproutsystem.services.config;
+package br.com.inproutservices.inproutsystem.services.atividades;
 
 import java.time.LocalDate;
 

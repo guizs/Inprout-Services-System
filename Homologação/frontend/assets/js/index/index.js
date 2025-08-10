@@ -38,25 +38,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const navParalisados = document.getElementById('nav-item-paralisados');
         const navHistorico = document.getElementById('nav-item-historico');
 
-        // Seletores dos containers da toolbar (MUITO MAIS ROBUSTO)
         const searchFilterContainer = document.getElementById('search-filter-container');
         const actionButtonsContainer = document.getElementById('action-buttons-container');
 
-        // Seletores para ativar a aba correta
         const tabLancamentos = document.getElementById('lancamentos-tab');
         const paneLancamentos = document.getElementById('lancamentos-pane');
         const tabPendentes = document.getElementById('pendentes-tab');
         const panePendentes = document.getElementById('pendentes-pane');
 
-        // Oculta todos os elementos controlados por padrão
+        // --- Reset de Visibilidade ---
+        // Oculta todas as abas por padrão para depois mostrar apenas as permitidas.
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'none';
         });
-        if (searchFilterContainer) searchFilterContainer.style.display = 'none';
-        if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
+
+        // Por padrão, FORÇA os botões de ação a ficarem ocultos usando a classe CSS.
+        if (actionButtonsContainer) actionButtonsContainer.classList.add('ocultar-forcado');
+        // Garante que a busca/filtro não tenha a classe, para que possamos controlá-la com style.display.
+        if (searchFilterContainer) searchFilterContainer.classList.remove('ocultar-forcado');
 
 
-        // Aplica as regras de visibilidade para cada cargo
+        // --- Aplica as regras de visibilidade ---
         switch (userRole) {
             case 'MANAGER':
             case 'ADMIN':
@@ -65,7 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (el) el.style.display = 'block';
                 });
                 if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
-                if (actionButtonsContainer) actionButtonsContainer.style.display = 'flex';
+                // AÇÃO CORRIGIDA: REMOVE a classe que força os botões a ficarem ocultos.
+                if (actionButtonsContainer) actionButtonsContainer.classList.remove('ocultar-forcado');
 
                 // Define a aba padrão
                 if (tabLancamentos && paneLancamentos) {
@@ -76,12 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             case 'COORDINATOR':
             case 'CONTROLLER':
-                // Mostra abas e busca/filtro, mas esconde botões de ação
+                // Mostra abas e busca/filtro
                 [navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
-                if (actionButtonsContainer) actionButtonsContainer.style.display = 'none'; // Garante que está escondido
+                // Os botões de ação já foram escondidos com 'ocultar-forcado' e permanecem assim.
 
                 // Define a aba "Pendente aprovação" como padrão
                 if (tabLancamentos && paneLancamentos) {
@@ -100,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (el) el.style.display = 'block';
                 });
                 if (searchFilterContainer) searchFilterContainer.style.display = 'flex';
-                if (actionButtonsContainer) actionButtonsContainer.style.display = 'none';
+                // Os botões de ação já foram escondidos com 'ocultar-forcado'.
                 break;
         }
     }
@@ -335,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true); // <-- MOSTRA O LOADER
         try {
-            const response = await fetch('http://3.128.248.3:8080/lancamentos');
+            const response = await fetch('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             // ---> ETAPA 1: EXTRAIR O JSON DA RESPOSTA (ESSA LINHA FALTAVA) <---
@@ -424,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lpuContainer.classList.remove('d-none'); // Mostra o container
 
                 // Busca as LPUs para a OS selecionada
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) {
                     throw new Error('Falha ao buscar LPUs para esta OS.');
                 }
@@ -543,7 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Chama o novo endpoint filtrado
-                    const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     // --- FIM DA ALTERAÇÃO ---
 
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
@@ -568,10 +571,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (selectPrestador.options.length <= 1) {
-                await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -773,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.disabled = true;
                 lpuContainer.classList.remove('d-none');
 
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) {
                     throw new Error('Falha ao buscar LPUs para esta OS.');
                 }
@@ -834,7 +837,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
 
-                const resposta = await fetch(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -871,7 +874,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
                 const lpus = await response.json();
@@ -939,20 +942,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Define o status de aprovação e o método HTTP com base na ação
             let method = 'POST';
-            let url = 'http://3.128.248.3:8080/lancamentos';
+            let url = 'http://localhost:8080/lancamentos';
 
             if (acao === 'salvar') { // Salvar alterações de um Rascunho
                 dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             } else if (acao === 'enviar') { // Salvar e Enviar um Rascunho
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             } else if (acao === 'reenviar') { // Reenviar um item Rejeitado
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             }
             // Se a acao for 'criar' (Retomar ou Novo), o método e URL padrão são usados
 
@@ -1133,7 +1136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
                 // Busca materiais da API apenas se o cache estiver vazio
-                fetch('http://3.128.248.3:8080/materiais')
+                fetch('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data; // Armazena no cache
@@ -1180,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
                 // Altera a URL para o endpoint que filtra por usuário
-                const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 // --- FIM DA ALTERAÇÃO ---
 
                 const oss = await response.json();
@@ -1208,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
 
@@ -1280,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // ==========================================================
 
             try {
-                const response = await fetch('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetch('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

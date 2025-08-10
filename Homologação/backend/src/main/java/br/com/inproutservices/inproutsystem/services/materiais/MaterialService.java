@@ -103,10 +103,8 @@ public class MaterialService {
 
     @Transactional
     public void deletarMaterial(Long id) {
-        Material material = buscarPorId(id);
-
         if (solicitacaoRepository.existsByItensMaterialId(id)) {
-            throw new BusinessException("Não é possível deletar o material '" + material.getDescricao() + "' pois ele já foi utilizado em solicitações.");
+            throw new BusinessException("Não é possível deletar o material pois ele já foi utilizado em solicitações.");
         }
 
         materialRepository.deleteById(id);

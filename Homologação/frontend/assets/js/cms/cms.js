@@ -1,4 +1,3 @@
-// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/frontend/assets/js/cms/cms.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores de Elementos ---
     const tbodyMateriais = document.getElementById('tbody-cms');
@@ -37,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkUnitMT = document.getElementById('materiais_checkUnitMT');
     
     let todosOsMateriais = [];
-    const API_BASE_URL = 'http://3.128.248.3:8080';
+    const API_BASE_URL = 'http://localhost:8080';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)
@@ -309,12 +308,20 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`${API_BASE_URL}/materiais/${id}`, { method: 'DELETE' });
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Erro ao excluir.');
+                // Try to get text first, as it might not be JSON
+                const errorText = await response.text();
+                try {
+                    // If it is JSON, parse it for a message property
+                    const errorData = JSON.parse(errorText);
+                    throw new Error(errorData.message || 'Erro ao excluir.');
+                } catch (e) {
+                    // If it's not JSON, use the raw text
+                    throw new Error(errorText || 'Erro ao excluir.');
+                }
             }
             mostrarToast('Material excluído com sucesso!', 'success');
             modalExcluir.hide();
-            await carregarMateriais(); // Chame a função correta para recarregar
+            await carregarMateriais();
         } catch (error) {
             mostrarToast(error.message, 'error');
             modalExcluir.hide();
@@ -322,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConfirmarExclusao.disabled = false;
             btnConfirmarExclusao.innerHTML = "Sim, Excluir";
         }
-    }); 
+    });
 
     // --- Event Listeners para os filtros ---
     inputBuscaMaterial.addEventListener('input', aplicarFiltrosErenderizar);

@@ -32,34 +32,30 @@ public class LpuService {
 
     @Transactional(readOnly = true)
     public List<LpuResponseDTO> findLpusByOsId(Long osId) {
-        // 1. Busca a OS, que agora contém a lista de 'detalhes'
-        OS os = osRepository.findById(osId)
+        // 1. Busca a OS completa, que já carrega a lista de detalhes
+        OS os = osRepository.findByIdWithDetails(osId)
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
 
-        // 2. Acessa a lista de 'OsLpuDetalhes' através de os.getDetalhes()
+        // 2. Acessa a nova lista 'os.getDetalhes()'
         return os.getDetalhes().stream()
-                // 3. Para cada 'detalhe', extrai a entidade 'Lpu' associada
+                // 3. Para cada objeto 'detalhe', extrai a entidade 'Lpu'
                 .map(detalhe -> detalhe.getLpu())
-                // 4. Mapeia a entidade 'Lpu' para o seu DTO de resposta
-                .map(lpu -> new LpuResponseDTO(lpu))
-                // 5. Coleta tudo em uma lista final
+                // 4. Converte a entidade 'Lpu' para o seu DTO de resposta
+                .map(LpuResponseDTO::new)
+                // 5. Coleta o resultado em uma lista
                 .collect(Collectors.toList());
     }
 
-    // --- NOVO MÉTODO PARA LISTAGEM FLEXÍVEL ---
-    /**
-     * Retorna uma lista de LPUs com base no status de ativação.
-     * @param ativo Se null, retorna todas. Se true, retorna ativas. Se false, retorna inativas.
-     */
+    // --- O RESTO DO SEU CÓDIGO PERMANECE IGUAL ---
     @Transactional(readOnly = true)
-    // No LpuService, o método de listagem se resume a uma linha:
     public List<Lpu> listarLpusPorStatus(Boolean ativo) {
-        return lpuRepository.findByStatus(ativo);
+        if (ativo == null) {
+            return lpuRepository.findAll();
+        }
+        // Assumindo que você tenha um método findByAtivo no seu repositório
+        return lpuRepository.findByAtivo(ativo);
     }
 
-    /**
-     * Busca uma única LPU pelo seu ID.
-     */
     @Transactional(readOnly = true)
     public Lpu buscarPorId(Long id) {
         return lpuRepository.findByIdWithContrato(id)
@@ -73,9 +69,6 @@ public class LpuService {
         return new LpuResponseDTO(lpu);
     }
 
-    /**
-     * Cria uma nova LPU no banco de dados.
-     */
     @Transactional
     public Lpu criarLpu(Lpu lpu, Long contratoId) {
         lpuRepository.findByCodigoLpuAndContratoId(lpu.getCodigoLpu(), contratoId).ifPresent(l -> {
@@ -93,18 +86,13 @@ public class LpuService {
         return lpuRepository.save(lpu);
     }
 
-    /**
-     * Altera uma LPU existente.
-     */
     @Transactional
     public Lpu alterarLpu(Long id, Lpu lpuAtualizada) {
         Lpu lpuExistente = buscarPorId(id);
 
-        // Verifica se o código da LPU foi alterado e se o novo código já existe em outra LPU do mesmo contrato.
         if (lpuAtualizada.getCodigoLpu() != null && !lpuAtualizada.getCodigoLpu().equals(lpuExistente.getCodigoLpu())) {
             lpuRepository.findByCodigoLpuAndContratoId(lpuAtualizada.getCodigoLpu(), lpuExistente.getContrato().getId())
                     .ifPresent(l -> {
-                        // Se encontrou uma LPU com o novo código e o ID dela é diferente do que estamos alterando...
                         if (!l.getId().equals(id)) {
                             throw new IllegalArgumentException(
                                     "Já existe outra LPU com o código: " + lpuAtualizada.getCodigoLpu() + " para este contrato."
@@ -122,9 +110,6 @@ public class LpuService {
         return lpuRepository.save(lpuExistente);
     }
 
-    /**
-     * Desativa uma LPU (exclusão lógica).
-     */
     @Transactional
     public void desativarLpu(Long id) {
         Lpu lpuParaDesativar = buscarPorId(id);
@@ -132,9 +117,6 @@ public class LpuService {
         lpuRepository.save(lpuParaDesativar);
     }
 
-    /**
-     * Reativa uma LPU que foi desativada (exclusão lógica).
-     */
     @Transactional
     public Lpu atualizarParcialmente(Long id, Map<String, Object> updates) {
         Lpu lpuExistente = lpuRepository.findById(id)
@@ -145,7 +127,6 @@ public class LpuService {
                 case "ativo":
                     lpuExistente.setAtivo((Boolean) value);
                     break;
-
                 case "codigoLpu":
                     lpuExistente.setCodigoLpu((String) value);
                     break;
@@ -164,6 +145,6 @@ public class LpuService {
             }
         });
 
-        return lpuRepository.save(lpuExistente); // Salva a entidade modificada
+        return lpuRepository.save(lpuExistente);
     }
 }

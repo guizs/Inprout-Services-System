@@ -63,12 +63,10 @@ public class OsServiceImpl implements OsService {
     @Override
     @Transactional
     public OS createOs(OsRequestDto osDto) {
-        // Valida se já existe uma OS com o mesmo código
         osRepository.findByOs(osDto.getOs()).ifPresent(os -> {
             throw new IllegalArgumentException("Uma Ordem de Serviço com o código '" + osDto.getOs() + "' já existe.");
         });
 
-        // 1. Cria a entidade OS principal com os dados gerais
         OS novaOs = new OS();
         novaOs.setOs(osDto.getOs());
         novaOs.setProjeto(osDto.getProjeto());
@@ -80,57 +78,30 @@ public class OsServiceImpl implements OsService {
             novaOs.setSegmento(segmento);
         }
 
-        // Atribui dados de auditoria
         novaOs.setDataCriacao(LocalDateTime.now());
         novaOs.setStatusRegistro("ATIVO");
-        // Futuramente, pegar o usuário logado
         novaOs.setUsuarioCriacao("sistema");
 
-        // 2. Itera sobre a lista de detalhes vinda do DTO
         if (osDto.getDetalhes() != null && !osDto.getDetalhes().isEmpty()) {
             for (OsRequestDto.OsLpuDetalheRequestDto detalheDto : osDto.getDetalhes()) {
+                if (detalheDto.getLpuId() == null) continue; // Pula se não houver LPU associada
 
                 Lpu lpu = lpuRepository.findById(detalheDto.getLpuId())
                         .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + detalheDto.getLpuId()));
 
-                // 3. Cria uma nova instância de OsLpuDetalhes para cada item da lista
                 OsLpuDetalhes detalhe = new OsLpuDetalhes();
-                detalhe.setOs(novaOs); // Associa o detalhe à OS que está sendo criada
+                detalhe.setOs(novaOs);
                 detalhe.setLpu(lpu);
 
-                // 4. Mapeia todos os campos do DTO de detalhe para a nova entidade
-                detalhe.setSite(detalheDto.getSite());
-                detalhe.setContrato(detalheDto.getContrato());
-                detalhe.setRegional(detalheDto.getRegional());
-                detalhe.setLote(detalheDto.getLote());
-                detalhe.setBoq(detalheDto.getBoq());
-                detalhe.setPo(detalheDto.getPo());
-                detalhe.setItem(detalheDto.getItem());
-                detalhe.setObjetoContratado(detalheDto.getObjetoContratado());
-                detalhe.setUnidade(detalheDto.getUnidade());
-                detalhe.setQuantidade(detalheDto.getQuantidade());
-                detalhe.setValorTotal(detalheDto.getValorTotal());
-                detalhe.setObservacoes(detalheDto.getObservacoes());
-                detalhe.setDataPo(detalheDto.getDataPo());
-                detalhe.setFaturamento(detalheDto.getFaturamento());
-                detalhe.setSolitIdFat(detalheDto.getSolitIdFat());
-                detalhe.setRecebIdFat(detalheDto.getRecebIdFat());
-                detalhe.setIdFaturamento(detalheDto.getIdFaturamento());
-                detalhe.setDataFatInprout(detalheDto.getDataFatInprout());
-                detalhe.setSolitFsPortal(detalheDto.getSolitFsPortal());
-                detalhe.setDataFs(detalheDto.getDataFs());
-                detalhe.setNumFs(detalheDto.getNumFs());
-                detalhe.setGate(detalheDto.getGate());
-                detalhe.setGateId(detalheDto.getGateId());
+                mapearDtoParaDetalhe(detalheDto, detalhe);
 
-                // 5. Adiciona o detalhe preenchido à lista de detalhes da OS
                 novaOs.getDetalhes().add(detalhe);
             }
         }
 
-        // 6. Salva a OS. Devido ao 'cascade', os detalhes também serão salvos.
         return osRepository.save(novaOs);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -331,7 +302,6 @@ public class OsServiceImpl implements OsService {
                 rows.next(); // Pula o cabeçalho
             }
 
-            // Mapeamentos para otimização (sem alterações)
             Map<String, Segmento> segmentoMap = segmentoRepository.findAll().stream()
                     .collect(Collectors.toMap(s -> s.getNome().toUpperCase(), s -> s, (s1, s2) -> s1));
 
@@ -342,85 +312,89 @@ public class OsServiceImpl implements OsService {
                             Function.identity(),
                             (lpu1, lpu2) -> lpu1));
 
+            // ETAPA 1: Ler todas as linhas e agrupar os detalhes por código da OS.
+            Map<String, List<OsRequestDto.OsLpuDetalheRequestDto>> osDetalhesMap = new HashMap<>();
+            Map<String, OsRequestDto> osGeraisMap = new HashMap<>();
+
             int numeroLinha = 1;
             while (rows.hasNext()) {
                 numeroLinha++;
                 Row currentRow = rows.next();
-
                 if (isRowEmpty(currentRow)) continue;
 
                 try {
-                    // 1. Cria o DTO a partir da linha da planilha usando seu método atualizado
-                    OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap);
-
-                    if (dto == null || dto.getDetalhes() == null || dto.getDetalhes().isEmpty()) {
-                        System.out.println("Pulando linha " + numeroLinha + " por falta de dados essenciais.");
-                        continue;
+                    OsRequestDto dtoDaLinha = criarDtoDaLinha(currentRow, segmentoMap, lpuMap);
+                    if (dtoDaLinha == null || dtoDaLinha.getOs() == null || dtoDaLinha.getOs().isEmpty() || dtoDaLinha.getDetalhes().isEmpty()) {
+                        continue; // Pula linhas inválidas
                     }
+                    String osCode = dtoDaLinha.getOs();
+                    OsRequestDto.OsLpuDetalheRequestDto detalhe = dtoDaLinha.getDetalhes().get(0);
 
-                    OsRequestDto.OsLpuDetalheRequestDto detalheDaLinha = dto.getDetalhes().get(0);
-                    String keyDaLinha = detalheDaLinha.getKey();
-
-                    // =============================================================
-                    //  NOVA LÓGICA: ATUALIZAR SE A KEY EXISTIR
-                    // =============================================================
-                    // 2. Verifica se a KEY da planilha não é nula e não está vazia
-                    if (keyDaLinha != null && !keyDaLinha.trim().isEmpty()) {
-                        // 3. Tenta encontrar um registro de detalhe existente com essa KEY
-                        Optional<OsLpuDetalhes> detalheExistenteOpt = osLpuDetalhesRepository.findByKey(keyDaLinha);
-
-                        if (detalheExistenteOpt.isPresent()) {
-                            // 4. SE ENCONTROU: Atualiza os campos do registro existente
-                            OsLpuDetalhes detalheParaAtualizar = detalheExistenteOpt.get();
-
-                            // O mapeamento dos campos editáveis vai aqui.
-                            // Copie os campos do DTO para a entidade que será atualizada.
-                            mapearDtoParaDetalhe(detalheDaLinha, detalheParaAtualizar);
-
-                            osLpuDetalhesRepository.save(detalheParaAtualizar); // Salva as alterações
-
-                            // Pula para a próxima linha da planilha, pois o trabalho nesta já foi feito.
-                            continue;
-                        }
-                    }
-                    // =============================================================
-                    //  FIM DA LÓGICA DE ATUALIZAÇÃO
-                    // =============================================================
-
-                    // 5. Se a KEY for nula ou não encontrada no banco, executa a lógica de CRIAÇÃO
-                    if (dto.getOs() == null || dto.getOs().isEmpty()) {
-                        System.out.println("Pulando linha " + numeroLinha + " por falta de OS para criação (KEY não encontrada).");
-                        continue;
-                    }
-                    if (detalheDaLinha.getLpuId() == null) {
-                        throw new IllegalArgumentException("A coluna LPU é obrigatória para criar um novo registro.");
-                    }
-
-                    Optional<OS> osExistenteOpt = osRepository.findByOs(dto.getOs());
-
-                    if (osExistenteOpt.isPresent()) {
-                        // Adiciona o detalhe a uma OS existente
-                        OS osExistente = osExistenteOpt.get();
-                        boolean detalheJaExiste = osExistente.getDetalhes().stream()
-                                .anyMatch(d -> d.getLpu().getId().equals(detalheDaLinha.getLpuId()));
-
-                        if (!detalheJaExiste) {
-                            Lpu lpuParaAdicionar = lpuRepository.findById(detalheDaLinha.getLpuId())
-                                    .orElseThrow(() -> new EntityNotFoundException("LPU com ID " + detalheDaLinha.getLpuId() + " não encontrada."));
-
-                            OsLpuDetalhes novoDetalhe = new OsLpuDetalhes();
-                            novoDetalhe.setOs(osExistente);
-                            novoDetalhe.setLpu(lpuParaAdicionar);
-                            mapearDtoParaDetalhe(detalheDaLinha, novoDetalhe);
-                            osLpuDetalhesRepository.save(novoDetalhe);
-                        }
-                    } else {
-                        // Cria uma nova OS e seu primeiro detalhe
-                        createOs(dto);
-                    }
+                    osDetalhesMap.computeIfAbsent(osCode, k -> new ArrayList<>()).add(detalhe);
+                    osGeraisMap.put(osCode, dtoDaLinha);
 
                 } catch (Exception e) {
                     throw new IllegalArgumentException("Erro ao processar a linha " + numeroLinha + " da planilha: " + e.getMessage(), e);
+                }
+            }
+
+            // ETAPA 2: Processar cada grupo de OS de uma vez.
+            for (Map.Entry<String, List<OsRequestDto.OsLpuDetalheRequestDto>> entry : osDetalhesMap.entrySet()) {
+                String osCode = entry.getKey();
+                List<OsRequestDto.OsLpuDetalheRequestDto> detalhesDaOs = entry.getValue();
+
+                // Primeiro, processa atualizações via KEY
+                for (Iterator<OsRequestDto.OsLpuDetalheRequestDto> iterator = detalhesDaOs.iterator(); iterator.hasNext();) {
+                    OsRequestDto.OsLpuDetalheRequestDto detalhe = iterator.next();
+                    String key = detalhe.getKey();
+                    if (key != null && !key.trim().isEmpty()) {
+                        Optional<OsLpuDetalhes> detalheExistenteOpt = osLpuDetalhesRepository.findByKey(key);
+                        if (detalheExistenteOpt.isPresent()) {
+                            OsLpuDetalhes detalheParaAtualizar = detalheExistenteOpt.get();
+                            mapearDtoParaDetalhe(detalhe, detalheParaAtualizar);
+                            osLpuDetalhesRepository.save(detalheParaAtualizar);
+                            iterator.remove(); // Remove da lista para não tentar criar de novo
+                        }
+                    }
+                }
+
+                if (detalhesDaOs.isEmpty()) {
+                    continue; // Se todos foram atualizados, vai para a próxima OS
+                }
+
+                // Em seguida, processa as criações
+                Optional<OS> osExistenteOpt = osRepository.findByOs(osCode);
+
+                if (osExistenteOpt.isPresent()) {
+                    // OS já existe: apenas adiciona os novos detalhes
+                    OS osExistente = osExistenteOpt.get();
+                    for (OsRequestDto.OsLpuDetalheRequestDto detalheParaCriar : detalhesDaOs) {
+                        if (detalheParaCriar.getLpuId() == null) continue;
+
+                        boolean detalheJaExiste = osExistente.getDetalhes().stream()
+                                .anyMatch(d -> d.getLpu().getId().equals(detalheParaCriar.getLpuId()));
+
+                        if (!detalheJaExiste) {
+                            Lpu lpuParaAdicionar = lpuRepository.findById(detalheParaCriar.getLpuId())
+                                    .orElseThrow(() -> new EntityNotFoundException("LPU com ID " + detalheParaCriar.getLpuId() + " não encontrada."));
+                            OsLpuDetalhes novoDetalhe = new OsLpuDetalhes();
+                            novoDetalhe.setOs(osExistente);
+                            novoDetalhe.setLpu(lpuParaAdicionar);
+                            mapearDtoParaDetalhe(detalheParaCriar, novoDetalhe);
+                            osLpuDetalhesRepository.save(novoDetalhe);
+                        }
+                    }
+                } else {
+                    // OS não existe: cria a OS com todos os seus detalhes de uma vez
+                    OsRequestDto osGeral = osGeraisMap.get(osCode);
+                    OsRequestDto osCompletaDto = new OsRequestDto();
+                    osCompletaDto.setOs(osCode);
+                    osCompletaDto.setProjeto(osGeral.getProjeto());
+                    osCompletaDto.setGestorTim(osGeral.getGestorTim());
+                    osCompletaDto.setSegmentoId(osGeral.getSegmentoId());
+                    osCompletaDto.setDetalhes(detalhesDaOs); // Adiciona todos os detalhes de uma vez
+
+                    createOs(osCompletaDto);
                 }
             }
         } catch (IOException e) {

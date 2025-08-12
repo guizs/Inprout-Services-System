@@ -4,7 +4,9 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
+import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.services.index.LpuService;
 import org.springframework.http.HttpStatus;
@@ -16,25 +18,83 @@ import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@RestController // Anotação que combina @Controller e @ResponseBody, ideal para APIs REST
-@RequestMapping("/os") // Define o caminho base para todos os endpoints neste controller
+@RestController
+@RequestMapping("/os")
 @CrossOrigin(origins = "*")
 public class OsController {
 
     private final OsService osService;
     private final LpuService lpuService;
+    private final LancamentoRepository lancamentoRepository; // <-- INJETAR O REPOSITÓRIO DE LANÇAMENTO
 
-    // Injeção de dependência do serviço via construtor
-    public OsController(OsService osService, LpuService lpuService) {
+    public OsController(OsService osService, LpuService lpuService, LancamentoRepository lancamentoRepository) {
         this.osService = osService;
         this.lpuService = lpuService;
+        this.lancamentoRepository = lancamentoRepository; // <-- ADICIONAR AO CONSTRUTOR
     }
 
-    /**
-     * Endpoint para buscar Ordens de Serviço filtradas por usuário.
-     * HTTP Method: GET
-     * URL: /os/por-usuario/{usuarioId}
-     */
+    // ================== MÉTODO ATUALIZADO ==================
+    @GetMapping
+    public ResponseEntity<List<OsResponseDto>> getAllOs() {
+        // 1. Busca a lista de OS como antes
+        List<OS> todasAsOs = osService.getAllOs();
+
+        // 2. Transforma a lista de Entidades em uma lista de DTOs ENRIQUECIDOS
+        List<OsResponseDto> responseList = todasAsOs.stream().map(os -> {
+            // Para cada OS, mapeia seus detalhes para o DTO de detalhe
+            List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = os.getDetalhes().stream().map(detalhe -> {
+                // Para cada detalhe, BUSCA o último lançamento
+                Lancamento ultimoLancamento = lancamentoRepository
+                        .findFirstByOsIdAndLpuIdOrderByIdDesc(os.getId(), detalhe.getLpu().getId())
+                        .orElse(null); // Retorna null se não encontrar
+
+                // Cria o DTO de detalhe passando o detalhe E o último lançamento encontrado
+                return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
+            }).collect(Collectors.toList());
+
+            // Cria o DTO da OS principal usando o novo construtor que aceita os detalhes já prontos
+            return new OsResponseDto(os, detalhesEnriquecidos);
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(responseList);
+    }
+
+    // O restante dos endpoints não precisa de alteração
+
+    @PostMapping
+    public ResponseEntity<OsResponseDto> createOs(@RequestBody OsRequestDto osDto) {
+        OS novaOs = osService.createOs(osDto);
+        return new ResponseEntity<>(new OsResponseDto(novaOs), HttpStatus.CREATED);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OsResponseDto> getOsById(@PathVariable Long id) {
+        OS osEncontrada = osService.getOsById(id);
+
+        // Lógica de enriquecimento para o endpoint de busca única também
+        List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = osEncontrada.getDetalhes().stream().map(detalhe -> {
+            Lancamento ultimoLancamento = lancamentoRepository
+                    .findFirstByOsIdAndLpuIdOrderByIdDesc(osEncontrada.getId(), detalhe.getLpu().getId())
+                    .orElse(null);
+            return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
+        }).collect(Collectors.toList());
+
+        return ResponseEntity.ok(new OsResponseDto(osEncontrada, detalhesEnriquecidos));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<OsResponseDto> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
+        OS osAtualizada = osService.updateOs(id, osDto);
+        return ResponseEntity.ok(new OsResponseDto(osAtualizada));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteOs(@PathVariable Long id) {
+        osService.deleteOs(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // Endpoints legados (sem alteração)
     @GetMapping("/por-usuario/{usuarioId}")
     public ResponseEntity<List<OsResponseDto>> getOsPorUsuario(@PathVariable Long usuarioId) {
         List<OS> osDoUsuario = osService.getAllOsByUsuario(usuarioId);
@@ -42,68 +102,6 @@ public class OsController {
                 .map(OsResponseDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responseList);
-    }
-
-    /**
-     * Endpoint para criar uma nova Ordem de Serviço.
-     * HTTP Method: POST
-     * URL: /api/os
-     * Corpo da Requisição: JSON com os dados de OsRequestDto
-     */
-    @PostMapping
-    public ResponseEntity<OsResponseDto> createOs(@RequestBody OsRequestDto osDto) {
-        OS novaOs = osService.createOs(osDto);
-        // Retorna o DTO de resposta refatorado
-        return new ResponseEntity<>(new OsResponseDto(novaOs), HttpStatus.CREATED);
-    }
-
-    /**
-     * Endpoint para buscar todas as Ordens de Serviço.
-     * HTTP Method: GET
-     * URL: /api/os
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<OsResponseDto> getOsById(@PathVariable Long id) {
-        OS osEncontrada = osService.getOsById(id);
-        return ResponseEntity.ok(new OsResponseDto(osEncontrada));
-    }
-
-    /**
-     * Endpoint para buscar uma Ordem de Serviço pelo seu ID.
-     * HTTP Method: GET
-     * URL: /os/{id}
-     */
-    @GetMapping
-    public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        List<OS> todasAsOs = osService.getAllOs();
-        List<OsResponseDto> responseList = todasAsOs.stream()
-                .map(OsResponseDto::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseList);
-    }
-
-    /**
-     * Endpoint para atualizar uma Ordem de Serviço existente.
-     * HTTP Method: PUT
-     * URL: /api/os/{id}
-     * Corpo da Requisição: JSON com os novos dados de OsRequestDto
-     */
-    @PutMapping("/{id}")
-    public ResponseEntity<OsResponseDto> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
-        OS osAtualizada = osService.updateOs(id, osDto);
-        return ResponseEntity.ok(new OsResponseDto(osAtualizada));
-    }
-
-    /**
-     * Endpoint para deletar uma Ordem de Serviço.
-     * HTTP Method: DELETE
-     * URL: /api/os/{id}
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOs(@PathVariable Long id) {
-        osService.deleteOs(id);
-        // Retorna uma resposta vazia com status 204 (No Content), indicando sucesso na exclusão
-        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{osId}/lpus")
@@ -132,7 +130,4 @@ public class OsController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-
-
 }

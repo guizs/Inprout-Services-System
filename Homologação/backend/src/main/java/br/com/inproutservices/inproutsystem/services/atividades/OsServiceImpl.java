@@ -119,10 +119,18 @@ public class OsServiceImpl implements OsService {
         Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
 
         if (segmentosDoUsuario.isEmpty()) {
-            return Collections.emptyList(); // Retorna lista vazia se o usuário não tiver segmentos
+            return Collections.emptyList();
         }
 
-        return osRepository.findAllBySegmentoIn(segmentosDoUsuario);
+        // CORREÇÃO: Busca todas as OSs com detalhes e depois filtra
+        List<OS> todasAsOsComDetalhes = osRepository.findAllWithDetails();
+        Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
+                .map(Segmento::getId)
+                .collect(Collectors.toSet());
+
+        return todasAsOsComDetalhes.stream()
+                .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
+                .collect(Collectors.toList());
     }
 
     // --- MÉTODO ALTERADO ---

@@ -19,7 +19,7 @@ import br.com.inproutservices.inproutsystem.repositories.index.EtapaDetalhadaRep
 import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.PrestadorRepository;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
-import br.com.inproutservices.inproutsystem.services.config.PrazoService;
+import br.com.inproutservices.inproutsystem.services.atividades.PrazoService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;

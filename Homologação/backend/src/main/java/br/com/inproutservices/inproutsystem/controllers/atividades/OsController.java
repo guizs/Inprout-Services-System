@@ -51,10 +51,10 @@ public class OsController {
      * Corpo da Requisição: JSON com os dados de OsRequestDto
      */
     @PostMapping
-    public ResponseEntity<OS> createOs(@RequestBody OsRequestDto osDto) {
+    public ResponseEntity<OsResponseDto> createOs(@RequestBody OsRequestDto osDto) {
         OS novaOs = osService.createOs(osDto);
-        // Retorna a OS criada com o status HTTP 201 (Created)
-        return new ResponseEntity<>(novaOs, HttpStatus.CREATED);
+        // Retorna o DTO de resposta refatorado
+        return new ResponseEntity<>(new OsResponseDto(novaOs), HttpStatus.CREATED);
     }
 
     /**
@@ -65,7 +65,6 @@ public class OsController {
     @GetMapping("/{id}")
     public ResponseEntity<OsResponseDto> getOsById(@PathVariable Long id) {
         OS osEncontrada = osService.getOsById(id);
-        // Converte a entidade para o DTO antes de retornar
         return ResponseEntity.ok(new OsResponseDto(osEncontrada));
     }
 
@@ -77,7 +76,6 @@ public class OsController {
     @GetMapping
     public ResponseEntity<List<OsResponseDto>> getAllOs() {
         List<OS> todasAsOs = osService.getAllOs();
-        // Converte a lista de entidades para uma lista de DTOs
         List<OsResponseDto> responseList = todasAsOs.stream()
                 .map(OsResponseDto::new)
                 .collect(Collectors.toList());
@@ -91,9 +89,9 @@ public class OsController {
      * Corpo da Requisição: JSON com os novos dados de OsRequestDto
      */
     @PutMapping("/{id}")
-    public ResponseEntity<OS> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
+    public ResponseEntity<OsResponseDto> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
         OS osAtualizada = osService.updateOs(id, osDto);
-        return ResponseEntity.ok(osAtualizada);
+        return ResponseEntity.ok(new OsResponseDto(osAtualizada));
     }
 
     /**
@@ -134,5 +132,7 @@ public class OsController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+
 
 }

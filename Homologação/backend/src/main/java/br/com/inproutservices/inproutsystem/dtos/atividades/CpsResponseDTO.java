@@ -1,8 +1,8 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
-// Adicione os imports das entidades que serão usadas no DTO interno
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhes; // Importar a nova entidade
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
@@ -10,8 +10,8 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 public class CpsResponseDTO {
@@ -19,6 +19,16 @@ public class CpsResponseDTO {
     private List<ValoresPorSegmentoDTO> valoresPorSegmento;
     private List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador;
     private List<LancamentoCpsDetalheDTO> lancamentosDetalhados;
+
+    // Getters e Setters para os campos acima...
+    public BigDecimal getValorTotalGeral() { return valorTotalGeral; }
+    public void setValorTotalGeral(BigDecimal valorTotalGeral) { this.valorTotalGeral = valorTotalGeral; }
+    public List<ValoresPorSegmentoDTO> getValoresPorSegmento() { return valoresPorSegmento; }
+    public void setValoresPorSegmento(List<ValoresPorSegmentoDTO> valoresPorSegmento) { this.valoresPorSegmento = valoresPorSegmento; }
+    public List<ConsolidadoPorPrestadorDTO> getConsolidadoPorPrestador() { return consolidadoPorPrestador; }
+    public void setConsolidadoPorPrestador(List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador) { this.consolidadoPorPrestador = consolidadoPorPrestador; }
+    public List<LancamentoCpsDetalheDTO> getLancamentosDetalhados() { return lancamentosDetalhados; }
+    public void setLancamentosDetalhados(List<LancamentoCpsDetalheDTO> lancamentosDetalhados) { this.lancamentosDetalhados = lancamentosDetalhados; }
 
     public static class LancamentoCpsDetalheDTO {
         @JsonFormat(pattern = "dd/MM/yyyy")
@@ -42,7 +52,7 @@ public class CpsResponseDTO {
         private String observacoes;
         @JsonFormat(pattern = "dd/MM/yyyy")
         private LocalDate dataPo;
-        private String lpu;
+        private String lpu; // Código da LPU
         private String equipe;
         private String vistoria;
         @JsonFormat(pattern = "dd/MM/yyyy")
@@ -73,39 +83,51 @@ public class CpsResponseDTO {
         public LancamentoCpsDetalheDTO(Lancamento l) {
             this.id = l.getId();
             this.dataAtividade = l.getDataAtividade();
-            Optional<OS> osOptional = Optional.ofNullable(l.getOs());
-            this.os = osOptional.map(OS::getOs).orElse(null);
-            this.site = osOptional.map(OS::getSite).orElse(null);
-            this.contrato = osOptional.map(OS::getContrato).orElse(null);
-            this.segmento = osOptional
-                    .map(OS::getSegmento)
-                    .map(Segmento::getNome)
-                    .orElse("Segmento não informado");
-            this.projeto = osOptional.map(OS::getProjeto).orElse(null);
-            this.gestorTim = osOptional.map(OS::getGestorTim).orElse(null);
-            this.regional = osOptional.map(OS::getRegional).orElse(null);
-            this.lote = osOptional.map(OS::getLote).orElse(null);
-            this.boq = osOptional.map(OS::getBoq).orElse(null);
-            this.po = osOptional.map(OS::getPo).orElse(null);
-            this.item = osOptional.map(OS::getItem).orElse(null);
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // O campo "objetoContratado" agora busca o NOME da LPU.
-            this.objetoContratado = Optional.ofNullable(l.getLpu())
-                    .map(lpu -> lpu.getNomeLpu())
-                    .orElse(osOptional.map(OS::getObjetoContratado).orElse(null));
+            // ================== INÍCIO DA CORREÇÃO ==================
+
+            // Pega a OS e a LPU do lançamento
+            OS osEntity = l.getOs();
+
+            // Encontra o detalhe específico para a LPU deste lançamento
+            OsLpuDetalhes detalhe = null;
+            if (osEntity != null && l.getLpu() != null) {
+                detalhe = osEntity.getDetalhes().stream()
+                        .filter(d -> d.getLpu() != null && Objects.equals(d.getLpu().getId(), l.getLpu().getId()))
+                        .findFirst()
+                        .orElse(null);
+            }
+
+            // Popula os campos com base na OS e no detalhe encontrado
+            if (osEntity != null) {
+                this.os = osEntity.getOs();
+                this.segmento = Optional.ofNullable(osEntity.getSegmento()).map(Segmento::getNome).orElse("N/A");
+                this.projeto = osEntity.getProjeto();
+                this.gestorTim = osEntity.getGestorTim();
+            }
+
+            if (detalhe != null) {
+                this.site = detalhe.getSite();
+                this.contrato = detalhe.getContrato();
+                this.regional = detalhe.getRegional();
+                this.lote = detalhe.getLote();
+                this.boq = detalhe.getBoq();
+                this.po = detalhe.getPo();
+                this.item = detalhe.getItem();
+                this.objetoContratado = detalhe.getObjetoContratado();
+                this.unidade = detalhe.getUnidade();
+                this.quantidade = detalhe.getQuantidade();
+                this.valorTotal = detalhe.getValorTotal();
+                this.observacoes = detalhe.getObservacoes();
+                this.dataPo = detalhe.getDataPo();
+            }
 
             // O campo "lpu" agora busca apenas o CÓDIGO da LPU.
             this.lpu = Optional.ofNullable(l.getLpu()).map(lpu -> lpu.getCodigoLpu()).orElse(null);
-            // --- FIM DA CORREÇÃO ---
 
-            this.unidade = osOptional.map(OS::getUnidade).orElse(null);
-            this.quantidade = osOptional.map(OS::getQuantidade).orElse(null);
-            this.valorTotal = osOptional.map(OS::getValorTotal).orElse(null);
-            this.observacoes = osOptional.map(OS::getObservacoes).orElse(null);
-            this.dataPo = osOptional.map(OS::getDataPo).orElse(null);
+            // =================== FIM DA CORREÇÃO ===================
 
-            // Mapeamento dos outros campos (Equipe, Prestador, etc.)
+            // Mapeamento dos outros campos (que já estavam corretos)
             this.equipe = l.getEquipe();
             this.vistoria = l.getVistoria();
             this.planoDeVistoria = l.getPlanoVistoria();
@@ -129,16 +151,16 @@ public class CpsResponseDTO {
             this.valorAdiantamento = l.getValorAdiantamento();
         }
 
-        public LocalDate getDataAtividade() {
-            return dataAtividade;
-        }
-
         public Long getId() {
             return id;
         }
 
         public void setId(Long id) {
             this.id = id;
+        }
+
+        public LocalDate getDataAtividade() {
+            return dataAtividade;
         }
 
         public void setDataAtividade(LocalDate dataAtividade) {
@@ -456,37 +478,5 @@ public class CpsResponseDTO {
         public void setValorAdiantamento(BigDecimal valorAdiantamento) {
             this.valorAdiantamento = valorAdiantamento;
         }
-    }
-
-    public BigDecimal getValorTotalGeral() {
-        return valorTotalGeral;
-    }
-
-    public void setValorTotalGeral(BigDecimal valorTotalGeral) {
-        this.valorTotalGeral = valorTotalGeral;
-    }
-
-    public List<ValoresPorSegmentoDTO> getValoresPorSegmento() {
-        return valoresPorSegmento;
-    }
-
-    public void setValoresPorSegmento(List<ValoresPorSegmentoDTO> valoresPorSegmento) {
-        this.valoresPorSegmento = valoresPorSegmento;
-    }
-
-    public List<ConsolidadoPorPrestadorDTO> getConsolidadoPorPrestador() {
-        return consolidadoPorPrestador;
-    }
-
-    public void setConsolidadoPorPrestador(List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador) {
-        this.consolidadoPorPrestador = consolidadoPorPrestador;
-    }
-
-    public List<LancamentoCpsDetalheDTO> getLancamentosDetalhados() {
-        return lancamentosDetalhados;
-    }
-
-    public void setLancamentosDetalhados(List<LancamentoCpsDetalheDTO> lancamentosDetalhados) {
-        this.lancamentosDetalhados = lancamentosDetalhados;
     }
 }

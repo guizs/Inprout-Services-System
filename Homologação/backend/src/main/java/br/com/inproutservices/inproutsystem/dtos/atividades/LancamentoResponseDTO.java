@@ -2,10 +2,11 @@ package br.com.inproutservices.inproutsystem.dtos.atividades;
 
 import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhes; // Importar a nova entidade
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import br.com.inproutservices.inproutsystem.entities.index.Prestador;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento; // Importe o Segmento
-import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
@@ -16,7 +17,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -57,7 +59,20 @@ public record LancamentoResponseDTO(
                 lancamento.getId(),
                 lancamento.getSituacaoAprovacao(),
                 (lancamento.getManager() != null) ? new ManagerDTO(lancamento.getManager()) : null,
-                (lancamento.getOs() != null) ? new OsResponseDTO(lancamento.getOs()) : null,
+                // ================== INÍCIO DA CORREÇÃO PRINCIPAL ==================
+                // Agora, construímos o OsResponseDTO de uma forma diferente
+                Optional.ofNullable(lancamento.getOs())
+                        .map(osEntity -> {
+                            // Encontra o detalhe específico para a LPU deste lançamento
+                            OsLpuDetalhes detalheCorreto = osEntity.getDetalhes().stream()
+                                    .filter(d -> d.getLpu() != null && Objects.equals(d.getLpu().getId(), lancamento.getLpu().getId()))
+                                    .findFirst()
+                                    .orElse(null); // Retorna null se não encontrar (cenário de segurança)
+
+                            // Passa a OS e o detalhe encontrado para o construtor
+                            return new OsResponseDTO(osEntity, detalheCorreto);
+                        }).orElse(null),
+                // =================== FIM DA CORREÇÃO PRINCIPAL ===================
                 (lancamento.getLpu() != null) ? new LpuSimpleDTO(lancamento.getLpu()) : null,
                 (lancamento.getPrestador() != null) ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
                 (lancamento.getEtapaDetalhada() != null) ? new EtapaSimpleDTO(lancamento.getEtapaDetalhada()) : null,
@@ -92,29 +107,44 @@ public record LancamentoResponseDTO(
         public ManagerDTO(Usuario manager) { this(manager.getId(), manager.getNome()); }
     }
 
-    // A MUDANÇA PRINCIPAL ESTÁ AQUI
+    // O CONSTRUTOR DO OsResponseDTO FOI TOTALMENTE REFEITO
     public record OsResponseDTO(
-            Long id, String os, String site, String contrato, SegmentoSimpleDTO segmento, String projeto, // MUDOU AQUI
-            String gestorTim, String regional, String lote, String boq, String po,
+            Long id, String os, SegmentoSimpleDTO segmento, String projeto, String gestorTim,
+            // Campos que agora vêm do detalhe
+            String site, String contrato, String regional, String lote, String boq, String po,
             String item, String objetoContratado, String unidade, Integer quantidade,
             BigDecimal valorTotal, String observacoes, @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo
     ) {
-        public OsResponseDTO(OS os) {
-            this(os.getId(), os.getOs(), os.getSite(), os.getContrato(),
-                    // E AQUI
+        // O construtor agora recebe a OS (para dados gerais) e o detalhe (para dados específicos)
+        public OsResponseDTO(OS os, OsLpuDetalhes detalhe) {
+            this(
+                    // Dados da OS
+                    os.getId(),
+                    os.getOs(),
                     os.getSegmento() != null ? new SegmentoSimpleDTO(os.getSegmento()) : null,
-                    os.getProjeto(), os.getGestorTim(), os.getRegional(),
-                    os.getLote(), os.getBoq(), os.getPo(), os.getItem(), os.getObjetoContratado(),
-                    os.getUnidade(), os.getQuantidade(), os.getValorTotal(), os.getObservacoes(),
-                    os.getDataPo());
+                    os.getProjeto(),
+                    os.getGestorTim(),
+                    // Dados do Detalhe (com verificação de nulo para segurança)
+                    detalhe != null ? detalhe.getSite() : null,
+                    detalhe != null ? detalhe.getContrato() : null,
+                    detalhe != null ? detalhe.getRegional() : null,
+                    detalhe != null ? detalhe.getLote() : null,
+                    detalhe != null ? detalhe.getBoq() : null,
+                    detalhe != null ? detalhe.getPo() : null,
+                    detalhe != null ? detalhe.getItem() : null,
+                    detalhe != null ? detalhe.getObjetoContratado() : null,
+                    detalhe != null ? detalhe.getUnidade() : null,
+                    detalhe != null ? detalhe.getQuantidade() : null,
+                    detalhe != null ? detalhe.getValorTotal() : null,
+                    detalhe != null ? detalhe.getObservacoes() : null,
+                    detalhe != null ? detalhe.getDataPo() : null
+            );
         }
     }
 
-    // NOVO DTO ANINHADO PARA SEGMENTO
+    // Os outros DTOs aninhados permanecem os mesmos
     public record SegmentoSimpleDTO(Long id, String nome) {
-        public SegmentoSimpleDTO(Segmento segmento) {
-            this(segmento.getId(), segmento.getNome());
-        }
+        public SegmentoSimpleDTO(Segmento segmento) { this(segmento.getId(), segmento.getNome()); }
     }
 
     public record LpuSimpleDTO(Long id, String codigo, String nome) {
@@ -122,9 +152,7 @@ public record LancamentoResponseDTO(
     }
 
     public record PrestadorSimpleDTO(Long id, String codigo, String nome) {
-        public PrestadorSimpleDTO(Prestador prestador) {
-            this(prestador.getId(), prestador.getCodigoPrestador(), prestador.getPrestador());
-        }
+        public PrestadorSimpleDTO(Prestador prestador) { this(prestador.getId(), prestador.getCodigoPrestador(), prestador.getPrestador()); }
     }
 
     public record EtapaSimpleDTO(Long id, String nomeDetalhado, String nomeGeral) {

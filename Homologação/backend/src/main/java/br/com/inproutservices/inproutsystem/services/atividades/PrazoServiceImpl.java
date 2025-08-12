@@ -1,7 +1,7 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.repositories.atividades.FeriadoRepository;
-import br.com.inproutservices.inproutsystem.services.config.PrazoService;
+import br.com.inproutservices.inproutsystem.services.atividades.PrazoService;
 import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;

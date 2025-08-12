@@ -32,11 +32,17 @@ public class LpuService {
 
     @Transactional(readOnly = true)
     public List<LpuResponseDTO> findLpusByOsId(Long osId) {
+        // 1. Busca a OS, que agora contém a lista de 'detalhes'
         OS os = osRepository.findById(osId)
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
 
-        return os.getLpus().stream()
+        // 2. Acessa a lista de 'OsLpuDetalhes' através de os.getDetalhes()
+        return os.getDetalhes().stream()
+                // 3. Para cada 'detalhe', extrai a entidade 'Lpu' associada
+                .map(detalhe -> detalhe.getLpu())
+                // 4. Mapeia a entidade 'Lpu' para o seu DTO de resposta
                 .map(lpu -> new LpuResponseDTO(lpu))
+                // 5. Coleta tudo em uma lista final
                 .collect(Collectors.toList());
     }
 

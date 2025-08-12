@@ -25,10 +25,13 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     Optional<Lancamento> findFirstByOsIdAndSituacaoAprovacaoOrderByDataCriacaoAsc(Long osId, SituacaoAprovacao situacao);
 
+    // ================== QUERY CORRIGIDA 1 ==================
+    // REMOVIDO: "LEFT JOIN FETCH o.lpus"
+    // ADICIONADO: "LEFT JOIN FETCH o.detalhes" para carregar os novos detalhes de forma otimizada.
     @Query("SELECT DISTINCT l FROM Lancamento l " +
             "LEFT JOIN FETCH l.manager " +
             "LEFT JOIN FETCH l.os o " +
-            "LEFT JOIN FETCH o.lpus " +
+            "LEFT JOIN FETCH o.detalhes " + // <-- CORREÇÃO
             "LEFT JOIN FETCH l.lpu " +
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa " +
@@ -38,10 +41,13 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "WHERE l.id = :id")
     Optional<Lancamento> findByIdWithDetails(@Param("id") Long id);
 
+    // ================== QUERY CORRIGIDA 2 ==================
+    // REMOVIDO: "LEFT JOIN FETCH o.lpus"
+    // ADICIONADO: "LEFT JOIN FETCH o.detalhes" para carregar os novos detalhes de forma otimizada.
     @Query("SELECT DISTINCT l FROM Lancamento l " +
             "LEFT JOIN FETCH l.manager " +
             "LEFT JOIN FETCH l.os o " +
-            "LEFT JOIN FETCH o.lpus " +
+            "LEFT JOIN FETCH o.detalhes " + // <-- CORREÇÃO
             "LEFT JOIN FETCH l.lpu " +
             "LEFT JOIN FETCH l.comentarios c " +
             "LEFT JOIN FETCH c.autor")
@@ -62,17 +68,16 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);
 
-    // ==================================================================
-    // >>>>> QUERY ATUALIZADA PARA O RELATÓRIO CPS <<<<<
-    // ==================================================================
     @Query("SELECT l FROM Lancamento l " +
             "LEFT JOIN FETCH l.os os " +
             "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH os.detalhes d " + // <-- ADICIONADO PARA GARANTIR QUE OS DETALHES SEJAM CARREGADOS
+            "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH l.lpu " +
             "LEFT JOIN FETCH l.prestador " +
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa e " +
-            "LEFT JOIN FETCH l.manager " + // Adicionado para buscar o gestor
+            "LEFT JOIN FETCH l.manager " +
             "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
     List<Lancamento> findLancamentosAprovadosPorPeriodo(
             @Param("status") SituacaoAprovacao status,

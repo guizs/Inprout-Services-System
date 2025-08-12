@@ -14,13 +14,19 @@ import java.util.Set;
 public interface OsRepository extends JpaRepository<OS, Long> {
 
     /**
-     * Busca todas as OSs, trazendo junto (FETCH) a coleção de LPUs e seus respectivos lançamentos
-     * para evitar LazyInitializationException e o problema N+1.
+     * Busca todas as OSs, trazendo junto (FETCH) a nova coleção de 'detalhes'
+     * e, a partir dela, as LPUs associadas.
      */
-    @Query("SELECT DISTINCT os FROM OS os LEFT JOIN FETCH os.lpus lpus LEFT JOIN FETCH lpus.lancamentos")
+    // ================== QUERY CORRIGIDA 1 ==================
+    @Query("SELECT DISTINCT os FROM OS os LEFT JOIN FETCH os.detalhes d LEFT JOIN FETCH d.lpu")
     List<OS> findAllWithDetails();
 
-    @Query("SELECT os FROM OS os LEFT JOIN FETCH os.lpus lpus LEFT JOIN FETCH lpus.lancamentos WHERE os.id = :id")
+    /**
+     * Busca uma OS por ID, trazendo junto (FETCH) a nova coleção de 'detalhes'
+     * e, a partir dela, as LPUs associadas.
+     */
+    // ================== QUERY CORRIGIDA 2 ==================
+    @Query("SELECT os FROM OS os LEFT JOIN FETCH os.detalhes d LEFT JOIN FETCH d.lpu WHERE os.id = :id")
     Optional<OS> findByIdWithDetails(Long id);
 
     /**
@@ -28,5 +34,8 @@ public interface OsRepository extends JpaRepository<OS, Long> {
      */
     List<OS> findAllBySegmentoIn(Set<Segmento> segmentos);
 
+    /**
+     * Busca uma OS pelo seu código único.
+     */
     Optional<OS> findByOs(String os);
 }

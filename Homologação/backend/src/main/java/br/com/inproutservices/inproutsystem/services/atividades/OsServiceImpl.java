@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
+import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhes;
@@ -55,6 +56,7 @@ public class OsServiceImpl implements OsService {
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalhesRepository osLpuDetalhesRepository;
 
+
     public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalhesRepository osLpuDetalhesRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
@@ -63,6 +65,25 @@ public class OsServiceImpl implements OsService {
         this.usuarioRepository = usuarioRepository;
         this.lancamentoRepository = lancamentoRepository;
         this.osLpuDetalhesRepository = osLpuDetalhesRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OsResponseDto> getAllOsPaginadoDto(Pageable pageable) {
+        // 1. Chama o método que já criamos para buscar a página de entidades OS de forma eficiente.
+        Page<OS> osPage = this.getAllOsPaginado(pageable);
+
+        // 2. Converte (mapeia) a página de entidades para uma página de DTOs,
+        //    fazendo o enriquecimento com o último lançamento aqui dentro.
+        return osPage.map(os -> {
+            List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = os.getDetalhes().stream().map(detalhe -> {
+                Lancamento ultimoLancamento = lancamentoRepository
+                        .findFirstByOsIdAndLpuIdOrderByIdDesc(os.getId(), detalhe.getLpu().getId())
+                        .orElse(null);
+                return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
+            }).collect(Collectors.toList());
+            return new OsResponseDto(os, detalhesEnriquecidos);
+        });
     }
 
     @Override

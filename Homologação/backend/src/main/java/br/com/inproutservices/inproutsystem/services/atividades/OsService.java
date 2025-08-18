@@ -2,6 +2,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
+import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,4 +21,5 @@ public interface OsService {
     OS createOs(OsRequestDto osDto);
     OS updateOs(Long id, OsRequestDto osDto);
     Page<OS> getAllOsPaginado(Pageable pageable);
+    Page<OsResponseDto> getAllOsPaginadoDto(Pageable pageable);
 }

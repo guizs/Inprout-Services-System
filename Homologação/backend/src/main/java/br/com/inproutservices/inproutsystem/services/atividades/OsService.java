@@ -15,7 +15,6 @@ public interface OsService {
     List<LpuComLancamentoDto> getLpusWithLastApprovedLaunch(Long osId);
     List<OS> getAllOsByUsuario(Long usuarioId);
     OS getOsById(Long id);
-    List<OS> getAllOs();
     void deleteOs(Long id);
     void importarOsDePlanilha(MultipartFile file) throws IOException;
     OS createOs(OsRequestDto osDto);

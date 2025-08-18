@@ -28,15 +28,34 @@ public class OsController {
 
     private final OsService osService;
     private final LpuService lpuService;
-    private final LancamentoRepository lancamentoRepository; // <-- INJETAR O REPOSITÓRIO DE LANÇAMENTO
+    private final LancamentoRepository lancamentoRepository;
 
     public OsController(OsService osService, LpuService lpuService, LancamentoRepository lancamentoRepository) {
         this.osService = osService;
         this.lpuService = lpuService;
-        this.lancamentoRepository = lancamentoRepository; // <-- ADICIONAR AO CONSTRUTOR
+        this.lancamentoRepository = lancamentoRepository;
     }
 
-    // O restante dos endpoints não precisa de alteração
+    @GetMapping
+    public ResponseEntity<Page<OsResponseDto>> getAllOs(
+            @PageableDefault(page = 0, size = 100) Pageable pageable
+    ) {
+        Page<OS> osPage = osService.getAllOsPaginado(pageable);
+
+        Page<OsResponseDto> osResponseDtoPage = osPage.map(os -> {
+            List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = os.getDetalhes().stream().map(detalhe -> {
+                Lancamento ultimoLancamento = lancamentoRepository
+                        .findFirstByOsIdAndLpuIdOrderByIdDesc(os.getId(), detalhe.getLpu().getId())
+                        .orElse(null);
+                return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
+            }).collect(Collectors.toList());
+            return new OsResponseDto(os, detalhesEnriquecidos);
+        });
+
+        return ResponseEntity.ok(osResponseDtoPage);
+    }
+    // =======================================================
+
 
     @PostMapping
     public ResponseEntity<OsResponseDto> createOs(@RequestBody OsRequestDto osDto) {
@@ -48,7 +67,6 @@ public class OsController {
     public ResponseEntity<OsResponseDto> getOsById(@PathVariable Long id) {
         OS osEncontrada = osService.getOsById(id);
 
-        // Lógica de enriquecimento para o endpoint de busca única também
         List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = osEncontrada.getDetalhes().stream().map(detalhe -> {
             Lancamento ultimoLancamento = lancamentoRepository
                     .findFirstByOsIdAndLpuIdOrderByIdDesc(osEncontrada.getId(), detalhe.getLpu().getId())
@@ -69,16 +87,6 @@ public class OsController {
     public ResponseEntity<Void> deleteOs(@PathVariable Long id) {
         osService.deleteOs(id);
         return ResponseEntity.noContent().build();
-    }
-
-    // Endpoints legados (sem alteração)
-    @GetMapping("/por-usuario/{usuarioId}")
-    public ResponseEntity<List<OsResponseDto>> getOsPorUsuario(@PathVariable Long usuarioId) {
-        List<OS> osDoUsuario = osService.getAllOsByUsuario(usuarioId);
-        List<OsResponseDto> responseList = osDoUsuario.stream()
-                .map(OsResponseDto::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responseList);
     }
 
     @GetMapping("/{osId}/lpus")
@@ -106,26 +114,5 @@ public class OsController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-    }
-
-    @GetMapping
-    public ResponseEntity<Page<OsResponseDto>> getAllOs(
-            @PageableDefault(page = 0, size = 100) Pageable pageable
-    ) {
-        // 1. Chama o novo serviço paginado
-        Page<OS> osPage = osService.getAllOsPaginado(pageable);
-
-        // 2. Converte a página de Entidades para uma página de DTOs
-        Page<OsResponseDto> osResponseDtoPage = osPage.map(os -> {
-            List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = os.getDetalhes().stream().map(detalhe -> {
-                Lancamento ultimoLancamento = lancamentoRepository
-                        .findFirstByOsIdAndLpuIdOrderByIdDesc(os.getId(), detalhe.getLpu().getId())
-                        .orElse(null);
-                return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
-            }).collect(Collectors.toList());
-            return new OsResponseDto(os, detalhesEnriquecidos);
-        });
-
-        return ResponseEntity.ok(osResponseDtoPage);
     }
 }

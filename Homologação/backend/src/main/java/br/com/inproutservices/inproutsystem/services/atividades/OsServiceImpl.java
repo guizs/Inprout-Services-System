@@ -24,6 +24,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -135,51 +136,6 @@ public class OsServiceImpl implements OsService {
         return todasAsOsComDetalhes.stream()
                 .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
                 .collect(Collectors.toList());
-    }
-
-    // --- MÉTODO ALTERADO ---
-    @Override
-    @Transactional(readOnly = true)
-    public List<OS> getAllOs() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        String userEmail;
-        if (principal instanceof UserDetails) {
-            userEmail = ((UserDetails) principal).getUsername();
-        } else {
-            userEmail = principal.toString();
-        }
-
-        if ("anonymousUser".equals(userEmail)) {
-            return osRepository.findAllWithDetails();
-        }
-
-        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
-
-        Role role = usuarioLogado.getRole();
-
-        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return osRepository.findAllWithDetails();
-        }
-
-        if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return Collections.emptyList();
-            }
-            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
-                    .map(Segmento::getId)
-                    .collect(Collectors.toSet());
-
-            List<OS> todasAsOs = osRepository.findAllWithDetails();
-
-            return todasAsOs.stream()
-                    .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
-                    .collect(Collectors.toList());
-        }
-
-        return Collections.emptyList();
     }
 
 
@@ -563,27 +519,50 @@ public class OsServiceImpl implements OsService {
     @Override
     @Transactional(readOnly = true)
     public Page<OS> getAllOsPaginado(Pageable pageable) {
-        // A lógica de filtragem por role continua a mesma, mas aplicada sobre a busca paginada.
+        // 1. Lógica de segurança para pegar o usuário logado (continua a mesma)
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
-
-        if ("anonymousUser".equals(userEmail)) {
-            return osRepository.findAllWithDetails(pageable);
-        }
-
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado."));
 
         Role role = usuarioLogado.getRole();
+        Page<OS> osIdPage; // Página que conterá apenas as OSs com IDs
+
+        // 2. Primeira Busca (EFICIENTE): Busca a página de OSs aplicando o filtro por role
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return osRepository.findAllWithDetails(pageable);
+            // Perfis que veem tudo: busca simples e paginada sem filtro de segmento
+            osIdPage = osRepository.findAllSimple(pageable);
+        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            // Perfis que veem por segmento
+            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
+            if (segmentosDoUsuario.isEmpty()) {
+                // Se não tem segmentos, retorna uma página vazia
+                return new PageImpl<>(Collections.emptyList(), pageable, 0);
+            }
+            // Usa o novo método do repositório que filtra por segmento de forma paginada
+            osIdPage = osRepository.findBySegmentoIn(segmentosDoUsuario, pageable);
+        } else {
+            // Outros perfis não veem nada
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
         }
 
-        // Para Manager e Coordinator, a lógica de filtro por segmento precisará ser adaptada
-        // para funcionar com paginação. A abordagem mais simples é delegar ao repositório.
-        // (Para manter simples, vamos assumir que o filtro de segmento será adicionado depois se necessário)
+        // Se a primeira busca não retornou nada, já podemos retornar a página vazia
+        if (!osIdPage.hasContent()) {
+            return osIdPage;
+        }
 
-        return osRepository.findAllWithDetails(pageable);
+        // 3. Extrai os IDs da página que acabamos de buscar
+        List<Long> ids = osIdPage.getContent().stream()
+                .map(OS::getId)
+                .collect(Collectors.toList());
+
+        // 4. Segunda Busca (EFICIENTE): Busca os detalhes completos APENAS para os IDs da página atual
+        List<OS> osComDetalhes = osRepository.findWithDetailsByIds(ids);
+
+        // 5. Retorna um novo objeto Page, combinando os dados detalhados da segunda busca
+        //    com as informações de paginação (total de páginas, total de elementos, etc.) da primeira busca.
+        return new PageImpl<>(osComDetalhes, pageable, osIdPage.getTotalElements());
     }
+
 
 }

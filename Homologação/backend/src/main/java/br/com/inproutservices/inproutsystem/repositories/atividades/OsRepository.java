@@ -5,6 +5,7 @@ import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import org.springframework.data.domain.Pageable;
@@ -42,7 +43,13 @@ public interface OsRepository extends JpaRepository<OS, Long> {
      */
     Optional<OS> findByOs(String os);
 
-    @Query(value = "SELECT DISTINCT os FROM OS os LEFT JOIN FETCH os.detalhes d LEFT JOIN FETCH d.lpu",
-            countQuery = "SELECT COUNT(os) FROM OS os")
-    Page<OS> findAllWithDetails(Pageable pageable);
+    @Query("SELECT os FROM OS os WHERE os.segmento IN :segmentos")
+    Page<OS> findBySegmentoIn(@Param("segmentos") Set<Segmento> segmentos, Pageable pageable);
+
+
+    @Query("SELECT DISTINCT os FROM OS os LEFT JOIN FETCH os.detalhes d LEFT JOIN FETCH d.lpu WHERE os.id IN :ids")
+    List<OS> findWithDetailsByIds(@Param("ids") List<Long> ids);
+
+    @Query(value = "SELECT os FROM OS os", countQuery = "SELECT COUNT(os) FROM OS os")
+    Page<OS> findAllSimple(Pageable pageable);
 }

@@ -2,9 +2,12 @@ package br.com.inproutservices.inproutsystem.repositories.atividades;
 
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,4 +41,8 @@ public interface OsRepository extends JpaRepository<OS, Long> {
      * Busca uma OS pelo seu código único.
      */
     Optional<OS> findByOs(String os);
+
+    @Query(value = "SELECT DISTINCT os FROM OS os LEFT JOIN FETCH os.detalhes d LEFT JOIN FETCH d.lpu",
+            countQuery = "SELECT COUNT(os) FROM OS os")
+    Page<OS> findAllWithDetails(Pageable pageable);
 }

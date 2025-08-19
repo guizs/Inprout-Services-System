@@ -23,6 +23,8 @@ import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioReposit
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -112,31 +114,7 @@ public class OsServiceImpl implements OsService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OS> getAllOsByUsuario(Long usuarioId) {
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
-
-        Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
-
-        if (segmentosDoUsuario.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        // CORREÇÃO: Busca todas as OSs com detalhes e depois filtra
-        List<OS> todasAsOsComDetalhes = osRepository.findAllWithDetails();
-        Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
-                .map(Segmento::getId)
-                .collect(Collectors.toSet());
-
-        return todasAsOsComDetalhes.stream()
-                .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
-                .collect(Collectors.toList());
-    }
-
-    // --- MÉTODO ALTERADO ---
-    @Override
-    @Transactional(readOnly = true)
-    public List<OS> getAllOs() {
+    public Page<OS> getAllOs(Pageable pageable) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         String userEmail;
@@ -147,7 +125,7 @@ public class OsServiceImpl implements OsService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
-            return osRepository.findAllWithDetails();
+            return osRepository.findAllWithDetails(pageable);
         }
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
@@ -156,28 +134,35 @@ public class OsServiceImpl implements OsService {
         Role role = usuarioLogado.getRole();
 
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return osRepository.findAllWithDetails();
+            return osRepository.findAllWithDetails(pageable);
         }
 
         if (role == Role.MANAGER || role == Role.COORDINATOR) {
             Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
             if (segmentosDoUsuario.isEmpty()) {
-                return Collections.emptyList();
+                return Page.empty(pageable);
             }
-            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
-                    .map(Segmento::getId)
-                    .collect(Collectors.toSet());
-
-            List<OS> todasAsOs = osRepository.findAllWithDetails();
-
-            return todasAsOs.stream()
-                    .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
-                    .collect(Collectors.toList());
+            // A filtragem agora acontece diretamente no banco
+            return osRepository.findAllBySegmentoIn(segmentosDoUsuario, pageable);
         }
 
-        return Collections.emptyList();
+        return Page.empty(pageable);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<OS> getAllOsByUsuario(Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
+
+        Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
+
+        if (segmentosDoUsuario.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return osRepository.findAllBySegmentoInWithDetails(segmentosDoUsuario);
+    }
 
     @Override
     @Transactional

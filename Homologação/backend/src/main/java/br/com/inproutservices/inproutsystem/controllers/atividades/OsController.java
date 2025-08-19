@@ -9,6 +9,10 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.services.index.LpuService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -35,28 +39,28 @@ public class OsController {
 
     // ================== MÉTODO ATUALIZADO ==================
     @GetMapping
-    public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        // 1. Busca a lista de OS como antes
-        List<OS> todasAsOs = osService.getAllOs();
+    public ResponseEntity<Page<OsResponseDto>> getAllOs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size
+    ) {
+        // Cria o objeto Pageable para passar para o serviço
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
-        // 2. Transforma a lista de Entidades em uma lista de DTOs ENRIQUECIDOS
-        List<OsResponseDto> responseList = todasAsOs.stream().map(os -> {
-            // Para cada OS, mapeia seus detalhes para o DTO de detalhe
+        // O serviço agora retorna um Page<OS>
+        Page<OS> osPage = osService.getAllOs(pageable);
+
+        // Usa o método .map() do Page para converter de Page<OS> para Page<OsResponseDto>
+        Page<OsResponseDto> responseDtoPage = osPage.map(os -> {
             List<OsResponseDto.OsLpuDetalheResponseDto> detalhesEnriquecidos = os.getDetalhes().stream().map(detalhe -> {
-                // Para cada detalhe, BUSCA o último lançamento
                 Lancamento ultimoLancamento = lancamentoRepository
                         .findFirstByOsIdAndLpuIdOrderByIdDesc(os.getId(), detalhe.getLpu().getId())
-                        .orElse(null); // Retorna null se não encontrar
-
-                // Cria o DTO de detalhe passando o detalhe E o último lançamento encontrado
+                        .orElse(null);
                 return new OsResponseDto.OsLpuDetalheResponseDto(detalhe, ultimoLancamento);
             }).collect(Collectors.toList());
-
-            // Cria o DTO da OS principal usando o novo construtor que aceita os detalhes já prontos
             return new OsResponseDto(os, detalhesEnriquecidos);
-        }).collect(Collectors.toList());
+        });
 
-        return ResponseEntity.ok(responseList);
+        return ResponseEntity.ok(responseDtoPage);
     }
 
     // O restante dos endpoints não precisa de alteração

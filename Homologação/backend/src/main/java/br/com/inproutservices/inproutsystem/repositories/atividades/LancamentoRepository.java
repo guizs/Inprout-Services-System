@@ -57,7 +57,14 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     List<Lancamento> findBySituacaoAprovacaoAndDataPrazoBefore(SituacaoAprovacao situacao, LocalDate data);
 
-    @Query("SELECT DISTINCT l FROM Lancamento l LEFT JOIN l.comentarios c " +
+    @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.lpu " +
+            "LEFT JOIN FETCH l.os " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.etapaDetalhada ed " +
+            "LEFT JOIN FETCH ed.etapa " +
+            "LEFT JOIN FETCH l.manager " +
+            "LEFT JOIN l.comentarios c " +
             "WHERE l.situacaoAprovacao NOT IN ('RASCUNHO', 'PENDENTE_COORDENADOR', 'PENDENTE_CONTROLLER', 'AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO') " +
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);

@@ -17,6 +17,28 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.show();
     }
 
+    function labelLpu(lpu) {
+        if (!lpu) return '';
+        const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
+        const nome = lpu.nome ?? lpu.nomeLpu ?? '';
+        return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
+    }
+
+    function normalizarListaLpus(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw.content)) return raw.content;
+        if (Array.isArray(raw.itens)) return raw.itens;
+        if (Array.isArray(raw.lista)) return raw.lista;
+        return [];
+    }
+
+    function labelLpu(lpu) {
+        const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
+        const nome = lpu.nome ?? lpu.nomeLpu ?? '';
+        return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
+    }
+
     function toggleLoader(ativo = true) {
         const overlay = document.getElementById("overlay-loader");
         if (overlay) {
@@ -130,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const colunasPrincipais = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"];
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
     const colunasMinhasPendencias = colunasLancamentos;
+    const colunasHistorico = [...colunasPrincipais, "AÇÃO"];
 
     function renderizarCabecalho(colunas, theadElement) {
         if (!theadElement) return;
@@ -211,20 +234,41 @@ document.addEventListener('DOMContentLoaded', () => {
             const tr = document.createElement('tr');
             const td = document.createElement('td');
             td.colSpan = colunas.length;
-            td.textContent = 'Nenhum lançamento encontrado para esta categoria.';
+            td.textContent = 'Nenhum lançamento encontrado.';
             td.className = 'text-center text-muted p-4';
             tr.appendChild(td);
             tbodyElement.appendChild(tr);
             return;
         }
 
-        const formatarMoeda = (valor) => valor ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : 'N/A';
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+
+        const frag = document.createDocumentFragment();
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
+
+            // O objeto 'detalhe' agora contém muitas das informações
+            const detalhe = lancamento.detalhe || {};
+            const os = lancamento.os || {};
+
             const mapaDeCelulas = {
-                "DATA ATIVIDADE": lancamento.dataAtividade || '', "OS": lancamento.os.os || '', "SITE": lancamento.os.site || '', "SEGMENTO": lancamento.os.segmento ? lancamento.os.segmento.nome : '', "PROJETO": lancamento.os.projeto || '', "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '', "GESTOR TIM": lancamento.os.gestorTim || '', "REGIONAL": lancamento.os.regional || '', "VISTORIA": lancamento.vistoria || '', "PLANO DE VISTORIA": lancamento.planoVistoria || '', "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '', "PLANO DE DESMOBILIZAÇÃO": lancamento.planoDesmobilizacao || '', "INSTALAÇÃO": lancamento.instalacao || '', "PLANO DE INSTALAÇÃO": lancamento.planoInstalacao || '', "ATIVAÇÃO": lancamento.ativacao || '', "PLANO DE ATIVAÇÃO": lancamento.planoAtivacao || '', "DOCUMENTAÇÃO": lancamento.documentacao || '', "PLANO DE DOCUMENTAÇÃO": lancamento.planoDocumentacao || '', "ETAPA GERAL": lancamento.etapa ? lancamento.etapa.nomeGeral : '', "ETAPA DETALHADA": lancamento.etapa ? lancamento.etapa.nomeDetalhado : '', "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '', "CÓD. PRESTADOR": lancamento.prestador ? lancamento.prestador.codigo : '', "PRESTADOR": lancamento.prestador ? lancamento.prestador.nome : '', "VALOR": formatarMoeda(lancamento.valor), "GESTOR": lancamento.manager ? lancamento.manager.nome : '', "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`
+                "DATA ATIVIDADE": lancamento.dataAtividade || '',
+                "OS": os.os || '',
+                "SITE": detalhe.site || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '',
+                "PROJETO": os.projeto || '',
+                "LPU": labelLpu(detalhe.lpu), // <-- Acessa a LPU dentro do detalhe
+                "GESTOR TIM": os.gestorTim || '',
+                "REGIONAL": detalhe.regional || '',
+                "ETAPA DETALHADA": lancamento.etapa ? lancamento.etapa.nomeDetalhado : '',
+                "SITUAÇÃO": lancamento.situacao || '',
+                "DETALHE DIÁRIO": lancamento.detalheDiario || '',
+                "PRESTADOR": lancamento.prestador ? lancamento.prestador.nome : '',
+                "VALOR": formatarMoeda(lancamento.valor),
+                "GESTOR": lancamento.manager ? lancamento.manager.nome : '',
+                "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`
             };
 
             colunas.forEach(nomeColuna => {
@@ -232,9 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 td.dataset.label = nomeColuna;
 
                 if (nomeColuna === 'AÇÃO') {
+                    // Lógica dos botões (mantida como estava, mas pode ser revisada depois)
                     let buttonsHtml = '';
-
-                    // Regra: Apenas ADMIN e MANAGER podem ver os botões de fluxo
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
@@ -244,42 +287,33 @@ document.addEventListener('DOMContentLoaded', () => {
                             buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                         }
                     }
-
-                    // Regra: Todos os cargos podem ver os comentários
-                    if (tbodyElement.id !== 'tbody-lancamentos') {
-                        buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
-                    }
+                    buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
 
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
                 } else {
-                    td.innerHTML = mapaDeCelulas[nomeColuna];
-                }
-
-                if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
-                    aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                    td.innerHTML = mapaDeCelulas[nomeColuna] || 'N/A';
                 }
                 tr.appendChild(td);
             });
-            tbodyElement.appendChild(tr);
+            frag.appendChild(tr);
         });
+        tbodyElement.appendChild(frag);
     }
 
     function getDadosFiltrados() {
         let dadosFiltrados = [...todosLancamentos];
         const termoBusca = searchInput.value.toLowerCase().trim();
 
-        // FILTRO DE TEXTO (BUSCA)
         if (termoBusca) {
             dadosFiltrados = dadosFiltrados.filter(l => {
-                // Concatena todos os campos pesquisáveis em uma única string para facilitar a busca
                 const textoPesquisavel = [
-                    l.os.os,
-                    l.os.site,
-                    l.os.segmento?.nome,
-                    l.os.projeto,
-                    l.lpu?.nome,
-                    l.prestador?.nome,
-                    l.etapa?.nomeDetalhado
+                    l.os?.os,
+                    l.detalhe?.site,
+                    l.os?.segmento?.nome,
+                    l.os?.projeto,
+                    l.detalhe?.lpu?.nomeLpu,
+                    l.detalhe?.lpu?.codigoLpu,
+                    l.prestador?.nome
                 ].join(' ').toLowerCase();
                 return textoPesquisavel.includes(termoBusca);
             });
@@ -335,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true); // <-- MOSTRA O LOADER
         try {
-            const response = await fetch('http://3.128.248.3:8080/lancamentos');
+            const response = await fetch('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             // ---> ETAPA 1: EXTRAIR O JSON DA RESPOSTA (ESSA LINHA FALTAVA) <---
@@ -375,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
         renderizarTabela(minhasPendencias, tbodyMinhasPendencias, colunasMinhasPendencias);
-        renderizarTabela(historico, tbodyHistorico, colunasPrincipais);
+        renderizarTabela(historico, tbodyHistorico, colunasHistorico);
         renderizarTabela(paralisados, tbodyParalisados, colunasMinhasPendencias);
 
         // Atualiza a notificação
@@ -407,50 +441,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            // Pega os elementos do DOM para o container e o select da LPU
             const lpuContainer = document.getElementById('lpuContainer');
             const selectLPU = document.getElementById('lpuId');
 
-            // Se o usuário desmarcar a OS, esconde o campo de LPU
             if (!osId) {
                 lpuContainer.classList.add('d-none');
+                selectLPU.innerHTML = '';
                 return;
             }
 
             try {
-                // Mostra um "carregando" (opcional, mas bom para UX)
                 selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
                 selectLPU.disabled = true;
-                lpuContainer.classList.remove('d-none'); // Mostra o container
+                lpuContainer.classList.remove('d-none');
 
-                // Busca as LPUs para a OS selecionada
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) {
                     throw new Error('Falha ao buscar LPUs para esta OS.');
                 }
-
                 const lpus = await response.json();
 
-                // Limpa o select e prepara para novas opções
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
 
                 if (lpus && lpus.length > 0) {
-                    // Popula o select com as LPUs encontradas
                     lpus.forEach(lpu => {
-                        // Usamos o formato "CÓDIGO - NOME" para o texto da opção
-                        const option = new Option(`${lpu.codigo} - ${lpu.nome}`, lpu.id);
+                        // CORREÇÃO: Usa a função auxiliar para criar o label
+                        const option = new Option(labelLpu(lpu), lpu.id);
                         selectLPU.add(option);
                     });
                     selectLPU.disabled = false;
                 } else {
-                    // Caso não encontre nenhuma LPU
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
                     selectLPU.disabled = true;
                 }
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
-                lpuContainer.classList.add('d-none'); // Esconde se der erro
+                lpuContainer.classList.add('d-none');
             }
         });
 
@@ -543,7 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Chama o novo endpoint filtrado
-                    const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     // --- FIM DA ALTERAÇÃO ---
 
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
@@ -568,10 +594,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (selectPrestador.options.length <= 1) {
-                await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -625,14 +651,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (lancamento.os && lancamento.os.id) {
                 selectOS.value = lancamento.os.id;
                 preencherCamposOS(lancamento.os.id);
-
-                // 1. CHAMA E ESPERA A FUNÇÃO DE CARREGAR A LPU TERMINAR
                 await carregarEPopularLPU(lancamento.os.id);
             }
 
             if (lancamento.lpu && lancamento.lpu.id) {
-                // 2. AGORA, COM CERTEZA A LISTA ESTÁ PRONTA, ENTÃO PREENCHEMOS E TRAVAMOS
-                selectLPU.value = lancamento.lpu.id;
+                const lpuIdStr = String(lancamento.lpu.id);
+
+                // se a opção não veio na lista (ex.: diferenças de campo), cria uma “na unha”
+                const exists = Array.from(selectLPU.options).some(opt => opt.value === lpuIdStr);
+                if (!exists) {
+                    selectLPU.add(new Option(labelLpu(lancamento.lpu), lpuIdStr));
+                }
+
+                selectLPU.value = lpuIdStr; // força string pra casar certinho com o <option>
                 selectLPU.disabled = true;
             }
             // --- FIM DA LÓGICA CORRIGIDA ---
@@ -773,31 +804,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.disabled = true;
                 lpuContainer.classList.remove('d-none');
 
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar LPUs para esta OS.');
-                }
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
-                const lpus = await response.json();
+                const raw = await response.json();
+                const lpus = normalizarListaLpus(raw); // <— aceita array puro ou paginado
 
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
 
-                if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => {
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Ajustamos para usar as propriedades corretas: lpu.codigoLpu e lpu.nomeLpu
-                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
-                        // --- FIM DA CORREÇÃO ---
-                        selectLPU.add(option);
-                    });
+                if (lpus.length > 0) {
+                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), String(lpu.id))));
                     selectLPU.disabled = false;
                 } else {
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
                     selectLPU.disabled = true;
                 }
-
             } catch (error) {
-                mostrarToast(error.message, 'error');
+                console.error(error);
+                mostrarToast(error.message || 'Erro ao carregar LPUs', 'error');
                 lpuContainer.classList.add('d-none');
             }
         }
@@ -834,7 +858,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
 
-                const resposta = await fetch(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -860,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            preencherCamposOS(osId); // Função que você já tem, para preencher site, segmento, etc.
+            preencherCamposOS(osId);
 
             const lpuContainer = document.getElementById('lpuContainer');
             const selectLPU = document.getElementById('lpuId');
@@ -871,7 +895,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                lpuContainer.classList.remove('d-none');
+                selectLPU.innerHTML = '<option>Carregando...</option>';
+                selectLPU.disabled = true;
+
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
                 const lpus = await response.json();
@@ -879,7 +907,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
+                        // CORREÇÃO: Usa a função auxiliar para criar o label
+                        const option = new Option(labelLpu(lpu), lpu.id);
                         selectLPU.add(option);
                     });
                     selectLPU.disabled = false;
@@ -887,11 +916,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
                     selectLPU.disabled = true;
                 }
-                lpuContainer.classList.remove('d-none'); // Mostra o campo de LPU
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
-                lpuContainer.classList.add('d-none'); // Esconde se der erro
+                lpuContainer.classList.add('d-none');
             }
         });
 
@@ -939,20 +966,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Define o status de aprovação e o método HTTP com base na ação
             let method = 'POST';
-            let url = 'http://3.128.248.3:8080/lancamentos';
+            let url = 'http://localhost:8080/lancamentos';
 
             if (acao === 'salvar') { // Salvar alterações de um Rascunho
                 dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             } else if (acao === 'enviar') { // Salvar e Enviar um Rascunho
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             } else if (acao === 'reenviar') { // Reenviar um item Rejeitado
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
+                url = `http://localhost:8080/lancamentos/${editingId}`;
             }
             // Se a acao for 'criar' (Retomar ou Novo), o método e URL padrão são usados
 
@@ -1133,7 +1160,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
                 // Busca materiais da API apenas se o cache estiver vazio
-                fetch('http://3.128.248.3:8080/materiais')
+                fetch('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data; // Armazena no cache
@@ -1180,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
                 // Altera a URL para o endpoint que filtra por usuário
-                const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 // --- FIM DA ALTERAÇÃO ---
 
                 const oss = await response.json();
@@ -1198,31 +1225,33 @@ document.addEventListener('DOMContentLoaded', () => {
         // Evento para carregar LPUs quando uma OS é selecionada
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            selectLPU.disabled = true; // Mantém desabilitado enquanto carrega
+            const selectLPU = document.getElementById('lpuSolicitacao'); // Certifique-se de pegar o select correto
+
+            selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
 
-            // Se o usuário deselecionar a OS, reseta e desabilita o campo de LPU
             if (!osId) {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
                 return;
             }
 
             try {
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs.');
+
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
 
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        const option = new Option(`${lpu.codigoLpu} - ${lpu.nomeLpu}`, lpu.id);
+                        // CORREÇÃO: Usa a função auxiliar para criar o label
+                        const option = new Option(labelLpu(lpu), lpu.id);
                         selectLPU.add(option);
                     });
-                    // SÓ HABILITA SE ENCONTRAR LPUs
                     selectLPU.disabled = false;
                 } else {
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
                 }
-
             } catch (error) {
                 console.error("Erro ao buscar LPUs:", error);
                 selectLPU.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -1280,7 +1309,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // ==========================================================
 
             try {
-                const response = await fetch('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetch('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1312,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function inicializarCabecalhos() {
         renderizarCabecalho(colunasLancamentos, document.querySelector('#lancamentos-pane thead'));
         renderizarCabecalho(colunasPrincipais, document.querySelector('#pendentes-pane thead'));
-        renderizarCabecalho(colunasPrincipais, document.querySelector('#historico-pane thead'));
+        renderizarCabecalho(colunasHistorico, document.querySelector('#historico-pane thead'));
         renderizarCabecalho(colunasMinhasPendencias, document.querySelector('#minhasPendencias-pane thead'));
         renderizarCabecalho(colunasMinhasPendencias, document.querySelector('#paralisados-pane thead'));
     }

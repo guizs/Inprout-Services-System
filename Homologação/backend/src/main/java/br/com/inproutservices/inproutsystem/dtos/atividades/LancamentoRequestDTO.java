@@ -11,6 +11,7 @@ public record LancamentoRequestDTO(
         Long prestadorId,
         Long etapaDetalhadaId,
         Long lpuId,
+        Long osLpuDetalheId,
         LocalDate dataAtividade, // SEM @JsonFormat
         String equipe,
         String vistoria,

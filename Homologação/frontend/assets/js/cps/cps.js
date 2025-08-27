@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://3.128.248.3:8080';
+    const API_URL = 'http://localhost:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -142,6 +142,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderLancamentosTable(lancamentos) {
+        // 1. Pega a 'role' do usuário que foi salva no localStorage durante o login.
+        //    Garante que a string seja 'limpa' (sem espaços) e em maiúsculas para a comparação.
+        const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+
+        // 2. Define se os botões de ação devem ser mostrados.
+        //    Apenas se a role NÃO FOR 'COORDINATOR', a variável será true.
+        const mostrarAcoes = userRole !== 'COORDINATOR';
+
+        // 3. Monta o cabeçalho da tabela dinamicamente.
+        //    O cabeçalho 'AÇÕES' só é adicionado se 'mostrarAcoes' for true.
         tableHead.innerHTML = `
     <tr>
         <th>DATA ATIVIDADE</th> <th>OS</th> <th>SITE</th> <th>CONTRATO</th> <th>SEGMENTO</th>
@@ -151,13 +161,27 @@ document.addEventListener('DOMContentLoaded', () => {
         <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
         <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
         <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
-        <th>VALOR PAGO</th> <th>ADIANTAMENTO</th> <th>AÇÕES</th>
+        <th>VALOR PAGO</th> <th>ADIANTAMENTO</th>
+        ${mostrarAcoes ? '<th>AÇÕES</th>' : ''} 
     </tr>`;
 
         tableBody.innerHTML = '';
 
         if (lancamentos && lancamentos.length > 0) {
             lancamentos.forEach(lanc => {
+                // 4. Cria a célula (<td>) dos botões de ação apenas se 'mostrarAcoes' for true.
+                //    Se for false, a variável 'acoesCell' será uma string vazia.
+                const acoesCell = mostrarAcoes ? `
+                <td>
+                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
+                        <i class="bi bi-cash-coin"></i>
+                    </button>
+                </td>` : '';
+
+                // 5. Adiciona a linha na tabela, incluindo a célula de ações (que pode estar vazia).
                 tableBody.innerHTML += `
             <tr>
                 <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
@@ -174,18 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${lanc.situacao || 'N/A'}</td> <td>${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
                 <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
                 <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
-                        <i class="bi bi-cash-coin"></i>
-                    </button>
-                </td>
+                ${acoesCell}
             </tr>`;
             });
         } else {
-            tableBody.innerHTML = `<tr><td colspan="40" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
+            // 6. Ajusta o 'colspan' da mensagem de "Nenhum lançamento" para ocupar a tabela inteira.
+            const colspan = mostrarAcoes ? 40 : 39; // 40 colunas com ações, 39 sem.
+            tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
         }
     }
 

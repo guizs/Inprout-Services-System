@@ -1,86 +1,68 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+    const API_BASE_URL = 'http://localhost:8080'; // Ajuste se a URL for outra
+    let todasAsLinhas = []; // Esta variável vai guardar a lista "achatada" de linhas da tabela
 
-    const API_BASE_URL = 'http://3.128.248.3:8080';
-    let todasAsLinhas = [];
-
+    // Funções utilitárias
     const get = (obj, path, defaultValue = 'N/A') => path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : defaultValue), obj);
     const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : 'N/A';
 
+    // Definição das colunas da tabela (mantido como estava)
     const colunasPorRole = {
-        'MANAGER': [
-            "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU",
-            "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO",
-            "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA",
-            "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR",
-            "DATA ATIVIDADE", "DATA CRIAÇÃO OS"
-        ],
-        'DEFAULT': [
-            "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM",
-            "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO",
-            "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO",
-            "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO",
-            "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR",
-            "VALOR", "GESTOR", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO",
-            "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS",
-        ]
+        'MANAGER': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "DATA CRIAÇÃO OS"],
+        'DEFAULT': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS"]
     };
-
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
 
+    // ==========================================================
+    // ATUALIZAÇÃO 1: Mapeamento de dados para a NOVA estrutura
+    // ==========================================================
     const dataMapping = {
-        "OS": (os) => get(os, 'os'),
-        "SITE": (os) => get(os, 'site'),
-        "CONTRATO": (os) => get(os, 'contrato'),
-        "SEGMENTO": (os) => get(os, 'segmento.nome'),
-        "PROJETO": (os) => get(os, 'projeto'),
-        "GESTOR TIM": (os) => get(os, 'gestorTim'),
-        "REGIONAL": (os) => get(os, 'regional'),
-        "LOTE": (os) => get(os, 'lote'),
-        "BOQ": (os) => get(os, 'boq'),
-        "PO": (os) => get(os, 'po'),
-        "ITEM": (os) => get(os, 'item'),
-        "OBJETO CONTRATADO": (os) => get(os, 'objetoContratado'),
-        "UNIDADE": (os) => get(os, 'unidade'),
-        "QUANTIDADE": (os) => get(os, 'quantidade'),
-        "VALOR TOTAL OS": (os, lpuItem, formatarMoeda) => formatarMoeda(get(os, 'valorTotal', null)),
-        "OBSERVAÇÕES": (os) => get(os, 'observacoes'),
-        "DATA PO": (os) => get(os, 'dataPo'),
-        "LPU": (os, lpuItem) => lpuItem ? `${get(lpuItem.lpu, 'codigo')}` : 'N/A',
-        "VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.vistoria'),
-        "PLANO VISTORIA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoVistoria'),
-        "DESMOBILIZAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.desmobilizacao'),
-        "PLANO DESMOBILIZAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoDesmobilizacao'),
-        "INSTALAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.instalacao'),
-        "PLANO INSTALAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoInstalacao'),
-        "ATIVAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.ativacao'),
-        "PLANO ATIVAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoAtivacao'),
-        "DOCUMENTAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.documentacao'),
-        "PLANO DOCUMENTAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.planoDocumentacao'),
-        "ETAPA GERAL": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.etapa.nomeGeral'),
-        "ETAPA DETALHADA": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.etapa.nomeDetalhado'),
-        "STATUS": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.status'),
-        "SITUAÇÃO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.situacao'),
-        "DETALHE DIÁRIO": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.detalheDiario'),
-        "CÓD. PRESTADOR": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.prestador.codigo'),
-        "PRESTADOR": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.prestador.nome'),
-        "VALOR LPU": (os, lpuItem, formatarMoeda) => formatarMoeda(get(lpuItem, 'ultimoLancamento.valor', null)),
-        "GESTOR": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.manager.nome'),
-        "DATA ATIVIDADE": (os, lpuItem) => get(lpuItem, 'ultimoLancamento.dataAtividade'),
-        "FATURAMENTO": (os) => get(os, 'faturamento'),
-        "SOLICIT ID FAT": (os) => get(os, 'solitIdFat'),
-        "RECEB ID FAT": (os) => get(os, 'recebIdFat'),
-        "ID FATURAMENTO": (os) => get(os, 'idFaturamento'),
-        "DATA FAT INPROUT": (os) => get(os, 'dataFatInprout'),
-        "SOLICIT FS PORTAL": (os) => get(os, 'solitFsPortal'),
-        "DATA FS": (os) => get(os, 'dataFs'),
-        "NUM FS": (os) => get(os, 'numFs'),
-        "GATE": (os) => get(os, 'gate'),
-        "GATE ID": (os) => get(os, 'gateId'),
-        "DATA CRIAÇÃO OS": (os) => get(os, 'dataCriacao')
+        "OS": (linha) => get(linha, 'os.os'),
+        "SITE": (linha) => get(linha, 'detalhe.site'),
+        "CONTRATO": (linha) => get(linha, 'detalhe.contrato'),
+        "SEGMENTO": (linha) => get(linha, 'os.segmento.nome'),
+        "PROJETO": (linha) => get(linha, 'os.projeto'),
+        "GESTOR TIM": (linha) => get(linha, 'os.gestorTim'),
+        "REGIONAL": (linha) => get(linha, 'detalhe.regional'),
+        "LOTE": (linha) => get(linha, 'detalhe.lote'),
+        "BOQ": (linha) => get(linha, 'detalhe.boq'),
+        "PO": (linha) => get(linha, 'detalhe.po'),
+        "ITEM": (linha) => get(linha, 'detalhe.item'),
+        "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.objetoContratado'),
+        "UNIDADE": (linha) => get(linha, 'detalhe.unidade'),
+        "QUANTIDADE": (linha) => get(linha, 'detalhe.quantidade'),
+        "VALOR TOTAL OS": (linha) => formatarMoeda(get(linha, 'detalhe.valorTotal')),
+        "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'),
+        "DATA PO": (linha) => get(linha, 'detalhe.dataPo'),
+        "LPU": (linha) => `${get(linha, 'detalhe.lpu.codigoLpu')} - ${get(linha, 'detalhe.lpu.nomeLpu')}`,
+        "ETAPA GERAL": (linha) => get(linha, 'ultimoLancamento.etapa.nomeGeral', ''),
+        "ETAPA DETALHADA": (linha) => get(linha, 'ultimoLancamento.etapa.nomeDetalhado', ''),
+        "STATUS": (linha) => get(linha, 'ultimoLancamento.status', ''),
+        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao', ''),
+        "DETALHE DIÁRIO": (linha) => get(linha, 'ultimoLancamento.detalheDiario', ''),
+        "CÓD. PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.codigo', ''),
+        "PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.nome', ''),
+        "VALOR": (linha) => formatarMoeda(get(linha, 'ultimoLancamento.valor')),
+        "GESTOR": (linha) => get(linha, 'ultimoLancamento.manager.nome', ''),
+        "DATA ATIVIDADE": (linha) => get(linha, 'ultimoLancamento.dataAtividade', ''),
+        "FATURAMENTO": (linha) => get(linha, 'detalhe.faturamento'),
+        "SOLICIT ID FAT": (linha) => get(linha, 'detalhe.solitIdFat'),
+        "RECEB ID FAT": (linha) => get(linha, 'detalhe.recebIdFat'),
+        "ID FATURAMENTO": (linha) => get(linha, 'detalhe.idFaturamento'),
+        "DATA FAT INPROUT": (linha) => get(linha, 'detalhe.dataFatInprout'),
+        "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
+        "DATA FS": (linha) => get(linha, 'detalhe.dataFs'),
+        "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
+        "GATE": (linha) => get(linha, 'detalhe.gate'),
+        "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
+        "DATA CRIAÇÃO OS": (linha) => get(linha, 'os.dataCriacao')
     };
 
+    // ==========================================================
+    // ATUALIZAÇÃO 2: Lógica de inicialização para processar a NOVA estrutura
+    // ==========================================================
     async function inicializarPagina() {
         const tableHead = document.getElementById('registros-table-head');
         const tableBody = document.getElementById('registros-table-body');
@@ -92,34 +74,38 @@ document.addEventListener('DOMContentLoaded', function () {
             const response = await fetch(`${API_BASE_URL}/os`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
-            if (!response.ok) throw new Error(`Erro na requisição: ${response.statusText}`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Erro do servidor:", errorText);
+                throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+            }
 
             const osData = await response.json();
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Filtra os dados aqui no frontend, antes de renderizar.
             const userSegmentos = JSON.parse(localStorage.getItem('segmentos')) || [];
             let osDataFiltrada = osData;
 
             if (['MANAGER', 'COORDINATOR'].includes(userRole)) {
-                if (userSegmentos.length > 0) {
-                    osDataFiltrada = osData.filter(os =>
-                        os.segmento && userSegmentos.includes(os.segmento.id)
-                    );
-                } else {
-                    osDataFiltrada = []; // Se não tiver segmentos, a lista fica vazia.
-                }
+                osDataFiltrada = (userSegmentos.length > 0)
+                    ? osData.filter(os => os.segmento && userSegmentos.includes(os.segmento.id))
+                    : [];
             }
-            // --- FIM DA CORREÇÃO ---
 
+            // "Achata" a estrutura de dados: cada 'detalhe' de uma OS vira uma linha na tabela
             todasAsLinhas = [];
-            osDataFiltrada.forEach(os => { // Usa a lista já filtrada
-                if (os.lpus && os.lpus.length > 0) {
-                    os.lpus.forEach(itemLpu => {
-                        todasAsLinhas.push({ os: os, lpuItem: itemLpu });
+            osDataFiltrada.forEach(os => {
+                const osInfo = { ...os, detalhes: undefined };
+                if (os.detalhes && os.detalhes.length > 0) {
+                    os.detalhes.forEach(detalhe => {
+                        todasAsLinhas.push({
+                            os: osInfo,
+                            detalhe: detalhe,
+                            ultimoLancamento: detalhe.ultimoLancamento
+                        });
                     });
                 } else {
-                    todasAsLinhas.push({ os: os, lpuItem: null });
+                    todasAsLinhas.push({ os: osInfo, detalhe: null, ultimoLancamento: null });
                 }
             });
 
@@ -127,10 +113,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             console.error('Falha ao carregar os registros:', error);
-            tableBody.innerHTML = `<tr><td colspan="${headers.length}" class="text-center text-danger">Erro ao carregar dados.</td></tr>`;
+            tableBody.innerHTML = `<tr><td colspan="${headers.length}" class="text-center text-danger">Erro ao carregar dados. Verifique o console.</td></tr>`;
         }
     }
 
+    // ==========================================================
+    // ATUALIZAÇÃO 3: Renderização da tabela para usar a NOVA estrutura
+    // ==========================================================
     function renderizarTabela(linhasParaRenderizar) {
         const tableBody = document.getElementById('registros-table-body');
         tableBody.innerHTML = '';
@@ -141,14 +130,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         linhasParaRenderizar.forEach(linhaData => {
-            const { os, lpuItem } = linhaData;
             const tr = document.createElement('tr');
-
             const celulas = headers.map(header => {
                 const func = dataMapping[header];
-                return func ? func(os, lpuItem, formatarMoeda) : 'N/A';
+                return func ? func(linhaData) : 'N/A';
             });
-
             tr.innerHTML = celulas.map(celula => `<td>${celula}</td>`).join('');
             tableBody.appendChild(tr);
         });

@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada;
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import br.com.inproutservices.inproutsystem.entities.index.Prestador;
@@ -14,6 +15,7 @@ import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
+import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.EtapaDetalhadaRepository;
 import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
@@ -34,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -48,11 +51,13 @@ public class LancamentoServiceImpl implements LancamentoService {
     private final PrestadorRepository prestadorRepository;
     private final EtapaDetalhadaRepository etapaDetalhadaRepository;
     private final LpuRepository lpuRepository;
+    private final OsLpuDetalheRepository osLpuDetalheRepository;
 
     public LancamentoServiceImpl(LancamentoRepository lancamentoRepository, OsRepository osRepository,
                                  UsuarioRepository usuarioRepository, PrazoService prazoService,
                                  ComentarioRepository comentarioRepository, PrestadorRepository prestadorRepository,
-                                 EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository) {
+                                 EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository,
+                                 OsLpuDetalheRepository osLpuDetalheRepository) {
         this.lancamentoRepository = lancamentoRepository;
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
@@ -61,6 +66,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.prestadorRepository = prestadorRepository;
         this.etapaDetalhadaRepository = etapaDetalhadaRepository;
         this.lpuRepository = lpuRepository;
+        this.osLpuDetalheRepository = osLpuDetalheRepository;
     }
 
     // ... (todos os outros métodos do service permanecem iguais)
@@ -86,19 +92,24 @@ public class LancamentoServiceImpl implements LancamentoService {
     //@Scheduled(cron = "0 0 0 * * ?") // Roda todo dia à meia-noite
     @Transactional
     public void criarLancamentosParaProjetosEmAndamento() {
-        // 1. Precisamos de uma forma de encontrar o último lançamento de cada projeto (OS/LPU)
-        // Esta é uma query complexa. A lógica simplificada seria:
-        List<OS> todasAsOs = osRepository.findAll(); // Busca todas as OS
-        for (OS os : todasAsOs) {
-            // Para cada OS, busca o lançamento mais recente
-            // O ideal é criar um método específico no repositório para isso. Ex: findTopByOsIdOrderByIdDesc(os.getId())
-            Lancamento ultimoLancamento = lancamentoRepository.findFirstByOsIdOrderByIdDesc(os.getId()).orElse(null);
+        // 1. Busca todas as linhas de detalhe, que são as verdadeiras unidades de projeto agora.
+        List<OsLpuDetalhe> todosOsDetalhes = osLpuDetalheRepository.findAll();
+
+        for (OsLpuDetalhe detalhe : todosOsDetalhes) {
+            // 2. Para cada linha de detalhe, busca o seu lançamento mais recente
+            Lancamento ultimoLancamento = lancamentoRepository
+                    .findFirstByOsLpuDetalheIdOrderByIdDesc(detalhe.getId())
+                    .orElse(null);
 
             if (ultimoLancamento != null && ultimoLancamento.getSituacao() == SituacaoOperacional.EM_ANDAMENTO) {
-                // 2. Se a situação for "Em andamento", cria uma cópia
+                // 3. Se a situação do último lançamento for "Em andamento", cria uma cópia
                 Lancamento novoLancamento = new Lancamento();
 
-                novoLancamento.setOs(ultimoLancamento.getOs());
+                // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+                // O novo lançamento pertence à mesma linha de detalhe do anterior.
+                novoLancamento.setOsLpuDetalhe(ultimoLancamento.getOsLpuDetalhe());
+
+                // Copia os campos que não mudam de um dia para o outro
                 novoLancamento.setManager(ultimoLancamento.getManager());
                 novoLancamento.setPrestador(ultimoLancamento.getPrestador());
                 novoLancamento.setEtapaDetalhada(ultimoLancamento.getEtapaDetalhada());
@@ -133,16 +144,17 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Transactional
     public Lancamento criarLancamento(LancamentoRequestDTO dto, Long managerId) {
 
-        boolean projetoFinalizado = lancamentoRepository.existsByOsIdAndLpuIdAndSituacao(
-                dto.osId(),
-                dto.lpuId(),
+        // 1. Validação de Projeto Finalizado (com a nova lógica)
+        boolean projetoFinalizado = lancamentoRepository.existsByOsLpuDetalheIdAndSituacao(
+                dto.osLpuDetalheId(),
                 SituacaoOperacional.FINALIZADO
         );
 
         if (projetoFinalizado) {
             throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
         }
-        // 1. Validação da Data da Atividade (lógica que já tínhamos)
+
+        // 2. Validação da Data da Atividade (lógica existente, permanece igual)
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida;
 
@@ -159,15 +171,14 @@ public class LancamentoServiceImpl implements LancamentoService {
             );
         }
 
-        // 2. Busca de TODAS as entidades relacionadas pelos IDs recebidos no DTO
-        OS os = osRepository.findById(dto.osId())
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+        // 3. Busca das entidades relacionadas (lógica atualizada)
+
+        // Apenas UMA busca para pegar a linha de detalhe completa
+        OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
-
-        Lpu lpu = lpuRepository.findById(dto.lpuId())
-                .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
 
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
@@ -175,23 +186,24 @@ public class LancamentoServiceImpl implements LancamentoService {
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-
-        // 3. Criação e Mapeamento da nova entidade Lancamento
+        // 4. Criação e Mapeamento da nova entidade Lancamento
         Lancamento lancamento = new Lancamento();
 
-        // Associa as entidades completas que buscamos
-        lancamento.setOs(os);
+        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+        // Associa a linha de detalhe completa ao lançamento.
+        lancamento.setOsLpuDetalhe(osLpuDetalhe);
+
+        // Associa as outras entidades que buscamos
         lancamento.setManager(manager);
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
-        lancamento.setLpu(lpu);
 
         // Define os status e datas iniciais do fluxo
         lancamento.setDataAtividade(dto.dataAtividade());
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        // Mapeia os outros dados do DTO que são campos simples
+        // Mapeia os outros dados do DTO que são campos simples (continua igual)
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
         lancamento.setPlanoVistoria(dto.planoVistoria());
@@ -208,7 +220,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setValor(dto.valor());
         lancamento.setSituacao(dto.situacao());
 
-        // 4. Salva o novo lançamento no banco de dados
+        // 5. Salva o novo lançamento no banco de dados
         return lancamentoRepository.save(lancamento);
     }
 
@@ -240,15 +252,21 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não está pendente de aprovação pelo Coordenador.");
         }
 
-        // A lógica da sequência agora usa o método correto e mais simples do repositório
+        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+        // 1. Pega o ID da linha de detalhe (OsLpuDetalhe) à qual o lançamento pertence.
+        Long osLpuDetalheId = lancamento.getOsLpuDetalhe().getId();
+
+        // 2. Usa o novo método do repositório para buscar o lançamento mais antigo
+        //    DENTRO DA MESMA LINHA DE DETALHE.
         Lancamento maisAntigo = lancamentoRepository
-                .findFirstByOsIdAndSituacaoAprovacaoOrderByDataCriacaoAsc(
-                        lancamento.getOs().getId(),
+                .findFirstByOsLpuDetalheIdAndSituacaoAprovacaoOrderByDataCriacaoAsc(
+                        osLpuDetalheId,
                         SituacaoAprovacao.PENDENTE_COORDENADOR)
                 .orElse(null);
 
+        // 3. A lógica de verificação continua a mesma, garantindo a aprovação em sequência.
         if (maisAntigo == null || !maisAntigo.getId().equals(lancamento.getId())) {
-            throw new BusinessException("Existe um lançamento mais antigo para esta OS que precisa ser resolvido primeiro.");
+            throw new BusinessException("Existe um lançamento mais antigo para este projeto (OS/LPU) que precisa ser resolvido primeiro.");
         }
 
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_CONTROLLER);
@@ -295,19 +313,25 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        // A LPU correta agora é pega diretamente do Lançamento, não mais através da OS.
-        Lpu lpuDoLancamento = lancamento.getLpu();
+        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+        // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.
+        OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
 
-        if (lpuDoLancamento != null) {
-            // Atualiza o campo 'situacaoProjeto' da LPU com a situação do lançamento aprovado
-            lpuDoLancamento.setSituacaoProjeto(lancamento.getSituacao());
-            // Salva a entidade LPU atualizada no banco de dados.
-            // Lembre-se de injetar o LpuRepository na sua classe LancamentoServiceImpl
-            lpuRepository.save(lpuDoLancamento);
+        // 2. A partir do detalhe, pega a LPU correta.
+        if (detalhe != null && detalhe.getLpu() != null) {
+            Lpu lpuDoDetalhe = detalhe.getLpu();
+
+            // 3. Atualiza o campo 'situacaoProjeto' da LPU com a situação do lançamento aprovado.
+            lpuDoDetalhe.setSituacaoProjeto(lancamento.getSituacao());
+
+            // 4. Salva a entidade LPU atualizada.
+            lpuRepository.save(lpuDoDetalhe);
         }
 
+        // Salva o lançamento já com o status APROVADO.
         return lancamentoRepository.save(lancamento);
     }
+
 
     @Override
     @Transactional(readOnly = true)
@@ -443,6 +467,8 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
+            // Presumindo que findAllWithDetails() faz um fetch join.
+            // Se a performance ficar lenta, precisaremos otimizar esta query.
             return lancamentoRepository.findAllWithDetails();
         }
 
@@ -462,16 +488,26 @@ public class LancamentoServiceImpl implements LancamentoService {
                     .collect(Collectors.toSet());
 
             if (segmentosDoUsuario.isEmpty()) {
-                return List.of();
+                return List.of(); // Retorna lista vazia se o usuário não tem segmentos
             }
 
+            // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
             return todosLancamentos.stream()
-                    .filter(lancamento -> lancamento.getOs() != null &&
-                            lancamento.getOs().getSegmento() != null &&
-                            segmentosDoUsuario.contains(lancamento.getOs().getSegmento().getId()))
+                    .filter(lancamento -> {
+                        // 1. Navega pela hierarquia de objetos com segurança, verificando nulos
+                        return Optional.ofNullable(lancamento.getOsLpuDetalhe())
+                                .map(OsLpuDetalhe::getOs)
+                                .map(OS::getSegmento)
+                                .map(Segmento::getId)
+                                // 2. Compara o ID do segmento com a lista de segmentos do usuário
+                                .map(segmentosDoUsuario::contains)
+                                // 3. Se qualquer parte do caminho for nula, o filtro retorna false
+                                .orElse(false);
+                    })
                     .collect(Collectors.toList());
         }
 
+        // Retorna uma lista vazia para qualquer outro Role não especificado
         return List.of();
     }
 
@@ -633,19 +669,26 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         // 3. Busca as entidades relacionadas para garantir que os novos IDs são válidos
+
+        // --- A CORREÇÃO PRINCIPAL COMEÇA AQUI ---
+        // Busca a nova linha de detalhe que o usuário selecionou no formulário
+        OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
+
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
 
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        Lpu lpu = lpuRepository.findById(dto.lpuId())
-                .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
+        // 4. Atualiza a entidade Lancamento com os novos dados
 
-
+        // Associa a nova linha de detalhe e as outras entidades
+        lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
-        lancamento.setLpu(lpu);
+
+        // O resto do mapeamento permanece igual
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
         lancamento.setPlanoVistoria(dto.planoVistoria());
@@ -662,8 +705,10 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
+        // Atualiza a data da última modificação
         lancamento.setUltUpdate(LocalDateTime.now());
 
+        // 5. Salva as alterações no banco de dados
         return lancamentoRepository.save(lancamento);
     }
 
@@ -701,33 +746,46 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Transactional
     public Lancamento alterarValorPago(Long lancamentoId, BigDecimal novoValor) {
-        // AQUI: O serviço usa o REPOSITÓRIO
+        // 1. Busca o lançamento que será alterado
         Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + lancamentoId));
 
-        // Atualiza o valor no lançamento
+        // 2. Atualiza o valor no lançamento específico
         lancamento.setValor(novoValor);
+        lancamentoRepository.save(lancamento); // Salva a alteração do valor individual
 
-        // Recalcula o valor total da OS
-        OS os = lancamento.getOs();
-        BigDecimal novoTotalOs = os.getLancamentos().stream()
-                .map(Lancamento::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        os.setValorTotal(novoTotalOs);
+        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+        // 3. Pega a linha de detalhe (pai) deste lançamento
+        OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
 
-        osRepository.save(os);
-        // AQUI: O serviço usa o REPOSITÓRIO
-        return lancamentoRepository.save(lancamento);
+        if (detalhe != null) {
+            // 4. Usa o novo método do repositório para buscar TODOS os lançamentos desta linha de detalhe
+            List<Lancamento> todosLancamentosDoDetalhe = lancamentoRepository.findAllByOsLpuDetalheId(detalhe.getId());
+
+            // 5. Recalcula a soma dos valores de TODOS os lançamentos associados
+            BigDecimal novoTotalDetalhe = todosLancamentosDoDetalhe.stream()
+                    .map(Lancamento::getValor)
+                    .filter(java.util.Objects::nonNull) // Garante que valores nulos não quebrem a soma
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // 6. Atualiza o campo 'valorTotal' na entidade OsLpuDetalhe
+            detalhe.setValorTotal(novoTotalDetalhe);
+
+            // 7. Salva a entidade OsLpuDetalhe atualizada
+            osLpuDetalheRepository.save(detalhe);
+        }
+
+        return lancamento;
     }
 
     @Transactional
     public List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) {
-            // Lança uma exceção ou retorna uma lista vazia se não houver dados.
             throw new BusinessException("A lista de lançamentos para criação não pode ser vazia.");
         }
 
-        // Pega o ID do manager do primeiro item da lista.
+        // Pega o ID do manager do primeiro item da lista (mantendo a lógica original).
+        // OBS: Certifique-se que o managerId está sendo passado no DTO ou ajuste para pegá-lo do usuário logado.
         Long managerId = dtos.get(0).managerId();
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
@@ -736,11 +794,14 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         // Itera sobre cada DTO recebido do frontend
         for (LancamentoRequestDTO dto : dtos) {
-            // Busca as entidades relacionadas (OS, LPU, Prestador, etc.)
-            OS os = osRepository.findById(dto.osId())
-                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-            Lpu lpu = lpuRepository.findById(dto.lpuId())
-                    .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
+
+            // --- A CORREÇÃO PRINCIPAL COMEÇA AQUI ---
+
+            // 1. Busca a linha de detalhe completa com apenas um ID
+            OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
+
+            // Busca as outras entidades (continua igual)
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
             EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
@@ -749,17 +810,15 @@ public class LancamentoServiceImpl implements LancamentoService {
             // Cria uma nova entidade Lancamento
             Lancamento lancamento = new Lancamento();
 
-            // ======================= INÍCIO DA CORREÇÃO =======================
-            // Mapeia TODOS os dados do DTO para a entidade
+            // 2. Mapeia TODOS os dados do DTO para a entidade com a associação correta
             lancamento.setManager(manager);
-            lancamento.setOs(os);
-            lancamento.setLpu(lpu);
+            lancamento.setOsLpuDetalhe(osLpuDetalhe); // <-- ASSOCIAÇÃO CORRETA
             lancamento.setDataAtividade(dto.dataAtividade());
             lancamento.setPrestador(prestador);
             lancamento.setEtapaDetalhada(etapaDetalhada);
 
-            // Campos da seção Execução
-            lancamento.setEquipe(dto.equipe()); // <-- CAMPO ADICIONADO
+            // Campos da seção Execução (continua igual)
+            lancamento.setEquipe(dto.equipe());
             lancamento.setVistoria(dto.vistoria());
             lancamento.setPlanoVistoria(dto.planoVistoria());
             lancamento.setDesmobilizacao(dto.desmobilizacao());
@@ -771,17 +830,16 @@ public class LancamentoServiceImpl implements LancamentoService {
             lancamento.setDocumentacao(dto.documentacao());
             lancamento.setPlanoDocumentacao(dto.planoDocumentacao());
 
-            // Campos da seção Etapas
+            // Campos da seção Etapas (continua igual)
             lancamento.setStatus(dto.status());
             lancamento.setSituacao(dto.situacao());
             lancamento.setDetalheDiario(dto.detalheDiario());
 
-            // Campos da seção Financeiro
+            // Campos da seção Financeiro (continua igual)
             lancamento.setValor(dto.valor());
 
             // Define um status padrão na criação
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
-            // ======================== FIM DA CORREÇÃO =========================
 
             novosLancamentos.add(lancamento);
         }
@@ -789,6 +847,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         // Salva TODOS os lançamentos na base de dados em uma única operação.
         return lancamentoRepository.saveAll(novosLancamentos);
     }
+
     @Override
     @Transactional
     public void aprovarLotePeloCoordenador(List<Long> lancamentoIds, Long aprovadorId) {
@@ -821,20 +880,41 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Usuário não tem permissão para esta ação.");
         }
 
-        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
-        for (Lancamento lancamento : lancamentos) {
+        List<Lancamento> lancamentosParaAprovar = lancamentoRepository.findAllById(lancamentoIds);
+        // Lista para salvar as LPUs atualizadas, evitando saves múltiplos para a mesma LPU no loop
+        List<Lpu> lpusParaSalvar = new ArrayList<>();
+
+        for (Lancamento lancamento : lancamentosParaAprovar) {
             if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_CONTROLLER) {
                 lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
                 lancamento.setUltUpdate(LocalDateTime.now());
 
-                Lpu lpuDoLancamento = lancamento.getLpu();
-                if (lpuDoLancamento != null) {
-                    lpuDoLancamento.setSituacaoProjeto(lancamento.getSituacao());
-                    lpuRepository.save(lpuDoLancamento);
+                // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+                // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.
+                OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
+
+                // 2. A partir do detalhe, pega a LPU correta.
+                if (detalhe != null && detalhe.getLpu() != null) {
+                    Lpu lpuDoDetalhe = detalhe.getLpu();
+
+                    // 3. Atualiza o campo 'situacaoProjeto' da LPU com a situação do lançamento aprovado.
+                    lpuDoDetalhe.setSituacaoProjeto(lancamento.getSituacao());
+
+                    // 4. Adiciona a LPU à lista para ser salva depois (mais eficiente).
+                    if (!lpusParaSalvar.contains(lpuDoDetalhe)) {
+                        lpusParaSalvar.add(lpuDoDetalhe);
+                    }
                 }
             }
         }
-        lancamentoRepository.saveAll(lancamentos);
+
+        // Salva todas as LPUs modificadas de uma só vez
+        if (!lpusParaSalvar.isEmpty()) {
+            lpuRepository.saveAll(lpusParaSalvar);
+        }
+
+        // Salva todos os lançamentos modificados de uma só vez
+        lancamentoRepository.saveAll(lancamentosParaAprovar);
     }
 
     @Override

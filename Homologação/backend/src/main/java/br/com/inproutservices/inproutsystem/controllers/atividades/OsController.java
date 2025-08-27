@@ -76,12 +76,11 @@ public class OsController {
      */
     @GetMapping
     public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        List<OS> todasAsOs = osService.getAllOs();
-        // Converte a lista de entidades para uma lista de DTOs
-        List<OsResponseDto> responseList = todasAsOs.stream()
-                .map(OsResponseDto::new)
+        List<OS> oss = osService.findAllWithDetails();
+        List<OsResponseDto> dtos = oss.stream()
+                .map(OsResponseDto::new) // USA O DTO CORRIGIDO
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(responseList);
+        return ResponseEntity.ok(dtos);
     }
 
     /**

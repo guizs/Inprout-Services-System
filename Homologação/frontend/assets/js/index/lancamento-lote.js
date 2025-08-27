@@ -67,42 +67,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
 
-            // --- INÍCIO DA CORREÇÃO ---
-
             // 1. Usamos um Map para garantir que cada OS seja listada apenas uma vez.
-            // A chave do Map será o ID da OS, e o valor será o objeto da OS.
             const osUnicasMap = new Map();
             osData.forEach(item => {
-                // Se o Map ainda não tiver uma OS com este ID, nós a adicionamos.
                 if (!osUnicasMap.has(item.id)) {
                     osUnicasMap.set(item.id, item);
                 }
             });
 
-            // 2. Convertemos os valores únicos do Map de volta para um array.
-            const osUnicasArray = Array.from(osUnicasMap.values());
+            // 2. Convertemos os valores únicos do Map de volta para um array e ordenamos.
+            const osOrdenadas = Array.from(osUnicasMap.values()).sort((a, b) => a.os.localeCompare(b.os));
 
-            // 3. Agora, ordenamos o array de OSs únicas.
-            const osOrdenadas = osUnicasArray.sort((a, b) => a.os.localeCompare(b.os));
-
-            // 4. Populamos o select com a lista já corrigida e sem duplicatas.
+            // 3. Populamos o select com a lista já corrigida e sem duplicatas.
             selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
             osOrdenadas.forEach(item => {
-                // Usamos item.os para o texto e item.id para o valor da option.
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
 
-            // --- FIM DA CORREÇÃO ---
-
         } catch (error) {
             console.error('Erro ao carregar OSs:', error);
-            // Assume que a função mostrarToast existe no escopo global (vinda de index.js)
             if (typeof mostrarToast === 'function') {
                 mostrarToast('Erro ao carregar Ordens de Serviço.', 'error');
             }
@@ -119,14 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (osData) {
             siteInput.value = osData.site || '';
-            // Acessa o nome dentro do objeto 'segmento', com segurança
             segmentoInput.value = osData.segmento ? osData.segmento.nome : '';
             projetoInput.value = osData.projeto || '';
             contratoInput.value = osData.contrato || '';
             gestorTimInput.value = osData.gestorTim || '';
             regionalInput.value = osData.regional || '';
         } else {
-            // Se não houver dados, limpa todos os campos
             siteInput.value = '';
             segmentoInput.value = '';
             projetoInput.value = '';
@@ -136,54 +123,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-
+    // 🔥 ========================================================== 🔥
+    // 🔥 PONTO CENTRAL DA CORREÇÃO NO LANÇAMENTO-LOTE.JS
+    // 🔥 ========================================================== 🔥
     selectOSLote.addEventListener('change', async (e) => {
         const osId = e.target.value;
 
-        // Limpa e reseta a interface
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
 
         if (!osId) {
             lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
-            preencherCamposOSLote(null); // Limpa os campos se nenhuma OS for selecionada
+            preencherCamposOSLote(null);
             return;
         }
 
         lpuChecklistContainerLote.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div>';
-        preencherCamposOSLote(null); // Limpa os campos enquanto carrega novos dados
+        preencherCamposOSLote(null);
 
         try {
-            // --- ALTERAÇÃO PRINCIPAL ---
-            // Fazemos UMA ÚNICA chamada para o endpoint que retorna TUDO
-            const response = await fetch(`http://3.128.248.3:8080/os/${osId}`);
+            // Buscamos os detalhes completos da OS, que inclui a lista de LPUs
+            const response = await fetch(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
-
             const osData = await response.json();
 
-            // 1. CHAMA A FUNÇÃO PARA PREENCHER OS CAMPOS DA OS
             preencherCamposOSLote(osData);
 
-            // 2. USA A LISTA DE LPUs QUE VEIO NA MESMA RESPOSTA
+            // CORREÇÃO: Acessamos a lista de lpus que vem DENTRO do objeto da OS
             const lpus = osData.lpus || [];
 
             if (lpus.length === 0) {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
             } else {
-                // A lógica para criar os checkboxes continua a mesma
-                lpuChecklistContainerLote.innerHTML = lpus.map(item => `
-                <div class="form-check">
-                    <input class="form-check-input lpu-checkbox" type="checkbox" value="${item.lpu.id}" id="lpu-lote-${item.lpu.id}" data-nome="${item.lpu.codigo} - ${item.lpu.nome}">
-                    <label class="form-check-label" for="lpu-lote-${item.lpu.id}">
-                        ${item.lpu.codigo} - ${item.lpu.nome}
-                    </label>
-                </div>
-            `).join('');
+                lpuChecklistContainerLote.innerHTML = lpus.map(item => {
+                    // CORREÇÃO: O objeto LPU está aninhado dentro de 'item.lpu'
+                    const lpu = item.lpu;
+                    if (!lpu) return ''; // Ignora itens malformados
+
+                    // Usa a mesma lógica de fallback para os nomes dos campos
+                    const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
+                    const nome = lpu.nome ?? lpu.nomeLpu ?? '';
+                    const label = `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
+
+                    return `
+                        <div class="form-check">
+                            <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}">
+                            <label class="form-check-label" for="lpu-lote-${lpu.id}">
+                                ${label}
+                            </label>
+                        </div>
+                    `;
+                }).join('');
             }
         } catch (error) {
             console.error("Erro ao carregar dados da OS:", error);
             lpuChecklistContainerLote.innerHTML = '<p class="text-danger">Erro ao carregar dados.</p>';
-            preencherCamposOSLote(null); // Limpa os campos em caso de erro
+            preencherCamposOSLote(null);
         }
     });
 
@@ -202,25 +197,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const lpusSelecionadas = document.querySelectorAll('#lpuChecklistContainerLote .lpu-checkbox:checked');
         if (lpusSelecionadas.length === 0) return;
 
-        // Mostra um loader enquanto busca os dados
         formulariosContainerLote.innerHTML = '<div class="text-center p-4"><div class="spinner-border" role="status"><span class="visually-hidden">Gerando formulários...</span></div></div>';
 
         try {
-            // Busca os dados de Etapas e Prestadores uma única vez para otimizar
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetch('http://3.128.248.3:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetch('http://localhost:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetch('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
 
-            // Gera o HTML do acordeão para cada LPU selecionada
             formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
                 const lpuId = checkbox.value;
                 const lpuNome = checkbox.dataset.nome;
                 const isPrimeiroItem = index === 0;
 
-                // ALTERADO: Inputs de data agora são type="text" e têm uma classe para o flatpickr
                 return `
                 <div class="accordion-item">
                     <h2 class="accordion-header" id="heading-${lpuId}">
@@ -284,7 +275,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <label for="etapaGeral-lpu-${lpuId}" class="form-label">ETAPA GERAL</label>
                                     <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${lpuId}" data-lpu-id="${lpuId}" required>
                                         <option value="" selected disabled>Selecione...</option>
-
                                         </select>
                                 </div>
                                 <div class="col-md-4">
@@ -317,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <label for="prestadorId-lpu-${lpuId}" class="form-label">PRESTADOR</label>
                                     <select class="form-select" id="prestadorId-lpu-${lpuId}" required>
                                         <option value="" selected disabled>Selecione o prestador...</option>
-
                                         </select>
                                 </div>
                                 <div class="col-md-4">
@@ -334,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             }).join('');
 
-            // Agora, popula os selects que foram criados dinamicamente
             lpusSelecionadas.forEach(checkbox => {
                 const lpuId = checkbox.value;
                 const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
@@ -344,7 +332,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectEtapaGeral) todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
             });
 
-            // NOVO: Inicializa o flatpickr para todos os campos de data criados dinamicamente
             inicializarFlatpickrComFormato('.flatpickr-date-lote');
 
         } catch (error) {
@@ -357,7 +344,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 5. Adiciona listeners para os selects dinâmicos (cascading dropdowns)
     formulariosContainerLote.addEventListener('change', (e) => {
         const target = e.target;
-        // Lógica para popular Etapa Detalhada quando Etapa Geral muda
         if (target.classList.contains('etapa-geral-select')) {
             const lpuId = target.dataset.lpuId;
             const etapaGeralId = target.value;
@@ -378,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectDetalhada.disabled = false;
             }
         }
-        // Lógica para popular Status quando Etapa Detalhada muda
         if (target.classList.contains('etapa-detalhada-select')) {
             const accordionBody = target.closest('.accordion-body');
             const lpuId = accordionBody.querySelector('.etapa-geral-select').dataset.lpuId;
@@ -400,25 +385,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function formatarDataParaAPI(dataString) {
-        if (!dataString) return null; // Retorna nulo se a data for vazia
-
-        // Se a data já estiver no formato AAAA-MM-DD (de um input type="date")
+        if (!dataString) return null;
         if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) {
             return dataString;
         }
-
-        // Se a data estiver no formato DD/MM/AAAA (de um flatpickr, por exemplo)
         if (dataString.includes('/')) {
             const [dia, mes, ano] = dataString.split('/');
             if (dia && mes && ano) {
                 return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
             }
         }
-
-        return null; // Retorna nulo se o formato for irreconhecível
+        return null;
     }
 
-    // 6. Função unificada para lidar com a submissão do formulário
     async function handleFormSubmitLote(acao, submitButton) {
         if (!formAdicionarEmLote.checkValidity()) {
             formAdicionarEmLote.classList.add('was-validated');
@@ -436,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const lancamentosEmLote = [];
             const osId = selectOSLote.value;
-            const dataAtividade = document.getElementById('dataAtividadeLote').value; // Formato dd/mm/YYYY
+            const dataAtividade = document.getElementById('dataAtividadeLote').value;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
 
@@ -447,8 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     osId: osId,
                     lpuId: lpuId,
                     dataAtividade: formatarDataParaAPI(dataAtividade),
-
-                    // Campos da seção Execução
                     vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
                     planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
                     desmobilizacao: document.getElementById(`desmobilizacao-lpu-${lpuId}`).value,
@@ -459,19 +436,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     planoAtivacao: formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${lpuId}`).value),
                     documentacao: document.getElementById(`documentacao-lpu-${lpuId}`).value,
                     planoDocumentacao: formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${lpuId}`).value),
-
-                    // Campos da seção Etapas
                     etapaDetalhadaId: document.getElementById(`etapaDetalhadaId-lpu-${lpuId}`).value,
                     status: document.getElementById(`status-lpu-${lpuId}`).value,
                     situacao: document.getElementById(`situacao-lpu-${lpuId}`).value,
                     detalheDiario: document.getElementById(`detalheDiario-lpu-${lpuId}`).value,
-
-                    // Campos da seção Financeiro
                     prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
                     valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
                 };
 
-                // Define o status de aprovação baseado na ação (botão clicado)
                 if (acao === 'salvarRascunho') {
                     dadosLpu.situacaoAprovacao = 'RASCUNHO';
                 } else if (acao === 'enviar') {
@@ -481,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetch('http://3.128.248.3:8080/lancamentos/lote', {
+            const response = await fetch('http://localhost:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)
@@ -505,7 +477,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 7. Adiciona os listeners aos botões de submissão do rodapé
     if (btnSubmitAdicionarLote) {
         btnSubmitAdicionarLote.addEventListener('click', (e) => {
             e.preventDefault();

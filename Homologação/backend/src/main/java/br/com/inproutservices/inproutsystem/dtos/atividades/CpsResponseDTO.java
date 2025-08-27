@@ -1,8 +1,8 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
-// Adicione os imports das entidades que serão usadas no DTO interno
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe; // Import necessário
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,8 +20,8 @@ public class CpsResponseDTO {
     private List<LancamentoCpsDetalheDTO> lancamentosDetalhados;
 
     public static class LancamentoCpsDetalheDTO {
-        @JsonFormat(pattern = "dd/MM/yyyy")
         private Long id;
+        @JsonFormat(pattern = "dd/MM/yyyy")
         private LocalDate dataAtividade;
         private String os;
         private String site;
@@ -70,35 +69,43 @@ public class CpsResponseDTO {
         private String gestor;
         private BigDecimal valorAdiantamento;
 
-        // O construtor agora funcionará sem erros, pois o 'import' tornou a classe OS visível
+        // ======================= INÍCIO DA CORREÇÃO =======================
         public LancamentoCpsDetalheDTO(Lancamento l) {
             this.id = l.getId();
             this.dataAtividade = l.getDataAtividade();
-            Optional<OS> osOptional = Optional.ofNullable(l.getOs());
+
+            // 1. Pega a linha de detalhe (o "pai" do lançamento)
+            Optional<OsLpuDetalhe> detalheOptional = Optional.ofNullable(l.getOsLpuDetalhe());
+
+            // 2. A partir do detalhe, pega a OS (o "avô" do lançamento)
+            Optional<OS> osOptional = detalheOptional.map(OsLpuDetalhe::getOs);
+
+            // --- Mapeia os dados da OS (avô) ---
             this.os = osOptional.map(OS::getOs).orElse(null);
-            this.site = osOptional.map(OS::getSite).orElse(null);
-            this.contrato = osOptional.map(OS::getContrato).orElse(null);
+            this.projeto = osOptional.map(OS::getProjeto).orElse(null);
+            this.gestorTim = osOptional.map(OS::getGestorTim).orElse(null);
             this.segmento = osOptional
                     .map(OS::getSegmento)
                     .map(Segmento::getNome)
                     .orElse("Segmento não informado");
-            this.projeto = osOptional.map(OS::getProjeto).orElse(null);
-            this.gestorTim = osOptional.map(OS::getGestorTim).orElse(null);
-            this.regional = osOptional.map(OS::getRegional).orElse(null);
-            this.lote = osOptional.map(OS::getLote).orElse(null);
-            this.boq = osOptional.map(OS::getBoq).orElse(null);
-            this.po = osOptional.map(OS::getPo).orElse(null);
-            this.item = osOptional.map(OS::getItem).orElse(null);
-            this.objetoContratado = osOptional.map(OS::getObjetoContratado).orElse(null);
-            this.unidade = osOptional.map(OS::getUnidade).orElse(null);
-            this.quantidade = osOptional.map(OS::getQuantidade).orElse(null);
-            this.valorTotal = osOptional.map(OS::getValorTotal).orElse(null);
-            this.observacoes = osOptional.map(OS::getObservacoes).orElse(null);
-            this.dataPo = osOptional.map(OS::getDataPo).orElse(null);
 
+            // --- Mapeia os dados do Detalhe (pai) ---
+            this.site = detalheOptional.map(OsLpuDetalhe::getSite).orElse(null);
+            this.contrato = detalheOptional.map(OsLpuDetalhe::getContrato).orElse(null);
+            this.regional = detalheOptional.map(OsLpuDetalhe::getRegional).orElse(null);
+            this.lote = detalheOptional.map(OsLpuDetalhe::getLote).orElse(null);
+            this.boq = detalheOptional.map(OsLpuDetalhe::getBoq).orElse(null);
+            this.po = detalheOptional.map(OsLpuDetalhe::getPo).orElse(null);
+            this.item = detalheOptional.map(OsLpuDetalhe::getItem).orElse(null);
+            this.objetoContratado = detalheOptional.map(OsLpuDetalhe::getObjetoContratado).orElse(null);
+            this.unidade = detalheOptional.map(OsLpuDetalhe::getUnidade).orElse(null);
+            this.quantidade = detalheOptional.map(OsLpuDetalhe::getQuantidade).orElse(null);
+            this.valorTotal = detalheOptional.map(OsLpuDetalhe::getValorTotal).orElse(null);
+            this.observacoes = detalheOptional.map(OsLpuDetalhe::getObservacoes).orElse(null);
+            this.dataPo = detalheOptional.map(OsLpuDetalhe::getDataPo).orElse(null);
+            this.lpu = detalheOptional.map(detalhe -> detalhe.getLpu().getCodigoLpu() + " - " + detalhe.getLpu().getNomeLpu()).orElse(null);
 
-            // Mapeamento dos outros campos (LPU, Prestador, etc.)
-            this.lpu = Optional.ofNullable(l.getLpu()).map(lpu -> lpu.getCodigoLpu() + " - " + lpu.getNomeLpu()).orElse(null);
+            // --- Mapeia os dados do próprio Lançamento (restante dos campos) ---
             this.equipe = l.getEquipe();
             this.vistoria = l.getVistoria();
             this.planoDeVistoria = l.getPlanoVistoria();
@@ -121,10 +128,8 @@ public class CpsResponseDTO {
             this.gestor = Optional.ofNullable(l.getManager()).map(u -> u.getNome()).orElse(null);
             this.valorAdiantamento = l.getValorAdiantamento();
         }
+        // ======================== FIM DA CORREÇÃO =========================
 
-        public LocalDate getDataAtividade() {
-            return dataAtividade;
-        }
 
         public Long getId() {
             return id;
@@ -132,6 +137,10 @@ public class CpsResponseDTO {
 
         public void setId(Long id) {
             this.id = id;
+        }
+
+        public LocalDate getDataAtividade() {
+            return dataAtividade;
         }
 
         public void setDataAtividade(LocalDate dataAtividade) {

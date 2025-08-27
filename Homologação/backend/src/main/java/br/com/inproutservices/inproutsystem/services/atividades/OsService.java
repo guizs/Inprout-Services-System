@@ -60,4 +60,6 @@ public interface OsService {
     void deleteOs(Long id);
 
     void importarOsDePlanilha(MultipartFile file) throws IOException;
+
+    List<OS> findAllWithDetails();
 }

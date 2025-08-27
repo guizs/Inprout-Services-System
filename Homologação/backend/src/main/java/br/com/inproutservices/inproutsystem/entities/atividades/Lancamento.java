@@ -26,14 +26,8 @@ public class Lancamento {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lpu_id")
-    @JsonIgnore
-    private Lpu lpu;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "os_id", nullable = false)
-    @JsonIgnore
-    private OS os;
+    @JoinColumn(name = "os_lpu_detalhe_id", nullable = false)
+    private OsLpuDetalhe osLpuDetalhe;
 
     // --- CAMPOS DO FLUXO DE APROVAÇÃO ---
     @Enumerated(EnumType.STRING)
@@ -117,12 +111,12 @@ public class Lancamento {
         }
     }
 
-    public Lpu getLpu() {
-        return lpu;
+    public OsLpuDetalhe getOsLpuDetalhe() {
+        return osLpuDetalhe;
     }
 
-    public void setLpu(Lpu lpu) {
-        this.lpu = lpu;
+    public void setOsLpuDetalhe(OsLpuDetalhe osLpuDetalhe) {
+        this.osLpuDetalhe = osLpuDetalhe;
     }
 
     public Long getId() {
@@ -131,14 +125,6 @@ public class Lancamento {
 
     public void setId(Long id) {
         this.id = id;
-    }
-
-    public OS getOs() {
-        return os;
-    }
-
-    public void setOs(OS os) {
-        this.os = os;
     }
 
     public SituacaoAprovacao getSituacaoAprovacao() {

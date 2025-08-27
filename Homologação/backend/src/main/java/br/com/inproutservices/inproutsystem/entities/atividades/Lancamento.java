@@ -26,6 +26,10 @@ public class Lancamento {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "os_id")
+    private OS os;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "os_lpu_detalhe_id", nullable = false)
     private OsLpuDetalhe osLpuDetalhe;
 
@@ -117,6 +121,14 @@ public class Lancamento {
 
     public void setOsLpuDetalhe(OsLpuDetalhe osLpuDetalhe) {
         this.osLpuDetalhe = osLpuDetalhe;
+    }
+
+    public OS getOs() {
+        return os;
+    }
+
+    public void setOs(OS os) {
+        this.os = os;
     }
 
     public Long getId() {

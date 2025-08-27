@@ -784,31 +784,21 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("A lista de lançamentos para criação não pode ser vazia.");
         }
 
-        // Pega o ID do manager do primeiro item da lista.
         Long managerId = dtos.get(0).managerId();
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
 
         List<Lancamento> novosLancamentos = new ArrayList<>();
 
-        // Itera sobre cada DTO recebido do frontend
         for (LancamentoRequestDTO dto : dtos) {
-
-            // --- INÍCIO DA CORREÇÃO ---
-
-            // 1. Busca a OS principal usando o osId que vem no DTO.
+            // Busca a OS e o Detalhe (isso já estava certo)
             OS os = osRepository.findById(dto.osId())
                     .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-
-            // 2. Busca a linha de detalhe específica (OS + LPU).
             OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                     .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
-            // 3. PONTO CRÍTICO: Garante que o objeto de detalhe tenha a OS principal vinculada
-            //    antes de ser associado ao novo lançamento.
+            // Garante a consistência do objeto (boa prática, pode manter)
             osLpuDetalhe.setOs(os);
-
-            // --- FIM DA CORREÇÃO ---
 
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
@@ -817,8 +807,13 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             Lancamento lancamento = new Lancamento();
 
+            // --- INÍCIO DA CORREÇÃO FINAL ---
+            // AQUI ESTÁ A MUDANÇA CRÍTICA: Preenchemos a nova relação direta na entidade Lancamento.
+            lancamento.setOs(os);
+            // --- FIM DA CORREÇÃO FINAL ---
+
             lancamento.setManager(manager);
-            lancamento.setOsLpuDetalhe(osLpuDetalhe); // Agora a associação está completa
+            lancamento.setOsLpuDetalhe(osLpuDetalhe);
             lancamento.setDataAtividade(dto.dataAtividade());
             lancamento.setPrestador(prestador);
             lancamento.setEtapaDetalhada(etapaDetalhada);

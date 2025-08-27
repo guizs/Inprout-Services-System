@@ -1,13 +1,13 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
-// Importe os DTOs que criamos em arquivos separados
 import br.com.inproutservices.inproutsystem.dtos.index.LpuSimpleDTO;
 import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import br.com.inproutservices.inproutsystem.dtos.index.SegmentoSimpleDTO;
-
-// Outros imports necessários
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -15,91 +15,92 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * DTO para representar a resposta de um Lançamento, alinhado com a nova estrutura de entidades.
- */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record LancamentoResponseDTO(
         Long id,
         OsSimpleDTO os,
         OsLpuDetalheSimpleDTO detalhe,
         PrestadorSimpleDTO prestador,
+        EtapaInfoDTO etapa,
+        ManagerSimpleDTO manager, // <-- Campo do Gestor
         BigDecimal valor,
         SituacaoAprovacao situacaoAprovacao,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataAtividade,
         String detalheDiario,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao
-        // Adicione aqui outros campos específicos do LANÇAMENTO que você precise retornar
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
+        String equipe,
+        String vistoria,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoVistoria,
+        String desmobilizacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDesmobilizacao,
+        String instalacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoInstalacao,
+        String ativacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoAtivacao,
+        String documentacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDocumentacao,
+        StatusEtapa status,
+        SituacaoOperacional situacao
 ) {
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
-                // Cria o DTO da OS a partir do "avô"
                 (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null)
-                        ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs())
-                        : null,
-
-                // Cria o DTO do detalhe a partir do "pai"
+                        ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
                 (lancamento.getOsLpuDetalhe() != null)
-                        ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe())
-                        : null,
-
+                        ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
                 (lancamento.getPrestador() != null)
-                        ? new PrestadorSimpleDTO(lancamento.getPrestador())
+                        ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
+                (lancamento.getEtapaDetalhada() != null)
+                        ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
+                // --- CORREÇÃO PRINCIPAL AQUI ---
+                (lancamento.getManager() != null)
+                        ? new ManagerSimpleDTO(lancamento.getManager()) // Popula o DTO do Gestor
                         : null,
-
                 lancamento.getValor(),
                 lancamento.getSituacaoAprovacao(),
                 lancamento.getDataAtividade(),
                 lancamento.getDetalheDiario(),
-                lancamento.getDataCriacao()
+                lancamento.getDataCriacao(),
+                lancamento.getEquipe(),
+                lancamento.getVistoria(),
+                lancamento.getPlanoVistoria(),
+                lancamento.getDesmobilizacao(),
+                lancamento.getPlanoDesmobilizacao(),
+                lancamento.getInstalacao(),
+                lancamento.getPlanoInstalacao(),
+                lancamento.getAtivacao(),
+                lancamento.getPlanoAtivacao(),
+                lancamento.getDocumentacao(),
+                lancamento.getPlanoDocumentacao(),
+                lancamento.getStatus(),
+                lancamento.getSituacao()
         );
     }
 
-    /**
-     * DTO aninhado e simplificado para representar a OS.
-     */
-    public record OsSimpleDTO(
-            Long id,
-            String os,
-            String projeto,
-            String gestorTim,
-            SegmentoSimpleDTO segmento
-    ) {
-        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
-            this(
-                    os.getId(),
-                    os.getOs(),
-                    os.getProjeto(),
-                    os.getGestorTim(),
-                    (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null
-            );
+    // DTO aninhado para o Manager (Gestor)
+    public record ManagerSimpleDTO(Long id, String nome) {
+        public ManagerSimpleDTO(Usuario manager) {
+            this(manager.getId(), manager.getNome());
         }
     }
 
-    /**
-     * DTO aninhado e simplificado para representar a linha de detalhe (OsLpuDetalhe).
-     */
-    public record OsLpuDetalheSimpleDTO(
-            Long id,
-            String key,
-            LpuSimpleDTO lpu,
-            String site,
-            String po,
-            String contrato,
-            String regional
-            // Adicione aqui outros campos do detalhe que sejam importantes para o lançamento
-    ) {
+    // DTO aninhado para Etapa
+    public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
+        public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) {
+            this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome());
+        }
+    }
+
+    // Outros DTOs aninhados
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento) {
+        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
+            this(os.getId(), os.getOs(), os.getProjeto(), os.getGestorTim(), (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null);
+        }
+    }
+    public record OsLpuDetalheSimpleDTO(Long id, String key, LpuSimpleDTO lpu, String site, String po, String contrato, String regional) {
         public OsLpuDetalheSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe detalhe) {
-            this(
-                    detalhe.getId(),
-                    detalhe.getKey(),
-                    (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null,
-                    detalhe.getSite(),
-                    detalhe.getPo(),
-                    detalhe.getContrato(),
-                    detalhe.getRegional()
-            );
+            this(detalhe.getId(), detalhe.getKey(), (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null, detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional());
         }
     }
 }

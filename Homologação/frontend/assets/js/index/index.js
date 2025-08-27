@@ -241,7 +241,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : 'N/A';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
         const frag = document.createDocumentFragment();
@@ -249,9 +250,13 @@ document.addEventListener('DOMContentLoaded', () => {
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
 
-            // O objeto 'detalhe' agora contém muitas das informações
+            // --- INÍCIO DA CORREÇÃO ---
             const detalhe = lancamento.detalhe || {};
             const os = lancamento.os || {};
+            const lpu = detalhe.lpu || {};
+            const etapa = lancamento.etapa || {}; // << MUDANÇA AQUI
+            const prestador = lancamento.prestador || {};
+            const manager = lancamento.manager || {};
 
             const mapaDeCelulas = {
                 "DATA ATIVIDADE": lancamento.dataAtividade || '',
@@ -259,39 +264,55 @@ document.addEventListener('DOMContentLoaded', () => {
                 "SITE": detalhe.site || '',
                 "SEGMENTO": os.segmento ? os.segmento.nome : '',
                 "PROJETO": os.projeto || '',
-                "LPU": labelLpu(detalhe.lpu), // <-- Acessa a LPU dentro do detalhe
+                "LPU": labelLpu(lpu),
                 "GESTOR TIM": os.gestorTim || '',
                 "REGIONAL": detalhe.regional || '',
-                "ETAPA DETALHADA": lancamento.etapa ? lancamento.etapa.nomeDetalhado : '',
+                "VISTORIA": lancamento.vistoria || 'N/A',
+                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria),
+                "DESMOBILIZAÇÃO": lancamento.desmobilizacao || 'N/A',
+                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao),
+                "INSTALAÇÃO": lancamento.instalacao || 'N/A',
+                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao),
+                "ATIVAÇÃO": lancamento.ativacao || 'N/A',
+                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao),
+                "DOCUMENTAÇÃO": lancamento.documentacao || 'N/A',
+                "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao),
+                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
+                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
+                "STATUS": lancamento.status || '',
                 "SITUAÇÃO": lancamento.situacao || '',
                 "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "PRESTADOR": lancamento.prestador ? lancamento.prestador.nome : '',
+                "CÓD. PRESTADOR": prestador.codigo || '',
+                "PRESTADOR": prestador.nome || '',
                 "VALOR": formatarMoeda(lancamento.valor),
-                "GESTOR": lancamento.manager ? lancamento.manager.nome : '',
+                "GESTOR": manager.nome || '',
                 "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`
             };
+            // --- FIM DA CORREÇÃO ---
 
             colunas.forEach(nomeColuna => {
                 const td = document.createElement('td');
                 td.dataset.label = nomeColuna;
 
                 if (nomeColuna === 'AÇÃO') {
-                    // Lógica dos botões (mantida como estava, mas pode ser revisada depois)
                     let buttonsHtml = '';
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
+                            // << BOTÃO REMOVIDO DAQUI
                         } else if (tbodyElement.id === 'tbody-paralisados') {
                             buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                         }
                     }
                     buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
-
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
                 } else {
-                    td.innerHTML = mapaDeCelulas[nomeColuna] || 'N/A';
+                    td.innerHTML = mapaDeCelulas[nomeColuna] || '';
+                    if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
+                        aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                    }
                 }
                 tr.appendChild(td);
             });
@@ -512,8 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId) {
-            // Lógica para popular a Etapa Detalhada (continua igual)
+        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId, statusParaSelecionar) {
             const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectEtapaDetalhada.disabled = true;
@@ -523,38 +543,37 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
                 });
                 selectEtapaDetalhada.disabled = false;
-                // Se um ID já veio pré-selecionado (modo edição), seleciona ele
                 if (etapaDetalhadaId) {
                     selectEtapaDetalhada.value = etapaDetalhadaId;
                 }
             }
 
-            // Lógica para popular o Status, agora de forma mais segura
+            // Lógica para popular o Status
             selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectStatus.disabled = true;
 
-            if (etapaDetalhadaId) {
-                let etapaDetalhada;
-                // Procura em todas as etapas gerais pela etapa detalhada com o ID correto
-                for (const etapaGeral of todasAsEtapas) {
-                    const etapaEncontrada = etapaGeral.etapasDetalhadas.find(detalhe => detalhe.id == etapaDetalhadaId);
-                    if (etapaEncontrada) {
-                        etapaDetalhada = etapaEncontrada;
-                        break; // Para a busca quando encontrar
-                    }
+            // A busca pela etapa detalhada agora acontece aqui dentro
+            let etapaDetalhada;
+            if (etapaGeralId && etapaDetalhadaId) {
+                const etapaGeral = todasAsEtapas.find(e => e.id == etapaGeralId);
+                etapaDetalhada = etapaGeral?.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaId);
+            }
+
+            if (etapaDetalhada) {
+                if (etapaDetalhada.status && etapaDetalhada.status.length > 0) {
+                    etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
+                    selectStatus.disabled = false;
+                } else {
+                    selectStatus.add(new Option("N/A", "NAO_APLICAVEL"));
+                    selectStatus.disabled = false;
                 }
 
-                if (etapaDetalhada) {
-                    // Se a etapa detalhada tiver uma lista de status, popule o select com eles.
-                    if (etapaDetalhada.status && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
-                        selectStatus.disabled = false;
-                    } else {
-                        // Se a lista de status estiver vazia, adicione a opção "N/A" e habilite o campo.
-                        selectStatus.add(new Option("N/A", "NAO_APLICAVEL"));
-                        selectStatus.disabled = false;
-                    }
+                // --- INÍCIO DA CORREÇÃO ---
+                // Se um status foi passado como parâmetro, seleciona ele no dropdown
+                if (statusParaSelecionar) {
+                    selectStatus.value = statusParaSelecionar;
                 }
+                // --- FIM DA CORREÇÃO ---
             }
         }
 
@@ -605,10 +624,17 @@ document.addEventListener('DOMContentLoaded', () => {
             await carregarDadosParaModal();
             formAdicionar.dataset.editingId = editingId;
 
+            if (lancamento.detalhe) {
+                formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
+            }
+
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
+            const selectOS = document.getElementById('osId');
+            const selectLPU = document.getElementById('lpuId');
+            const lpuContainer = document.getElementById('lpuContainer');
 
             btnSubmitPadrao.style.display = 'none';
             btnSalvarRascunho.style.display = 'none';
@@ -626,80 +652,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
                     btnSubmitPadrao.innerHTML = `<i class="bi bi-check-circle"></i> Criar Lançamento`;
+
+                    const hoje = new Date().toISOString().split('T')[0];
+                    dataAtividadeInput.value = hoje;
                 }
             }
 
-            const selectOS = document.getElementById('osId');
-            const selectLPU = document.getElementById('lpuId');
-            selectOS.disabled = true;
+            // --- INÍCIO DA CORREÇÃO ---
 
-            const dataAtividadeInput = document.getElementById('dataAtividade');
-            dataAtividadeInput.value = lancamento.dataAtividade || '';
-            dataAtividadeInput.disabled = !!editingId;
-
+            document.getElementById('dataAtividade').value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.getElementById('prestadorId').value = lancamento.prestador?.id || '';
+            document.getElementById('situacao').value = lancamento.situacao || '';
+
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
             ['planoVistoria', 'planoDesmobilizacao', 'planoInstalacao', 'planoAtivacao', 'planoDocumentacao'].forEach(k => {
-                if (lancamento[k]) {
-                    // CORREÇÃO: Atribui a data no formato original (DD/MM/AAAA)
-                    document.getElementById(k).value = lancamento[k];
-                }
+                if (lancamento[k]) document.getElementById(k).value = lancamento[k].split('/').reverse().join('-');
             });
 
-            // --- INÍCIO DA LÓGICA CORRIGIDA ---
             if (lancamento.os && lancamento.os.id) {
                 selectOS.value = lancamento.os.id;
-                preencherCamposOS(lancamento.os.id);
-                await carregarEPopularLPU(lancamento.os.id);
+                const detalhe = lancamento.detalhe || {};
+                const os = lancamento.os || {};
+                document.getElementById('site').value = detalhe.site || '';
+                document.getElementById('segmento').value = os.segmento ? os.segmento.nome : '';
+                document.getElementById('projeto').value = os.projeto || '';
+                document.getElementById('contrato').value = detalhe.contrato || '';
+                document.getElementById('gestorTim').value = os.gestorTim || '';
+                document.getElementById('regional').value = detalhe.regional || '';
             }
 
-            if (lancamento.lpu && lancamento.lpu.id) {
-                const lpuIdStr = String(lancamento.lpu.id);
-
-                // se a opção não veio na lista (ex.: diferenças de campo), cria uma “na unha”
-                const exists = Array.from(selectLPU.options).some(opt => opt.value === lpuIdStr);
-                if (!exists) {
-                    selectLPU.add(new Option(labelLpu(lancamento.lpu), lpuIdStr));
-                }
-
-                selectLPU.value = lpuIdStr; // força string pra casar certinho com o <option>
-                selectLPU.disabled = true;
+            selectLPU.innerHTML = '';
+            if (lancamento.detalhe && lancamento.detalhe.lpu) {
+                const lpu = lancamento.detalhe.lpu;
+                selectLPU.add(new Option(labelLpu(lpu), lpu.id));
+                selectLPU.value = lpu.id;
+                lpuContainer.classList.remove('d-none');
             }
-            // --- FIM DA LÓGICA CORRIGIDA ---
+            selectOS.disabled = true;
+            selectLPU.disabled = true;
 
-            if (lancamento.prestador) {
-                document.getElementById('prestadorId').value = lancamento.prestador.id;
-            }
-
+            // Lógica corrigida para preencher e selecionar as etapas e o status
             if (lancamento.etapa && lancamento.etapa.id) {
-                const etapaGeralPai = todasAsEtapas.find(eg => eg.etapasDetalhadas.some(ed => ed.id === lancamento.etapa.id));
+                const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
+
                 if (etapaGeralPai) {
                     document.getElementById('etapaGeralSelect').value = etapaGeralPai.id;
-                    await popularDropdownsDependentes(etapaGeralPai.id, lancamento.etapa.id);
-                    document.getElementById('etapaDetalhadaId').value = lancamento.etapa.id;
+                    await popularDropdownsDependentes(etapaGeralPai.id, lancamento.etapa.id, lancamento.status);
                 }
             } else {
                 document.getElementById('etapaGeralSelect').value = '';
-                await popularDropdownsDependentes('', null);
+                await popularDropdownsDependentes('', null, null);
             }
 
-            const selectStatus = document.getElementById('status');
-            if (lancamento.status && !selectStatus.querySelector(`option[value="${lancamento.status}"]`)) {
-                selectStatus.add(new Option(lancamento.status, lancamento.status, true, true));
-            } else {
-                selectStatus.value = lancamento.status || '';
-            }
+            // --- FIM DA CORREÇÃO ---
 
-            const selectSituacao = document.getElementById('situacao');
-            if (lancamento.situacao && !selectSituacao.querySelector(`option[value="${lancamento.situacao}"]`)) {
-                selectSituacao.add(new Option(lancamento.situacao, lancamento.situacao, true, true));
-            } else {
-                selectSituacao.value = lancamento.situacao || 'Não iniciado';
-            }
-
-            const modalEl = document.getElementById('modalAdicionar');
-            const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            const modalInstance = bootstrap.Modal.getInstance(modalAdicionarEl) || new bootstrap.Modal(modalAdicionarEl);
             modalInstance.show();
         }
 
@@ -829,17 +838,18 @@ document.addEventListener('DOMContentLoaded', () => {
         function getProjetosParalisados() {
             const ultimosLancamentos = new Map();
             todosLancamentos.forEach(l => {
-                // Garante que o lançamento tenha uma OS e uma LPU antes de processar
-                if (l.os && l.lpu) {
-                    // CORREÇÃO: Acessamos l.os.id e l.lpu.id diretamente
-                    const chaveProjeto = `${l.os.id}-${l.lpu.id}`; // Define a chave aqui
+                // --- INÍCIO DA CORREÇÃO ---
+                // Garante que o lançamento tenha os detalhes necessários para criar uma chave única
+                if (l.os && l.detalhe && l.detalhe.lpu) {
+                    const chaveProjeto = `${l.os.id}-${l.detalhe.lpu.id}`;
+                    // --- FIM DA CORREÇÃO ---
 
                     if (!ultimosLancamentos.has(chaveProjeto) || l.id > ultimosLancamentos.get(chaveProjeto).id) {
                         ultimosLancamentos.set(chaveProjeto, l);
                     }
                 }
             });
-            // Filtra para retornar apenas os projetos cujo último lançamento está "Paralisado"
+            // Filtra para retornar apenas os projetos cujo último lançamento está "Paralisado" e não é um rascunho
             return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
         }
 
@@ -940,6 +950,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalContent = submitButton.innerHTML;
             submitButton.disabled = true;
             submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Carregando...`;
+
+            const osLpuDetalheId = formAdicionar.dataset.osLpuDetalheId;
 
             const dadosParaEnviar = {
                 managerId: localStorage.getItem('usuarioId'),

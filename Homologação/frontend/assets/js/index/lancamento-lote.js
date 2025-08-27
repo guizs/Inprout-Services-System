@@ -107,13 +107,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const regionalInput = document.getElementById('regionalLote');
 
         if (osData) {
-            siteInput.value = osData.site || '';
+            // Pega os dados que ainda são da OS principal
             segmentoInput.value = osData.segmento ? osData.segmento.nome : '';
             projetoInput.value = osData.projeto || '';
-            contratoInput.value = osData.contrato || '';
             gestorTimInput.value = osData.gestorTim || '';
-            regionalInput.value = osData.regional || '';
+
+            // Pega os dados do primeiro detalhe (OsLpuDetalhe)
+            const primeiroDetalhe = osData.detalhes && osData.detalhes.length > 0 ? osData.detalhes[0] : {};
+            siteInput.value = primeiroDetalhe.site || '';
+            contratoInput.value = primeiroDetalhe.contrato || '';
+            regionalInput.value = primeiroDetalhe.regional || '';
         } else {
+            // Limpa todos os campos se não houver dados
             siteInput.value = '';
             segmentoInput.value = '';
             projetoInput.value = '';
@@ -149,30 +154,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
             preencherCamposOSLote(osData);
 
-            // CORREÇÃO: Acessamos a lista de lpus que vem DENTRO do objeto da OS
-            const lpus = osData.lpus || [];
+            // CORREÇÃO APLICADA AQUI: Trocamos 'osData.lpus' por 'osData.detalhes'
+            const lpus = osData.detalhes || [];
 
             if (lpus.length === 0) {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
             } else {
-                lpuChecklistContainerLote.innerHTML = lpus.map(item => {
-                    // CORREÇÃO: O objeto LPU está aninhado dentro de 'item.lpu'
+                lpuChecklistContainerLote.innerHTML = lpus.map(item => { // 'item' é o objeto OsLpuDetalhe
                     const lpu = item.lpu;
-                    if (!lpu) return ''; // Ignora itens malformados
+                    if (!lpu) return '';
 
-                    // Usa a mesma lógica de fallback para os nomes dos campos
                     const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
                     const nome = lpu.nome ?? lpu.nomeLpu ?? '';
                     const label = `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
 
                     return `
-                        <div class="form-check">
-                            <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}">
-                            <label class="form-check-label" for="lpu-lote-${lpu.id}">
-                                ${label}
-                            </label>
-                        </div>
-                    `;
+                    <div class="form-check">
+                        <input class="form-check-input lpu-checkbox" type="checkbox" 
+                            value="${lpu.id}" 
+                            data-os-lpu-detalhe-id="${item.id}" 
+                            id="lpu-lote-${lpu.id}" data-nome="${label}">
+                        <label class="form-check-label" for="lpu-lote-${lpu.id}">
+                            ${label}
+                        </label>
+                    </div>
+                `;
                 }).join('');
             }
         } catch (error) {
@@ -421,10 +427,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             for (const checkbox of lpusSelecionadas) {
                 const lpuId = checkbox.value;
+                const osLpuDetalheId = checkbox.dataset.osLpuDetalheId;
+
                 const dadosLpu = {
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
+                    osLpuDetalheId: osLpuDetalheId, // <-- INCLUSÃO NO PAYLOAD
                     dataAtividade: formatarDataParaAPI(dataAtividade),
                     vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
                     planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
@@ -443,7 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
                     valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
                 };
-
                 if (acao === 'salvarRascunho') {
                     dadosLpu.situacaoAprovacao = 'RASCUNHO';
                 } else if (acao === 'enviar') {
@@ -496,3 +504,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+

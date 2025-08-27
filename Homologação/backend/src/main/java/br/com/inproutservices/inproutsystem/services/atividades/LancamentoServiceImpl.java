@@ -784,8 +784,7 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("A lista de lançamentos para criação não pode ser vazia.");
         }
 
-        // Pega o ID do manager do primeiro item da lista (mantendo a lógica original).
-        // OBS: Certifique-se que o managerId está sendo passado no DTO ou ajuste para pegá-lo do usuário logado.
+        // Pega o ID do manager do primeiro item da lista.
         Long managerId = dtos.get(0).managerId();
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
@@ -795,29 +794,34 @@ public class LancamentoServiceImpl implements LancamentoService {
         // Itera sobre cada DTO recebido do frontend
         for (LancamentoRequestDTO dto : dtos) {
 
-            // --- A CORREÇÃO PRINCIPAL COMEÇA AQUI ---
+            // --- INÍCIO DA CORREÇÃO ---
 
-            // 1. Busca a linha de detalhe completa com apenas um ID
+            // 1. Busca a OS principal usando o osId que vem no DTO.
+            OS os = osRepository.findById(dto.osId())
+                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+
+            // 2. Busca a linha de detalhe específica (OS + LPU).
             OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                     .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
-            // Busca as outras entidades (continua igual)
+            // 3. PONTO CRÍTICO: Garante que o objeto de detalhe tenha a OS principal vinculada
+            //    antes de ser associado ao novo lançamento.
+            osLpuDetalhe.setOs(os);
+
+            // --- FIM DA CORREÇÃO ---
+
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
             EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                     .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-            // Cria uma nova entidade Lancamento
             Lancamento lancamento = new Lancamento();
 
-            // 2. Mapeia TODOS os dados do DTO para a entidade com a associação correta
             lancamento.setManager(manager);
-            lancamento.setOsLpuDetalhe(osLpuDetalhe); // <-- ASSOCIAÇÃO CORRETA
+            lancamento.setOsLpuDetalhe(osLpuDetalhe); // Agora a associação está completa
             lancamento.setDataAtividade(dto.dataAtividade());
             lancamento.setPrestador(prestador);
             lancamento.setEtapaDetalhada(etapaDetalhada);
-
-            // Campos da seção Execução (continua igual)
             lancamento.setEquipe(dto.equipe());
             lancamento.setVistoria(dto.vistoria());
             lancamento.setPlanoVistoria(dto.planoVistoria());
@@ -829,22 +833,15 @@ public class LancamentoServiceImpl implements LancamentoService {
             lancamento.setPlanoAtivacao(dto.planoAtivacao());
             lancamento.setDocumentacao(dto.documentacao());
             lancamento.setPlanoDocumentacao(dto.planoDocumentacao());
-
-            // Campos da seção Etapas (continua igual)
             lancamento.setStatus(dto.status());
             lancamento.setSituacao(dto.situacao());
             lancamento.setDetalheDiario(dto.detalheDiario());
-
-            // Campos da seção Financeiro (continua igual)
             lancamento.setValor(dto.valor());
-
-            // Define um status padrão na criação
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
 
             novosLancamentos.add(lancamento);
         }
 
-        // Salva TODOS os lançamentos na base de dados em uma única operação.
         return lancamentoRepository.saveAll(novosLancamentos);
     }
 

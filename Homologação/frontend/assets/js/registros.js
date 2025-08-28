@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Variáveis de estado para a paginação
     let paginaAtual = 1;
     let linhasPorPagina = 100;
+    let linhasFiltradasCache = []; // Cache para a lista filtrada
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
@@ -25,14 +26,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return dataStr.split(' ')[0];
     };
 
-    // Definição das colunas da tabela com a ordem corrigida
+    // Definição das colunas da tabela
     const colunasPorRole = {
         'MANAGER': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "DATA CRIAÇÃO OS", "KEY"],
         'DEFAULT': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"]
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
 
-    // Mapeamento de dados com as etapas formatadas
+    // Mapeamento de dados
     const dataMapping = {
         "OS": (linha) => get(linha, 'os.os'), "SITE": (linha) => get(linha, 'detalhe.site'),
         "CONTRATO": (linha) => get(linha, 'detalhe.contrato'), "SEGMENTO": (linha) => get(linha, 'os.segmento.nome'),
@@ -115,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            renderizarTabela(todasAsLinhas);
+            renderizarTabelaComFiltro();
 
         } catch (error) {
             console.error('Falha ao carregar os registros:', error);
@@ -176,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderizarTabelaComFiltro() {
         paginaAtual = 1;
         const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
-        const linhasFiltradas = termoBusca
+        linhasFiltradasCache = termoBusca
             ? todasAsLinhas.filter(linhaData => {
                 const textoPesquisavel = [
                     get(linhaData, 'os.os', ''), get(linhaData, 'detalhe.site', ''),
@@ -186,47 +187,44 @@ document.addEventListener('DOMContentLoaded', function () {
                 return textoPesquisavel.includes(termoBusca);
             })
             : todasAsLinhas;
-        renderizarTabela(linhasFiltradas);
+        renderizarTabela(linhasFiltradasCache);
     }
 
     function atualizarBotoesPaginacao(totalPaginas) {
-        document.getElementById('btnPrimeiraPagina').disabled = paginaAtual === 1;
-        document.getElementById('btnPaginaAnterior').disabled = paginaAtual === 1;
+        document.getElementById('btnPrimeiraPagina').disabled = paginaAtual <= 1;
+        document.getElementById('btnPaginaAnterior').disabled = paginaAtual <= 1;
         document.getElementById('btnProximaPagina').disabled = paginaAtual >= totalPaginas;
         document.getElementById('btnUltimaPagina').disabled = paginaAtual >= totalPaginas;
     }
 
+    // --- FUNÇÃO DE PAGINAÇÃO CORRIGIDA ---
     function adicionarListenersPaginacao() {
         document.getElementById('rowsPerPage').addEventListener('change', (e) => {
             const valor = e.target.value;
             linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
-            renderizarTabelaComFiltro();
+            renderizarTabela(linhasFiltradasCache); // Renderiza a lista já filtrada
         });
         document.getElementById('btnPrimeiraPagina').addEventListener('click', () => {
             paginaAtual = 1;
-            renderizarTabelaComFiltro();
+            renderizarTabela(linhasFiltradasCache);
         });
         document.getElementById('btnPaginaAnterior').addEventListener('click', () => {
-            paginaAtual--;
-            renderizarTabelaComFiltro();
+            if (paginaAtual > 1) {
+                paginaAtual--;
+                renderizarTabela(linhasFiltradasCache);
+            }
         });
         document.getElementById('btnProximaPagina').addEventListener('click', () => {
-            paginaAtual++;
-            renderizarTabelaComFiltro();
+            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(linhasFiltradasCache.length / linhasPorPagina);
+            if (paginaAtual < totalPaginas) {
+                paginaAtual++;
+                renderizarTabela(linhasFiltradasCache);
+            }
         });
         document.getElementById('btnUltimaPagina').addEventListener('click', () => {
-            const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
-            const linhasFiltradas = termoBusca ? todasAsLinhas.filter(linhaData => {
-                const textoPesquisavel = [
-                    get(linhaData, 'os.os', ''), get(linhaData, 'detalhe.site', ''),
-                    get(linhaData, 'detalhe.contrato', ''), get(linhaData, 'os.projeto', ''),
-                    get(linhaData, 'detalhe.lpu.nomeLpu', ''), get(linhaData, 'detalhe.lpu.codigoLpu', '')
-                ].join(' ').toLowerCase();
-                return textoPesquisavel.includes(termoBusca);
-            }) : todasAsLinhas;
-            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(linhasFiltradas.length / linhasPorPagina);
+            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(linhasFiltradasCache.length / linhasPorPagina);
             paginaAtual = totalPaginas;
-            renderizarTabelaComFiltro();
+            renderizarTabela(linhasFiltradasCache);
         });
     }
 
@@ -243,6 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- LÓGICA DE IMPORTAÇÃO CORRIGIDA ---
     const btnImportar = document.getElementById('btnImportar');
     const importFileInput = document.getElementById('importFile');
 
@@ -262,11 +261,17 @@ document.addEventListener('DOMContentLoaded', function () {
             textoProgresso.textContent = "Cancelando importação...";
         });
 
+        // --- INÍCIO DA CORREÇÃO ---
+        // Adiciona o listener de clique no botão "Importar" para abrir a janela de seleção de arquivo
+        btnImportar.addEventListener('click', () => {
+            importFileInput.click();
+        });
+        // --- FIM DA CORREÇÃO ---
+
         importFileInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
             if (!file) return;
 
-            // Reseta o estado do modal e do controle de cancelamento
             isImportCancelled = false;
             textoProgresso.textContent = 'Lendo arquivo...';
             barraProgresso.style.width = '0%';
@@ -274,7 +279,7 @@ document.addEventListener('DOMContentLoaded', function () {
             errosContainer.classList.add('d-none');
             listaErros.innerHTML = '';
             btnFecharProgresso.disabled = true;
-            btnCancelarImportacao.classList.remove('d-none'); // Mostra o botão de cancelar
+            btnCancelarImportacao.classList.remove('d-none');
             modalProgresso.show();
 
             try {
@@ -284,16 +289,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const sheet = workbook.Sheets[sheetName];
                 const rows = XLSX.utils.sheet_to_json(sheet);
 
-                if (rows.length === 0) {
-                    throw new Error("A planilha está vazia.");
-                }
+                if (rows.length === 0) throw new Error("A planilha está vazia.");
 
                 let linhasProcessadas = 0;
                 let errosGerais = [];
                 const TAMANHO_LOTE = 100;
 
                 for (let i = 0; i < rows.length; i += TAMANHO_LOTE) {
-                    if (isImportCancelled) { // Verifica se o cancelamento foi solicitado
+                    if (isImportCancelled) {
                         textoProgresso.textContent = 'Importação cancelada pelo usuário.';
                         break;
                     }
@@ -328,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         textoProgresso.textContent = 'Importação concluída com sucesso!';
                     }
                 }
-                
+
                 await inicializarPagina();
 
             } catch (error) {
@@ -338,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 listaErros.innerHTML = `<li class="list-group-item list-group-item-danger">${error.message}</li>`;
             } finally {
                 btnFecharProgresso.disabled = false;
-                btnCancelarImportacao.classList.add('d-none'); // Esconde o botão de cancelar
+                btnCancelarImportacao.classList.add('d-none');
                 importFileInput.value = '';
             }
         });
@@ -346,13 +349,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnExportar = document.getElementById('btnExportar');
     if (btnExportar) {
-        // Referências para o novo modal de progresso
         const modalProgressoEl = document.getElementById('modalProgressoExportacao');
         const modalProgresso = new bootstrap.Modal(modalProgressoEl);
         const textoProgresso = document.getElementById('textoProgresso');
         const barraProgresso = document.getElementById('barraProgresso');
 
-        // Função auxiliar para atualizar o modal
         const atualizarProgresso = (processados, total) => {
             const porcentagem = total > 0 ? Math.round((processados / total) * 100) : 0;
             textoProgresso.textContent = `Processando linha ${processados} de ${total}...`;
@@ -361,7 +362,6 @@ document.addEventListener('DOMContentLoaded', function () {
             barraProgresso.setAttribute('aria-valuenow', porcentagem);
         };
 
-        // Função para processar os dados em lotes e permitir que a UI atualize
         const processarEmLotes = (dados, tamanhoLote, callback) => {
             return new Promise(resolve => {
                 let indice = 0;
@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     atualizarProgresso(indice, dados.length);
 
                     if (indice < dados.length) {
-                        setTimeout(processarLote, 0); // Permite que a UI respire
+                        setTimeout(processarLote, 0);
                     } else {
                         resolve();
                     }
@@ -384,7 +384,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         btnExportar.addEventListener('click', async () => {
-            const linhasParaExportar = todasAsLinhas; // Usa os dados já filtrados ou a lista completa
+            const linhasParaExportar = todasAsLinhas;
             if (linhasParaExportar.length === 0) {
                 mostrarToast('Não há dados para exportar.', 'error');
                 return;
@@ -397,7 +397,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 const csvHeaders = headers;
                 const csvRows = [];
 
-                // Processa a conversão para CSV em lotes
                 await processarEmLotes(linhasParaExportar, 200, (linhaData) => {
                     const row = csvHeaders.map(header => {
                         const func = dataMapping[header];
@@ -419,7 +418,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 textoProgresso.textContent = 'Gerando arquivo...';
 
-                // Monta e baixa o arquivo CSV
                 const csvContent = [csvHeaders.join(';'), ...csvRows].join('\n');
                 const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement('a');
@@ -435,7 +433,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error("Erro durante a exportação:", error);
                 mostrarToast('Ocorreu um erro ao gerar o arquivo de exportação.', 'error');
             } finally {
-                // Esconde o modal de progresso ao finalizar
                 setTimeout(() => modalProgresso.hide(), 1000);
             }
         });

@@ -62,6 +62,8 @@ public interface OsService {
 
     List<String> processarLoteDePlanilha(List<Map<String, Object>> lote);
 
+    void importarOsDePlanilha(MultipartFile file) throws IOException;
+
     void processarLinhaDePlanilha(Map<String, Object> rowData);
 
     List<OS> findAllWithDetails();

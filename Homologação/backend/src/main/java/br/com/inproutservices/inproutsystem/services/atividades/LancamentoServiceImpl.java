@@ -144,25 +144,20 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Transactional
     public Lancamento criarLancamento(LancamentoRequestDTO dto, Long managerId) {
 
-        // 1. Validação de Projeto Finalizado (com a nova lógica)
+        // 1. Validação de Projeto Finalizado (lógica existente, permanece igual)
         boolean projetoFinalizado = lancamentoRepository.existsByOsLpuDetalheIdAndSituacao(
                 dto.osLpuDetalheId(),
                 SituacaoOperacional.FINALIZADO
         );
-
         if (projetoFinalizado) {
             throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
         }
 
         // 2. Validação da Data da Atividade (lógica existente, permanece igual)
         LocalDate hoje = LocalDate.now();
-        LocalDate dataMinimaPermitida;
-
-        if (hoje.getDayOfWeek() == DayOfWeek.MONDAY) {
-            dataMinimaPermitida = hoje.minusDays(3);
-        } else {
-            dataMinimaPermitida = prazoService.getDiaUtilAnterior(hoje);
-        }
+        LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
+                ? hoje.minusDays(3)
+                : prazoService.getDiaUtilAnterior(hoje);
 
         if (dto.dataAtividade().isBefore(dataMinimaPermitida)) {
             throw new BusinessException(
@@ -171,39 +166,37 @@ public class LancamentoServiceImpl implements LancamentoService {
             );
         }
 
-        // 3. Busca das entidades relacionadas (lógica atualizada)
-
-        // Apenas UMA busca para pegar a linha de detalhe completa
+        // 3. Busca das entidades relacionadas
+        Usuario manager = usuarioRepository.findById(managerId)
+                .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
+        Prestador prestador = prestadorRepository.findById(dto.prestadorId())
+                .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
+        EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
+                .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
         OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                 .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
-        Usuario manager = usuarioRepository.findById(managerId)
-                .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
-
-        Prestador prestador = prestadorRepository.findById(dto.prestadorId())
-                .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
-
-        EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
-                .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
+        // --- INÍCIO DA CORREÇÃO ---
+        // Busca a OS principal para garantir o vínculo que estava faltando.
+        OS os = osRepository.findById(dto.osId())
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+        // --- FIM DA CORREÇÃO ---
 
         // 4. Criação e Mapeamento da nova entidade Lancamento
         Lancamento lancamento = new Lancamento();
 
-        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
-        // Associa a linha de detalhe completa ao lançamento.
-        lancamento.setOsLpuDetalhe(osLpuDetalhe);
+        // --- INÍCIO DA CORREÇÃO ---
+        // Associa a OS diretamente ao lançamento. Esta é a linha que resolve o erro.
+        lancamento.setOs(os);
+        // --- FIM DA CORREÇÃO ---
 
-        // Associa as outras entidades que buscamos
+        lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setManager(manager);
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
-
-        // Define os status e datas iniciais do fluxo
         lancamento.setDataAtividade(dto.dataAtividade());
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
         lancamento.setUltUpdate(LocalDateTime.now());
-
-        // Mapeia os outros dados do DTO que são campos simples (continua igual)
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
         lancamento.setPlanoVistoria(dto.planoVistoria());
@@ -220,7 +213,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setValor(dto.valor());
         lancamento.setSituacao(dto.situacao());
 
-        // 5. Salva o novo lançamento no banco de dados
         return lancamentoRepository.save(lancamento);
     }
 

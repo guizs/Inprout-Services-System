@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.message || 'Erro ao salvar lançamentos em lote.');
             }
 
-            if (typeof mostrarToast === 'function') mostrarToast('Lançamentos em lote salvos com sucesso!', 'success');
+            if (typeof mostrarToast === 'function') mostrarToast('Lançamentos(s) salvo(s) com sucesso!', 'success');
             bootstrap.Modal.getInstance(modalAdicionarEmLote).hide();
             await carregarLancamentos();
 

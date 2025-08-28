@@ -280,66 +280,68 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const formatarMoeda = (valor) => valor ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
         const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
-
             tr.dataset.id = lancamento.id;
             tr.classList.add('linha-selecionavel');
 
-            // Define as ações com base no perfil do usuário
             let acoesHtml = '';
-            // Formata o badge de status de forma condicional
             let statusHtml = `<span class="badge rounded-pill text-bg-warning">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`;
 
-            // Se o status for de solicitação de prazo, adiciona a data proposta
             if (lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' && lancamento.dataPrazoProposta) {
                 const dataAtualFormatada = formatarData(lancamento.dataPrazo);
                 const dataPropostaFormatada = lancamento.dataPrazoProposta.split('-').reverse().join('/');
-
-                // Adiciona as duas linhas de informação
                 statusHtml += `<br><small class="text-muted">Prazo Atual: <b>${dataAtualFormatada}</b></small>`;
                 statusHtml += `<br><small class="text-muted">Prazo Solicitado: <b>${dataPropostaFormatada}</b></small>`;
             }
 
             if (userRole === 'COORDINATOR') {
                 acoesHtml = `
-                    <div class="d-flex justify-content-center gap-1">
-                        <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                    </div>`;
+                <div class="d-flex justify-content-center gap-1">
+                    <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                    <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                    <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
+                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+                </div>`;
             } else if (userRole === 'CONTROLLER') {
                 switch (lancamento.situacaoAprovacao) {
                     case 'PENDENTE_CONTROLLER':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                </div>`;
+            <div class="d-flex justify-content-center gap-1">
+                <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+            </div>`;
                         break;
                     case 'AGUARDANDO_EXTENSAO_PRAZO':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                </div>`;
+            <div class="d-flex justify-content-center gap-1">
+                <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
+                <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
+                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+            </div>`;
                         break;
                     case 'PRAZO_VENCIDO':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                     <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
-                </div>`;
+            <div class="d-flex justify-content-center gap-1">
+                 <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
+            </div>`;
                         break;
                     default:
-                        acoesHtml = ''; // Nenhum botão para outros status
+                        acoesHtml = '';
                 }
             }
+
+            // --- INÍCIO DA CORREÇÃO ---
+            const detalhe = lancamento.detalhe || {};
+            const os = lancamento.os || {};
+            const lpu = detalhe.lpu || {};
+            const etapa = lancamento.etapa || {};
+            const prestador = lancamento.prestador || {};
+            const manager = lancamento.manager || {};
 
             const mapaDeCelulas = {
                 '<input type="checkbox" id="selecionar-todos-checkbox">': `<input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}">`,
@@ -347,26 +349,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PRAZO AÇÃO": userRole === 'COORDINATOR' ? `<span class="badge bg-danger">${formatarData(lancamento.dataPrazo)}</span>` : '',
                 "STATUS APROVAÇÃO": statusHtml,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
-                // Dados da OS
-                "OS": (lancamento.os || {}).os || '',
-                "SITE": (lancamento.os || {}).site || '',
-                "CONTRATO": (lancamento.os || {}).contrato || '',
-                "SEGMENTO": (lancamento.os && lancamento.os.segmento) ? lancamento.os.segmento.nome : '',
-                "PROJETO": (lancamento.os || {}).projeto || '',
-                "GESTOR TIM": (lancamento.os || {}).gestorTim || '',
-                "REGIONAL": (lancamento.os || {}).regional || '',
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '',
-                "LOTE": (lancamento.os || {}).lote || '',
-                "BOQ": (lancamento.os || {}).boq || '',
-                "PO": (lancamento.os || {}).po || '',
-                "ITEM": (lancamento.os || {}).item || '',
-                "OBJETO CONTRATADO": (lancamento.os || {}).objetoContratado || '',
-                "UNIDADE": (lancamento.os || {}).unidade || '',
-                "QUANTIDADE": (lancamento.os || {}).quantidade || '',
-                "VALOR TOTAL": formatarMoeda((lancamento.os || {}).valorTotal),
-                "OBSERVAÇÕES": (lancamento.os || {}).observacoes || '',
-                "DATA PO": (lancamento.os || {}).dataPo || '',
-                // Dados do Lançamento
+                "OS": os.os || '',
+                "SITE": detalhe.site || '',
+                "CONTRATO": detalhe.contrato || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '',
+                "PROJETO": os.projeto || '',
+                "GESTOR TIM": os.gestorTim || '',
+                "REGIONAL": detalhe.regional || '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu} - ${lpu.nomeLpu}` : '',
+                "LOTE": detalhe.lote || '',
+                "BOQ": detalhe.boq || '',
+                "PO": detalhe.po || '',
+                "ITEM": detalhe.item || '',
+                "OBJETO CONTRATADO": detalhe.objetoContratado || '',
+                "UNIDADE": detalhe.unidade || '',
+                "QUANTIDADE": detalhe.quantidade || '',
+                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
+                "OBSERVAÇÕES": detalhe.observacoes || '',
+                "DATA PO": formatarData(lancamento.dataPo) || '', // Corrigido para pegar do lançamento se existir
                 "VISTORIA": lancamento.vistoria || '',
                 "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
                 "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
@@ -377,16 +377,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '',
                 "DOCUMENTAÇÃO": lancamento.documentacao || '',
                 "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
-                "ETAPA GERAL": (lancamento.etapa || {}).nomeGeral || '',
-                "ETAPA DETALHADA": (lancamento.etapa || {}).nomeDetalhado || '',
+                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
+                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
                 "STATUS": lancamento.status || '',
                 "SITUAÇÃO": lancamento.situacao || '',
                 "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": (lancamento.prestador || {}).codigo || '',
-                "PRESTADOR": (lancamento.prestador || {}).nome || '',
+                "CÓD. PRESTADOR": prestador.codigo || '',
+                "PRESTADOR": prestador.nome || '',
                 "VALOR": formatarMoeda(lancamento.valor),
-                "GESTOR": (lancamento.manager || {}).nome || '',
+                "GESTOR": manager.nome || '',
             };
+            // --- FIM DA CORREÇÃO ---
 
             colunas.forEach(nomeColuna => {
                 if (nomeColuna === 'PRAZO AÇÃO' && userRole === 'CONTROLLER') {
@@ -741,7 +742,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tbodyHistorico) return;
         tbodyHistorico.innerHTML = '';
 
-        // Adiciona a nova coluna "COMENTÁRIOS"
         const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO" && !c.includes('checkbox'))];
 
         if (theadHistorico) {
@@ -775,23 +775,60 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusBadge = `<span class="badge rounded-pill text-bg-info">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`;
             }
 
+            // --- INÍCIO DA CORREÇÃO ---
+            const detalhe = lancamento.detalhe || {};
+            const os = lancamento.os || {};
+            const lpu = detalhe.lpu || {};
+            const etapa = lancamento.etapa || {};
+            const prestador = lancamento.prestador || {};
+            const manager = lancamento.manager || {};
+
             const mapaDeCelulas = {
-                // Célula do botão de comentários
                 "COMENTÁRIOS": `
-                <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
-                    <i class="bi bi-eye"></i>
-                </button>
-            `,
+            <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
+                <i class="bi bi-eye"></i>
+            </button>`,
                 "STATUS APROVAÇÃO": statusBadge,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
-                "OS": (lancamento.os || {}).os || '', "SITE": (lancamento.os || {}).site || '', "CONTRATO": (lancamento.os || {}).contrato || '', "SEGMENTO": (lancamento.os && lancamento.os.segmento) ? lancamento.os.segmento.nome : '', "PROJETO": (lancamento.os || {}).projeto || '',
-                "GESTOR TIM": (lancamento.os || {}).gestorTim || '', "REGIONAL": (lancamento.os || {}).regional || '', "LOTE": (lancamento.os || {}).lote || '', "BOQ": (lancamento.os || {}).boq || '', "PO": (lancamento.os || {}).po || '', "ITEM": (lancamento.os || {}).item || '', "OBJETO CONTRATADO": (lancamento.os || {}).objetoContratado || '', "UNIDADE": (lancamento.os || {}).unidade || '', "QUANTIDADE": (lancamento.os || {}).quantidade || '', "VALOR TOTAL": formatarMoeda((lancamento.os || {}).valorTotal),
-                "OBSERVAÇÕES": (lancamento.os || {}).observacoes || '', "DATA PO": (lancamento.os || {}).dataPo || '',
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '', "EQUIPE": lancamento.equipe || '', "VISTORIA": lancamento.vistoria || '', "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '', "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '', "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao) || '',
-                "INSTALAÇÃO": lancamento.instalacao || '', "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao) || '', "ATIVAÇÃO": lancamento.ativacao || '', "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '', "DOCUMENTAÇÃO": lancamento.documentacao || '', "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
-                "ETAPA GERAL": (lancamento.etapa || {}).nomeGeral || '', "ETAPA DETALHADA": (lancamento.etapa || {}).nomeDetalhado || '', "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": (lancamento.prestador || {}).codigo || '', "PRESTADOR": (lancamento.prestador || {}).nome || '', "VALOR": formatarMoeda(lancamento.valor), "GESTOR": (lancamento.manager || {}).nome || '',
+                "OS": os.os || '',
+                "SITE": detalhe.site || '',
+                "CONTRATO": detalhe.contrato || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '',
+                "PROJETO": os.projeto || '',
+                "GESTOR TIM": os.gestorTim || '',
+                "REGIONAL": detalhe.regional || '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu} - ${lpu.nomeLpu}` : '',
+                "LOTE": detalhe.lote || '',
+                "BOQ": detalhe.boq || '',
+                "PO": detalhe.po || '',
+                "ITEM": detalhe.item || '',
+                "OBJETO CONTRATADO": detalhe.objetoContratado || '',
+                "UNIDADE": detalhe.unidade || '',
+                "QUANTIDADE": detalhe.quantidade || '',
+                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
+                "OBSERVAÇÕES": detalhe.observacoes || '',
+                "DATA PO": formatarData(lancamento.dataPo) || '',
+                "VISTORIA": lancamento.vistoria || '',
+                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
+                "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
+                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao) || '',
+                "INSTALAÇÃO": lancamento.instalacao || '',
+                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao) || '',
+                "ATIVAÇÃO": lancamento.ativacao || '',
+                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '',
+                "DOCUMENTAÇÃO": lancamento.documentacao || '',
+                "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
+                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
+                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
+                "STATUS": lancamento.status || '',
+                "SITUAÇÃO": lancamento.situacao || '',
+                "DETALHE DIÁRIO": lancamento.detalheDiario || '',
+                "CÓD. PRESTADOR": prestador.codigo || '',
+                "PRESTADOR": prestador.nome || '',
+                "VALOR": formatarMoeda(lancamento.valor),
+                "GESTOR": manager.nome || '',
             };
+            // --- FIM DA CORREÇÃO ---
 
             colunasHistorico.forEach(nomeColuna => {
                 const td = document.createElement('td');

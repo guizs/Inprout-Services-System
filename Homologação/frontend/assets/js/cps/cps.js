@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
         <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
         <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
-        <th>VALOR PAGO</th> <th>ADIANTAMENTO</th>
+        <th>VALOR PAGO</th> <th>KEY</th> <th>ADIANTAMENTO</th>
         ${mostrarAcoes ? '<th>AÇÕES</th>' : ''} 
     </tr>`;
 
@@ -197,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td>${lanc.etapaGeral || 'N/A'}</td> <td>${lanc.etapaDetalhada || 'N/A'}</td> <td>${lanc.status || 'N/A'}</td>
                 <td>${lanc.situacao || 'N/A'}</td> <td>${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
                 <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
+                <td>${lanc.key || 'N/A'}</td>
                 <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
                 ${acoesCell}
             </tr>`;

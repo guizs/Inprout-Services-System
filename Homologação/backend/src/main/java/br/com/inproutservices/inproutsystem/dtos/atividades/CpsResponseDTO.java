@@ -21,6 +21,7 @@ public class CpsResponseDTO {
 
     public static class LancamentoCpsDetalheDTO {
         private Long id;
+        private String key;
         @JsonFormat(pattern = "dd/MM/yyyy")
         private LocalDate dataAtividade;
         private String os;
@@ -72,6 +73,7 @@ public class CpsResponseDTO {
         // ======================= INÍCIO DA CORREÇÃO =======================
         public LancamentoCpsDetalheDTO(Lancamento l) {
             this.id = l.getId();
+
             this.dataAtividade = l.getDataAtividade();
 
             // 1. Pega a linha de detalhe (o "pai" do lançamento)
@@ -79,6 +81,8 @@ public class CpsResponseDTO {
 
             // 2. A partir do detalhe, pega a OS (o "avô" do lançamento)
             Optional<OS> osOptional = detalheOptional.map(OsLpuDetalhe::getOs);
+
+            this.key = detalheOptional.map(OsLpuDetalhe::getKey).orElse(null);
 
             // --- Mapeia os dados da OS (avô) ---
             this.os = osOptional.map(OS::getOs).orElse(null);
@@ -141,6 +145,14 @@ public class CpsResponseDTO {
 
         public LocalDate getDataAtividade() {
             return dataAtividade;
+        }
+
+        public String getKey() {
+            return key;
+        }
+
+        public void setKey(String key) {
+            this.key = key;
         }
 
         public void setDataAtividade(LocalDate dataAtividade) {

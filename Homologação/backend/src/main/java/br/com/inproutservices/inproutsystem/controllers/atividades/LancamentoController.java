@@ -27,7 +27,7 @@ record AprovacaoLoteRequest(List<Long> lancamentoIds, Long aprovadorId) {}
 record RejeicaoLoteCoordenadorRequest(List<Long> lancamentoIds, Long aprovadorId, String comentario) {}
 record SolicitarPrazoLoteRequest(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaDataSugerida) {}
 record RejeicaoLoteControllerRequest(List<Long> lancamentoIds, Long controllerId, String motivoRejeicao) {}
-
+record AcaoPrazoLoteControllerRequest(List<Long> lancamentoIds, Long controllerId, String motivoRejeicao, LocalDate novaDataPrazo) {}
 
 @RestController
 @RequestMapping("/lancamentos")

@@ -940,30 +940,45 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const btn = document.getElementById('btnEnviarComentario');
         const isAcaoEmLote = modalComentar._element.dataset.acaoEmLote === 'true';
+        const lancamentoId = document.getElementById('comentarLancamentoId').value;
 
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked')).map(cb => cb.dataset.id)
-            : [document.getElementById('comentarLancamentoId').value];
+            : [lancamentoId];
 
         let payload = {};
         let endpoint = '';
+        let method = 'POST';
 
-        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+        // --- INÍCIO DA CORREÇÃO ---
+        if (userRole === 'CONTROLLER') {
+            const motivo = document.getElementById('comentarioCoordenador').value;
+            const novaData = document.getElementById('novaDataProposta').value;
+
+            if (isAcaoEmLote) {
+                endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/rejeitar`;
+                payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
+            } else {
+                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/prazo/rejeitar`;
+                payload = { controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
+            }
+        } else { // Lógica para Coordenador
             payload = {
                 lancamentoIds: ids,
                 coordenadorId: userId,
                 comentario: document.getElementById('comentarioCoordenador').value,
                 novaDataSugerida: document.getElementById('novaDataProposta').value
             };
-            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`;
-        } else if (userRole === 'CONTROLLER') {
-            // Lógica para Controller, se necessário
+            endpoint = isAcaoEmLote
+                ? `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`
+                : `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-solicitar-prazo`;
         }
+        // --- FIM DA CORREÇÃO ---
 
         setButtonLoading(btn, true);
         try {
             const response = await fetch(endpoint, {
-                method: 'POST',
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -977,7 +992,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(btn, false);
-            delete modalComentar._element.dataset.acaoEmLote; // Limpa o marcador
+            delete modalComentar._element.dataset.acaoEmLote;
         }
     });
 
@@ -1113,9 +1128,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     btnRecusarSelecionados.addEventListener('click', () => {
-        // Adiciona um marcador para o modal saber que é uma ação em lote
-        modalRecusar._element.dataset.acaoEmLote = 'true';
-        recusarLancamento(null); // Abre o modal sem um ID específico
+        const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
+        if (checkboxesSelecionados.length === 0) return;
+
+        const primeiroId = checkboxesSelecionados[0].dataset.id;
+        const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == primeiroId);
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Decide qual modal abrir com base no status do item
+        if (userRole === 'CONTROLLER' && (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || primeiroLancamento.situacaoAprovacao === 'PRAZO_VENCIDO')) {
+            modalComentar._element.dataset.acaoEmLote = 'true';
+            recusarPrazoController(null); // Abre o modal de definir prazo/motivo
+        } else {
+            modalRecusar._element.dataset.acaoEmLote = 'true';
+            recusarLancamento(null); // Abre o modal de recusa simples
+        }
+        // --- FIM DA CORREÇÃO ---
     });
 
     btnSolicitarPrazo.addEventListener('click', () => {
@@ -1154,6 +1182,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btnAprovarSelecionados.addEventListener('click', async () => {
         const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
         const idsParaAprovar = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
+        const primeiroLancamentoSelecionado = todosOsLancamentosGlobais.find(l => l.id == idsParaAprovar[0]);
 
         if (idsParaAprovar.length === 0) {
             mostrarToast('Nenhum item selecionado para aprovar.', 'error');
@@ -1161,17 +1190,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         setButtonLoading(btnAprovarSelecionados, true);
-
         try {
-            const endpoint = userRole === 'CONTROLLER'
-                ? `${API_BASE_URL}/lancamentos/lote/controller-aprovar`
-                : `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+            let endpoint = '';
+            // --- INÍCIO DA CORREÇÃO ---
+            if (userRole === 'CONTROLLER') {
+                if (primeiroLancamentoSelecionado.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
+                } else if (primeiroLancamentoSelecionado.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`;
+                }
+            } else { // Coordenador
+                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+            }
+            // --- FIM DA CORREÇÃO ---
 
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Assumindo que você usa token
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
                     lancamentoIds: idsParaAprovar,
@@ -1182,9 +1219,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error('Falha ao aprovar lançamentos em lote.');
 
             mostrarToast(`${idsParaAprovar.length} lançamento(s) aprovado(s) com sucesso!`, 'success');
-            await carregarDadosAtividades(); // Recarrega os dados para atualizar a tabela
+            await carregarDadosAtividades();
             atualizarEstadoAcoesLote();
-            acoesLoteContainer.classList.add('d-none'); // Esconde o botão novamente
+            acoesLoteContainer.classList.add('d-none');
 
         } catch (error) {
             mostrarToast(error.message, 'error');

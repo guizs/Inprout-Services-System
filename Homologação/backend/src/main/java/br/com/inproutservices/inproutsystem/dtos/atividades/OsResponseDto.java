@@ -62,6 +62,16 @@ public record OsResponseDto(
             BigDecimal valorTotal,
             String observacoes,
             @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo,
+            String faturamento,
+            String solitIdFat,
+            String recebIdFat,
+            String idFaturamento,
+            @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataFatInprout,
+            String solitFsPortal,
+            @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataFs,
+            String numFs,
+            String gate,
+            String gateId,
             LancamentoResponseDTO ultimoLancamento
     ) {
         public OsLpuDetalheCompletoDto(OsLpuDetalhe detalhe) {
@@ -82,6 +92,16 @@ public record OsResponseDto(
                     detalhe.getValorTotal(),
                     detalhe.getObservacoes(),
                     detalhe.getDataPo(),
+                    detalhe.getFaturamento(),
+                    detalhe.getSolitIdFat(),
+                    detalhe.getRecebIdFat(),
+                    detalhe.getIdFaturamento(),
+                    detalhe.getDataFatInprout(),
+                    detalhe.getSolitFsPortal(),
+                    detalhe.getDataFs(),
+                    detalhe.getNumFs(),
+                    detalhe.getGate(),
+                    detalhe.getGateId(),
                     detalhe.getLancamentos().stream()
                             .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO)
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))

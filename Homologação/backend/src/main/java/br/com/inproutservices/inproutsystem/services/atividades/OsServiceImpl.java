@@ -322,97 +322,6 @@ public class OsServiceImpl implements OsService {
     }
 
     @Override
-    @Transactional
-    public void importarOsDePlanilha(MultipartFile file) throws IOException {
-        try (InputStream inputStream = file.getInputStream();
-             Workbook workbook = WorkbookFactory.create(inputStream)) {
-
-            Sheet sheet = workbook.getSheetAt(0);
-            Iterator<Row> rows = sheet.iterator();
-
-            if (rows.hasNext()) {
-                rows.next(); // Pula o cabeçalho
-            }
-
-            // Cache para otimizar buscas no banco
-            Map<String, Segmento> segmentoMap = segmentoRepository.findAll().stream()
-                    .collect(Collectors.toMap(s -> s.getNome().toUpperCase(), s -> s, (s1, s2) -> s1));
-            Map<String, Lpu> lpuMap = lpuRepository.findAll().stream()
-                    .filter(lpu -> lpu.getContrato() != null && lpu.getCodigoLpu() != null)
-                    .collect(Collectors.toMap(
-                            lpu -> (lpu.getContrato().getNome() + "::" + lpu.getCodigoLpu()).toUpperCase(),
-                            Function.identity(),
-                            (lpu1, lpu2) -> lpu1
-                    ));
-
-            int numeroLinha = 1;
-            while (rows.hasNext()) {
-                numeroLinha++;
-                Row currentRow = rows.next();
-                if (isRowEmpty(currentRow)) continue;
-
-                try {
-                    OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap);
-
-                    if (dto == null || dto.getKey() == null || dto.getKey().isBlank()) {
-                        System.out.println("Pulando linha " + numeroLinha + " por falta de KEY.");
-                        continue;
-                    }
-
-                    Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
-
-                    if (detalheExistenteOpt.isPresent()) {
-                        // A KEY JÁ EXISTE: ATUALIZAR
-                        OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
-
-                        // Atualiza os campos de detalhe editáveis
-                        detalheExistente.setSite(dto.getSite());
-                        detalheExistente.setRegional(dto.getRegional());
-                        detalheExistente.setLote(dto.getLote());
-                        detalheExistente.setBoq(dto.getBoq());
-                        detalheExistente.setPo(dto.getPo());
-                        detalheExistente.setItem(dto.getItem());
-                        detalheExistente.setObjetoContratado(dto.getObjetoContratado());
-                        detalheExistente.setUnidade(dto.getUnidade());
-                        detalheExistente.setQuantidade(dto.getQuantidade());
-                        detalheExistente.setValorTotal(dto.getValorTotal());
-                        detalheExistente.setObservacoes(dto.getObservacoes());
-                        detalheExistente.setDataPo(dto.getDataPo());
-
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Adiciona a atualização dos campos de faturamento que estava faltando
-                        detalheExistente.setFaturamento(dto.getFaturamento());
-                        detalheExistente.setSolitIdFat(dto.getSolitIdFat());
-                        detalheExistente.setRecebIdFat(dto.getRecebIdFat());
-                        detalheExistente.setIdFaturamento(dto.getIdFaturamento());
-                        detalheExistente.setDataFatInprout(dto.getDataFatInprout());
-                        detalheExistente.setSolitFsPortal(dto.getSolitFsPortal());
-                        detalheExistente.setDataFs(dto.getDataFs());
-                        detalheExistente.setNumFs(dto.getNumFs());
-                        detalheExistente.setGate(dto.getGate());
-                        detalheExistente.setGateId(dto.getGateId());
-                        // --- FIM DA CORREÇÃO ---
-
-                        osLpuDetalheRepository.save(detalheExistente);
-
-                    } else {
-                        // A KEY NÃO EXISTE: CRIAR
-                        if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
-                            throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
-                        }
-                        createOs(dto);
-                    }
-
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("Erro ao processar a linha " + numeroLinha + " da planilha: " + e.getMessage(), e);
-                }
-            }
-        } catch (IOException e) {
-            throw new IOException("Falha ao ler o arquivo. Pode estar corrompido.", e);
-        }
-    }
-
-    @Override
     @Transactional(readOnly = true)
     public List<OS> findAllWithDetails() {
         // 1. Primeira busca: Traz as OSs e seus detalhes (mas sem os lançamentos)
@@ -501,6 +410,200 @@ public class OsServiceImpl implements OsService {
         dto.setKey(getStringCellValue(row, 49));
 
         return dto;
+    }
+
+    @Override
+    @Transactional
+    public void processarLinhaDePlanilha(Map<String, Object> rowData) {
+        // 1. Converte o Mapa genérico para o nosso DTO
+        OsRequestDto dto = criarDtoDoMapa(rowData);
+
+        if (dto == null || dto.getKey() == null || dto.getKey().isBlank()) {
+            throw new IllegalArgumentException("A coluna 'KEY' é obrigatória e não pode estar vazia.");
+        }
+
+        // 2. Lógica de "upsert" (a mesma que já tínhamos)
+        Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
+
+        if (detalheExistenteOpt.isPresent()) {
+            // ATUALIZAR
+            OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
+            // (A lógica de atualização que já tínhamos vai aqui...)
+            detalheExistente.setSite(dto.getSite());
+            detalheExistente.setRegional(dto.getRegional());
+            // ... (copie todos os outros campos atualizáveis aqui)
+            detalheExistente.setFaturamento(dto.getFaturamento());
+            detalheExistente.setSolitIdFat(dto.getSolitIdFat());
+            // ... etc ...
+            osLpuDetalheRepository.save(detalheExistente);
+        } else {
+            // CRIAR
+            if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+                throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
+            }
+            createOs(dto);
+        }
+    }
+
+    private OsRequestDto criarDtoDoMapa(Map<String, Object> rowData, Map<String, Segmento> segmentoMap, Map<String, Lpu> lpuMap) {
+        OsRequestDto dto = new OsRequestDto();
+
+        dto.setKey(getMapString(rowData, "KEY"));
+        dto.setOs(getMapString(rowData, "OS"));
+        dto.setSite(getMapString(rowData, "SITE"));
+        dto.setContrato(getMapString(rowData, "CONTRATO"));
+        dto.setProjeto(getMapString(rowData, "PROJETO"));
+        dto.setGestorTim(getMapString(rowData, "GESTOR TIM"));
+        dto.setRegional(getMapString(rowData, "REGIONAL"));
+        dto.setLote(getMapString(rowData, "LOTE"));
+        dto.setBoq(getMapString(rowData, "BOQ"));
+        dto.setPo(getMapString(rowData, "PO"));
+        dto.setItem(getMapString(rowData, "ITEM"));
+        dto.setObjetoContratado(getMapString(rowData, "OBJETO CONTRATADO"));
+        dto.setUnidade(getMapString(rowData, "UNIDADE"));
+        dto.setQuantidade(getMapInteger(rowData, "QUANTIDADE"));
+        dto.setValorTotal(getMapBigDecimal(rowData, "VALOR TOTAL OS"));
+        dto.setObservacoes(getMapString(rowData, "OBSERVAÇÕES"));
+        dto.setDataPo(getMapLocalDate(rowData, "DATA PO"));
+        dto.setFaturamento(getMapString(rowData, "FATURAMENTO"));
+        dto.setSolitIdFat(getMapString(rowData, "SOLICIT ID FAT"));
+        dto.setRecebIdFat(getMapString(rowData, "RECEB ID FAT"));
+        dto.setIdFaturamento(getMapString(rowData, "ID FATURAMENTO"));
+        dto.setDataFatInprout(getMapLocalDate(rowData, "DATA FAT INPROUT"));
+        dto.setSolitFsPortal(getMapString(rowData, "SOLICIT FS PORTAL"));
+        dto.setDataFs(getMapLocalDate(rowData, "DATA FS"));
+        dto.setNumFs(getMapString(rowData, "NUM FS"));
+        dto.setGate(getMapString(rowData, "GATE"));
+        dto.setGateId(getMapString(rowData, "GATE ID"));
+
+        // Lógica para encontrar Segmento e LPU usando os mapas em cache
+        String nomeSegmento = getMapString(rowData, "SEGMENTO");
+        if (nomeSegmento != null && !nomeSegmento.isEmpty()) {
+            Segmento segmento = segmentoMap.get(nomeSegmento.toUpperCase());
+            if (segmento != null) {
+                dto.setSegmentoId(segmento.getId());
+            }
+        }
+
+        String codigoLpu = getMapString(rowData, "LPU");
+        String nomeContrato = getMapString(rowData, "CONTRATO");
+        if (codigoLpu != null && nomeContrato != null) {
+            String chaveComposta = (nomeContrato + "::" + codigoLpu).toUpperCase();
+            Lpu lpu = lpuMap.get(chaveComposta);
+            if (lpu != null) {
+                dto.setLpuIds(List.of(lpu.getId()));
+            }
+        }
+        return dto;
+    }
+
+    // Funções auxiliares para extrair e converter tipos do Mapa com segurança
+    private String getMapString(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        return val != null ? String.valueOf(val) : null;
+    }
+    private Integer getMapInteger(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val instanceof Number) {
+            return ((Number) val).intValue();
+        }
+        try {
+            return val != null ? Integer.parseInt(String.valueOf(val)) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    private BigDecimal getMapBigDecimal(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        if (val instanceof Number) {
+            return BigDecimal.valueOf(((Number) val).doubleValue());
+        }
+        try {
+            return val != null ? new BigDecimal(String.valueOf(val).replace(",", ".")) : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+    private LocalDate getMapLocalDate(Map<String, Object> map, String key) {
+        Object val = map.get(key);
+        // Verifica se o valor é um número (seja Integer, Double, etc.)
+        if (val instanceof Number) {
+            // Converte o valor para double de forma segura antes de usar
+            return DateUtil.getJavaDate(((Number) val).doubleValue()).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        }
+        // Retorna nulo se não for um número (outros formatos não são suportados)
+        return null;
+    }
+
+    @Override
+    @Transactional
+    public List<String> processarLoteDePlanilha(List<Map<String, Object>> loteDeLinhas) {
+        List<String> erros = new ArrayList<>();
+
+        // Cache para otimizar buscas, evitando múltiplas chamadas ao banco dentro do loop
+        Map<String, Segmento> segmentoMap = segmentoRepository.findAll().stream()
+                .collect(Collectors.toMap(s -> s.getNome().toUpperCase(), s -> s, (s1, s2) -> s1));
+        Map<String, Lpu> lpuMap = lpuRepository.findAll().stream()
+                .filter(lpu -> lpu.getContrato() != null && lpu.getCodigoLpu() != null)
+                .collect(Collectors.toMap(
+                        lpu -> (lpu.getContrato().getNome() + "::" + lpu.getCodigoLpu()).toUpperCase(),
+                        Function.identity(),
+                        (lpu1, lpu2) -> lpu1
+                ));
+
+        int i = 0;
+        for (Map<String, Object> rowData : loteDeLinhas) {
+            i++;
+            try {
+                // A chamada para a função agora está correta
+                OsRequestDto dto = criarDtoDoMapa(rowData, segmentoMap, lpuMap);
+
+                if (dto == null || dto.getKey() == null || dto.getKey().isBlank()) {
+                    erros.add("Linha " + i + " no lote: A coluna 'KEY' é obrigatória.");
+                    continue;
+                }
+
+                Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
+
+                if (detalheExistenteOpt.isPresent()) {
+                    // LÓGICA DE ATUALIZAÇÃO
+                    OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
+                    // ... (a lógica de atualização que já tínhamos)
+                    detalheExistente.setSite(dto.getSite());
+                    detalheExistente.setRegional(dto.getRegional());
+                    detalheExistente.setLote(dto.getLote());
+                    detalheExistente.setBoq(dto.getBoq());
+                    detalheExistente.setPo(dto.getPo());
+                    detalheExistente.setItem(dto.getItem());
+                    detalheExistente.setObjetoContratado(dto.getObjetoContratado());
+                    detalheExistente.setUnidade(dto.getUnidade());
+                    detalheExistente.setQuantidade(dto.getQuantidade());
+                    detalheExistente.setValorTotal(dto.getValorTotal());
+                    detalheExistente.setObservacoes(dto.getObservacoes());
+                    detalheExistente.setDataPo(dto.getDataPo());
+                    detalheExistente.setFaturamento(dto.getFaturamento());
+                    detalheExistente.setSolitIdFat(dto.getSolitIdFat());
+                    detalheExistente.setRecebIdFat(dto.getRecebIdFat());
+                    detalheExistente.setIdFaturamento(dto.getIdFaturamento());
+                    detalheExistente.setDataFatInprout(dto.getDataFatInprout());
+                    detalheExistente.setSolitFsPortal(dto.getSolitFsPortal());
+                    detalheExistente.setDataFs(dto.getDataFs());
+                    detalheExistente.setNumFs(dto.getNumFs());
+                    detalheExistente.setGate(dto.getGate());
+                    detalheExistente.setGateId(dto.getGateId());
+                    osLpuDetalheRepository.save(detalheExistente);
+                } else {
+                    // LÓGICA DE CRIAÇÃO
+                    if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+                        throw new IllegalArgumentException("Para criar novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
+                    }
+                    createOs(dto);
+                }
+            } catch (Exception e) {
+                erros.add("Linha " + i + " no lote: " + e.getMessage());
+            }
+        }
+        return erros;
     }
 
     private String getStringCellValue(Row row, int cellIndex) {

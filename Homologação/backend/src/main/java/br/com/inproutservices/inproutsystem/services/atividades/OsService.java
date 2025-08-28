@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Interface para o serviço de Ordens de Serviço (OS).
@@ -59,7 +60,9 @@ public interface OsService {
      */
     void deleteOs(Long id);
 
-    void importarOsDePlanilha(MultipartFile file) throws IOException;
+    List<String> processarLoteDePlanilha(List<Map<String, Object>> lote);
+
+    void processarLinhaDePlanilha(Map<String, Object> rowData);
 
     List<OS> findAllWithDetails();
 }

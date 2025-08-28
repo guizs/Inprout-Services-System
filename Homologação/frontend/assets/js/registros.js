@@ -1,23 +1,34 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://localhost:8080'; // Ajuste se a URL for outra
-    let todasAsLinhas = []; // Esta variável vai guardar a lista "achatada" de linhas da tabela
+    const API_BASE_URL = 'http://localhost:8080';
+    let todasAsLinhas = [];
 
-    // Funções utilitárias
-    const get = (obj, path, defaultValue = 'N/A') => path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : defaultValue), obj);
-    const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : 'N/A';
+    // --- FUNÇÕES UTILITÁRIAS CORRIGIDAS ---
+    const get = (obj, path, defaultValue = '-') => {
+        const value = path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj);
+        return value !== undefined ? value : defaultValue;
+    };
+    const formatarMoeda = (valor) => {
+        if (valor === null || valor === undefined || isNaN(Number(valor))) {
+            return '-';
+        }
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+    };
+    const formatarData = (dataStr) => {
+        if (!dataStr) return '-';
+        // A data já vem no formato dd/MM/yyyy HH:mm:ss, então pegamos só a parte da data
+        return dataStr.split(' ')[0];
+    };
 
-    // Definição das colunas da tabela (mantido como estava)
+    // Definição das colunas da tabela
     const colunasPorRole = {
-        'MANAGER': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "DATA CRIAÇÃO OS"],
-        'DEFAULT': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS"]
+        'MANAGER': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "DATA CRIAÇÃO OS", "KEY"],
+        'DEFAULT': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"]
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
 
-    // ==========================================================
-    // ATUALIZAÇÃO 1: Mapeamento de dados para a NOVA estrutura
-    // ==========================================================
+    // Mapeamento de dados corrigido para a nova estrutura
     const dataMapping = {
         "OS": (linha) => get(linha, 'os.os'),
         "SITE": (linha) => get(linha, 'detalhe.site'),
@@ -30,28 +41,23 @@ document.addEventListener('DOMContentLoaded', function () {
         "BOQ": (linha) => get(linha, 'detalhe.boq'),
         "PO": (linha) => get(linha, 'detalhe.po'),
         "ITEM": (linha) => get(linha, 'detalhe.item'),
-
-        // --- INÍCIO DA CORREÇÃO ---
-        // Agora, o "Objeto Contratado" sempre buscará a descrição da LPU associada.
         "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.lpu.nomeLpu'),
-        // --- FIM DA CORREÇÃO ---
-
         "UNIDADE": (linha) => get(linha, 'detalhe.unidade'),
         "QUANTIDADE": (linha) => get(linha, 'detalhe.quantidade'),
         "VALOR TOTAL OS": (linha) => formatarMoeda(get(linha, 'detalhe.valorTotal')),
         "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'),
         "DATA PO": (linha) => get(linha, 'detalhe.dataPo'),
-        "LPU": (linha) => `${get(linha, 'detalhe.lpu.codigoLpu')}`,
-        "ETAPA GERAL": (linha) => get(linha, 'ultimoLancamento.etapa.nomeGeral', ''),
-        "ETAPA DETALHADA": (linha) => get(linha, 'ultimoLancamento.etapa.nomeDetalhado', ''),
-        "STATUS": (linha) => get(linha, 'ultimoLancamento.status', ''),
-        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao', ''),
-        "DETALHE DIÁRIO": (linha) => get(linha, 'ultimoLancamento.detalheDiario', ''),
-        "CÓD. PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.codigo', ''),
-        "PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.nome', ''),
+        "LPU": (linha) => get(linha, 'detalhe.lpu.codigoLpu'),
+        "ETAPA GERAL": (linha) => get(linha, 'ultimoLancamento.etapa.nomeGeral'),
+        "ETAPA DETALHADA": (linha) => get(linha, 'ultimoLancamento.etapa.nomeDetalhado'),
+        "STATUS": (linha) => get(linha, 'ultimoLancamento.status'),
+        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao'),
+        "DETALHE DIÁRIO": (linha) => get(linha, 'ultimoLancamento.detalheDiario'),
+        "CÓD. PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.codigo'),
+        "PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.nome'),
         "VALOR": (linha) => formatarMoeda(get(linha, 'ultimoLancamento.valor')),
-        "GESTOR": (linha) => get(linha, 'ultimoLancamento.manager.nome', ''),
-        "DATA ATIVIDADE": (linha) => get(linha, 'ultimoLancamento.dataAtividade', ''),
+        "GESTOR": (linha) => get(linha, 'ultimoLancamento.manager.nome'),
+        "DATA ATIVIDADE": (linha) => get(linha, 'ultimoLancamento.dataAtividade'),
         "FATURAMENTO": (linha) => get(linha, 'detalhe.faturamento'),
         "SOLICIT ID FAT": (linha) => get(linha, 'detalhe.solitIdFat'),
         "RECEB ID FAT": (linha) => get(linha, 'detalhe.recebIdFat'),
@@ -62,12 +68,10 @@ document.addEventListener('DOMContentLoaded', function () {
         "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'),
         "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
-        "DATA CRIAÇÃO OS": (linha) => get(linha, 'os.dataCriacao')
+        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')),
+        "KEY": (linha) => get(linha, 'detalhe.key')
     };
 
-    // ==========================================================
-    // ATUALIZAÇÃO 2: Lógica de inicialização para processar a NOVA estrutura
-    // ==========================================================
     async function inicializarPagina() {
         const tableHead = document.getElementById('registros-table-head');
         const tableBody = document.getElementById('registros-table-body');
@@ -80,12 +84,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error("Erro do servidor:", errorText);
-                throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-            }
-
+            if (!response.ok) throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+            
             const osData = await response.json();
 
             const userSegmentos = JSON.parse(localStorage.getItem('segmentos')) || [];
@@ -97,7 +97,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     : [];
             }
 
-            // "Achata" a estrutura de dados: cada 'detalhe' de uma OS vira uma linha na tabela
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
                 const osInfo = { ...os, detalhes: undefined };
@@ -122,9 +121,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // ==========================================================
-    // ATUALIZAÇÃO 3: Renderização da tabela para usar a NOVA estrutura
-    // ==========================================================
     function renderizarTabela(linhasParaRenderizar) {
         const tableBody = document.getElementById('registros-table-body');
         tableBody.innerHTML = '';
@@ -138,13 +134,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const tr = document.createElement('tr');
             const celulas = headers.map(header => {
                 const func = dataMapping[header];
-                return func ? func(linhaData) : 'N/A';
+                const valor = func ? func(linhaData) : '-';
+                return `<td>${valor}</td>`;
             });
-            tr.innerHTML = celulas.map(celula => `<td>${celula}</td>`).join('');
+            tr.innerHTML = celulas.join('');
             tableBody.appendChild(tr);
         });
     }
 
+    // --- FUNÇÃO DE BUSCA CORRIGIDA ---
     function adicionarListenerDeBusca() {
         const searchInput = document.getElementById('searchInput');
         searchInput.addEventListener('input', function () {
@@ -154,8 +152,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             const linhasFiltradas = todasAsLinhas.filter(linhaData => {
-                const os = linhaData.os;
-                return (os.os?.toLowerCase().includes(termoBusca) || os.site?.toLowerCase().includes(termoBusca) || os.contrato?.toLowerCase().includes(termoBusca));
+                const textoPesquisavel = [
+                    get(linhaData, 'os.os', ''),
+                    get(linhaData, 'detalhe.site', ''),
+                    get(linhaData, 'detalhe.contrato', ''),
+                    get(linhaData, 'os.projeto', ''),
+                    get(linhaData, 'detalhe.lpu.nomeLpu', ''),
+                    get(linhaData, 'detalhe.lpu.codigoLpu', '')
+                ].join(' ').toLowerCase();
+                return textoPesquisavel.includes(termoBusca);
             });
             renderizarTabela(linhasFiltradas);
         });
@@ -178,15 +183,12 @@ document.addEventListener('DOMContentLoaded', function () {
             btnImportar.disabled = true;
             btnImportar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Importando...`;
 
-            // Cria um FormData para enviar o arquivo
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                // Envia o arquivo para o novo endpoint
                 const response = await fetch(`${API_BASE_URL}/os/importar`, {
                     method: 'POST',
-                    // Não precisa de 'Content-Type', o navegador define automaticamente para multipart/form-data
                     body: formData
                 });
 
@@ -197,8 +199,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const successMessage = await response.text();
                 mostrarToast(successMessage, 'success');
-
-                // Recarrega a página ou a tabela para mostrar os novos dados
                 await inicializarPagina();
 
             } catch (error) {
@@ -207,63 +207,37 @@ document.addEventListener('DOMContentLoaded', function () {
             } finally {
                 btnImportar.disabled = false;
                 btnImportar.innerHTML = `<i class="bi bi-file-earmark-excel me-1"></i> Importar`;
-                importFileInput.value = ''; // Limpa o input de arquivo
+                importFileInput.value = '';
             }
         });
     }
 
-    function excelDateToJSDate(excelDate) {
-        if (excelDate instanceof Date) {
-            const ano = excelDate.getFullYear();
-            const mes = String(excelDate.getMonth() + 1).padStart(2, '0');
-            const dia = String(excelDate.getDate()).padStart(2, '0');
-            return `${ano}-${mes}-${dia}`;
-        }
-        if (typeof excelDate === 'number') {
-            const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-            const ano = date.getFullYear();
-            const mes = String(date.getMonth() + 1).padStart(2, '0');
-            const dia = String(date.getDate()).padStart(2, '0');
-            return `${ano}-${mes}-${dia}`;
-        }
-        return null;
-    }
-
     const btnExportar = document.getElementById('btnExportar');
-
     if (btnExportar) {
         btnExportar.addEventListener('click', () => {
             if (todasAsLinhas.length === 0) {
-                if (typeof mostrarToast === 'function') {
-                    mostrarToast('Não há dados para exportar.', 'error');
-                } else {
-                    alert('Não há dados para exportar.');
-                }
+                mostrarToast('Não há dados para exportar.', 'error');
                 return;
             }
-
             const csvHeaders = headers;
-
             const csvRows = todasAsLinhas.map(linhaData => {
-                const { os, lpuItem } = linhaData;
-                const formatarMoedaCSV = (valor) => (valor || valor === 0) ? valor.toString().replace('.', ',') : '';
-
                 const row = csvHeaders.map(header => {
                     const func = dataMapping[header];
-                    return func ? func(os, lpuItem, formatarMoedaCSV) : '';
+                    let cell = func ? func(linhaData) : '';
+                    if (typeof cell === 'number') {
+                        cell = cell.toString().replace('.', ',');
+                    }
+                    return cell;
                 });
-
                 return row.map(cell => {
-                    const cellStr = String(cell);
+                    const cellStr = String(cell).replace(/(\r\n|\n|\r)/gm, " ").trim();
                     if (cellStr.includes(';') || cellStr.includes('"') || cellStr.includes('\n')) {
                         return `"${cellStr.replace(/"/g, '""')}"`;
                     }
                     return cellStr;
                 }).join(';');
             });
-
             const csvContent = [csvHeaders.join(';'), ...csvRows].join('\n');
-
             const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
             const link = document.createElement('a');
             const url = URL.createObjectURL(blob);
@@ -274,14 +248,13 @@ document.addEventListener('DOMContentLoaded', function () {
             link.click();
             document.body.removeChild(link);
         });
+    }
 
-        if (userRole === 'MANAGER') {
-            const containerBotoes = document.getElementById('botoes-acao');
-            if (containerBotoes) {
-                containerBotoes.classList.add('d-none');
-            }
+    if (userRole === 'MANAGER') {
+        const containerBotoes = document.getElementById('botoes-acao');
+        if (containerBotoes) {
+            containerBotoes.classList.add('d-none');
         }
-
     }
 
     inicializarPagina();

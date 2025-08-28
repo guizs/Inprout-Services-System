@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional; // Importe o Optional
 
 /**
  * Repositório para a entidade OsLpuDetalhe, que representa as linhas de detalhe de uma OS.
@@ -18,5 +19,7 @@ public interface OsLpuDetalheRepository extends JpaRepository<OsLpuDetalhe, Long
             "LEFT JOIN FETCH d.lancamentos " +
             "WHERE d.os.id IN :osIds")
     List<OsLpuDetalhe> findAllWithLancamentosByOsIds(@Param("osIds") List<Long> osIds);
+
+    Optional<OsLpuDetalhe> findByKey(String key);
 
 }

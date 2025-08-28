@@ -632,29 +632,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
-            const selectOS = document.getElementById('osId');
-            const selectLPU = document.getElementById('lpuId');
-            const lpuContainer = document.getElementById('lpuContainer');
+            const dataAtividadeInput = document.getElementById('dataAtividade'); // Referência ao campo de data
 
-            btnSubmitPadrao.style.display = 'none';
-            btnSalvarRascunho.style.display = 'none';
-            btnSalvarEEnviar.style.display = 'none';
+            // ... (lógica de visibilidade dos botões)
 
             if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                 modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
                 btnSalvarRascunho.style.display = 'inline-block';
                 btnSalvarEEnviar.style.display = 'inline-block';
+                // Para rascunhos, carrega a data salva
+                dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
+
             } else {
                 btnSubmitPadrao.style.display = 'inline-block';
                 if (editingId) {
                     modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Editar Lançamento #${editingId}`;
                     btnSubmitPadrao.innerHTML = `<i class="bi bi-send-check"></i> Salvar e Reenviar`;
+                    // Para edições, também carrega a data salva
+                    dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
                 } else {
                     modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
                     btnSubmitPadrao.innerHTML = `<i class="bi bi-check-circle"></i> Criar Lançamento`;
 
+                    // --- INÍCIO DA CORREÇÃO ---
+                    // Ao retomar, define a data da atividade como HOJE por padrão.
                     const hoje = new Date().toISOString().split('T')[0];
                     dataAtividadeInput.value = hoje;
+                    // --- FIM DA CORREÇÃO ---
                 }
             }
 

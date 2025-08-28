@@ -335,7 +335,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
             const detalhe = lancamento.detalhe || {};
             const os = lancamento.os || {};
             const lpu = detalhe.lpu || {};
@@ -356,17 +355,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PROJETO": os.projeto || '',
                 "GESTOR TIM": os.gestorTim || '',
                 "REGIONAL": detalhe.regional || '',
-                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu} - ${lpu.nomeLpu}` : '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu}` : (lpu.codigoLpu || ''),
                 "LOTE": detalhe.lote || '',
                 "BOQ": detalhe.boq || '',
                 "PO": detalhe.po || '',
                 "ITEM": detalhe.item || '',
-                "OBJETO CONTRATADO": detalhe.objetoContratado || '',
+                // --- INÍCIO DA CORREÇÃO ---
+                "OBJETO CONTRATADO": lpu.nomeLpu || '',
+                // --- FIM DA CORREÇÃO ---
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
                 "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
                 "OBSERVAÇÕES": detalhe.observacoes || '',
-                "DATA PO": formatarData(lancamento.dataPo) || '', // Corrigido para pegar do lançamento se existir
+                "DATA PO": formatarData(detalhe.dataPo) || '',
                 "VISTORIA": lancamento.vistoria || '',
                 "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
                 "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
@@ -387,7 +388,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "VALOR": formatarMoeda(lancamento.valor),
                 "GESTOR": manager.nome || '',
             };
-            // --- FIM DA CORREÇÃO ---
 
             colunas.forEach(nomeColuna => {
                 if (nomeColuna === 'PRAZO AÇÃO' && userRole === 'CONTROLLER') {
@@ -753,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const formatarMoeda = (valor) => valor ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
         const formatarData = (dataStr) => {
             if (!dataStr) return '';
             if (dataStr.includes('/')) return dataStr;
@@ -775,7 +775,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusBadge = `<span class="badge rounded-pill text-bg-info">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`;
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
             const detalhe = lancamento.detalhe || {};
             const os = lancamento.os || {};
             const lpu = detalhe.lpu || {};
@@ -797,17 +796,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PROJETO": os.projeto || '',
                 "GESTOR TIM": os.gestorTim || '',
                 "REGIONAL": detalhe.regional || '',
-                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu} - ${lpu.nomeLpu}` : '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu}` : (lpu.codigoLpu || ''),
                 "LOTE": detalhe.lote || '',
                 "BOQ": detalhe.boq || '',
                 "PO": detalhe.po || '',
                 "ITEM": detalhe.item || '',
-                "OBJETO CONTRATADO": detalhe.objetoContratado || '',
+                // --- INÍCIO DA CORREÇÃO ---
+                "OBJETO CONTRATADO": lpu.nomeLpu || '',
+                // --- FIM DA CORREÇÃO ---
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
                 "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
                 "OBSERVAÇÕES": detalhe.observacoes || '',
-                "DATA PO": formatarData(lancamento.dataPo) || '',
+                "DATA PO": formatarData(detalhe.dataPo) || '',
                 "VISTORIA": lancamento.vistoria || '',
                 "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
                 "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
@@ -828,7 +829,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "VALOR": formatarMoeda(lancamento.valor),
                 "GESTOR": manager.nome || '',
             };
-            // --- FIM DA CORREÇÃO ---
 
             colunasHistorico.forEach(nomeColuna => {
                 const td = document.createElement('td');

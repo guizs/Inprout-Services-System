@@ -16,6 +16,10 @@ public interface LancamentoService {
 
     Lancamento rejeitarPeloController(Long lancamentoId, AcaoControllerDTO dto);
 
+    void aprovarPrazoLotePeloController(List<Long> lancamentoIds, Long controllerId);
+
+    void rejeitarPrazoLotePeloController(List<Long> lancamentoIds, Long controllerId, String motivo, LocalDate novaData);
+
     List<Lancamento> listarPendentesPorUsuario(Long usuarioId);
 
     List<Lancamento> getHistoricoPorUsuario(Long usuarioId);

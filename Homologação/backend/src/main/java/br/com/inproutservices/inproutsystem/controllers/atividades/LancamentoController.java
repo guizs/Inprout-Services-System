@@ -40,6 +40,18 @@ public class LancamentoController {
         this.lancamentoService = lancamentoService;
     }
 
+    @PostMapping("/lote/prazo/aprovar")
+    public ResponseEntity<Void> aprovarPrazoLotePeloController(@RequestBody AprovacaoLoteRequest request) {
+        lancamentoService.aprovarPrazoLotePeloController(request.lancamentoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/prazo/rejeitar")
+    public ResponseEntity<Void> rejeitarPrazoLotePeloController(@RequestBody AcaoPrazoLoteControllerRequest request) {
+        lancamentoService.rejeitarPrazoLotePeloController(request.lancamentoIds(), request.controllerId(), request.motivoRejeicao(), request.novaDataPrazo());
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping
     public ResponseEntity<LancamentoResponseDTO> criarLancamento(@RequestBody LancamentoRequestDTO dto) {
 

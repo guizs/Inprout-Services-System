@@ -108,12 +108,15 @@ public class OsServiceImpl implements OsService {
                     novoDetalhe.setOs(osParaSalvar);
                     novoDetalhe.setLpu(lpu);
 
+                    // --- INÍCIO DA CORREÇÃO ---
+                    // Define o Objeto Contratado com a descrição da LPU
+                    novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+                    // --- FIM DA CORREÇÃO ---
+
                     // Define a chave única. Ex: "OS-123_LPU-45"
                     novoDetalhe.setKey(osDto.getOs() + "_" + lpu.getId());
 
-                    novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
-
-                    // Copia todos os campos de detalhe do DTO para a nova entidade
+                    // Copia todos os outros campos de detalhe do DTO para a nova entidade
                     novoDetalhe.setSite(osDto.getSite());
                     novoDetalhe.setContrato(osDto.getContrato());
                     novoDetalhe.setRegional(osDto.getRegional());
@@ -121,7 +124,6 @@ public class OsServiceImpl implements OsService {
                     novoDetalhe.setBoq(osDto.getBoq());
                     novoDetalhe.setPo(osDto.getPo());
                     novoDetalhe.setItem(osDto.getItem());
-                    novoDetalhe.setObjetoContratado(osDto.getObjetoContratado());
                     novoDetalhe.setUnidade(osDto.getUnidade());
                     novoDetalhe.setQuantidade(osDto.getQuantidade());
                     novoDetalhe.setValorTotal(osDto.getValorTotal());

@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.dtos.atividades;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuSimpleDTO;
 import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import br.com.inproutservices.inproutsystem.dtos.index.SegmentoSimpleDTO;
+import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
@@ -14,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record LancamentoResponseDTO(
@@ -28,6 +31,8 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataAtividade,
         String detalheDiario,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazo,
+        List<ComentarioDTO> comentarios,
         String equipe,
         String vistoria,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoVistoria,
@@ -62,6 +67,10 @@ public record LancamentoResponseDTO(
                 lancamento.getDataAtividade(),
                 lancamento.getDetalheDiario(),
                 lancamento.getDataCriacao(),
+                lancamento.getDataPrazo(),
+                (lancamento.getComentarios() != null)
+                        ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
+                        : List.of(),
                 lancamento.getEquipe(),
                 lancamento.getVistoria(),
                 lancamento.getPlanoVistoria(),
@@ -76,6 +85,28 @@ public record LancamentoResponseDTO(
                 lancamento.getStatus(),
                 lancamento.getSituacao()
         );
+    }
+
+    public record ComentarioDTO(
+            Long id,
+            String texto,
+            @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora,
+            AutorSimpleDTO autor
+    ) {
+        public ComentarioDTO(Comentario comentario) {
+            this(
+                    comentario.getId(),
+                    comentario.getTexto(),
+                    comentario.getDataHora(),
+                    (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null
+            );
+        }
+    }
+
+    public record AutorSimpleDTO(Long id, String nome) {
+        public AutorSimpleDTO(Usuario autor) {
+            this(autor.getId(), autor.getNome());
+        }
     }
 
     // DTO aninhado para o Manager (Gestor)
@@ -98,9 +129,21 @@ public record LancamentoResponseDTO(
             this(os.getId(), os.getOs(), os.getProjeto(), os.getGestorTim(), (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null);
         }
     }
-    public record OsLpuDetalheSimpleDTO(Long id, String key, LpuSimpleDTO lpu, String site, String po, String contrato, String regional) {
+    public record OsLpuDetalheSimpleDTO(
+            Long id, String key, LpuSimpleDTO lpu, String site, String po,
+            String contrato, String regional, String lote, String boq, String item,
+            String objetoContratado, String unidade, Integer quantidade,
+            BigDecimal valorTotal, String observacoes, @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo
+    ) {
         public OsLpuDetalheSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe detalhe) {
-            this(detalhe.getId(), detalhe.getKey(), (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null, detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional());
+            this(
+                    detalhe.getId(), detalhe.getKey(),
+                    (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null,
+                    detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional(),
+                    detalhe.getLote(), detalhe.getBoq(), detalhe.getItem(), detalhe.getObjetoContratado(),
+                    detalhe.getUnidade(), detalhe.getQuantidade(), detalhe.getValorTotal(),
+                    detalhe.getObservacoes(), detalhe.getDataPo()
+            );
         }
     }
 }

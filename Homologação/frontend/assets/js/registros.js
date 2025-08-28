@@ -30,13 +30,18 @@ document.addEventListener('DOMContentLoaded', function () {
         "BOQ": (linha) => get(linha, 'detalhe.boq'),
         "PO": (linha) => get(linha, 'detalhe.po'),
         "ITEM": (linha) => get(linha, 'detalhe.item'),
-        "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.objetoContratado'),
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Agora, o "Objeto Contratado" sempre buscará a descrição da LPU associada.
+        "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.lpu.nomeLpu'),
+        // --- FIM DA CORREÇÃO ---
+
         "UNIDADE": (linha) => get(linha, 'detalhe.unidade'),
         "QUANTIDADE": (linha) => get(linha, 'detalhe.quantidade'),
         "VALOR TOTAL OS": (linha) => formatarMoeda(get(linha, 'detalhe.valorTotal')),
         "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'),
         "DATA PO": (linha) => get(linha, 'detalhe.dataPo'),
-        "LPU": (linha) => `${get(linha, 'detalhe.lpu.codigoLpu')} - ${get(linha, 'detalhe.lpu.nomeLpu')}`,
+        "LPU": (linha) => `${get(linha, 'detalhe.lpu.codigoLpu')}`,
         "ETAPA GERAL": (linha) => get(linha, 'ultimoLancamento.etapa.nomeGeral', ''),
         "ETAPA DETALHADA": (linha) => get(linha, 'ultimoLancamento.etapa.nomeDetalhado', ''),
         "STATUS": (linha) => get(linha, 'ultimoLancamento.status', ''),

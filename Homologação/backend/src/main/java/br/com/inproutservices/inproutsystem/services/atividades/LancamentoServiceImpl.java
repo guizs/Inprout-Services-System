@@ -218,6 +218,59 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional
+    public void aprovarPrazoLotePeloController(List<Long> lancamentoIds, Long controllerId) {
+        Usuario controller = usuarioRepository.findById(controllerId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário Controller não encontrado."));
+        if (controller.getRole() != Role.CONTROLLER && controller.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO) {
+                lancamento.setDataPrazo(lancamento.getDataPrazoProposta());
+                lancamento.setDataPrazoProposta(null);
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+                lancamento.setUltUpdate(LocalDateTime.now());
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+    @Override
+    @Transactional
+    public void rejeitarPrazoLotePeloController(List<Long> lancamentoIds, Long controllerId, String motivo, LocalDate novaData) {
+        Usuario controller = usuarioRepository.findById(controllerId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário Controller não encontrado."));
+        if (controller.getRole() != Role.CONTROLLER && controller.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário não tem permissão para esta ação.");
+        }
+        if (motivo == null || motivo.isBlank() || novaData == null) {
+            throw new BusinessException("Motivo e nova data são obrigatórios.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(lancamentoIds);
+        for (Lancamento lancamento : lancamentos) {
+            if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO || lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PRAZO_VENCIDO) {
+                lancamento.setDataPrazoProposta(null);
+                lancamento.setDataPrazo(novaData);
+                lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+                lancamento.setUltUpdate(LocalDateTime.now());
+
+                Comentario comentario = new Comentario();
+                comentario.setLancamento(lancamento);
+                comentario.setAutor(controller);
+                comentario.setTexto("Solicitação de novo prazo rejeitada. Motivo: " + motivo);
+                lancamento.getComentarios().add(comentario);
+            }
+        }
+        lancamentoRepository.saveAll(lancamentos);
+    }
+
+
+
+    @Override
+    @Transactional
     public void submeterLancamentosDiarios() {
         // 1. Define a data que será usada no filtro (o dia anterior)
         LocalDate ontem = LocalDate.now().minusDays(1);

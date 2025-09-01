@@ -86,6 +86,7 @@ public class Lancamento {
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     private StatusEtapa status;
+    @Column(columnDefinition = "TEXT")
     private String detalheDiario;
     private BigDecimal valor;
     private BigDecimal valorAdiantamento;

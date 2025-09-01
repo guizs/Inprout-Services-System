@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Buscamos os detalhes completos da OS, que inclui a lista de LPUs
-            const response = await fetch(`http://localhost:8080/os/${osId}`);
+            const response = await fetch(`http://3.128.248.3:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -207,10 +207,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetch('http://localhost:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetch('http://3.128.248.3:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetch('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
             }
 
             formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetch('http://localhost:8080/lancamentos/lote', {
+            const response = await fetch('http://3.128.248.3:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)

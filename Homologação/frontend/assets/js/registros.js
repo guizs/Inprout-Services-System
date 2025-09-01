@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'http://3.128.248.3:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 

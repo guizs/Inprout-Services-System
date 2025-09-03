@@ -153,7 +153,8 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
         }
 
-        // 2. Validação da Data da Atividade (lógica existente, permanece igual)
+        // --- INÍCIO DA CORREÇÃO ---
+        // 2. Validação da Data da Atividade (adicionada aqui)
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
                 ? hoje.minusDays(3)
@@ -165,6 +166,7 @@ public class LancamentoServiceImpl implements LancamentoService {
                             dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
             );
         }
+        // --- FIM DA CORREÇÃO ---
 
         // 3. Busca das entidades relacionadas
         Usuario manager = usuarioRepository.findById(managerId)
@@ -176,20 +178,13 @@ public class LancamentoServiceImpl implements LancamentoService {
         OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                 .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Busca a OS principal para garantir o vínculo que estava faltando.
         OS os = osRepository.findById(dto.osId())
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-        // --- FIM DA CORREÇÃO ---
 
         // 4. Criação e Mapeamento da nova entidade Lancamento
         Lancamento lancamento = new Lancamento();
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Associa a OS diretamente ao lançamento. Esta é a linha que resolve o erro.
         lancamento.setOs(os);
-        // --- FIM DA CORREÇÃO ---
-
         lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setManager(manager);
         lancamento.setPrestador(prestador);
@@ -420,16 +415,32 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // 3. Busca as entidades relacionadas (Prestador e Etapa) para garantir que os novos IDs são válidos
+        // --- INÍCIO DA CORREÇÃO ---
+        // 3. ADICIONA A VALIDAÇÃO DE DATA NA EDIÇÃO
+        LocalDate hoje = LocalDate.now();
+        LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
+                ? hoje.minusDays(3)
+                : prazoService.getDiaUtilAnterior(hoje);
+
+        if (dto.dataAtividade().isBefore(dataMinimaPermitida)) {
+            throw new BusinessException(
+                    "Não é permitido alterar a data de um lançamento para antes de " +
+                            dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+            );
+        }
+        // --- FIM DA CORREÇÃO ---
+
+        // 4. Busca as entidades relacionadas (Prestador e Etapa) para garantir que os novos IDs são válidos
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
 
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 4. Atualiza os campos do lançamento com os dados do DTO
+        // 5. Atualiza os campos do lançamento com os dados do DTO
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
+        lancamento.setDataAtividade(dto.dataAtividade()); // Atualiza a data da atividade
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
         lancamento.setPlanoVistoria(dto.planoVistoria());

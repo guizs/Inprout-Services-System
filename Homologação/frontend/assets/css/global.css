@@ -328,10 +328,12 @@ tr.selected {
 }
 
 .detalhe-diario-cell {
-  max-width: 300px; /* Define uma largura máxima */
-  white-space: normal !important; /* Permite a quebra de linha */
-  word-wrap: break-word; /* Força a quebra de palavras longas */
-  text-align: left !important; /* Alinha o texto à esquerda */
+  max-width: 750px; /* Aumenta a largura máxima em 2.5x (de 300px para 750px) */
+  white-space: nowrap !important; /* Força o texto a ficar em uma única linha */
+  overflow: hidden; /* Esconde o conteúdo que transborda */
+  text-overflow: ellipsis; /* Adiciona "..." no final do texto truncado */
+  text-align: left !important; /* Mantém o alinhamento à esquerda */
+  cursor: pointer; /* Mantém o cursor de ponteiro para indicar que é clicável */
 }
 
 .detalhe-diario-cell {

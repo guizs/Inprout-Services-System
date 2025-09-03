@@ -835,14 +835,30 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         List<Lancamento> novosLancamentos = new ArrayList<>();
 
+        // --- INÍCIO DA CORREÇÃO ---
+        // 1. Trazemos a lógica de validação de data para este método
+        LocalDate hoje = LocalDate.now();
+        LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
+                ? hoje.minusDays(3) // Se for segunda, permite lançar de sexta, sábado e domingo
+                : prazoService.getDiaUtilAnterior(hoje); // Para outros dias, permite o dia útil anterior
+        // --- FIM DA CORREÇÃO ---
+
         for (LancamentoRequestDTO dto : dtos) {
-            // Busca a OS e o Detalhe (isso já estava certo)
+            // --- INÍCIO DA CORREÇÃO ---
+            // 2. Verificamos a data de CADA lançamento do lote
+            if (dto.dataAtividade().isBefore(dataMinimaPermitida)) {
+                throw new BusinessException(
+                        "Não é permitido criar lançamentos para datas anteriores a " +
+                                dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                );
+            }
+            // --- FIM DA CORREÇÃO ---
+
             OS os = osRepository.findById(dto.osId())
                     .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
             OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                     .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
-            // Garante a consistência do objeto (boa prática, pode manter)
             osLpuDetalhe.setOs(os);
 
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
@@ -852,11 +868,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             Lancamento lancamento = new Lancamento();
 
-            // --- INÍCIO DA CORREÇÃO FINAL ---
-            // AQUI ESTÁ A MUDANÇA CRÍTICA: Preenchemos a nova relação direta na entidade Lancamento.
             lancamento.setOs(os);
-            // --- FIM DA CORREÇÃO FINAL ---
-
             lancamento.setManager(manager);
             lancamento.setOsLpuDetalhe(osLpuDetalhe);
             lancamento.setDataAtividade(dto.dataAtividade());

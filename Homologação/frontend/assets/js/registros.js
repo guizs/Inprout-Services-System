@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const valor = func ? func(linhaData) : '-';
                 td.innerHTML = valor;
 
+                // Adiciona estilos para as colunas de status (OK, NOK, N/A)
                 if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
                     td.classList.add('status-cell');
                     if (valor === 'OK') td.classList.add('status-ok');
@@ -160,8 +161,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     else if (valor === 'N/A') td.classList.add('status-na');
                 }
 
+                // Adiciona cor de fundo para colunas de faturamento
                 if (["FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID"].includes(header)) {
                     td.classList.add('faturamento-col');
+                }
+
+                // --- A CORREÇÃO ESTÁ AQUI ---
+                // Adiciona a classe para tornar a célula do Detalhe Diário clicável
+                if (header === "DETALHE DIÁRIO") {
+                    td.classList.add('detalhe-diario-cell');
                 }
 
                 tr.appendChild(td);

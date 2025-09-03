@@ -241,9 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // 1. Criamos um conjunto (Set) para armazenar as chaves únicas de projetos finalizados.
-        // Isso é feito uma vez por renderização, o que é muito eficiente.
         const projetosFinalizados = new Set();
         todosLancamentos.forEach(l => {
             if (l.situacao === 'Finalizado' && l.os && l.detalhe && l.detalhe.lpu) {
@@ -251,7 +248,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 projetosFinalizados.add(chaveProjeto);
             }
         });
-        // --- FIM DA CORREÇÃO ---
 
         const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
         const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
@@ -311,15 +307,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
-
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
-                            // --- INÍCIO DA CORREÇÃO ---
-                            // 2. Antes de adicionar o botão, verificamos se o projeto já foi finalizado.
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
                             if (!projetosFinalizados.has(chaveProjetoAtual)) {
                                 buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                             }
-                            // --- FIM DA CORREÇÃO ---
                         }
                     }
                     buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
@@ -328,6 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     td.innerHTML = mapaDeCelulas[nomeColuna] || '';
                     if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                         aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                    }
+                    // --- A CORREÇÃO ESTÁ AQUI ---
+                    if (nomeColuna === "DETALHE DIÁRIO") {
+                        td.classList.add('detalhe-diario-cell');
                     }
                 }
                 tr.appendChild(td);
@@ -406,7 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true); // <-- MOSTRA O LOADER
         try {
-            const response = await fetch('http://localhost:8080/lancamentos');
+            const response = await fetch('http://3.128.248.3:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             // ---> ETAPA 1: EXTRAIR O JSON DA RESPOSTA (ESSA LINHA FALTAVA) <---
@@ -492,7 +488,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.disabled = true;
                 lpuContainer.classList.remove('d-none');
 
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
                 if (!response.ok) {
                     throw new Error('Falha ao buscar LPUs para esta OS.');
                 }
@@ -604,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Chama o novo endpoint filtrado
-                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
                     // --- FIM DA ALTERAÇÃO ---
 
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
@@ -629,10 +625,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (selectPrestador.options.length <= 1) {
-                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+                await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -835,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.disabled = true;
                 lpuContainer.classList.remove('d-none');
 
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
                 const raw = await response.json();
@@ -890,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
 
-                const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetch(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -931,7 +927,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.innerHTML = '<option>Carregando...</option>';
                 selectLPU.disabled = true;
 
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
 
                 const lpus = await response.json();
@@ -1010,20 +1006,20 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             let method = 'POST';
-            let url = 'http://localhost:8080/lancamentos';
+            let url = 'http://3.128.248.3:8080/lancamentos';
 
             if (acao === 'salvar') {
                 dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
                 method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
+                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
             } else if (acao === 'enviar') {
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
+                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
             } else if (acao === 'reenviar') {
                 dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
                 method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
+                url = `http://3.128.248.3:8080/lancamentos/${editingId}`;
             }
 
             try {
@@ -1203,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
                 // Busca materiais da API apenas se o cache estiver vazio
-                fetch('http://localhost:8080/materiais')
+                fetch('http://3.128.248.3:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data; // Armazena no cache
@@ -1250,7 +1246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
                 // Altera a URL para o endpoint que filtra por usuário
-                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
                 // --- FIM DA ALTERAÇÃO ---
 
                 const oss = await response.json();
@@ -1279,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
 
                 const lpus = await response.json();
@@ -1352,7 +1348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // ==========================================================
 
             try {
-                const response = await fetch('http://localhost:8080/solicitacoes', {
+                const response = await fetch('http://3.128.248.3:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

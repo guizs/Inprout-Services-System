@@ -21,7 +21,7 @@ const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-seleciona
 const contadorPrazo = document.getElementById('contador-prazo');
 let todasPendenciasMateriais = []; // Variável global para guardar os dados
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://3.128.248.3:8080';
+const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -300,35 +300,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (userRole === 'COORDINATOR') {
                 acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                </div>`;
+            <div class="d-flex justify-content-center gap-1">
+                <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
+                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+            </div>`;
             } else if (userRole === 'CONTROLLER') {
                 switch (lancamento.situacaoAprovacao) {
                     case 'PENDENTE_CONTROLLER':
                         acoesHtml = `
-            <div class="d-flex justify-content-center gap-1">
-                <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-            </div>`;
+        <div class="d-flex justify-content-center gap-1">
+            <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+        </div>`;
                         break;
                     case 'AGUARDANDO_EXTENSAO_PRAZO':
                         acoesHtml = `
-            <div class="d-flex justify-content-center gap-1">
-                <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
-                <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
-                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-            </div>`;
+        <div class="d-flex justify-content-center gap-1">
+            <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+        </div>`;
                         break;
                     case 'PRAZO_VENCIDO':
                         acoesHtml = `
-            <div class="d-flex justify-content-center gap-1">
-                 <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
-            </div>`;
+        <div class="d-flex justify-content-center gap-1">
+             <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
+        </div>`;
                         break;
                     default:
                         acoesHtml = '';
@@ -360,9 +360,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 "BOQ": detalhe.boq || '',
                 "PO": detalhe.po || '',
                 "ITEM": detalhe.item || '',
-                // --- INÍCIO DA CORREÇÃO ---
                 "OBJETO CONTRATADO": lpu.nomeLpu || '',
-                // --- FIM DA CORREÇÃO ---
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
                 "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
@@ -398,6 +396,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
                 if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                }
+                // Adiciona a classe à célula de "Detalhe Diário"
+                if (nomeColuna === "DETALHE DIÁRIO") {
+                    td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });
@@ -784,9 +786,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const mapaDeCelulas = {
                 "COMENTÁRIOS": `
-            <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
-                <i class="bi bi-eye"></i>
-            </button>`,
+        <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
+            <i class="bi bi-eye"></i>
+        </button>`,
                 "STATUS APROVAÇÃO": statusBadge,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
                 "OS": os.os || '',
@@ -801,9 +803,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 "BOQ": detalhe.boq || '',
                 "PO": detalhe.po || '',
                 "ITEM": detalhe.item || '',
-                // --- INÍCIO DA CORREÇÃO ---
                 "OBJETO CONTRATADO": lpu.nomeLpu || '',
-                // --- FIM DA CORREÇÃO ---
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
                 "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
@@ -836,6 +836,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
                 if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                }
+                // Adiciona a classe à célula de "Detalhe Diário"
+                if (nomeColuna === "DETALHE DIÁRIO") {
+                    td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });

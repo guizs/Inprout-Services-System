@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return mostrarToast('O novo e-mail é igual ao atual.', 'error');
                 }
                 try {
-                    const response = await fetch(`http://3.128.248.3:8080/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
+                    const response = await fetch(`http://localhost:8080/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
                     if (!response.ok) {
                         const resultado = await response.text();
                         throw new Error(resultado);
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!novaSenha) return mostrarToast('Preencha ambos os campos de senha.', 'error');
 
                 try {
-                    const responseSenha = await fetch(`http://3.128.248.3:8080/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
+                    const responseSenha = await fetch(`http://localhost:8080/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
                     if (!responseSenha.ok) {
                         const resultadoSenha = await responseSenha.text();
                         throw new Error(resultadoSenha);
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         // Busca a lista completa de segmentos na API
-                        const response = await fetch('http://3.128.248.3:8080/segmentos');
+                        const response = await fetch('http://localhost:8080/segmentos');
                         if (!response.ok) throw new Error('Falha ao buscar segmentos.');
                         const todosSegmentos = await response.json();
 
@@ -190,7 +190,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
+    const modalDetalheDiarioEl = document.getElementById('modalDetalheDiario');
+    if (modalDetalheDiarioEl) {
+        const modalDetalheDiario = new bootstrap.Modal(modalDetalheDiarioEl);
+        const modalBody = document.getElementById('modalDetalheDiarioBody');
+
+        // Usa delegação de evento para "escutar" cliques no corpo do documento
+        document.body.addEventListener('click', function (event) {
+            // Verifica se o elemento clicado (ou um de seus pais) é a célula de "Detalhe Diário"
+            const cell = event.target.closest('.detalhe-diario-cell');
+
+            if (cell && modalBody) {
+                // Pega o texto completo da célula
+                const textoCompleto = cell.textContent || cell.innerText;
+
+                // Coloca o texto dentro do corpo do modal
+                modalBody.textContent = textoCompleto;
+
+                // Mostra o modal
+                modalDetalheDiario.show();
+            }
+        });
+    }
+
+
 });
 
 // Corrige cache quando navega com botão "voltar" do navegador

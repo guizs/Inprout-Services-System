@@ -327,6 +327,17 @@ tr.selected {
   border-radius: 8px;
 }
 
+.detalhe-diario-cell {
+  max-width: 300px; /* Define uma largura máxima */
+  white-space: normal !important; /* Permite a quebra de linha */
+  word-wrap: break-word; /* Força a quebra de palavras longas */
+  text-align: left !important; /* Alinha o texto à esquerda */
+}
+
+.detalhe-diario-cell {
+  cursor: pointer;
+}
+
 @keyframes pulse {
   0% {
     opacity: 0.4;

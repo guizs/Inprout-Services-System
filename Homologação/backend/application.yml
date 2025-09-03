@@ -1,15 +1,15 @@
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/inpdatabase_v1
-    username: postgres
-    password: inpservices123
-    driver-class-name: org.postgresql.Driver
-
   #datasource:
-    #url: jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
+    #url: jdbc:postgresql://localhost:5432/inpdatabase_v1
     #username: postgres
     #password: inpservices123
     #driver-class-name: org.postgresql.Driver
+
+  datasource:
+    url: jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
+    username: postgres
+    password: inpservices123
+    driver-class-name: org.postgresql.Driver
 
 
   jpa:

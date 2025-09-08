@@ -52,12 +52,13 @@ public class LancamentoServiceImpl implements LancamentoService {
     private final EtapaDetalhadaRepository etapaDetalhadaRepository;
     private final LpuRepository lpuRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
+    private final OsService osService;
 
     public LancamentoServiceImpl(LancamentoRepository lancamentoRepository, OsRepository osRepository,
                                  UsuarioRepository usuarioRepository, PrazoService prazoService,
                                  ComentarioRepository comentarioRepository, PrestadorRepository prestadorRepository,
                                  EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository,
-                                 OsLpuDetalheRepository osLpuDetalheRepository) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService) {
         this.lancamentoRepository = lancamentoRepository;
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
@@ -67,6 +68,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.etapaDetalhadaRepository = etapaDetalhadaRepository;
         this.lpuRepository = lpuRepository;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
+        this.osService = osService;
     }
 
     // ... (todos os outros métodos do service permanecem iguais)
@@ -168,6 +170,24 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
         // --- FIM DA CORREÇÃO ---
 
+        OsLpuDetalhe osLpuDetalhe;
+
+        if(dto.atividadeComplementar()){
+            OS os = osRepository.findById(dto.osId())
+                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+            Lpu lpu = lpuRepository.findById(dto.lpuId())
+                    .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
+            OsRequestDto osRequestDto = new OsRequestDto();
+            osRequestDto.setOs(os.getOs());
+            osRequestDto.setLpuIds(List.of(lpu.getId()));
+            osRequestDto.setQuantidade(dto.quantidade());
+            osRequestDto.setKey(os.getOs() + "_" + lpu.getId());
+            osLpuDetalhe = osService.createOs(osRequestDto);
+        } else {
+            osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
+        }
+
         // 3. Busca das entidades relacionadas
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
@@ -175,8 +195,6 @@ public class LancamentoServiceImpl implements LancamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
-        OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
-                .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
 
         OS os = osRepository.findById(dto.osId())
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));

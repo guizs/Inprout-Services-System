@@ -29,5 +29,7 @@ public record LancamentoRequestDTO(
         SituacaoOperacional situacao,
         String detalheDiario,
         BigDecimal valor,
-        Long managerId
+        Long managerId,
+        Boolean atividadeComplementar,
+        Integer quantidade
 ) {}

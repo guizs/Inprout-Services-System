@@ -49,8 +49,9 @@ public class OsServiceImpl implements OsService {
     private final UsuarioRepository usuarioRepository;
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
+    private final OsService osService;
 
-    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository) {
+    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository, OsService osService) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
         this.contratoRepository = contratoRepository;
@@ -58,11 +59,12 @@ public class OsServiceImpl implements OsService {
         this.usuarioRepository = usuarioRepository;
         this.lancamentoRepository = lancamentoRepository;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
+        this.osService = osService;
     }
 
     @Override
     @Transactional
-    public OS createOs(OsRequestDto osDto) {
+    public OsLpuDetalhe createOs(OsRequestDto osDto) {
         OS osParaSalvar = osRepository.findByOs(osDto.getOs())
                 .orElseGet(() -> {
                     OS novaOs = new OS();
@@ -83,6 +85,8 @@ public class OsServiceImpl implements OsService {
         osParaSalvar.setDataAtualizacao(LocalDateTime.now());
         osParaSalvar.setUsuarioAtualizacao("sistema-import");
 
+        OsLpuDetalhe osLpuDetalhe = null;
+
         if (osDto.getLpuIds() != null && !osDto.getLpuIds().isEmpty()) {
             List<Lpu> lpusParaAssociar = lpuRepository.findAllById(osDto.getLpuIds());
             if (lpusParaAssociar.size() != osDto.getLpuIds().size()) {
@@ -90,47 +94,48 @@ public class OsServiceImpl implements OsService {
             }
 
             for (Lpu lpu : lpusParaAssociar) {
-                boolean detalheJaExiste = osParaSalvar.getDetalhes().stream()
-                        .anyMatch(detalhe -> detalhe.getLpu().getId().equals(lpu.getId()));
+                osLpuDetalhe = osParaSalvar.getDetalhes().stream()
+                        .filter(detalhe -> detalhe.getLpu().getId().equals(lpu.getId()))
+                        .findFirst()
+                        .orElseGet(() -> {
+                            OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
+                            novoDetalhe.setOs(osParaSalvar);
+                            novoDetalhe.setLpu(lpu);
+                            novoDetalhe.setKey(osDto.getKey()); // Pega a KEY do DTO
+                            novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+                            osParaSalvar.getDetalhes().add(novoDetalhe);
+                            return novoDetalhe;
+                        });
 
-                if (!detalheJaExiste) {
-                    OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
-                    novoDetalhe.setOs(osParaSalvar);
-                    novoDetalhe.setLpu(lpu);
-                    novoDetalhe.setKey(osDto.getKey()); // Pega a KEY do DTO
-                    novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+                // Preenche todos os campos atualizáveis
+                osLpuDetalhe.setSite(osDto.getSite());
+                osLpuDetalhe.setContrato(osDto.getContrato());
+                osLpuDetalhe.setRegional(osDto.getRegional());
+                osLpuDetalhe.setLote(osDto.getLote());
+                osLpuDetalhe.setBoq(osDto.getBoq());
+                osLpuDetalhe.setPo(osDto.getPo());
+                osLpuDetalhe.setItem(osDto.getItem());
+                osLpuDetalhe.setUnidade(osDto.getUnidade());
+                osLpuDetalhe.setQuantidade(osDto.getQuantidade());
+                osLpuDetalhe.setValorTotal(osDto.getValorTotal());
+                osLpuDetalhe.setObservacoes(osDto.getObservacoes());
+                osLpuDetalhe.setDataPo(osDto.getDataPo());
 
-                    // Preenche todos os campos atualizáveis
-                    novoDetalhe.setSite(osDto.getSite());
-                    novoDetalhe.setContrato(osDto.getContrato());
-                    novoDetalhe.setRegional(osDto.getRegional());
-                    novoDetalhe.setLote(osDto.getLote());
-                    novoDetalhe.setBoq(osDto.getBoq());
-                    novoDetalhe.setPo(osDto.getPo());
-                    novoDetalhe.setItem(osDto.getItem());
-                    novoDetalhe.setUnidade(osDto.getUnidade());
-                    novoDetalhe.setQuantidade(osDto.getQuantidade());
-                    novoDetalhe.setValorTotal(osDto.getValorTotal());
-                    novoDetalhe.setObservacoes(osDto.getObservacoes());
-                    novoDetalhe.setDataPo(osDto.getDataPo());
-
-                    // Preenche os campos de faturamento
-                    novoDetalhe.setFaturamento(osDto.getFaturamento());
-                    novoDetalhe.setSolitIdFat(osDto.getSolitIdFat());
-                    novoDetalhe.setRecebIdFat(osDto.getRecebIdFat());
-                    novoDetalhe.setIdFaturamento(osDto.getIdFaturamento());
-                    novoDetalhe.setDataFatInprout(osDto.getDataFatInprout());
-                    novoDetalhe.setSolitFsPortal(osDto.getSolitFsPortal());
-                    novoDetalhe.setDataFs(osDto.getDataFs());
-                    novoDetalhe.setNumFs(osDto.getNumFs());
-                    novoDetalhe.setGate(osDto.getGate());
-                    novoDetalhe.setGateId(osDto.getGateId());
-
-                    osParaSalvar.getDetalhes().add(novoDetalhe);
-                }
+                // Preenche os campos de faturamento
+                osLpuDetalhe.setFaturamento(osDto.getFaturamento());
+                osLpuDetalhe.setSolitIdFat(osDto.getSolitIdFat());
+                osLpuDetalhe.setRecebIdFat(osDto.getRecebIdFat());
+                osLpuDetalhe.setIdFaturamento(osDto.getIdFaturamento());
+                osLpuDetalhe.setDataFatInprout(osDto.getDataFatInprout());
+                osLpuDetalhe.setSolitFsPortal(osDto.getSolitFsPortal());
+                osLpuDetalhe.setDataFs(osDto.getDataFs());
+                osLpuDetalhe.setNumFs(osDto.getNumFs());
+                osLpuDetalhe.setGate(osDto.getGate());
+                osLpuDetalhe.setGateId(osDto.getGateId());
             }
         }
-        return osRepository.save(osParaSalvar);
+        osRepository.save(osParaSalvar);
+        return osLpuDetalhe;
     }
 
     @Override
@@ -491,7 +496,7 @@ public class OsServiceImpl implements OsService {
                         if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                             throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                         }
-                        createOs(dto);
+                        osService.createOs(dto);
                     }
 
                 } catch (Exception e) {
@@ -543,7 +548,7 @@ public class OsServiceImpl implements OsService {
             if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                 throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
             }
-            createOs(dto);
+            osService.createOs(dto);
         }
     }
 
@@ -699,7 +704,7 @@ public class OsServiceImpl implements OsService {
                     if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                         throw new IllegalArgumentException("Para criar novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                     }
-                    createOs(dto);
+                    osService.createOs(dto);
                 }
             } catch (Exception e) {
                 erros.add("Linha " + i + " no lote: " + e.getMessage());

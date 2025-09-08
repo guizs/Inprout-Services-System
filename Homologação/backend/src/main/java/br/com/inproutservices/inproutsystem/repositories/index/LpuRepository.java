@@ -33,4 +33,6 @@ public interface LpuRepository extends JpaRepository<Lpu, Long> {
     @Query("SELECT l FROM Lpu l JOIN FETCH l.contrato WHERE l.id = :id")
     Optional<Lpu> findByIdWithContrato(@Param("id") Long id);
 
+    List<Lpu> findAllByContratoId(Long contratoId);
+
 }

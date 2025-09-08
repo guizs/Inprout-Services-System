@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -21,7 +22,7 @@ public interface OsService {
      * @param osDto DTO com os dados para a criação da OS.
      * @return A entidade OS criada e salva no banco de dados.
      */
-    OS createOs(OsRequestDto osDto);
+    OsLpuDetalhe createOs(OsRequestDto osDto);
 
     List<LpuComLancamentoDto> getLpusWithLastApprovedLaunch(Long osId);
 

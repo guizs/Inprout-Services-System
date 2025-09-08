@@ -897,26 +897,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        selectOS.addEventListener('change', async (e) => {
-            const osId = e.target.value;
-            const os = todasAsOS.find(os => os.id == osId);
-            if (os) {
-                selectProjeto.value = os.projeto;
-            }
-            preencherCamposOS(osId);
-            await carregarEPopularLPU(osId);
-        });
-
-        selectProjeto.addEventListener('change', async (e) => {
-            const projeto = e.target.value;
-            const os = todasAsOS.find(os => os.projeto == projeto);
-            if (os) {
-                selectOS.value = os.id;
-                preencherCamposOS(os.id);
-                await carregarEPopularLPU(os.id);
-            }
-        });
-
         selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
         selectEtapaDetalhada.addEventListener('change', (e) => {
             const etapaGeralId = selectEtapaGeral.value;

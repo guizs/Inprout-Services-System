@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 // --- Definição dos DTOs (Data Transfer Objects) ---
 
@@ -108,5 +109,14 @@ public class LpuController {
     public ResponseEntity<Lpu> atualizarParcialmenteLpu(@PathVariable Long id, @RequestBody Map<String, Object> updates) {
         Lpu lpuAtualizada = lpuService.atualizarParcialmente(id, updates);
         return ResponseEntity.ok(lpuAtualizada);
+    }
+
+    @GetMapping("/contrato/{contratoId}")
+    public ResponseEntity<List<LpuResponseDTO>> getLpusPorContrato(@PathVariable Long contratoId) {
+        List<Lpu> lpus = lpuService.findAllByContratoId(contratoId);
+        List<LpuResponseDTO> dtos = lpus.stream()
+                .map(LpuResponseDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 }

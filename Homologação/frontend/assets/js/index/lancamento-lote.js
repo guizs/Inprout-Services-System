@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const lpuChecklistContainerLote = document.getElementById('lpuChecklistContainerLote');
     const btnAvancarParaPreenchimentoLote = document.getElementById('btnAvancarParaPreenchimentoLote');
     const formulariosContainerLote = document.getElementById('formulariosContainerLote');
+    const chkAtividadeComplementar = document.getElementById('atividadeComplementarLote');
+    const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
+
 
     // Botões do rodapé do modal
     const btnSubmitAdicionarLote = document.getElementById('btnSubmitAdicionarLote');
@@ -435,6 +438,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const lancamentosEmLote = [];
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
+            const isComplementar = chkAtividadeComplementar.checked;
+            const quantidade = document.getElementById('quantidadeComplementarLote').value;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
 
@@ -464,6 +469,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     detalheDiario: document.getElementById(`detalheDiario-lpu-${lpuId}`).value,
                     prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
                     valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
+                    atividadeComplementar: isComplementar,
+                    quantidade: isComplementar ? quantidade : null
                 };
                 if (acao === 'salvarRascunho') {
                     dadosLpu.situacaoAprovacao = 'RASCUNHO';
@@ -516,4 +523,45 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFormSubmitLote('enviar', e.currentTarget);
         });
     }
+
+    chkAtividadeComplementar.addEventListener('change', async (e) => {
+        const isChecked = e.target.checked;
+        quantidadeComplementarContainer.style.display = isChecked ? 'block' : 'none';
+        const osId = selectOSLote.value;
+        if (!osId) return;
+
+        lpuChecklistContainerLote.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div>';
+
+        try {
+            let lpus = [];
+            if (isChecked) {
+                const os = todasAsOSLote.find(os => os.id == osId);
+                const contratoId = os.detalhes[0].lpu.contrato.id; // Assume que o primeiro detalhe tem o contrato
+                const response = await fetch(`http://localhost:8080/lpu/contrato/${contratoId}`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
+                lpus = await response.json();
+            } else {
+                const response = await fetch(`http://localhost:8080/os/${osId}`);
+                if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
+                const osData = await response.json();
+                lpus = osData.detalhes.map(d => d.lpu);
+            }
+
+            if (lpus.length === 0) {
+                lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada.</p>';
+            } else {
+                lpuChecklistContainerLote.innerHTML = lpus.map(lpu => {
+                    const label = `${lpu.codigoLpu} - ${lpu.nomeLpu}`;
+                    return `
+                    <div class="form-check">
+                        <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}">
+                        <label class="form-check-label" for="lpu-lote-${lpu.id}">${label}</label>
+                    </div>`;
+                }).join('');
+            }
+        } catch (error) {
+            console.error("Erro ao carregar LPUs:", error);
+            lpuChecklistContainerLote.innerHTML = '<p class="text-danger">Erro ao carregar LPUs.</p>';
+        }
+    });
 });

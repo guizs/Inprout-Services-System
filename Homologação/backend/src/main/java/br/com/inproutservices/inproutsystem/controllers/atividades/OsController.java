@@ -54,7 +54,7 @@ public class OsController {
      */
     @PostMapping
     public ResponseEntity<OS> createOs(@RequestBody OsRequestDto osDto) {
-        OS novaOs = osService.createOs(osDto);
+        OS novaOs = osService.createOs(osDto).getOs();
         // Retorna a OS criada com o status HTTP 201 (Created)
         return new ResponseEntity<>(novaOs, HttpStatus.CREATED);
     }

@@ -162,4 +162,8 @@ public class LpuService {
 
         return lpuRepository.save(lpuExistente); // Salva a entidade modificada
     }
+
+    public List<Lpu> findAllByContratoId(Long contratoId) {
+        return lpuRepository.findAllByContratoId(contratoId);
+    }
 }

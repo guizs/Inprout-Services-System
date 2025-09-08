@@ -24,4 +24,6 @@ public interface OsLpuDetalheRepository extends JpaRepository<OsLpuDetalhe, Long
 
     List<OsLpuDetalhe> findAllByOsId(Long osId);
 
+    List<OsLpuDetalhe> findAllByOsIdIn(List<Long> osIds);
+
 }

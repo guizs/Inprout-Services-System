@@ -21,7 +21,7 @@ const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-seleciona
 const contadorPrazo = document.getElementById('contador-prazo');
 let todasPendenciasMateriais = []; // Variável global para guardar os dados
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://3.128.248.3:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -787,13 +787,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const mapaDeCelulas = {
                 "COMENTÁRIOS": `
-        <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
-            <i class="bi bi-eye"></i>
-        </button>`,
+<button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
+    <i class="bi bi-eye"></i>
+</button>`,
                 "STATUS APROVAÇÃO": statusBadge,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
                 "OS": os.os || '',
                 "SITE": detalhe.site || '',
+                // --- INÍCIO DA CORREÇÃO ---
+                "TOTAL OS": formatarMoeda(lancamento.totalOs),
+                "VALOR CPS": formatarMoeda(lancamento.valorCps),
+                "VALOR DA ATIVIDADE": formatarMoeda(lancamento.valor), // Nome da coluna já estava ajustado
+                // --- FIM DA CORREÇÃO ---
                 "CONTRATO": detalhe.contrato || '',
                 "SEGMENTO": os.segmento ? os.segmento.nome : '',
                 "PROJETO": os.projeto || '',
@@ -807,7 +812,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "OBJETO CONTRATADO": lpu.nomeLpu || '',
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
-                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
                 "OBSERVAÇÕES": detalhe.observacoes || '',
                 "DATA PO": formatarData(detalhe.dataPo) || '',
                 "VISTORIA": lancamento.vistoria || '',
@@ -827,7 +831,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "DETALHE DIÁRIO": lancamento.detalheDiario || '',
                 "CÓD. PRESTADOR": prestador.codigo || '',
                 "PRESTADOR": prestador.nome || '',
-                "VALOR": formatarMoeda(lancamento.valor),
                 "GESTOR": manager.nome || '',
             };
 

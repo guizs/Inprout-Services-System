@@ -14,7 +14,7 @@ public interface PrestadorRepository extends JpaRepository<Prestador, Long> {
     Optional<Prestador> findByCodigoPrestador(String codigoPrestador);
 
     boolean existsByCodigoPrestador(String codigoPrestador);
-    
+
     List<Prestador> findByAtivoTrueOrderByIdAsc();
     List<Prestador> findByAtivoFalseOrderByIdAsc();
 

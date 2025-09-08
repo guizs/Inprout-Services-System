@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectStatus = document.getElementById('status');
 
         const chkAtividadeComplementar = document.getElementById('atividadeComplementar');
-        const quantidadeContainer = document.getElementById('quantidadeContainer');
+        const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
         const lpuContainer = document.getElementById('lpuContainer');
 
         let todasAsOS = [];

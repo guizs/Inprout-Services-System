@@ -16,7 +16,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const chkAtividadeComplementar = document.getElementById('atividadeComplementarLote');
     const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
 
-
     // Botões do rodapé do modal
     const btnSubmitAdicionarLote = document.getElementById('btnSubmitAdicionarLote');
     const btnSalvarRascunhoLote = document.getElementById('btnSalvarRascunhoLote');
@@ -220,32 +219,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 todosOsPrestadoresLote = await fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
 
-            const isComplementar = chkAtividadeComplementar.checked;
-            const quantidadeGeral = document.getElementById('quantidadeComplementarLote').value;
-
             formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
                 const lpuId = checkbox.value;
                 const lpuNome = checkbox.dataset.nome;
                 const isPrimeiroItem = index === 0;
 
-                const campoQuantidadeHtml = isComplementar ? `
-                <div class="col-md-4">
-                    <label for="quantidade-lpu-${lpuId}" class="form-label">Quantidade</label>
-                    <input type="number" class="form-control" id="quantidade-lpu-${lpuId}" value="${quantidadeGeral}" min="1">
-                </div>
-            ` : '';
-
                 return `
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-${lpuId}">
-                        <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
-                            LPU: ${lpuNome}
-                        </button>
-                    </h2>
-                    <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
-                        <div class="accordion-body">
-                            <h6 class="section-title">Execução</h6>
-                            <div class="etapas-scroll mb-3">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${lpuId}">
+                            <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
+                                LPU: ${lpuNome}
+                            </button>
+                        </h2>
+                        <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
+                            <div class="accordion-body">
+
+                                <h6 class="section-title">Execução</h6>
+                                <div class="etapas-scroll mb-3">
                                 <div class="card etapa-card">
                                     <h6>Vistoria</h6>
                                     <label class="form-label">Status</label>
@@ -474,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const osLpuDetalheId = checkbox.dataset.osLpuDetalheId;
 
                 // Pega a quantidade do input específico de cada LPU, se for complementar
-                const quantidade = isComplementar ? document.getElementById(`quantidade-lpu-${lpuId}`).value : null;
+                const quantidade = isComplementar ? document.getElementById('quantidadeComplementarLote').value : null;
 
                 const dadosLpu = {
                     managerId: localStorage.getItem('usuarioId'),
@@ -553,7 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     chkAtividadeComplementar.addEventListener('change', async (e) => {
         const isChecked = e.target.checked;
-        quantidadeComplementarContainer.style.display = isChecked ? 'block' : 'none';
+        quantidadeComplementarContainer.classList.toggle('d-none', !isChecked);
         const osId = selectOSLote.value;
         if (!osId) return;
 

@@ -787,7 +787,9 @@ public class OsServiceImpl implements OsService {
             novoDetalhe.setRegional(base.getRegional());
         });
 
-
+        String dataFormatada = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy").format(java.time.LocalDate.now());
+        novoDetalhe.setObservacoes("Criação automática de atividade complementar dia " + dataFormatada);
+        
         return osLpuDetalheRepository.save(novoDetalhe);
     }
 }

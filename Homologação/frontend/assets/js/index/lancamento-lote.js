@@ -220,10 +220,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 todosOsPrestadoresLote = await fetch('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
 
+            const isComplementar = chkAtividadeComplementar.checked;
+            const quantidadeGeral = document.getElementById('quantidadeComplementarLote').value;
+
             formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
                 const lpuId = checkbox.value;
                 const lpuNome = checkbox.dataset.nome;
                 const isPrimeiroItem = index === 0;
+
+                const campoQuantidadeHtml = isComplementar ? `
+                <div class="col-md-4">
+                    <label for="quantidade-lpu-${lpuId}" class="form-label">Quantidade</label>
+                    <input type="number" class="form-control" id="quantidade-lpu-${lpuId}" value="${quantidadeGeral}" min="1">
+                </div>
+            ` : '';
 
                 return `
                 <div class="accordion-item">
@@ -341,6 +351,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
 
                 if (selectPrestador) {
+                    // ==========================================================
+                    // ===== INÍCIO DA CORREÇÃO =====
+                    // ==========================================================
+                    // Limpa o select ANTES de inicializar o Choices.js
+                    selectPrestador.innerHTML = '';
+                    // ==========================================================
+                    // ===== FIM DA CORREÇÃO =====
+                    // ==========================================================
+
                     new Choices(selectPrestador, {
                         searchEnabled: true,
                         placeholder: true,
@@ -354,14 +373,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         })),
                         'value',
                         'label',
-                        true // <-- AQUI ESTÁ A CORREÇÃO: trocado para 'true'
+                        true
                     );
                 }
 
                 const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);
                 if (selectEtapaGeral) todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
             });
-            
+
             inicializarFlatpickrComFormato('.flatpickr-date-lote');
 
         } catch (error) {
@@ -447,14 +466,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
             const isComplementar = chkAtividadeComplementar.checked;
-            const quantidade = document.getElementById('quantidadeComplementarLote').value;
-
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
 
             for (const checkbox of lpusSelecionadas) {
                 const lpuId = checkbox.value;
                 const osLpuDetalheId = checkbox.dataset.osLpuDetalheId;
+
+                // Pega a quantidade do input específico de cada LPU, se for complementar
+                const quantidade = isComplementar ? document.getElementById(`quantidade-lpu-${lpuId}`).value : null;
 
                 const dadosLpu = {
                     managerId: localStorage.getItem('usuarioId'),

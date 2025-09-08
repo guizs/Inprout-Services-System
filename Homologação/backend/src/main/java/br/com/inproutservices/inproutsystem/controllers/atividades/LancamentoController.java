@@ -135,14 +135,22 @@ public class LancamentoController {
 
     @GetMapping
     public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos() {
+        // 1. Busca a lista de entidades do serviço, como antes.
         List<Lancamento> lancamentos = lancamentoService.getAllLancamentos();
 
+        // 2. Converte a lista de entidades para a lista inicial de DTOs.
         List<LancamentoResponseDTO> dtos = lancamentos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
 
+        // --- INÍCIO DA CORREÇÃO DEFINITIVA ---
+
+        // 3. Cria uma nova lista para armazenar os DTOs enriquecidos.
         List<LancamentoResponseDTO> dtosAtualizados = new ArrayList<>();
+
+        // 4. Itera sobre cada DTO para calcular e injetar os novos valores.
         for (LancamentoResponseDTO dto : dtos) {
+            // Se não houver OS associada, não há o que calcular.
             if (dto.os() == null || dto.os().id() == null) {
                 dtosAtualizados.add(dto);
                 continue;
@@ -150,16 +158,20 @@ public class LancamentoController {
 
             Long osId = dto.os().id();
 
+            // Cálculo do Valor Total da OS
             BigDecimal valorTotalOS = osLpuDetalheRepository.findAllByOsId(osId).stream()
                     .map(OsLpuDetalhe::getValorTotal)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            // Cálculo do Valor CPS
             BigDecimal valorCPS = lancamentoRepository.findBySituacaoAprovacaoAndOsLpuDetalhe_Os_Id(SituacaoAprovacao.APROVADO, osId).stream()
                     .map(Lancamento::getValor)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            // Cria uma NOVA instância do DTO com os valores calculados.
+            // Isso é necessário porque records em Java são imutáveis.
             dtosAtualizados.add(new LancamentoResponseDTO(
                     dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
                     dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
@@ -167,11 +179,13 @@ public class LancamentoController {
                     dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
                     dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),
-                    valorTotalOS,
-                    valorCPS
+                    valorTotalOS, // <-- Valor Total da OS injetado
+                    valorCPS      // <-- Valor CPS injetado
             ));
         }
+        // --- FIM DA CORREÇÃO DEFINITIVA ---
 
+        // Retorna a lista de DTOs agora com os valores corretos.
         return ResponseEntity.ok(dtosAtualizados);
     }
 

@@ -115,4 +115,6 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     boolean existsByOsLpuDetalheIdAndSituacao(Long osLpuDetalheId, SituacaoOperacional situacao);
+
+    List<Lancamento> findBySituacaoAprovacaoAndOsLpuDetalhe_Os_Id(SituacaoAprovacao situacao, Long osId);
 }

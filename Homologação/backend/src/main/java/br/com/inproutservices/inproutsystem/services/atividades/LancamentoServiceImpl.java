@@ -525,8 +525,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
-            // Presumindo que findAllWithDetails() faz um fetch join.
-            // Se a performance ficar lenta, precisaremos otimizar esta query.
             return lancamentoRepository.findAllWithDetails();
         }
 
@@ -549,23 +547,18 @@ public class LancamentoServiceImpl implements LancamentoService {
                 return List.of(); // Retorna lista vazia se o usuário não tem segmentos
             }
 
-            // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
             return todosLancamentos.stream()
                     .filter(lancamento -> {
-                        // 1. Navega pela hierarquia de objetos com segurança, verificando nulos
                         return Optional.ofNullable(lancamento.getOsLpuDetalhe())
                                 .map(OsLpuDetalhe::getOs)
                                 .map(OS::getSegmento)
                                 .map(Segmento::getId)
-                                // 2. Compara o ID do segmento com a lista de segmentos do usuário
                                 .map(segmentosDoUsuario::contains)
-                                // 3. Se qualquer parte do caminho for nula, o filtro retorna false
                                 .orElse(false);
                     })
                     .collect(Collectors.toList());
         }
 
-        // Retorna uma lista vazia para qualquer outro Role não especificado
         return List.of();
     }
 
@@ -898,8 +891,17 @@ public class LancamentoServiceImpl implements LancamentoService {
             lancamento.setSituacao(dto.situacao());
             lancamento.setDetalheDiario(dto.detalheDiario());
             lancamento.setValor(dto.valor());
-            lancamento.setSituacaoAprovacao(dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO);
 
+            SituacaoAprovacao situacao = dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO;
+            lancamento.setSituacaoAprovacao(situacao);
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Se o lançamento já está sendo criado como pendente, define o prazo imediatamente.
+            if (situacao == SituacaoAprovacao.PENDENTE_COORDENADOR) {
+                lancamento.setDataSubmissao(LocalDateTime.now());
+                lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
+            }
+            // --- FIM DA CORREÇÃO ---
 
             novosLancamentos.add(lancamento);
         }

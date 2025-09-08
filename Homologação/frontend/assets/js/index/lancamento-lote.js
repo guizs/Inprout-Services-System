@@ -350,21 +350,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     // ===== FIM DA CORREÇÃO =====
                     // ==========================================================
 
-                    new Choices(selectPrestador, {
+                    // 1. Verifica se já existe uma instância do Choices.js no elemento.
+                    if (selectPrestador.choices) {
+                        // 2. Se existir, destrói a instância antiga para evitar o erro.
+                        selectPrestador.choices.destroy();
+                    }
+                    // 3. Limpa qualquer conteúdo HTML residual do select.
+                    selectPrestador.innerHTML = '';
+
+                    // 4. Cria a nova instância do Choices.js.
+                    const choicesInstance = new Choices(selectPrestador, {
                         searchEnabled: true,
                         placeholder: true,
                         placeholderValue: 'Busque pelo nome ou código...',
                         itemSelectText: '',
                         noResultsText: 'Nenhum resultado',
-                    }).setChoices(
+                    });
+
+                    choicesInstance.setChoices(
                         todosOsPrestadoresLote.map(p => ({
                             value: p.id,
                             label: `${p.codigoPrestador} - ${p.prestador}`
                         })),
                         'value',
                         'label',
-                        true
+                        false // O 'true' para limpar não é mais necessário, já limpamos manualmente
                     );
+
+                    // 5. Armazena a nova instância no próprio elemento para futuras verificações.
+                    selectPrestador.choices = choicesInstance;
                 }
 
                 const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);

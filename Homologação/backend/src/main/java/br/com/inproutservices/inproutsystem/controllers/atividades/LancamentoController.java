@@ -2,6 +2,7 @@ package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
@@ -9,6 +10,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,8 +21,10 @@ import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 record AprovacaoLoteRequest(List<Long> lancamentoIds, Long aprovadorId) {}
@@ -124,15 +128,53 @@ public class LancamentoController {
 
     @GetMapping
     public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos() {
-        // 1. Busca a lista de entidades no serviço
+        // 1. Busca a lista de entidades no serviço (como antes)
         List<Lancamento> lancamentos = lancamentoService.getAllLancamentos();
 
-        // 2. Converte a lista de entidades para uma lista de DTOs
-        List<LancamentoResponseDTO> responseList = lancamentos.stream()
+        // 2. Converte a lista de entidades para uma lista de DTOs (como antes)
+        List<LancamentoResponseDTO> dtos = lancamentos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(responseList);
+        // --- INÍCIO DA CORREÇÃO ---
+
+        // 3. Itera sobre cada DTO para calcular e injetar os novos valores
+        List<LancamentoResponseDTO> dtosAtualizados = new ArrayList<>();
+        for (LancamentoResponseDTO dto : dtos) {
+            if (dto.os() == null || dto.os().id() == null) {
+                dtosAtualizados.add(dto); // Adiciona o DTO sem os valores calculados se não tiver OS
+                continue;
+            }
+
+            Long osId = dto.os().id();
+
+            // Calcula o Valor Total da OS
+            BigDecimal valorTotalOS = osLpuDetalheRepository.findAllByOsId(osId).stream()
+                    .map(OsLpuDetalhe::getValorTotal)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Calcula o Valor CPS
+            BigDecimal valorCPS = lancamentoRepository.findBySituacaoAprovacaoAndOsLpuDetalhe_Os_Id(SituacaoAprovacao.APROVADO, osId).stream()
+                    .map(Lancamento::getValor)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            // Cria uma nova instância do DTO com os valores calculados
+            dtosAtualizados.add(new LancamentoResponseDTO(
+                    dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
+                    dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
+                    dto.dataCriacao(), dto.dataPrazo(), dto.comentarios(), dto.equipe(), dto.vistoria(),
+                    dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
+                    dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
+                    dto.planoDocumentacao(), dto.status(), dto.situacao(),
+                    valorTotalOS, // <-- Valor Total da OS injetado
+                    valorCPS      // <-- Valor CPS injetado
+            ));
+        }
+        // --- FIM DA CORREÇÃO ---
+
+        return ResponseEntity.ok(dtosAtualizados); // Retorna a lista de DTOs atualizada
     }
 
     @PostMapping("/{id}/coordenador-rejeitar")

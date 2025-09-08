@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         formAdicionar.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitter = e.submitter || document.activeElement; // Pega o botão que foi clicado
+            const submitter = e.submitter || document.activeElement; // Pega o botão que foi cl-icado
             const acao = submitter.dataset.acao; // Ação será 'rascunho' ou 'enviar'
             const isComplementar = chkAtividadeComplementar.checked;
 
@@ -695,12 +695,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
+            // A otimização da lentidão já está no seu código, que armazena os dados em cache.
+            // Esta chamada garante que os dados estarão disponíveis sem recarregar sempre.
             await carregarDadosParaModal();
             formAdicionar.dataset.editingId = editingId;
 
             if (lancamento.detalhe) {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
+
+            // --- INÍCIO DA CORREÇÃO ---
+
+            // 1. Seleciona os elementos que precisam ser manipulados
+            const chkAtividadeComplementarContainer = document.getElementById('atividadeComplementar').parentElement;
+            const quantidadeContainer = document.getElementById('quantidadeContainer'); // ID corrigido
+            const selectProjeto = document.getElementById('projetoId');
+
+            // 2. Esconde os campos de "Atividade Complementar" e "Quantidade"
+            if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
+            if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
+
+            // 3. Preenche e desabilita o campo de Projeto
+            if (lancamento.os && lancamento.os.projeto) {
+                selectProjeto.value = lancamento.os.projeto;
+                selectProjeto.disabled = true;
+            }
+
+            // --- FIM DA CORREÇÃO ---
+
 
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
@@ -734,7 +756,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('prestadorId').value = lancamento.prestador?.id || '';
             document.getElementById('situacao').value = lancamento.situacao || '';
-            
+
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
             ['planoVistoria', 'planoDesmobilizacao', 'planoInstalacao', 'planoAtivacao', 'planoDocumentacao'].forEach(k => {
                 if (lancamento[k]) document.getElementById(k).value = lancamento[k].split('/').reverse().join('-');
@@ -780,7 +802,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('btnSalvarEEnviar').style.display = 'inline-block';
                 btnSalvarEEnviar.dataset.acao = 'enviar';
                 selectOS.disabled = false;
+                selectProjeto.disabled = false;
                 document.getElementById('dataAtividade').disabled = false;
+                chkAtividadeComplementar.parentElement.style.display = 'block';
             }
         });
 
@@ -792,8 +816,10 @@ document.addEventListener('DOMContentLoaded', () => {
             selectStatus.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>';
             selectStatus.disabled = true;
             selectOS.disabled = false;
+            selectProjeto.disabled = false;
             lpuContainer.classList.add('d-none');
             document.getElementById('lpuId').innerHTML = '';
+            chkAtividadeComplementar.parentElement.style.display = 'block';
         });
 
         document.body.addEventListener('click', async (e) => {

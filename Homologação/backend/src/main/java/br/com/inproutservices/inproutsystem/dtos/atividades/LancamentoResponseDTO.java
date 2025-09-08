@@ -45,7 +45,9 @@ public record LancamentoResponseDTO(
         String documentacao,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDocumentacao,
         StatusEtapa status,
-        SituacaoOperacional situacao
+        SituacaoOperacional situacao,
+        BigDecimal totalOs,
+        BigDecimal valorCps
 ) {
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
@@ -83,7 +85,9 @@ public record LancamentoResponseDTO(
                 lancamento.getDocumentacao(),
                 lancamento.getPlanoDocumentacao(),
                 lancamento.getStatus(),
-                lancamento.getSituacao()
+                lancamento.getSituacao(),
+                null,
+                null
         );
     }
 

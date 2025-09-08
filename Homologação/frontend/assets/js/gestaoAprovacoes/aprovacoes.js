@@ -226,11 +226,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- RENDERIZAÇÃO DA TABELA (VERSÃO COMPLETA) ---
     const colunas = [
-        '<input type="checkbox" id="selecionar-todos-checkbox">', "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO",
-        "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL",
+        '<input type="checkbox" id="selecionar-todos-checkbox">', "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "TOTAL OS", "VALOR CPS", "VALOR DA ATIVIDADE", "CONTRATO", "SEGMENTO", "PROJETO",
+        "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE",
         "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO",
         "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO",
-        "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"
+        "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "GESTOR"
     ];
 
     function renderizarCabecalho() {
@@ -350,6 +350,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
                 "OS": os.os || '',
                 "SITE": detalhe.site || '',
+                "TOTAL OS": formatarMoeda(lancamento.valorTotalOS),
+                "VALOR CPS": formatarMoeda(lancamento.valorCPS),
+                "VALOR DA ATIVIDADE": formatarMoeda(lancamento.valor),
                 "CONTRATO": detalhe.contrato || '',
                 "SEGMENTO": os.segmento ? os.segmento.nome : '',
                 "PROJETO": os.projeto || '',
@@ -363,7 +366,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "OBJETO CONTRATADO": lpu.nomeLpu || '',
                 "UNIDADE": detalhe.unidade || '',
                 "QUANTIDADE": detalhe.quantidade || '',
-                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
                 "OBSERVAÇÕES": detalhe.observacoes || '',
                 "DATA PO": formatarData(detalhe.dataPo) || '',
                 "VISTORIA": lancamento.vistoria || '',
@@ -383,7 +385,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "DETALHE DIÁRIO": lancamento.detalheDiario || '',
                 "CÓD. PRESTADOR": prestador.codigo || '',
                 "PRESTADOR": prestador.nome || '',
-                "VALOR": formatarMoeda(lancamento.valor),
                 "GESTOR": manager.nome || '',
             };
 
@@ -394,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const td = document.createElement('td');
                 td.dataset.label = nomeColuna;
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
-                if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
+                if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                 }
                 // Adiciona a classe à célula de "Detalhe Diário"
@@ -834,7 +835,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const td = document.createElement('td');
                 td.dataset.label = nomeColuna;
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
-                if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
+                if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                 }
                 // Adiciona a classe à célula de "Detalhe Diário"

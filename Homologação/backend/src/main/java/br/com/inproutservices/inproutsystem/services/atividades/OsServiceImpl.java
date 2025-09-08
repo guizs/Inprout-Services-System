@@ -751,4 +751,8 @@ public class OsServiceImpl implements OsService {
         return null;
     }
 
+    @Override
+    public List<OS> getOsByProjeto(String projeto) {
+        return osRepository.findByProjeto(projeto);
+    }
 }

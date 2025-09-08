@@ -67,4 +67,6 @@ public interface OsService {
     void processarLinhaDePlanilha(Map<String, Object> rowData);
 
     List<OS> findAllWithDetails();
+
+    List<OS> getOsByProjeto(String projeto);
 }

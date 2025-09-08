@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formAdicionarEmLote = document.getElementById('formAdicionarEmLote');
     const selectOSLote = document.getElementById('osIdLote');
+    const selectProjetoLote = document.getElementById('projetoIdLote');
     const lpuChecklistContainerLote = document.getElementById('lpuChecklistContainerLote');
     const btnAvancarParaPreenchimentoLote = document.getElementById('btnAvancarParaPreenchimentoLote');
     const formulariosContainerLote = document.getElementById('formulariosContainerLote');
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Variáveis de cache para evitar múltiplas chamadas à API
     let todasAsEtapasLote = [];
     let todosOsPrestadoresLote = [];
+    let todasAsOSLote = [];
 
 
     function inicializarFlatpickrComFormato(selector) {
@@ -58,11 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
         inicializarFlatpickrComFormato('#dataAtividadeLote');
 
         // Pré-carrega a lista de Ordens de Serviço
-        await carregarOSParaSelectLote();
+        await carregarProjetosEOSParaSelectLote();
     });
 
     // Função para carregar as OSs do usuário no select
-    async function carregarOSParaSelectLote() {
+    async function carregarProjetosEOSParaSelectLote() {
         try {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
@@ -71,21 +73,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
+            todasAsOSLote = osData;
 
-            // 1. Usamos um Map para garantir que cada OS seja listada apenas uma vez.
-            const osUnicasMap = new Map();
-            osData.forEach(item => {
-                if (!osUnicasMap.has(item.id)) {
-                    osUnicasMap.set(item.id, item);
-                }
+            // Pega todos os projetos unicos
+            const projetos = [...new Set(osData.map(item => item.projeto))];
+
+            selectProjetoLote.innerHTML = `<option value="" selected disabled>Selecione um Projeto...</option>`;
+            projetos.forEach(projeto => {
+                const option = new Option(projeto, projeto);
+                selectProjetoLote.add(option);
             });
 
-            // 2. Convertemos os valores únicos do Map de volta para um array e ordenamos.
-            const osOrdenadas = Array.from(osUnicasMap.values()).sort((a, b) => a.os.localeCompare(b.os));
-
-            // 3. Populamos o select com a lista já corrigida e sem duplicatas.
             selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
-            osOrdenadas.forEach(item => {
+            todasAsOSLote.forEach(item => {
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
@@ -128,11 +128,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    selectProjetoLote.addEventListener('change', async (e) => {
+        const projeto = e.target.value;
+        const os = todasAsOSLote.find(os => os.projeto === projeto);
+        if (os) {
+            selectOSLote.value = os.id;
+            selectOSLote.dispatchEvent(new Event('change'));
+        }
+    });
+
     // 🔥 ========================================================== 🔥
     // 🔥 PONTO CENTRAL DA CORREÇÃO NO LANÇAMENTO-LOTE.JS
     // 🔥 ========================================================== 🔥
     selectOSLote.addEventListener('change', async (e) => {
         const osId = e.target.value;
+        const os = todasAsOSLote.find(os => os.id == osId);
+        if (os) {
+            selectProjetoLote.value = os.projeto;
+        }
 
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
@@ -504,5 +517,3 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
-
-

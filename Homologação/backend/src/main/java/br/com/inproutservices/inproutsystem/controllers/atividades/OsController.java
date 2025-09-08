@@ -162,4 +162,13 @@ public class OsController {
         }
     }
 
+    @GetMapping("/por-projeto/{projeto}")
+    public ResponseEntity<List<OsResponseDto>> getOsPorProjeto(@PathVariable String projeto) {
+        List<OS> osDoProjeto = osService.getOsByProjeto(projeto);
+        List<OsResponseDto> responseList = osDoProjeto.stream()
+                .map(OsResponseDto::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responseList);
+    }
+
 }

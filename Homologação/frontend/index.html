@@ -500,23 +500,27 @@
 
             <h6 class="section-title">Dados Gerais</h6>
             <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="osId" class="form-label">Ordem de Serviço (OS)</label>
-                <select class="form-select" id="osId" required>
-                  <option value="" selected disabled>Selecione uma OS...</option>
-                </select>
-              </div>
-
-              <div class="col-md-6 d-none" id="lpuContainer">
-                <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
-                <select class="form-select" id="lpuId" required>
-                </select>
-              </div>
-
-              <div class="col-md-6">
-                <label for="dataAtividade" class="form-label">Data da Atividade</label>
-                <input type="date" class="form-control" id="dataAtividade" required>
-              </div>
+                <div class="col-md-4">
+                    <label for="projetoId" class="form-label">Projeto</label>
+                    <select class="form-select" id="projetoId" required>
+                        <option value="" selected disabled>Selecione um Projeto...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="osId" class="form-label">Ordem de Serviço (OS)</label>
+                    <select class="form-select" id="osId" required>
+                        <option value="" selected disabled>Selecione uma OS...</option>
+                    </select>
+                </div>
+                <div class="col-md-4 d-none" id="lpuContainer">
+                    <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
+                    <select class="form-select" id="lpuId" required>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="dataAtividade" class="form-label">Data da Atividade</label>
+                    <input type="date" class="form-control" id="dataAtividade" required>
+                </div>
             </div>
 
             <h6 class="section-title">Dados da OS</h6>
@@ -714,18 +718,23 @@
 
             <h6 class="section-title">Dados Gerais</h6>
             <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="osIdLote" class="form-label">Ordem de Serviço (OS)</label>
-                <select class="form-select" id="osIdLote" required>
-                  <option value="" selected disabled>Selecione uma OS...</option>
-                </select>
-              </div>
-
-              <div class="col-md-6">
-                <label for="dataAtividadeLote" class="form-label">Data da Atividade</label>
-                <input type="text" class="form-control" id="dataAtividadeLote" placeholder="Selecione a data..."
-                  required autocomplete="off">
-              </div>
+                <div class="col-md-4">
+                    <label for="projetoIdLote" class="form-label">Projeto</label>
+                    <select class="form-select" id="projetoIdLote" required>
+                        <option value="" selected disabled>Selecione um Projeto...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="osIdLote" class="form-label">Ordem de Serviço (OS)</label>
+                    <select class="form-select" id="osIdLote" required>
+                        <option value="" selected disabled>Selecione uma OS...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="dataAtividadeLote" class="form-label">Data da Atividade</label>
+                    <input type="text" class="form-control" id="dataAtividadeLote" placeholder="Selecione a data..."
+                        required autocomplete="off">
+                </div>
 
               <div class="col-12">
                 <label class="form-label">Selecione as LPUs</label>

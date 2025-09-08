@@ -465,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         const selectOS = document.getElementById('osId');
+        const selectProjeto = document.getElementById('projetoId');
         const selectPrestador = document.getElementById('prestadorId');
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
@@ -474,42 +475,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectLPU = document.getElementById('lpuId');
-
-            if (!osId) {
-                lpuContainer.classList.add('d-none');
-                selectLPU.innerHTML = '';
-                return;
+            const os = todasAsOS.find(os => os.id == osId);
+            if (os) {
+                selectProjeto.value = os.projeto;
             }
+            preencherCamposOS(osId);
+            await carregarEPopularLPU(osId);
+        });
 
-            try {
-                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-                selectLPU.disabled = true;
-                lpuContainer.classList.remove('d-none');
-
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar LPUs para esta OS.');
-                }
-                const lpus = await response.json();
-
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
-                if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => {
-                        // CORREÇÃO: Usa a função auxiliar para criar o label
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
-                    });
-                    selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
-                    selectLPU.disabled = true;
-                }
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-                lpuContainer.classList.add('d-none');
+        selectProjeto.addEventListener('change', async (e) => {
+            const projeto = e.target.value;
+            const os = todasAsOS.find(os => os.projeto == projeto);
+            if (os) {
+                selectOS.value = os.id;
+                preencherCamposOS(os.id);
+                await carregarEPopularLPU(os.id);
             }
         });
 
@@ -610,8 +590,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     const osUnicas = [...new Map(osData.map(os => [os.id, os])).values()];
                     todasAsOS = osUnicas.sort((a, b) => a.os.localeCompare(b.os));
 
-                    selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                    const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
 
+                    selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                    projetosUnicos.forEach(projeto => {
+                        const option = new Option(projeto, projeto);
+                        selectProjeto.add(option);
+                    });
+
+                    selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     todasAsOS.forEach(item => {
                         const option = document.createElement('option');
                         option.value = item.id;
@@ -912,161 +899,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
+            const os = todasAsOS.find(os => os.id == osId);
+            if (os) {
+                selectProjeto.value = os.projeto;
+            }
             preencherCamposOS(osId);
+            await carregarEPopularLPU(osId);
+        });
 
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectLPU = document.getElementById('lpuId');
-
-            if (!osId) {
-                lpuContainer.classList.add('d-none');
-                return;
-            }
-
-            try {
-                lpuContainer.classList.remove('d-none');
-                selectLPU.innerHTML = '<option>Carregando...</option>';
-                selectLPU.disabled = true;
-
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
-
-                const lpus = await response.json();
-
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-                if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => {
-                        // CORREÇÃO: Usa a função auxiliar para criar o label
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
-                    });
-                    selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
-                    selectLPU.disabled = true;
-                }
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-                lpuContainer.classList.add('d-none');
+        selectProjeto.addEventListener('change', async (e) => {
+            const projeto = e.target.value;
+            const os = todasAsOS.find(os => os.projeto == projeto);
+            if (os) {
+                selectOS.value = os.id;
+                preencherCamposOS(os.id);
+                await carregarEPopularLPU(os.id);
             }
         });
 
-        function formatarDataParaAPI(dataString) {
-            if (!dataString) return null;
-
-            // --- INÍCIO DA CORREÇÃO ---
-            // Verifica se a data já está no formato AAAA-MM-DD (que é o formato do input type="date")
-            // Se estiver, apenas a retorna, pois já está pronta para a API.
-            if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                return dataString;
-            }
-            // --- FIM DA CORREÇÃO ---
-
-            // Mantém a lógica antiga para o caso de a data vir no formato brasileiro
-            const partes = dataString.split('/');
-            if (partes.length !== 3) {
-                // Se não for nenhum dos formatos esperados, retorna nulo para evitar erros
-                return null;
-            }
-
-            // Remonta a string no formato AAAA-MM-DD
-            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-        }
-
-        // Função central para lidar com o envio do formulário, chamada por diferentes botões
-        async function handleFormSubmit(acao, submitButton) {
-            const editingId = formAdicionar.dataset.editingId;
-            const originalContent = submitButton.innerHTML;
-            submitButton.disabled = true;
-            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Carregando...`;
-
-            const osLpuDetalheId = formAdicionar.dataset.osLpuDetalheId;
-
-            const dadosParaEnviar = {
-                managerId: localStorage.getItem('usuarioId'),
-                osId: document.getElementById('osId').value,
-                lpuId: document.getElementById('lpuId').value,
-                osLpuDetalheId: osLpuDetalheId,
-                dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividade').value),
-                prestadorId: document.getElementById('prestadorId').value,
-                etapaDetalhadaId: document.getElementById('etapaDetalhadaId').value,
-                vistoria: document.getElementById('vistoria').value,
-                planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoria').value),
-                desmobilizacao: document.getElementById('desmobilizacao').value,
-                planoDesmobilizacao: formatarDataParaAPI(document.getElementById('planoDesmobilizacao').value),
-                instalacao: document.getElementById('instalacao').value,
-                planoInstalacao: formatarDataParaAPI(document.getElementById('planoInstalacao').value),
-                ativacao: document.getElementById('ativacao').value,
-                planoAtivacao: formatarDataParaAPI(document.getElementById('planoAtivacao').value),
-                documentacao: document.getElementById('documentacao').value,
-                planoDocumentacao: formatarDataParaAPI(document.getElementById('planoDocumentacao').value),
-                status: document.getElementById('status').value,
-                situacao: document.getElementById('situacao').value,
-                detalheDiario: document.getElementById('detalheDiario').value,
-                valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
-            };
-
-            let method = 'POST';
-            let url = 'http://localhost:8080/lancamentos';
-
-            if (acao === 'salvar') {
-                dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            } else if (acao === 'enviar') {
-                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            } else if (acao === 'reenviar') {
-                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            }
-
-            try {
-                const resposta = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dadosParaEnviar)
-                });
-                if (!resposta.ok) throw new Error((await resposta.json()).message || 'Erro ao salvar.');
-
-                mostrarToast('Ação realizada com sucesso!', 'success');
-                modalAdicionar.hide();
-                await carregarLancamentos();
-                renderizarTodasAsTabelas();
-
-            } catch (erro) {
-                mostrarToast(erro.message, 'error');
-            } finally {
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalContent;
-            }
-        }
-
-        // Listener para o botão 'Salvar e Enviar' (de um rascunho)
-        document.getElementById('btnSalvarEEnviar').addEventListener('click', function (e) {
-            handleFormSubmit('enviar', e.currentTarget);
-        });
-
-        // Listener para o botão 'Salvar Alterações' (só salva como rascunho)
-        document.getElementById('btnSalvarRascunho').addEventListener('click', function (e) {
-            handleFormSubmit('salvar', e.currentTarget);
-        });
-
-        // Listener para o botão de submit padrão (usado para Criar Novo e para Reenviar Rejeitado)
-        document.getElementById('btnSubmitAdicionar').addEventListener('click', function (e) {
-            const editingId = formAdicionar.dataset.editingId;
-
-            const isEditing = editingId && editingId !== 'null' && editingId !== 'undefined';
-
-            handleFormSubmit(isEditing ? 'reenviar' : 'criar', e.currentTarget);
-        });
-
-
-
-        selectOS.addEventListener('change', (e) => {
-            carregarEPopularLPU(e.target.value);
-        });
         selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
         selectEtapaDetalhada.addEventListener('change', (e) => {
             const etapaGeralId = selectEtapaGeral.value;

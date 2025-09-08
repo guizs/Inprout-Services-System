@@ -140,9 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 🔥 ========================================================== 🔥
-    // 🔥 PONTO CENTRAL DA CORREÇÃO NO LANÇAMENTO-LOTE.JS
-    // 🔥 ========================================================== 🔥
     selectOSLote.addEventListener('change', async (e) => {
         const osId = e.target.value;
         const os = todasAsOSLote.find(os => os.id == osId);
@@ -163,20 +160,18 @@ document.addEventListener('DOMContentLoaded', () => {
         preencherCamposOSLote(null);
 
         try {
-            // Buscamos os detalhes completos da OS, que inclui a lista de LPUs
             const response = await fetch(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
             preencherCamposOSLote(osData);
 
-            // CORREÇÃO APLICADA AQUI: Trocamos 'osData.lpus' por 'osData.detalhes'
             const lpus = osData.detalhes || [];
 
             if (lpus.length === 0) {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
             } else {
-                lpuChecklistContainerLote.innerHTML = lpus.map(item => { // 'item' é o objeto OsLpuDetalhe
+                lpuChecklistContainerLote.innerHTML = lpus.map(item => {
                     const lpu = item.lpu;
                     if (!lpu) return '';
 
@@ -186,9 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     return `
                     <div class="form-check">
-                        <input class="form-check-input lpu-checkbox" type="checkbox" 
-                            value="${lpu.id}" 
-                            data-os-lpu-detalhe-id="${item.id}" 
+                        <input class="form-check-input lpu-checkbox" type="checkbox"
+                            value="${lpu.id}"
+                            data-os-lpu-detalhe-id="${item.id}"
                             id="lpu-lote-${lpu.id}" data-nome="${label}">
                         <label class="form-check-label" for="lpu-lote-${lpu.id}">
                             ${label}
@@ -204,8 +199,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // 3. Evento de mudança nos checkboxes de LPU para habilitar o botão "Avançar"
     lpuChecklistContainerLote.addEventListener('change', (e) => {
         if (e.target.classList.contains('lpu-checkbox')) {
             const algumCheckboxMarcado = lpuChecklistContainerLote.querySelector('.lpu-checkbox:checked');
@@ -213,8 +206,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // 4. Evento de clique no botão "Avançar" para gerar o acordeão
     btnAvancarParaPreenchimentoLote.addEventListener('click', async () => {
         const lpusSelecionadas = document.querySelectorAll('#lpuChecklistContainerLote .lpu-checkbox:checked');
         if (lpusSelecionadas.length === 0) return;
@@ -348,12 +339,29 @@ document.addEventListener('DOMContentLoaded', () => {
             lpusSelecionadas.forEach(checkbox => {
                 const lpuId = checkbox.value;
                 const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
-                if (selectPrestador) todosOsPrestadoresLote.forEach(p => selectPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+
+                if (selectPrestador) {
+                    new Choices(selectPrestador, {
+                        searchEnabled: true,
+                        placeholder: true,
+                        placeholderValue: 'Busque pelo nome ou código...',
+                        itemSelectText: '',
+                        noResultsText: 'Nenhum resultado',
+                    }).setChoices(
+                        todosOsPrestadoresLote.map(p => ({
+                            value: p.id,
+                            label: `${p.codigoPrestador} - ${p.prestador}`
+                        })),
+                        'value',
+                        'label',
+                        true // <-- AQUI ESTÁ A CORREÇÃO: trocado para 'true'
+                    );
+                }
 
                 const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);
                 if (selectEtapaGeral) todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
             });
-
+            
             inicializarFlatpickrComFormato('.flatpickr-date-lote');
 
         } catch (error) {
@@ -441,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isComplementar = chkAtividadeComplementar.checked;
             const quantidade = document.getElementById('quantidadeComplementarLote').value;
 
+
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
 
             for (const checkbox of lpusSelecionadas) {
@@ -451,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
-                    osLpuDetalheId: osLpuDetalheId, // <-- INCLUSÃO NO PAYLOAD
+                    osLpuDetalheId: !isComplementar ? osLpuDetalheId : null,
                     dataAtividade: formatarDataParaAPI(dataAtividade),
                     vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
                     planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
@@ -470,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
                     valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
                     atividadeComplementar: isComplementar,
-                    quantidade: isComplementar ? quantidade : null
+                    quantidade: isComplementar ? parseInt(quantidade, 10) : null
                 };
                 if (acao === 'salvarRascunho') {
                     dadosLpu.situacaoAprovacao = 'RASCUNHO';
@@ -505,21 +514,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (btnSubmitAdicionarLote) {
-        btnSubmitAdicionarLote.addEventListener('click', (e) => {
-            e.preventDefault();
-            handleFormSubmitLote('enviar', e.currentTarget);
-        });
-    }
     if (btnSalvarRascunhoLote) {
         btnSalvarRascunhoLote.addEventListener('click', (e) => {
             e.preventDefault();
+            // A 'acao' aqui é 'salvarRascunho', que o backend vai entender como RASCUNHO
             handleFormSubmitLote('salvarRascunho', e.currentTarget);
         });
     }
+
+    // Listener para o NOVO botão de "Salvar e Enviar"
     if (btnSalvarEEnviarLote) {
         btnSalvarEEnviarLote.addEventListener('click', (e) => {
             e.preventDefault();
+            // A 'acao' aqui é 'enviar', que o backend vai entender como PENDENTE_COORDENADOR
             handleFormSubmitLote('enviar', e.currentTarget);
         });
     }
@@ -533,35 +540,65 @@ document.addEventListener('DOMContentLoaded', () => {
         lpuChecklistContainerLote.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div>';
 
         try {
-            let lpus = [];
+            let lpusParaExibir = [];
+            const osSelecionada = todasAsOSLote.find(os => os.id == osId);
+            if (!osSelecionada) throw new Error('OS selecionada não encontrada.');
+
             if (isChecked) {
-                const os = todasAsOSLote.find(os => os.id == osId);
-                const contratoId = os.detalhes[0].lpu.contrato.id; // Assume que o primeiro detalhe tem o contrato
+                // Atividade Complementar: Buscar todas as LPUs do contrato da OS
+                const primeiroDetalhe = osSelecionada.detalhes?.[0];
+                const contratoId = primeiroDetalhe?.contratoId; // <-- CORREÇÃO APLICADA AQUI
+
+                if (!contratoId) throw new Error('Contrato da OS não encontrado para buscar LPUs complementares.');
+
                 const response = await fetch(`http://localhost:8080/lpu/contrato/${contratoId}`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
-                lpus = await response.json();
+                lpusParaExibir = await response.json();
             } else {
-                const response = await fetch(`http://localhost:8080/os/${osId}`);
-                if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
-                const osData = await response.json();
-                lpus = osData.detalhes.map(d => d.lpu);
+                // Atividade Normal: Usar as LPUs já associadas à OS
+                lpusParaExibir = osSelecionada.detalhes?.map(detalhe => ({
+                    ...detalhe.lpu, // Pega os dados da LPU
+                    osLpuDetalheId: detalhe.id // Adiciona o ID do detalhe que será necessário
+                })) || [];
             }
 
-            if (lpus.length === 0) {
+            if (lpusParaExibir.length === 0) {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada.</p>';
             } else {
-                lpuChecklistContainerLote.innerHTML = lpus.map(lpu => {
+                lpuChecklistContainerLote.innerHTML = lpusParaExibir.map(lpu => {
                     const label = `${lpu.codigoLpu} - ${lpu.nomeLpu}`;
+                    // Se não for complementar, o data-os-lpu-detalhe-id virá preenchido
+                    const detalheIdAttr = lpu.osLpuDetalheId ? `data-os-lpu-detalhe-id="${lpu.osLpuDetalheId}"` : '';
                     return `
                     <div class="form-check">
-                        <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}">
+                        <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}" ${detalheIdAttr}>
                         <label class="form-check-label" for="lpu-lote-${lpu.id}">${label}</label>
                     </div>`;
                 }).join('');
             }
         } catch (error) {
             console.error("Erro ao carregar LPUs:", error);
-            lpuChecklistContainerLote.innerHTML = '<p class="text-danger">Erro ao carregar LPUs.</p>';
+            lpuChecklistContainerLote.innerHTML = `<p class="text-danger">${error.message}</p>`;
         }
     });
+
+    const lpuSearchInputLote = document.getElementById('lpuSearchInputLote');
+    if (lpuSearchInputLote) {
+        lpuSearchInputLote.addEventListener('input', (e) => {
+            const termoBusca = e.target.value.toLowerCase();
+            const todosOsCheckboxes = lpuChecklistContainerLote.querySelectorAll('.form-check');
+
+            todosOsCheckboxes.forEach(checkDiv => {
+                const label = checkDiv.querySelector('label');
+                if (label) {
+                    const textoLabel = label.textContent.toLowerCase();
+                    if (textoLabel.includes(termoBusca)) {
+                        checkDiv.style.display = ''; // Mostra o item
+                    } else {
+                        checkDiv.style.display = 'none'; // Esconde o item
+                    }
+                }
+            });
+        });
+    }
 });

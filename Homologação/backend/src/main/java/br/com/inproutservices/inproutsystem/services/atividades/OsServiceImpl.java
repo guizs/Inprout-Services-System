@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -50,9 +51,6 @@ public class OsServiceImpl implements OsService {
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
 
-    // REMOVIDO: private final OsService osService;
-
-    // CONSTRUTOR CORRIGIDO: Removida a injeção de OsService
     public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
@@ -497,7 +495,7 @@ public class OsServiceImpl implements OsService {
                         if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                             throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                         }
-                        this.createOs(dto); // CHAMADA CORRIGIDA
+                        this.createOs(dto);
                     }
 
                 } catch (Exception e) {
@@ -549,7 +547,7 @@ public class OsServiceImpl implements OsService {
             if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                 throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
             }
-            this.createOs(dto); // CHAMADA CORRIGIDA
+            this.createOs(dto);
         }
     }
 
@@ -705,7 +703,7 @@ public class OsServiceImpl implements OsService {
                     if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                         throw new IllegalArgumentException("Para criar novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                     }
-                    this.createOs(dto); // CHAMADA CORRIGIDA
+                    this.createOs(dto);
                 }
             } catch (Exception e) {
                 erros.add("Linha " + i + " no lote: " + e.getMessage());
@@ -773,7 +771,12 @@ public class OsServiceImpl implements OsService {
         OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
         novoDetalhe.setOs(os);
         novoDetalhe.setLpu(lpu);
-        novoDetalhe.setKey("COMPLEMENTAR_" + os.getOs() + "_" + lpu.getId() + "_" + System.currentTimeMillis());
+
+        // --- INÍCIO DA CORREÇÃO ---
+        int randomCode = ThreadLocalRandom.current().nextInt(10000, 100000); // Gera um número entre 10000 e 99999
+        novoDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_" + randomCode);
+        // --- FIM DA CORREÇÃO ---
+
         novoDetalhe.setQuantidade(quantidade);
         novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
 

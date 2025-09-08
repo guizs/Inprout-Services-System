@@ -33,12 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return [];
     }
 
-    function labelLpu(lpu) {
-        const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
-        const nome = lpu.nome ?? lpu.nomeLpu ?? '';
-        return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
-    }
-
     function toggleLoader(ativo = true) {
         const overlay = document.getElementById("overlay-loader");
         if (overlay) {
@@ -500,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
                     }
                     const contratoId = osSelecionada.detalhes[0].lpu.contrato.id;
-                    url = `http://localhost:8080/lpu/por-contrato/${contratoId}`;
+                    url = `http://localhost:8080/lpu/contrato/${contratoId}`;
                 } else {
                     url = `http://localhost:8080/os/${osId}/lpus`;
                 }
@@ -557,13 +551,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Falha ao carregar dados: ${response.statusText}`);
                 const data = await response.json();
-                selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                data.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item[valueField];
-                    option.textContent = textFieldFormatter(item);
-                    selectElement.appendChild(option);
-                });
+
+                // Se for o select de prestador e a biblioteca Choices existir
+                if (selectElement.id.includes('prestadorId') && typeof Choices !== 'undefined') {
+
+                    if (selectElement.choices) {
+                        selectElement.choices.destroy();
+                    }
+
+                    const choices = new Choices(selectElement, {
+                        searchEnabled: true,
+                        placeholder: true,
+                        placeholderValue: 'Digite para buscar o prestador...',
+                        removeItemButton: true,
+                        itemSelectText: 'Pressione Enter para selecionar',
+                        noResultsText: 'Nenhum resultado encontrado',
+                        noChoicesText: 'Nenhuma opção para escolher',
+                    });
+
+                    const choicesData = data.map(item => ({
+                        value: item[valueField],
+                        label: textFieldFormatter(item)
+                    }));
+
+                    // AQUI ESTÁ A CORREÇÃO: o último parâmetro foi trocado para 'true'
+                    choices.setChoices(choicesData, 'value', 'label', true);
+
+                } else { // Comportamento padrão para outros selects
+                    selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueField];
+                        option.textContent = textFieldFormatter(item);
+                        selectElement.appendChild(option);
+                    });
+                }
+
                 return data;
             } catch (error) {
                 console.error(`Erro ao popular o select #${selectElement.id}:`, error);
@@ -801,43 +824,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalConfirmacao.show();
             }
         });
-
-        async function carregarEPopularLPU(osId) {
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectLPU = document.getElementById('lpuId');
-
-            if (!osId) {
-                lpuContainer.classList.add('d-none');
-                selectLPU.innerHTML = '';
-                return;
-            }
-
-            try {
-                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-                selectLPU.disabled = true;
-                lpuContainer.classList.remove('d-none');
-
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
-
-                const raw = await response.json();
-                const lpus = normalizarListaLpus(raw); // <— aceita array puro ou paginado
-
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
-                if (lpus.length > 0) {
-                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), String(lpu.id))));
-                    selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
-                    selectLPU.disabled = true;
-                }
-            } catch (error) {
-                console.error(error);
-                mostrarToast(error.message || 'Erro ao carregar LPUs', 'error');
-                lpuContainer.classList.add('d-none');
-            }
-        }
 
         function getProjetosParalisados() {
             const ultimosLancamentos = new Map();

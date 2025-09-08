@@ -51,6 +51,7 @@ public record OsResponseDto(
             LpuSimpleDTO lpu,
             String site,
             String contrato,
+            Long contratoId, // <-- CAMPO ADICIONADO
             String regional,
             String lote,
             String boq,
@@ -81,6 +82,8 @@ public record OsResponseDto(
                     detalhe.getLpu() != null ? new LpuSimpleDTO(detalhe.getLpu()) : null,
                     detalhe.getSite(),
                     detalhe.getContrato(),
+                    // LÓGICA PARA POPULAR O NOVO CAMPO
+                    (detalhe.getLpu() != null && detalhe.getLpu().getContrato() != null) ? detalhe.getLpu().getContrato().getId() : null,
                     detalhe.getRegional(),
                     detalhe.getLote(),
                     detalhe.getBoq(),

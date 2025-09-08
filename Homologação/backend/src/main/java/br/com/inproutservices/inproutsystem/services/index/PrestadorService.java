@@ -17,27 +17,26 @@ public class PrestadorService {
     private PrestadorRepository prestadorRepository;
 
     public List<Prestador> listarTodos() {
+        // CORREÇÃO: Ordenando por 'id' em vez de 'codigoPrestador'
         return prestadorRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
     }
 
     public List<Prestador> listarAtivos() {
-        return prestadorRepository.findByAtivoTrue();
+        // CORREÇÃO: Ordenando por 'id'
+        return prestadorRepository.findByAtivoTrueOrderByIdAsc();
     }
 
     public List<Prestador> listarDesativados() {
-        return prestadorRepository.findByAtivoFalse();
+        // CORREÇÃO: Ordenando por 'id'
+        return prestadorRepository.findByAtivoFalseOrderByIdAsc();
     }
 
-    // --- CORRIGIDO ---
-    // O parâmetro 'codigo' agora é String.
     public Optional<Prestador> buscarPorCodigo(String codigo) {
         return prestadorRepository.findByCodigoPrestador(codigo);
     }
 
     @Transactional
     public Prestador salvar(Prestador prestador) {
-        // Esta chamada agora funciona, pois getCodigoPrestador() retorna String
-        // e o repositório (que também devemos corrigir) espera uma String.
         if (prestadorRepository.existsByCodigoPrestador(prestador.getCodigoPrestador())) {
             throw new RuntimeException("Já existe um prestador com esse código!");
         }
@@ -49,8 +48,6 @@ public class PrestadorService {
         return prestadorRepository.findById(id);
     }
 
-    // --- CORRIGIDO ---
-    // O parâmetro 'codigo' agora é String.
     @Transactional
     public void desativar(String codigo) {
         Prestador prestador = prestadorRepository.findByCodigoPrestador(codigo)
@@ -60,8 +57,6 @@ public class PrestadorService {
         prestadorRepository.save(prestador);
     }
 
-    // --- CORRIGIDO ---
-    // O parâmetro 'codigo' agora é String.
     @Transactional
     public void ativar(String codigo) {
         Prestador prestador = prestadorRepository.findByCodigoPrestador(codigo)
@@ -76,8 +71,6 @@ public class PrestadorService {
         Prestador prestadorExistente = prestadorRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Prestador não encontrado com o ID: " + id));
 
-        // Esta chamada agora funciona, pois getCodigoPrestador() retorna String
-        // e o repositório espera uma String.
         Optional<Prestador> prestadorComMesmoCodigo = prestadorRepository.findByCodigoPrestador(dadosNovos.getCodigoPrestador());
         if (prestadorComMesmoCodigo.isPresent() && !prestadorComMesmoCodigo.get().getId().equals(prestadorExistente.getId())) {
             throw new RuntimeException("O código de prestador '" + dadosNovos.getCodigoPrestador() + "' já está em uso por outro prestador.");
@@ -88,7 +81,6 @@ public class PrestadorService {
     }
 
     private void atualizarDados(Prestador existente, Prestador novosDados) {
-        // Esta chamada está correta pois ambos são String.
         existente.setCodigoPrestador(novosDados.getCodigoPrestador());
         existente.setPrestador(novosDados.getPrestador());
         existente.setRazaoSocial(novosDados.getRazaoSocial());

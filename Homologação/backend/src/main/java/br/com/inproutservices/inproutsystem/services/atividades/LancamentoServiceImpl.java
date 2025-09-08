@@ -145,18 +145,25 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional
     public Lancamento criarLancamento(LancamentoRequestDTO dto, Long managerId) {
+        OsLpuDetalhe osLpuDetalhe;
 
-        // 1. Validação de Projeto Finalizado (lógica existente, permanece igual)
-        boolean projetoFinalizado = lancamentoRepository.existsByOsLpuDetalheIdAndSituacao(
-                dto.osLpuDetalheId(),
-                SituacaoOperacional.FINALIZADO
-        );
-        if (projetoFinalizado) {
-            throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
+        if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+        } else {
+            // Lógica existente para atividades não complementares
+            if (dto.osLpuDetalheId() == null) {
+                throw new BusinessException("O ID do detalhe (osLpuDetalheId) é obrigatório para atividades não complementares.");
+            }
+            boolean projetoFinalizado = lancamentoRepository.existsByOsLpuDetalheIdAndSituacao(
+                    dto.osLpuDetalheId(),
+                    SituacaoOperacional.FINALIZADO);
+            if (projetoFinalizado) {
+                throw new BusinessException("Não é possível criar um novo lançamento para um projeto que já foi finalizado.");
+            }
+            osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // 2. Validação da Data da Atividade (adicionada aqui)
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
                 ? hoje.minusDays(3)
@@ -168,40 +175,17 @@ public class LancamentoServiceImpl implements LancamentoService {
                             dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
             );
         }
-        // --- FIM DA CORREÇÃO ---
 
-        OsLpuDetalhe osLpuDetalhe;
-
-        if(dto.atividadeComplementar()){
-            OS os = osRepository.findById(dto.osId())
-                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-            Lpu lpu = lpuRepository.findById(dto.lpuId())
-                    .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + dto.lpuId()));
-            OsRequestDto osRequestDto = new OsRequestDto();
-            osRequestDto.setOs(os.getOs());
-            osRequestDto.setLpuIds(List.of(lpu.getId()));
-            osRequestDto.setQuantidade(dto.quantidade());
-            osRequestDto.setKey(os.getOs() + "_" + lpu.getId());
-            osLpuDetalhe = osService.createOs(osRequestDto);
-        } else {
-            osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
-                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
-        }
-
-        // 3. Busca das entidades relacionadas
         Usuario manager = usuarioRepository.findById(managerId)
                 .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com o ID: " + managerId));
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
-
         OS os = osRepository.findById(dto.osId())
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
 
-        // 4. Criação e Mapeamento da nova entidade Lancamento
         Lancamento lancamento = new Lancamento();
-
         lancamento.setOs(os);
         lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setManager(manager);
@@ -864,39 +848,35 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         List<Lancamento> novosLancamentos = new ArrayList<>();
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // 1. Trazemos a lógica de validação de data para este método
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
-                ? hoje.minusDays(3) // Se for segunda, permite lançar de sexta, sábado e domingo
-                : prazoService.getDiaUtilAnterior(hoje); // Para outros dias, permite o dia útil anterior
-        // --- FIM DA CORREÇÃO ---
+                ? hoje.minusDays(3)
+                : prazoService.getDiaUtilAnterior(hoje);
 
         for (LancamentoRequestDTO dto : dtos) {
-            // --- INÍCIO DA CORREÇÃO ---
-            // 2. Verificamos a data de CADA lançamento do lote
             if (dto.dataAtividade().isBefore(dataMinimaPermitida)) {
                 throw new BusinessException(
                         "Não é permitido criar lançamentos para datas anteriores a " +
                                 dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
                 );
             }
-            // --- FIM DA CORREÇÃO ---
+
+            OsLpuDetalhe osLpuDetalhe;
+            if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
+                osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+            } else {
+                osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                        .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
+            }
 
             OS os = osRepository.findById(dto.osId())
                     .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-            OsLpuDetalhe osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
-                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
-
-            osLpuDetalhe.setOs(os);
-
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
             EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                     .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
             Lancamento lancamento = new Lancamento();
-
             lancamento.setOs(os);
             lancamento.setManager(manager);
             lancamento.setOsLpuDetalhe(osLpuDetalhe);
@@ -918,7 +898,8 @@ public class LancamentoServiceImpl implements LancamentoService {
             lancamento.setSituacao(dto.situacao());
             lancamento.setDetalheDiario(dto.detalheDiario());
             lancamento.setValor(dto.valor());
-            lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
+            lancamento.setSituacaoAprovacao(dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO);
+
 
             novosLancamentos.add(lancamento);
         }

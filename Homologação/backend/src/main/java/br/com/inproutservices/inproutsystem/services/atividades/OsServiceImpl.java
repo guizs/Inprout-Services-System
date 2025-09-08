@@ -49,9 +49,11 @@ public class OsServiceImpl implements OsService {
     private final UsuarioRepository usuarioRepository;
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
-    private final OsService osService;
 
-    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository, OsService osService) {
+    // REMOVIDO: private final OsService osService;
+
+    // CONSTRUTOR CORRIGIDO: Removida a injeção de OsService
+    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
         this.contratoRepository = contratoRepository;
@@ -59,7 +61,6 @@ public class OsServiceImpl implements OsService {
         this.usuarioRepository = usuarioRepository;
         this.lancamentoRepository = lancamentoRepository;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
-        this.osService = osService;
     }
 
     @Override
@@ -496,7 +497,7 @@ public class OsServiceImpl implements OsService {
                         if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                             throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                         }
-                        osService.createOs(dto);
+                        this.createOs(dto); // CHAMADA CORRIGIDA
                     }
 
                 } catch (Exception e) {
@@ -548,7 +549,7 @@ public class OsServiceImpl implements OsService {
             if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                 throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
             }
-            osService.createOs(dto);
+            this.createOs(dto); // CHAMADA CORRIGIDA
         }
     }
 
@@ -704,7 +705,7 @@ public class OsServiceImpl implements OsService {
                     if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                         throw new IllegalArgumentException("Para criar novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                     }
-                    osService.createOs(dto);
+                    this.createOs(dto); // CHAMADA CORRIGIDA
                 }
             } catch (Exception e) {
                 erros.add("Linha " + i + " no lote: " + e.getMessage());
@@ -759,5 +760,31 @@ public class OsServiceImpl implements OsService {
     @Override
     public List<OS> getOsByProjeto(String projeto) {
         return osRepository.findByProjeto(projeto);
+    }
+
+    @Override
+    @Transactional
+    public OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade) {
+        OS os = osRepository.findById(osId)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
+        Lpu lpu = lpuRepository.findById(lpuId)
+                .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + lpuId));
+
+        OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
+        novoDetalhe.setOs(os);
+        novoDetalhe.setLpu(lpu);
+        novoDetalhe.setKey("COMPLEMENTAR_" + os.getOs() + "_" + lpu.getId() + "_" + System.currentTimeMillis());
+        novoDetalhe.setQuantidade(quantidade);
+        novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+
+        // Copia dados do primeiro detalhe da OS como base
+        os.getDetalhes().stream().findFirst().ifPresent(base -> {
+            novoDetalhe.setSite(base.getSite());
+            novoDetalhe.setContrato(base.getContrato());
+            novoDetalhe.setRegional(base.getRegional());
+        });
+
+
+        return osLpuDetalheRepository.save(novoDetalhe);
     }
 }

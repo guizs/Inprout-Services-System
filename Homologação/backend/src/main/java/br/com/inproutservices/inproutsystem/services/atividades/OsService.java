@@ -70,4 +70,6 @@ public interface OsService {
     List<OS> findAllWithDetails();
 
     List<OS> getOsByProjeto(String projeto);
+
+    OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade);
 }

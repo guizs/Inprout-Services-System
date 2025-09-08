@@ -2,6 +2,7 @@ package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
@@ -39,10 +40,16 @@ record AcaoPrazoLoteControllerRequest(List<Long> lancamentoIds, Long controllerI
 public class LancamentoController {
 
     private final LancamentoService lancamentoService;
+    // --- INÍCIO DA CORREÇÃO ---
+    private final OsLpuDetalheRepository osLpuDetalheRepository;
+    private final LancamentoRepository lancamentoRepository;
 
-    public LancamentoController(LancamentoService lancamentoService) {
+    public LancamentoController(LancamentoService lancamentoService, OsLpuDetalheRepository osLpuDetalheRepository, LancamentoRepository lancamentoRepository) {
         this.lancamentoService = lancamentoService;
+        this.osLpuDetalheRepository = osLpuDetalheRepository;
+        this.lancamentoRepository = lancamentoRepository;
     }
+    // --- FIM DA CORREÇÃO ---
 
     @PostMapping("/lote/prazo/aprovar")
     public ResponseEntity<Void> aprovarPrazoLotePeloController(@RequestBody AprovacaoLoteRequest request) {
@@ -128,39 +135,31 @@ public class LancamentoController {
 
     @GetMapping
     public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos() {
-        // 1. Busca a lista de entidades no serviço (como antes)
         List<Lancamento> lancamentos = lancamentoService.getAllLancamentos();
 
-        // 2. Converte a lista de entidades para uma lista de DTOs (como antes)
         List<LancamentoResponseDTO> dtos = lancamentos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
 
-        // --- INÍCIO DA CORREÇÃO ---
-
-        // 3. Itera sobre cada DTO para calcular e injetar os novos valores
         List<LancamentoResponseDTO> dtosAtualizados = new ArrayList<>();
         for (LancamentoResponseDTO dto : dtos) {
             if (dto.os() == null || dto.os().id() == null) {
-                dtosAtualizados.add(dto); // Adiciona o DTO sem os valores calculados se não tiver OS
+                dtosAtualizados.add(dto);
                 continue;
             }
 
             Long osId = dto.os().id();
 
-            // Calcula o Valor Total da OS
             BigDecimal valorTotalOS = osLpuDetalheRepository.findAllByOsId(osId).stream()
                     .map(OsLpuDetalhe::getValorTotal)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Calcula o Valor CPS
             BigDecimal valorCPS = lancamentoRepository.findBySituacaoAprovacaoAndOsLpuDetalhe_Os_Id(SituacaoAprovacao.APROVADO, osId).stream()
                     .map(Lancamento::getValor)
                     .filter(Objects::nonNull)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            // Cria uma nova instância do DTO com os valores calculados
             dtosAtualizados.add(new LancamentoResponseDTO(
                     dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
                     dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
@@ -168,13 +167,12 @@ public class LancamentoController {
                     dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
                     dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),
-                    valorTotalOS, // <-- Valor Total da OS injetado
-                    valorCPS      // <-- Valor CPS injetado
+                    valorTotalOS,
+                    valorCPS
             ));
         }
-        // --- FIM DA CORREÇÃO ---
 
-        return ResponseEntity.ok(dtosAtualizados); // Retorna a lista de DTOs atualizada
+        return ResponseEntity.ok(dtosAtualizados);
     }
 
     @PostMapping("/{id}/coordenador-rejeitar")
@@ -183,17 +181,14 @@ public class LancamentoController {
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
 
-    // Endpoint para Controller Rejeitar (já existe, mas agora usará a nova lógica)
     @PostMapping("/{id}/controller-rejeitar")
     public ResponseEntity<LancamentoResponseDTO> rejeitarPeloController(@PathVariable Long id, @RequestBody AcaoControllerDTO dto) {
         Lancamento lancamento = lancamentoService.rejeitarPeloController(id, dto);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
 
-    // Endpoint para Gestor Reenviar
     @PostMapping("/{id}/reenviar")
     public ResponseEntity<LancamentoResponseDTO> reenviarParaAprovacao(@PathVariable Long id) {
-        // Id do manager pode ser pego do token de autenticação no futuro
         Long managerId = 1L;
         Lancamento lancamento = lancamentoService.reenviarParaAprovacao(id, managerId);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
@@ -230,11 +225,9 @@ public class LancamentoController {
             @RequestParam("dataInicio") String dataInicioStr,
             @RequestParam("dataFim") String dataFimStr) {
 
-        // 1. Converte as Strings para LocalDate manualmente
         LocalDate dataInicio = LocalDate.parse(dataInicioStr, DateTimeFormatter.ISO_LOCAL_DATE);
         LocalDate dataFim = LocalDate.parse(dataFimStr, DateTimeFormatter.ISO_LOCAL_DATE);
 
-        // 2. Chama o serviço com as datas já convertidas
         CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
 
         return ResponseEntity.ok(relatorio);
@@ -253,16 +246,12 @@ public class LancamentoController {
 
     @PostMapping("/lote")
     public ResponseEntity<List<LancamentoResponseDTO>> criarLancamentosEmLote(@RequestBody @Valid List<LancamentoRequestDTO> lancamentosDTO) {
-        // Estamos assumindo que o managerId é o mesmo para todo o lote, então pegamos do primeiro item.
-        // O ideal no futuro seria pegar o ID do usuário logado a partir do token de autenticação.
         if (lancamentosDTO == null || lancamentosDTO.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        // Delega a lógica de criação para o service
         List<Lancamento> lancamentosSalvos = lancamentoService.criarLancamentosEmLote(lancamentosDTO);
 
-        // Converte a lista de entidades salvas para uma lista de DTOs de resposta
         List<LancamentoResponseDTO> responseDTOs = lancamentosSalvos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());

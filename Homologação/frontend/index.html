@@ -512,14 +512,28 @@
                         <option value="" selected disabled>Selecione uma OS...</option>
                     </select>
                 </div>
-                <div class="col-md-4 d-none" id="lpuContainer">
-                    <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
-                    <select class="form-select" id="lpuId" required>
-                    </select>
-                </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="dataAtividade" class="form-label">Data da Atividade</label>
                     <input type="date" class="form-control" id="dataAtividade" required>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3 align-items-end">
+                <div class="col-md-auto">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="atividadeComplementar" />
+                        <label class="form-check-label" for="atividadeComplementar">Atividade Complementar</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-none" id="quantidadeContainer">
+                    <label for="quantidade" class="form-label">Quantidade</label>
+                    <input type="number" class="form-control" id="quantidade" min="1" value="1" />
+                </div>
+                <div class="col-md d-none" id="lpuContainer">
+                    <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
+                    <select class="form-select" id="lpuId" required>
+                        <option value="" selected disabled>Selecione uma LPU...</option>
+                    </select>
                 </div>
             </div>
 
@@ -735,55 +749,35 @@
                     <input type="text" class="form-control" id="dataAtividadeLote" placeholder="Selecione a data..."
                         required autocomplete="off">
                 </div>
+            </div>
 
-              <div class="col-12">
-                <label class="form-label">Selecione as LPUs</label>
-                <div id="lpuChecklistContainerLote" class="border rounded p-2"
-                  style="max-height: 150px; overflow-y: auto;">
-                  <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
+            <div class="row g-3 mb-3 align-items-end">
+              <div class="col-md-auto">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="atividadeComplementarLote" />
+                  <label class="form-check-label" for="atividadeComplementarLote">Atividade Complementar</label>
                 </div>
               </div>
-
-              <div class="col-12 mt-3 text-end">
-                <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimentoLote"
-                  disabled>Avançar</button>
-              </div>
-
-            </div>
-
-            <h6 class="section-title">Dados da OS</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-6">
-                <label for="siteLote" class="form-label">Site</label>
-                <input type="text" class="form-control" id="siteLote" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="segmentoLote" class="form-label">Segmento</label>
-                <input type="text" class="form-control" id="segmentoLote" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="projetoLote" class="form-label">Projeto</label>
-                <input type="text" class="form-control" id="projetoLote" readonly>
-              </div>
-              <div class="col-md-6">
-                <label for="contratoLote" class="form-label">Contrato</label>
-                <input type="text" class="form-control" id="contratoLote" readonly>
+              <div class="col-md-3 d-none" id="quantidadeComplementarContainerLote">
+                <label for="quantidadeComplementarLote" class="form-label">Quantidade</label>
+                <input type="number" class="form-control" id="quantidadeComplementarLote" min="1" value="1" />
               </div>
             </div>
 
-            <h6 class="section-title">Responsáveis</h6>
-            <div class="row g-3 mb-3">
-              <div class="col-md-4">
-                <label for="gestorTimLote" class="form-label">GESTOR TIM</label>
-                <input type="text" class="form-control" id="gestorTimLote" readonly>
-              </div>
-              <div class="col-md-4">
-                <label for="regionalLote" class="form-label">REGIONAL</label>
-                <input type="text" class="form-control" id="regionalLote" readonly>
+            <div class="col-12">
+              <label class="form-label">Selecione as LPUs</label>
+              <div id="lpuChecklistContainerLote" class="border rounded p-2"
+                style="max-height: 150px; overflow-y: auto;">
+                <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
               </div>
             </div>
 
-            <div id="formulariosContainerLote" class="accordion"></div>
+            <div class="col-12 mt-3 text-end">
+              <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimentoLote"
+                disabled>Avançar</button>
+            </div>
+
+            <div id="formulariosContainerLote" class="accordion mt-3"></div>
 
           </form>
         </div>
@@ -792,11 +786,9 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             <i class="bi bi-x-lg"></i> Fechar
           </button>
-
           <button type="submit" id="btnSubmitAdicionarLote" form="formAdicionarEmLote" class="btn btn-success">
             <i class="bi bi-check-circle"></i> Salvar Lançamento
           </button>
-
         </div>
 
       </div>

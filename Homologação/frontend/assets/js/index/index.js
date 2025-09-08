@@ -463,15 +463,74 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalTitle = document.getElementById('modalAdicionarLabel');
         const submitButton = document.getElementById('btnSubmitAdicionar');
 
-
         const selectOS = document.getElementById('osId');
         const selectProjeto = document.getElementById('projetoId');
         const selectPrestador = document.getElementById('prestadorId');
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
         const selectStatus = document.getElementById('status');
+
+        // --- NOVOS ELEMENTOS ---
+        const chkAtividadeComplementar = document.getElementById('atividadeComplementar');
+        const quantidadeContainer = document.getElementById('quantidadeContainer');
+        const lpuContainer = document.getElementById('lpuContainer');
+
         let todasAsOS = [];
         let todasAsEtapas = [];
+
+        async function carregarEPopularLPU(osId, isComplementar = false) {
+            const selectLPU = document.getElementById('lpuId');
+
+            if (!osId) {
+                lpuContainer.classList.add('d-none');
+                selectLPU.innerHTML = '';
+                return;
+            }
+
+            lpuContainer.classList.remove('d-none');
+            selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+            selectLPU.disabled = true;
+
+            try {
+                let url;
+                const osSelecionada = todasAsOS.find(os => os.id == osId);
+
+                if (isComplementar) {
+                    if (!osSelecionada || !osSelecionada.detalhes[0]?.lpu?.contrato?.id) {
+                        throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
+                    }
+                    const contratoId = osSelecionada.detalhes[0].lpu.contrato.id;
+                    url = `http://localhost:8080/lpu/por-contrato/${contratoId}`;
+                } else {
+                    url = `http://localhost:8080/os/${osId}/lpus`;
+                }
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs.');
+
+                const lpus = await response.json();
+
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+                if (lpus && lpus.length > 0) {
+                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), lpu.id)));
+                    selectLPU.disabled = false;
+                } else {
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
+                }
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+                lpuContainer.classList.add('d-none');
+            }
+        }
+
+        chkAtividadeComplementar.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            quantidadeContainer.classList.toggle('d-none', !isChecked);
+            const osId = selectOS.value;
+            if (osId) {
+                carregarEPopularLPU(osId, isChecked);
+            }
+        });
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
@@ -480,7 +539,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectProjeto.value = os.projeto;
             }
             preencherCamposOS(osId);
-            await carregarEPopularLPU(osId);
+            await carregarEPopularLPU(osId, chkAtividadeComplementar.checked);
         });
 
         selectProjeto.addEventListener('change', async (e) => {
@@ -488,8 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const os = todasAsOS.find(os => os.projeto == projeto);
             if (os) {
                 selectOS.value = os.id;
-                preencherCamposOS(os.id);
-                await carregarEPopularLPU(os.id);
+                // Dispara o evento de change na OS para carregar tudo
+                selectOS.dispatchEvent(new Event('change'));
             }
         });
 
@@ -516,106 +575,46 @@ document.addEventListener('DOMContentLoaded', () => {
         function preencherCamposOS(osId) {
             const osSelecionada = todasAsOS.find(os => os.id == osId);
             if (osSelecionada) {
-                document.getElementById('site').value = osSelecionada.site || '';
-                document.getElementById('segmento').value = osSelecionada.segmento ? osSelecionada.segmento.nome : '';
-                document.getElementById('projeto').value = osSelecionada.projeto || '';
-                document.getElementById('contrato').value = osSelecionada.contrato || '';
-                document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
-                document.getElementById('regional').value = osSelecionada.regional || '';
-            }
-        }
-
-        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId, statusParaSelecionar) {
-            const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
-            selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-            selectEtapaDetalhada.disabled = true;
-
-            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
-                etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
-                    selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
-                });
-                selectEtapaDetalhada.disabled = false;
-                if (etapaDetalhadaId) {
-                    selectEtapaDetalhada.value = etapaDetalhadaId;
-                }
-            }
-
-            // Lógica para popular o Status
-            selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-            selectStatus.disabled = true;
-
-            // A busca pela etapa detalhada agora acontece aqui dentro
-            let etapaDetalhada;
-            if (etapaGeralId && etapaDetalhadaId) {
-                const etapaGeral = todasAsEtapas.find(e => e.id == etapaGeralId);
-                etapaDetalhada = etapaGeral?.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaId);
-            }
-
-            if (etapaDetalhada) {
-                if (etapaDetalhada.status && etapaDetalhada.status.length > 0) {
-                    etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
-                    selectStatus.disabled = false;
-                } else {
-                    selectStatus.add(new Option("N/A", "NAO_APLICAVEL"));
-                    selectStatus.disabled = false;
-                }
-
-                // --- INÍCIO DA CORREÇÃO ---
-                // Se um status foi passado como parâmetro, seleciona ele no dropdown
-                if (statusParaSelecionar) {
-                    selectStatus.value = statusParaSelecionar;
-                }
-                // --- FIM DA CORREÇÃO ---
+                document.getElementById('site').value = get(osSelecionada, 'detalhes.0.site', '');
+                document.getElementById('segmento').value = get(osSelecionada, 'segmento.nome', '');
+                document.getElementById('projeto').value = get(osSelecionada, 'projeto', '');
+                document.getElementById('contrato').value = get(osSelecionada, 'detalhes.0.contrato', '');
+                document.getElementById('gestorTim').value = get(osSelecionada, 'gestorTim', '');
+                document.getElementById('regional').value = get(osSelecionada, 'detalhes.0.regional', '');
             }
         }
 
         async function carregarDadosParaModal() {
-            // Busca na API só acontece uma vez para otimizar
             if (todasAsOS.length === 0) {
                 try {
-                    // --- INÍCIO DA ALTERAÇÃO ---
-                    const usuarioId = localStorage.getItem('usuarioId'); // Pega o ID do usuário logado
-                    if (!usuarioId) {
-                        throw new Error('ID do usuário não encontrado no localStorage.');
-                    }
-
-                    // Chama o novo endpoint filtrado
+                    const usuarioId = localStorage.getItem('usuarioId');
+                    if (!usuarioId) throw new Error('ID do usuário não encontrado.');
                     const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                    // --- FIM DA ALTERAÇÃO ---
-
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
-                    const osData = await response.json();
 
-                    // O resto da função continua igual...
-                    const osUnicas = [...new Map(osData.map(os => [os.id, os])).values()];
-                    todasAsOS = osUnicas.sort((a, b) => a.os.localeCompare(b.os));
+                    todasAsOS = await response.json();
 
                     const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
 
                     selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     projetosUnicos.forEach(projeto => {
-                        const option = new Option(projeto, projeto);
-                        selectProjeto.add(option);
+                        selectProjeto.add(new Option(projeto, projeto));
                     });
 
                     selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     todasAsOS.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item.id;
-                        option.textContent = item.os;
-                        selectOS.appendChild(option);
+                        selectOS.add(new Option(item.os, item.id));
                     });
 
                 } catch (error) {
-                    console.error('Erro ao popular o select de OS:', error);
-                    selectOS.innerHTML = `<option value="" selected disabled>Erro ao carregar OS</option>`;
+                    console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
-            if (selectPrestador.options.length <= 1) {
-                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+            if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
+                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 

@@ -327,6 +327,19 @@ tr.selected {
   border-radius: 8px;
 }
 
+.detalhe-diario-cell {
+  max-width: 750px; /* Aumenta a largura máxima em 2.5x (de 300px para 750px) */
+  white-space: nowrap !important; /* Força o texto a ficar em uma única linha */
+  overflow: hidden; /* Esconde o conteúdo que transborda */
+  text-overflow: ellipsis; /* Adiciona "..." no final do texto truncado */
+  text-align: left !important; /* Mantém o alinhamento à esquerda */
+  cursor: pointer; /* Mantém o cursor de ponteiro para indicar que é clicável */
+}
+
+.detalhe-diario-cell {
+  cursor: pointer;
+}
+
 @keyframes pulse {
   0% {
     opacity: 0.4;

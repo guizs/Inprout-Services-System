@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://3.128.248.3:8080';
+    const API_URL = 'http://localhost:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -142,50 +142,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderLancamentosTable(lancamentos) {
+        const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+        const mostrarAcoes = userRole !== 'COORDINATOR';
+
         tableHead.innerHTML = `
-    <tr>
-        <th>DATA ATIVIDADE</th> <th>OS</th> <th>SITE</th> <th>CONTRATO</th> <th>SEGMENTO</th>
-        <th>PROJETO</th> <th>GESTOR TIM</th> <th>REGIONAL</th> <th>LOTE</th> <th>BOQ</th> <th>PO</th>
-        <th>ITEM</th> <th>OBJETO CONTRATADO</th> <th>UNIDADE</th> <th>QTD</th> <th>VALOR TOTAL</th>
-        <th>OBSERVAÇÕES</th> <th>DATA PO</th> <th>LPU</th> <th>EQUIPE</th> <th>VISTORIA</th> <th>PLANO DE VISTORIA</th>
-        <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
-        <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
-        <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
-        <th>VALOR PAGO</th> <th>ADIANTAMENTO</th> <th>AÇÕES</th>
-    </tr>`;
+<tr>
+    <th>DATA ATIVIDADE</th> <th>OS</th> <th>SITE</th> <th>CONTRATO</th> <th>SEGMENTO</th>
+    <th>PROJETO</th> <th>GESTOR TIM</th> <th>REGIONAL</th> <th>LOTE</th> <th>BOQ</th> <th>PO</th>
+    <th>ITEM</th> <th>OBJETO CONTRATADO</th> <th>UNIDADE</th> <th>QTD</th> <th>VALOR TOTAL</th>
+    <th>OBSERVAÇÕES</th> <th>DATA PO</th> <th>LPU</th> <th>EQUIPE</th> <th>VISTORIA</th> <th>PLANO DE VISTORIA</th>
+    <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
+    <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
+    <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
+    <th>VALOR PAGO</th> <th>KEY</th> <th>ADIANTAMENTO</th>
+    ${mostrarAcoes ? '<th>AÇÕES</th>' : ''} 
+</tr>`;
 
         tableBody.innerHTML = '';
 
         if (lancamentos && lancamentos.length > 0) {
             lancamentos.forEach(lanc => {
+                const acoesCell = mostrarAcoes ? `
+            <td>
+                <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
+                    <i class="bi bi-cash-coin"></i>
+                </button>
+            </td>` : '';
+
                 tableBody.innerHTML += `
-            <tr>
-                <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
-                <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td> <td>${lanc.projeto || 'N/A'}</td>
-                <td>${lanc.gestorTim || 'N/A'}</td> <td>${lanc.regional || 'N/A'}</td> <td>${lanc.lote || 'N/A'}</td>
-                <td>${lanc.boq || 'N/A'}</td> <td>${lanc.po || 'N/A'}</td> <td>${lanc.item || 'N/A'}</td>
-                <td>${lanc.objetoContratado || 'N/A'}</td> <td>${lanc.unidade || 'N/A'}</td> <td>${lanc.quantidade || 'N/A'}</td>
-                <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.observacoes || 'N/A'}</td> <td>${lanc.dataPo || 'N/A'}</td>
-                <td>${lanc.lpu || 'N/A'}</td> <td>${lanc.equipe || 'N/A'}</td> <td>${lanc.vistoria || 'N/A'}</td>
-                <td>${lanc.planoDeVistoria || 'N/A'}</td> <td>${lanc.desmobilizacao || 'N/A'}</td> <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
-                <td>${lanc.instalacao || 'N/A'}</td> <td>${lanc.planoDeInstalacao || 'N/A'}</td> <td>${lanc.ativacao || 'N/A'}</td>
-                <td>${lanc.planoDeAtivacao || 'N/A'}</td> <td>${lanc.documentacao || 'N/A'}</td> <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
-                <td>${lanc.etapaGeral || 'N/A'}</td> <td>${lanc.etapaDetalhada || 'N/A'}</td> <td>${lanc.status || 'N/A'}</td>
-                <td>${lanc.situacao || 'N/A'}</td> <td>${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
-                <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
-                <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
-                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
-                        <i class="bi bi-cash-coin"></i>
-                    </button>
-                </td>
-            </tr>`;
+        <tr>
+            <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
+            <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td> <td>${lanc.projeto || 'N/A'}</td>
+            <td>${lanc.gestorTim || 'N/A'}</td> <td>${lanc.regional || 'N/A'}</td> <td>${lanc.lote || 'N/A'}</td>
+            <td>${lanc.boq || 'N/A'}</td> <td>${lanc.po || 'N/A'}</td> <td>${lanc.item || 'N/A'}</td>
+            <td>${lanc.objetoContratado || 'N/A'}</td> <td>${lanc.unidade || 'N/A'}</td> <td>${lanc.quantidade || 'N/A'}</td>
+            <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.observacoes || 'N/A'}</td> <td>${lanc.dataPo || 'N/A'}</td>
+            <td>${lanc.lpu || 'N/A'}</td> <td>${lanc.equipe || 'N/A'}</td> <td>${lanc.vistoria || 'N/A'}</td>
+            <td>${lanc.planoDeVistoria || 'N/A'}</td> <td>${lanc.desmobilizacao || 'N/A'}</td> <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
+            <td>${lanc.instalacao || 'N/A'}</td> <td>${lanc.planoDeInstalacao || 'N/A'}</td> <td>${lanc.ativacao || 'N/A'}</td>
+            <td>${lanc.planoDeAtivacao || 'N/A'}</td> <td>${lanc.documentacao || 'N/A'}</td> <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
+            <td>${lanc.etapaGeral || 'N/A'}</td> <td>${lanc.etapaDetalhada || 'N/A'}</td> <td>${lanc.status || 'N/A'}</td>
+            <td>${lanc.situacao || 'N/A'}</td> <td class="detalhe-diario-cell">${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
+            <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
+            <td>${lanc.key || 'N/A'}</td>
+            <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
+            ${acoesCell}
+        </tr>`;
             });
         } else {
-            tableBody.innerHTML = `<tr><td colspan="40" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
+            const colspan = mostrarAcoes ? 40 : 39;
+            tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
         }
     }
 

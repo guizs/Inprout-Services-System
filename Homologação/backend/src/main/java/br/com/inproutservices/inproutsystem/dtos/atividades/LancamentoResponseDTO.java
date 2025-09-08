@@ -1,11 +1,10 @@
 package br.com.inproutservices.inproutsystem.dtos.atividades;
 
+import br.com.inproutservices.inproutsystem.dtos.index.LpuSimpleDTO;
+import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
+import br.com.inproutservices.inproutsystem.dtos.index.SegmentoSimpleDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
-import br.com.inproutservices.inproutsystem.entities.index.Lpu;
-import br.com.inproutservices.inproutsystem.entities.index.Prestador;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento; // Importe o Segmento
-import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
@@ -17,24 +16,23 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record LancamentoResponseDTO(
         Long id,
-        SituacaoAprovacao situacaoAprovacao,
-        ManagerDTO manager,
-        OsResponseDTO os,
-        LpuSimpleDTO lpu,
+        OsSimpleDTO os,
+        OsLpuDetalheSimpleDTO detalhe,
         PrestadorSimpleDTO prestador,
-        EtapaSimpleDTO etapa,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataSubmissao,
-        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazo,
-        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazoProposta,
+        EtapaInfoDTO etapa,
+        ManagerSimpleDTO manager, // <-- Campo do Gestor
+        BigDecimal valor,
+        SituacaoAprovacao situacaoAprovacao,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataAtividade,
-        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime ultUpdate,
+        String detalheDiario,
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazo,
+        List<ComentarioDTO> comentarios,
         String equipe,
         String vistoria,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoVistoria,
@@ -47,26 +45,32 @@ public record LancamentoResponseDTO(
         String documentacao,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDocumentacao,
         StatusEtapa status,
-        SituacaoOperacional situacao,
-        String detalheDiario,
-        BigDecimal valor,
-        Set<ComentarioDTO> comentarios
+        SituacaoOperacional situacao
 ) {
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
+                (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null)
+                        ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
+                (lancamento.getOsLpuDetalhe() != null)
+                        ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
+                (lancamento.getPrestador() != null)
+                        ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
+                (lancamento.getEtapaDetalhada() != null)
+                        ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
+                // --- CORREÇÃO PRINCIPAL AQUI ---
+                (lancamento.getManager() != null)
+                        ? new ManagerSimpleDTO(lancamento.getManager()) // Popula o DTO do Gestor
+                        : null,
+                lancamento.getValor(),
                 lancamento.getSituacaoAprovacao(),
-                (lancamento.getManager() != null) ? new ManagerDTO(lancamento.getManager()) : null,
-                (lancamento.getOs() != null) ? new OsResponseDTO(lancamento.getOs()) : null,
-                (lancamento.getLpu() != null) ? new LpuSimpleDTO(lancamento.getLpu()) : null,
-                (lancamento.getPrestador() != null) ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
-                (lancamento.getEtapaDetalhada() != null) ? new EtapaSimpleDTO(lancamento.getEtapaDetalhada()) : null,
-                lancamento.getDataCriacao(),
-                lancamento.getDataSubmissao(),
-                lancamento.getDataPrazo(),
-                lancamento.getDataPrazoProposta(),
                 lancamento.getDataAtividade(),
-                lancamento.getUltUpdate(),
+                lancamento.getDetalheDiario(),
+                lancamento.getDataCriacao(),
+                lancamento.getDataPrazo(),
+                (lancamento.getComentarios() != null)
+                        ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
+                        : List.of(),
                 lancamento.getEquipe(),
                 lancamento.getVistoria(),
                 lancamento.getPlanoVistoria(),
@@ -79,65 +83,67 @@ public record LancamentoResponseDTO(
                 lancamento.getDocumentacao(),
                 lancamento.getPlanoDocumentacao(),
                 lancamento.getStatus(),
-                lancamento.getSituacao(),
-                lancamento.getDetalheDiario(),
-                lancamento.getValor(),
-                (lancamento.getComentarios() != null) ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toSet()) : null
+                lancamento.getSituacao()
         );
     }
 
-    // --- DTOs aninhados ---
-
-    public record ManagerDTO(Long id, String nome) {
-        public ManagerDTO(Usuario manager) { this(manager.getId(), manager.getNome()); }
+    public record ComentarioDTO(
+            Long id,
+            String texto,
+            @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora,
+            AutorSimpleDTO autor
+    ) {
+        public ComentarioDTO(Comentario comentario) {
+            this(
+                    comentario.getId(),
+                    comentario.getTexto(),
+                    comentario.getDataHora(),
+                    (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null
+            );
+        }
     }
 
-    // A MUDANÇA PRINCIPAL ESTÁ AQUI
-    public record OsResponseDTO(
-            Long id, String os, String site, String contrato, SegmentoSimpleDTO segmento, String projeto, // MUDOU AQUI
-            String gestorTim, String regional, String lote, String boq, String po,
-            String item, String objetoContratado, String unidade, Integer quantidade,
+    public record AutorSimpleDTO(Long id, String nome) {
+        public AutorSimpleDTO(Usuario autor) {
+            this(autor.getId(), autor.getNome());
+        }
+    }
+
+    // DTO aninhado para o Manager (Gestor)
+    public record ManagerSimpleDTO(Long id, String nome) {
+        public ManagerSimpleDTO(Usuario manager) {
+            this(manager.getId(), manager.getNome());
+        }
+    }
+
+    // DTO aninhado para Etapa
+    public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
+        public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) {
+            this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome());
+        }
+    }
+
+    // Outros DTOs aninhados
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento) {
+        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
+            this(os.getId(), os.getOs(), os.getProjeto(), os.getGestorTim(), (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null);
+        }
+    }
+    public record OsLpuDetalheSimpleDTO(
+            Long id, String key, LpuSimpleDTO lpu, String site, String po,
+            String contrato, String regional, String lote, String boq, String item,
+            String objetoContratado, String unidade, Integer quantidade,
             BigDecimal valorTotal, String observacoes, @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo
     ) {
-        public OsResponseDTO(OS os) {
-            this(os.getId(), os.getOs(), os.getSite(), os.getContrato(),
-                    // E AQUI
-                    os.getSegmento() != null ? new SegmentoSimpleDTO(os.getSegmento()) : null,
-                    os.getProjeto(), os.getGestorTim(), os.getRegional(),
-                    os.getLote(), os.getBoq(), os.getPo(), os.getItem(), os.getObjetoContratado(),
-                    os.getUnidade(), os.getQuantidade(), os.getValorTotal(), os.getObservacoes(),
-                    os.getDataPo());
-        }
-    }
-
-    // NOVO DTO ANINHADO PARA SEGMENTO
-    public record SegmentoSimpleDTO(Long id, String nome) {
-        public SegmentoSimpleDTO(Segmento segmento) {
-            this(segmento.getId(), segmento.getNome());
-        }
-    }
-
-    public record LpuSimpleDTO(Long id, String codigo, String nome) {
-        public LpuSimpleDTO(Lpu lpu) { this(lpu.getId(), lpu.getCodigoLpu(), lpu.getNomeLpu()); }
-    }
-
-    public record PrestadorSimpleDTO(Long id, String codigo, String nome) {
-        public PrestadorSimpleDTO(Prestador prestador) {
-            this(prestador.getId(), prestador.getCodigoPrestador(), prestador.getPrestador());
-        }
-    }
-
-    public record EtapaSimpleDTO(Long id, String nomeDetalhado, String nomeGeral) {
-        public EtapaSimpleDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) {
-            this(etapaDetalhada.getId(), etapaDetalhada.getNome(), etapaDetalhada.getEtapa().getDescricao());
-        }
-    }
-
-    public record ComentarioDTO(Long id, String texto, ManagerDTO autor, @JsonFormat(pattern="dd/MM/yyyy HH:mm") LocalDateTime dataHora) {
-        public ComentarioDTO(Comentario comentario) {
-            this(comentario.getId(), comentario.getTexto(),
-                    (comentario.getAutor() != null) ? new ManagerDTO(comentario.getAutor()) : null,
-                    comentario.getDataHora());
+        public OsLpuDetalheSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe detalhe) {
+            this(
+                    detalhe.getId(), detalhe.getKey(),
+                    (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null,
+                    detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional(),
+                    detalhe.getLote(), detalhe.getBoq(), detalhe.getItem(), detalhe.getObjetoContratado(),
+                    detalhe.getUnidade(), detalhe.getQuantidade(), detalhe.getValorTotal(),
+                    detalhe.getObservacoes(), detalhe.getDataPo()
+            );
         }
     }
 }

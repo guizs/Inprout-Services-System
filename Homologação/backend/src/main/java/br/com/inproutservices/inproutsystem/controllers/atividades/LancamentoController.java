@@ -27,7 +27,7 @@ record AprovacaoLoteRequest(List<Long> lancamentoIds, Long aprovadorId) {}
 record RejeicaoLoteCoordenadorRequest(List<Long> lancamentoIds, Long aprovadorId, String comentario) {}
 record SolicitarPrazoLoteRequest(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaDataSugerida) {}
 record RejeicaoLoteControllerRequest(List<Long> lancamentoIds, Long controllerId, String motivoRejeicao) {}
-
+record AcaoPrazoLoteControllerRequest(List<Long> lancamentoIds, Long controllerId, String motivoRejeicao, LocalDate novaDataPrazo) {}
 
 @RestController
 @RequestMapping("/lancamentos")
@@ -38,6 +38,18 @@ public class LancamentoController {
 
     public LancamentoController(LancamentoService lancamentoService) {
         this.lancamentoService = lancamentoService;
+    }
+
+    @PostMapping("/lote/prazo/aprovar")
+    public ResponseEntity<Void> aprovarPrazoLotePeloController(@RequestBody AprovacaoLoteRequest request) {
+        lancamentoService.aprovarPrazoLotePeloController(request.lancamentoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/prazo/rejeitar")
+    public ResponseEntity<Void> rejeitarPrazoLotePeloController(@RequestBody AcaoPrazoLoteControllerRequest request) {
+        lancamentoService.rejeitarPrazoLotePeloController(request.lancamentoIds(), request.controllerId(), request.motivoRejeicao(), request.novaDataPrazo());
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping

@@ -28,7 +28,7 @@ document.getElementById('formLogin').addEventListener('submit', async (event) =>
     const payload = JSON.stringify({ email, senha });
 
     try {
-        const response = await fetch('http://3.128.248.3:8080/usuarios/login', {
+        const response = await fetch('http://localhost:8080/usuarios/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: payload

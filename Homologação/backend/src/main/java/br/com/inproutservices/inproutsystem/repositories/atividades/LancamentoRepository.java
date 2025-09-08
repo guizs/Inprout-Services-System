@@ -23,43 +23,58 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     List<Lancamento> findBySituacaoAprovacaoAndDataAtividade(SituacaoAprovacao situacao, LocalDate data);
 
-    Optional<Lancamento> findFirstByOsIdAndSituacaoAprovacaoOrderByDataCriacaoAsc(Long osId, SituacaoAprovacao situacao);
+    Optional<Lancamento> findFirstByOsLpuDetalheIdAndSituacaoAprovacaoOrderByDataCriacaoAsc(
+            Long osLpuDetalheId,
+            SituacaoAprovacao situacaoAprovacao
+    );
 
+    List<Lancamento> findAllByOsLpuDetalheId(Long osLpuDetalheId);
+
+    // ================== CORREÇÃO 1 ==================
     @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH o.segmento " +
             "LEFT JOIN FETCH l.manager " +
-            "LEFT JOIN FETCH l.os o " +
-            "LEFT JOIN FETCH o.lpus " +
-            "LEFT JOIN FETCH l.lpu " +
+            "LEFT JOIN FETCH l.prestador " +
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa " +
-            "LEFT JOIN FETCH l.prestador " +
             "LEFT JOIN FETCH l.comentarios c " +
             "LEFT JOIN FETCH c.autor " +
             "WHERE l.id = :id")
     Optional<Lancamento> findByIdWithDetails(@Param("id") Long id);
 
     @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH o.segmento " +
             "LEFT JOIN FETCH l.manager " +
-            "LEFT JOIN FETCH l.os o " +
-            "LEFT JOIN FETCH o.lpus " +
-            "LEFT JOIN FETCH l.lpu " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.etapaDetalhada ed " +
+            "LEFT JOIN FETCH ed.etapa " +
             "LEFT JOIN FETCH l.comentarios c " +
             "LEFT JOIN FETCH c.autor")
     List<Lancamento> findAllWithDetails();
 
-    Optional<Lancamento> findFirstByOsIdOrderByIdDesc(Long osId);
+    Optional<Lancamento> findFirstByOsLpuDetalheIdOrderByIdDesc(Long osLpuDetalheId);
 
     @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :statuses")
     List<Lancamento> findBySituacaoAprovacaoIn(@Param("statuses") List<SituacaoAprovacao> statuses);
 
-    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :statuses AND l.os.segmento IN :segmentos")
+    // ================== CORREÇÃO 2 ==================
+    @Query("SELECT l FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "WHERE l.situacaoAprovacao IN :statuses AND o.segmento IN :segmentos")
     List<Lancamento> findBySituacaoAprovacaoInAndOsSegmentoIn(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("segmentos") Set<Segmento> segmentos);
 
     List<Lancamento> findBySituacaoAprovacaoAndDataPrazoBefore(SituacaoAprovacao situacao, LocalDate data);
 
+    // ================== CORREÇÃO 3 ==================
     @Query("SELECT DISTINCT l FROM Lancamento l " +
-            "LEFT JOIN FETCH l.lpu " +
-            "LEFT JOIN FETCH l.os " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH d.os " +
             "LEFT JOIN FETCH l.prestador " +
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa " +
@@ -69,17 +84,16 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);
 
-    // ==================================================================
-    // >>>>> QUERY ATUALIZADA PARA O RELATÓRIO CPS <<<<<
-    // ==================================================================
+    // ================== CORREÇÃO 4 ==================
     @Query("SELECT l FROM Lancamento l " +
-            "LEFT JOIN FETCH l.os os " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os os " +
             "LEFT JOIN FETCH os.segmento " +
-            "LEFT JOIN FETCH l.lpu " +
+            "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH l.prestador " +
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa e " +
-            "LEFT JOIN FETCH l.manager " + // Adicionado para buscar o gestor
+            "LEFT JOIN FETCH l.manager " +
             "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
     List<Lancamento> findLancamentosAprovadosPorPeriodo(
             @Param("status") SituacaoAprovacao status,
@@ -87,10 +101,9 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataFim") LocalDate dataFim
     );
 
-
-    //Agrega os valores por segmento
+    // ================== CORREÇÃO 5 ==================
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
-            "FROM Lancamento l JOIN l.os o JOIN o.segmento s " +
+            "FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o JOIN o.segmento s " +
             "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
             "GROUP BY s.nome ORDER BY s.nome")
     List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
@@ -101,8 +114,5 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "GROUP BY p.codigoPrestador, p.prestador ORDER BY SUM(l.valor) DESC")
     List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
-    Optional<Lancamento> findFirstByOsIdAndLpuIdOrderByIdDesc(Long osId, Long lpuId);
-
-    boolean existsByOsIdAndLpuIdAndSituacao(Long osId, Long lpuId, SituacaoOperacional situacao);
-
+    boolean existsByOsLpuDetalheIdAndSituacao(Long osLpuDetalheId, SituacaoOperacional situacao);
 }

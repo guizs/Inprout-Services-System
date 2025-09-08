@@ -21,7 +21,7 @@ const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-seleciona
 const contadorPrazo = document.getElementById('contador-prazo');
 let todasPendenciasMateriais = []; // Variável global para guardar os dados
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://3.128.248.3:8080';
+const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -280,66 +280,67 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const formatarMoeda = (valor) => valor ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
         const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
-
             tr.dataset.id = lancamento.id;
             tr.classList.add('linha-selecionavel');
 
-            // Define as ações com base no perfil do usuário
             let acoesHtml = '';
-            // Formata o badge de status de forma condicional
             let statusHtml = `<span class="badge rounded-pill text-bg-warning">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`;
 
-            // Se o status for de solicitação de prazo, adiciona a data proposta
             if (lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' && lancamento.dataPrazoProposta) {
                 const dataAtualFormatada = formatarData(lancamento.dataPrazo);
                 const dataPropostaFormatada = lancamento.dataPrazoProposta.split('-').reverse().join('/');
-
-                // Adiciona as duas linhas de informação
                 statusHtml += `<br><small class="text-muted">Prazo Atual: <b>${dataAtualFormatada}</b></small>`;
                 statusHtml += `<br><small class="text-muted">Prazo Solicitado: <b>${dataPropostaFormatada}</b></small>`;
             }
 
             if (userRole === 'COORDINATOR') {
                 acoesHtml = `
-                    <div class="d-flex justify-content-center gap-1">
-                        <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                    </div>`;
+            <div class="d-flex justify-content-center gap-1">
+                <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
+                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+            </div>`;
             } else if (userRole === 'CONTROLLER') {
                 switch (lancamento.situacaoAprovacao) {
                     case 'PENDENTE_CONTROLLER':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                </div>`;
+        <div class="d-flex justify-content-center gap-1">
+            <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+        </div>`;
                         break;
                     case 'AGUARDANDO_EXTENSAO_PRAZO':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                    <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
-                    <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
-                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                </div>`;
+        <div class="d-flex justify-content-center gap-1">
+            <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
+            <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+        </div>`;
                         break;
                     case 'PRAZO_VENCIDO':
                         acoesHtml = `
-                <div class="d-flex justify-content-center gap-1">
-                     <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
-                </div>`;
+        <div class="d-flex justify-content-center gap-1">
+             <button class="btn btn-sm btn-outline-warning" title="Estabelecer Novo Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-plus"></i></button>
+        </div>`;
                         break;
                     default:
-                        acoesHtml = ''; // Nenhum botão para outros status
+                        acoesHtml = '';
                 }
             }
+
+            const detalhe = lancamento.detalhe || {};
+            const os = lancamento.os || {};
+            const lpu = detalhe.lpu || {};
+            const etapa = lancamento.etapa || {};
+            const prestador = lancamento.prestador || {};
+            const manager = lancamento.manager || {};
 
             const mapaDeCelulas = {
                 '<input type="checkbox" id="selecionar-todos-checkbox">': `<input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}">`,
@@ -347,26 +348,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PRAZO AÇÃO": userRole === 'COORDINATOR' ? `<span class="badge bg-danger">${formatarData(lancamento.dataPrazo)}</span>` : '',
                 "STATUS APROVAÇÃO": statusHtml,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
-                // Dados da OS
-                "OS": (lancamento.os || {}).os || '',
-                "SITE": (lancamento.os || {}).site || '',
-                "CONTRATO": (lancamento.os || {}).contrato || '',
-                "SEGMENTO": (lancamento.os && lancamento.os.segmento) ? lancamento.os.segmento.nome : '',
-                "PROJETO": (lancamento.os || {}).projeto || '',
-                "GESTOR TIM": (lancamento.os || {}).gestorTim || '',
-                "REGIONAL": (lancamento.os || {}).regional || '',
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '',
-                "LOTE": (lancamento.os || {}).lote || '',
-                "BOQ": (lancamento.os || {}).boq || '',
-                "PO": (lancamento.os || {}).po || '',
-                "ITEM": (lancamento.os || {}).item || '',
-                "OBJETO CONTRATADO": (lancamento.os || {}).objetoContratado || '',
-                "UNIDADE": (lancamento.os || {}).unidade || '',
-                "QUANTIDADE": (lancamento.os || {}).quantidade || '',
-                "VALOR TOTAL": formatarMoeda((lancamento.os || {}).valorTotal),
-                "OBSERVAÇÕES": (lancamento.os || {}).observacoes || '',
-                "DATA PO": (lancamento.os || {}).dataPo || '',
-                // Dados do Lançamento
+                "OS": os.os || '',
+                "SITE": detalhe.site || '',
+                "CONTRATO": detalhe.contrato || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '',
+                "PROJETO": os.projeto || '',
+                "GESTOR TIM": os.gestorTim || '',
+                "REGIONAL": detalhe.regional || '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu}` : (lpu.codigoLpu || ''),
+                "LOTE": detalhe.lote || '',
+                "BOQ": detalhe.boq || '',
+                "PO": detalhe.po || '',
+                "ITEM": detalhe.item || '',
+                "OBJETO CONTRATADO": lpu.nomeLpu || '',
+                "UNIDADE": detalhe.unidade || '',
+                "QUANTIDADE": detalhe.quantidade || '',
+                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
+                "OBSERVAÇÕES": detalhe.observacoes || '',
+                "DATA PO": formatarData(detalhe.dataPo) || '',
                 "VISTORIA": lancamento.vistoria || '',
                 "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
                 "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
@@ -377,15 +376,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '',
                 "DOCUMENTAÇÃO": lancamento.documentacao || '',
                 "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
-                "ETAPA GERAL": (lancamento.etapa || {}).nomeGeral || '',
-                "ETAPA DETALHADA": (lancamento.etapa || {}).nomeDetalhado || '',
+                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
+                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
                 "STATUS": lancamento.status || '',
                 "SITUAÇÃO": lancamento.situacao || '',
                 "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": (lancamento.prestador || {}).codigo || '',
-                "PRESTADOR": (lancamento.prestador || {}).nome || '',
+                "CÓD. PRESTADOR": prestador.codigo || '',
+                "PRESTADOR": prestador.nome || '',
                 "VALOR": formatarMoeda(lancamento.valor),
-                "GESTOR": (lancamento.manager || {}).nome || '',
+                "GESTOR": manager.nome || '',
             };
 
             colunas.forEach(nomeColuna => {
@@ -397,6 +396,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
                 if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                }
+                // Adiciona a classe à célula de "Detalhe Diário"
+                if (nomeColuna === "DETALHE DIÁRIO") {
+                    td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });
@@ -741,7 +744,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tbodyHistorico) return;
         tbodyHistorico.innerHTML = '';
 
-        // Adiciona a nova coluna "COMENTÁRIOS"
         const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO" && !c.includes('checkbox'))];
 
         if (theadHistorico) {
@@ -753,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        const formatarMoeda = (valor) => valor ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
         const formatarData = (dataStr) => {
             if (!dataStr) return '';
             if (dataStr.includes('/')) return dataStr;
@@ -775,22 +777,57 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusBadge = `<span class="badge rounded-pill text-bg-info">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`;
             }
 
+            const detalhe = lancamento.detalhe || {};
+            const os = lancamento.os || {};
+            const lpu = detalhe.lpu || {};
+            const etapa = lancamento.etapa || {};
+            const prestador = lancamento.prestador || {};
+            const manager = lancamento.manager || {};
+
             const mapaDeCelulas = {
-                // Célula do botão de comentários
                 "COMENTÁRIOS": `
-                <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
-                    <i class="bi bi-eye"></i>
-                </button>
-            `,
+        <button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
+            <i class="bi bi-eye"></i>
+        </button>`,
                 "STATUS APROVAÇÃO": statusBadge,
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
-                "OS": (lancamento.os || {}).os || '', "SITE": (lancamento.os || {}).site || '', "CONTRATO": (lancamento.os || {}).contrato || '', "SEGMENTO": (lancamento.os && lancamento.os.segmento) ? lancamento.os.segmento.nome : '', "PROJETO": (lancamento.os || {}).projeto || '',
-                "GESTOR TIM": (lancamento.os || {}).gestorTim || '', "REGIONAL": (lancamento.os || {}).regional || '', "LOTE": (lancamento.os || {}).lote || '', "BOQ": (lancamento.os || {}).boq || '', "PO": (lancamento.os || {}).po || '', "ITEM": (lancamento.os || {}).item || '', "OBJETO CONTRATADO": (lancamento.os || {}).objetoContratado || '', "UNIDADE": (lancamento.os || {}).unidade || '', "QUANTIDADE": (lancamento.os || {}).quantidade || '', "VALOR TOTAL": formatarMoeda((lancamento.os || {}).valorTotal),
-                "OBSERVAÇÕES": (lancamento.os || {}).observacoes || '', "DATA PO": (lancamento.os || {}).dataPo || '',
-                "LPU": (lancamento.lpu) ? `${lancamento.lpu.codigo} - ${lancamento.lpu.nome}` : '', "EQUIPE": lancamento.equipe || '', "VISTORIA": lancamento.vistoria || '', "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '', "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '', "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao) || '',
-                "INSTALAÇÃO": lancamento.instalacao || '', "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao) || '', "ATIVAÇÃO": lancamento.ativacao || '', "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '', "DOCUMENTAÇÃO": lancamento.documentacao || '', "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
-                "ETAPA GERAL": (lancamento.etapa || {}).nomeGeral || '', "ETAPA DETALHADA": (lancamento.etapa || {}).nomeDetalhado || '', "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": (lancamento.prestador || {}).codigo || '', "PRESTADOR": (lancamento.prestador || {}).nome || '', "VALOR": formatarMoeda(lancamento.valor), "GESTOR": (lancamento.manager || {}).nome || '',
+                "OS": os.os || '',
+                "SITE": detalhe.site || '',
+                "CONTRATO": detalhe.contrato || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '',
+                "PROJETO": os.projeto || '',
+                "GESTOR TIM": os.gestorTim || '',
+                "REGIONAL": detalhe.regional || '',
+                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu}` : (lpu.codigoLpu || ''),
+                "LOTE": detalhe.lote || '',
+                "BOQ": detalhe.boq || '',
+                "PO": detalhe.po || '',
+                "ITEM": detalhe.item || '',
+                "OBJETO CONTRATADO": lpu.nomeLpu || '',
+                "UNIDADE": detalhe.unidade || '',
+                "QUANTIDADE": detalhe.quantidade || '',
+                "VALOR TOTAL": formatarMoeda(detalhe.valorTotal),
+                "OBSERVAÇÕES": detalhe.observacoes || '',
+                "DATA PO": formatarData(detalhe.dataPo) || '',
+                "VISTORIA": lancamento.vistoria || '',
+                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
+                "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
+                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao) || '',
+                "INSTALAÇÃO": lancamento.instalacao || '',
+                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao) || '',
+                "ATIVAÇÃO": lancamento.ativacao || '',
+                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '',
+                "DOCUMENTAÇÃO": lancamento.documentacao || '',
+                "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
+                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
+                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
+                "STATUS": lancamento.status || '',
+                "SITUAÇÃO": lancamento.situacao || '',
+                "DETALHE DIÁRIO": lancamento.detalheDiario || '',
+                "CÓD. PRESTADOR": prestador.codigo || '',
+                "PRESTADOR": prestador.nome || '',
+                "VALOR": formatarMoeda(lancamento.valor),
+                "GESTOR": manager.nome || '',
             };
 
             colunasHistorico.forEach(nomeColuna => {
@@ -799,6 +836,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
                 if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(nomeColuna)) {
                     aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
+                }
+                // Adiciona a classe à célula de "Detalhe Diário"
+                if (nomeColuna === "DETALHE DIÁRIO") {
+                    td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });
@@ -903,30 +944,45 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const btn = document.getElementById('btnEnviarComentario');
         const isAcaoEmLote = modalComentar._element.dataset.acaoEmLote === 'true';
+        const lancamentoId = document.getElementById('comentarLancamentoId').value;
 
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked')).map(cb => cb.dataset.id)
-            : [document.getElementById('comentarLancamentoId').value];
+            : [lancamentoId];
 
         let payload = {};
         let endpoint = '';
+        let method = 'POST';
 
-        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+        // --- INÍCIO DA CORREÇÃO ---
+        if (userRole === 'CONTROLLER') {
+            const motivo = document.getElementById('comentarioCoordenador').value;
+            const novaData = document.getElementById('novaDataProposta').value;
+
+            if (isAcaoEmLote) {
+                endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/rejeitar`;
+                payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
+            } else {
+                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/prazo/rejeitar`;
+                payload = { controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
+            }
+        } else { // Lógica para Coordenador
             payload = {
                 lancamentoIds: ids,
                 coordenadorId: userId,
                 comentario: document.getElementById('comentarioCoordenador').value,
                 novaDataSugerida: document.getElementById('novaDataProposta').value
             };
-            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`;
-        } else if (userRole === 'CONTROLLER') {
-            // Lógica para Controller, se necessário
+            endpoint = isAcaoEmLote
+                ? `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`
+                : `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-solicitar-prazo`;
         }
+        // --- FIM DA CORREÇÃO ---
 
         setButtonLoading(btn, true);
         try {
             const response = await fetch(endpoint, {
-                method: 'POST',
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
@@ -940,7 +996,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(btn, false);
-            delete modalComentar._element.dataset.acaoEmLote; // Limpa o marcador
+            delete modalComentar._element.dataset.acaoEmLote;
         }
     });
 
@@ -1076,9 +1132,22 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     btnRecusarSelecionados.addEventListener('click', () => {
-        // Adiciona um marcador para o modal saber que é uma ação em lote
-        modalRecusar._element.dataset.acaoEmLote = 'true';
-        recusarLancamento(null); // Abre o modal sem um ID específico
+        const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
+        if (checkboxesSelecionados.length === 0) return;
+
+        const primeiroId = checkboxesSelecionados[0].dataset.id;
+        const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == primeiroId);
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Decide qual modal abrir com base no status do item
+        if (userRole === 'CONTROLLER' && (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || primeiroLancamento.situacaoAprovacao === 'PRAZO_VENCIDO')) {
+            modalComentar._element.dataset.acaoEmLote = 'true';
+            recusarPrazoController(null); // Abre o modal de definir prazo/motivo
+        } else {
+            modalRecusar._element.dataset.acaoEmLote = 'true';
+            recusarLancamento(null); // Abre o modal de recusa simples
+        }
+        // --- FIM DA CORREÇÃO ---
     });
 
     btnSolicitarPrazo.addEventListener('click', () => {
@@ -1117,6 +1186,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btnAprovarSelecionados.addEventListener('click', async () => {
         const checkboxesSelecionados = document.querySelectorAll('#tbody-pendentes .linha-checkbox:checked');
         const idsParaAprovar = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
+        const primeiroLancamentoSelecionado = todosOsLancamentosGlobais.find(l => l.id == idsParaAprovar[0]);
 
         if (idsParaAprovar.length === 0) {
             mostrarToast('Nenhum item selecionado para aprovar.', 'error');
@@ -1124,17 +1194,25 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         setButtonLoading(btnAprovarSelecionados, true);
-
         try {
-            const endpoint = userRole === 'CONTROLLER'
-                ? `${API_BASE_URL}/lancamentos/lote/controller-aprovar`
-                : `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+            let endpoint = '';
+            // --- INÍCIO DA CORREÇÃO ---
+            if (userRole === 'CONTROLLER') {
+                if (primeiroLancamentoSelecionado.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
+                } else if (primeiroLancamentoSelecionado.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`;
+                }
+            } else { // Coordenador
+                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+            }
+            // --- FIM DA CORREÇÃO ---
 
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Assumindo que você usa token
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
                     lancamentoIds: idsParaAprovar,
@@ -1145,9 +1223,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error('Falha ao aprovar lançamentos em lote.');
 
             mostrarToast(`${idsParaAprovar.length} lançamento(s) aprovado(s) com sucesso!`, 'success');
-            await carregarDadosAtividades(); // Recarrega os dados para atualizar a tabela
+            await carregarDadosAtividades();
             atualizarEstadoAcoesLote();
-            acoesLoteContainer.classList.add('d-none'); // Esconde o botão novamente
+            acoesLoteContainer.classList.add('d-none');
 
         } catch (error) {
             mostrarToast(error.message, 'error');

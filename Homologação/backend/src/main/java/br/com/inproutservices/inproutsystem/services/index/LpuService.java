@@ -35,8 +35,10 @@ public class LpuService {
         OS os = osRepository.findById(osId)
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
 
-        return os.getLpus().stream()
-                .map(lpu -> new LpuResponseDTO(lpu))
+        return os.getDetalhes().stream()       // 1. Pega a lista de 'OsLpuDetalhe'
+                .map(detalhe -> detalhe.getLpu()) // 2. Para cada detalhe, pega a LPU associada
+                .distinct()                       // 3. (Opcional) Remove LPUs duplicadas, caso existam
+                .map(lpu -> new LpuResponseDTO(lpu)) // 4. Mapeia cada LPU para seu DTO de resposta
                 .collect(Collectors.toList());
     }
 

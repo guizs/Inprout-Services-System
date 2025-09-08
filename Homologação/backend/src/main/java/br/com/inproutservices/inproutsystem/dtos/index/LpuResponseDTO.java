@@ -1,6 +1,5 @@
 package br.com.inproutservices.inproutsystem.dtos.index;
 
-// Adicione a importação da sua entidade Lpu
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 
 import java.math.BigDecimal;
@@ -15,11 +14,6 @@ public record LpuResponseDTO(
         boolean ativo,
         ContratoSimpleDTO contrato
 ) {
-    // --- INÍCIO DA CORREÇÃO: ADICIONE ESTE CONSTRUTOR ---
-    /**
-     * Construtor adicional que converte uma entidade Lpu para este DTO.
-     * @param lpu A entidade Lpu vinda do banco de dados.
-     */
     public LpuResponseDTO(Lpu lpu) {
         this(
                 lpu.getId(),
@@ -35,5 +29,5 @@ public record LpuResponseDTO(
                         : null
         );
     }
-    // --- FIM DA CORREÇÃO ---
+
 }

@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController // Anotação que combina @Controller e @ResponseBody, ideal para APIs REST
@@ -76,12 +78,23 @@ public class OsController {
      */
     @GetMapping
     public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        List<OS> todasAsOs = osService.getAllOs();
-        // Converte a lista de entidades para uma lista de DTOs
-        List<OsResponseDto> responseList = todasAsOs.stream()
-                .map(OsResponseDto::new)
+        List<OS> oss = osService.findAllWithDetails();
+        List<OsResponseDto> dtos = oss.stream()
+                .map(OsResponseDto::new) // USA O DTO CORRIGIDO
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(responseList);
+        return ResponseEntity.ok(dtos);
+    }
+
+    @PostMapping("/importar-linha")
+    public ResponseEntity<String> importarLinhaOs(@RequestBody Map<String, Object> rowData) {
+        try {
+            osService.processarLinhaDePlanilha(rowData);
+            return ResponseEntity.ok("Linha processada com sucesso.");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Erro inesperado ao processar a linha: " + e.getMessage());
+        }
     }
 
     /**
@@ -94,6 +107,20 @@ public class OsController {
     public ResponseEntity<OS> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
         OS osAtualizada = osService.updateOs(id, osDto);
         return ResponseEntity.ok(osAtualizada);
+    }
+
+    @PostMapping("/importar-lote")
+    public ResponseEntity<List<String>> importarLote(@RequestBody List<Map<String, Object>> lote) {
+        try {
+            List<String> erros = osService.processarLoteDePlanilha(lote);
+            if (erros.isEmpty()) {
+                return ResponseEntity.ok(Collections.emptyList());
+            } else {
+                return ResponseEntity.status(HttpStatus.MULTI_STATUS).body(erros);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Collections.singletonList("Erro inesperado no servidor: " + e.getMessage()));
+        }
     }
 
     /**

@@ -28,10 +28,6 @@ public class Lpu {
     @JsonBackReference
     private Contrato contrato;
 
-    // ADICIONADO: Relacionamento para acessar os lançamentos da LPU
-    @OneToMany(mappedBy = "lpu", fetch = FetchType.LAZY)
-    private List<Lancamento> lancamentos = new ArrayList<>();
-
     @Column(name = "codigo_lpu", nullable = false, length = 50)
     private String codigoLpu;
 
@@ -57,15 +53,6 @@ public class Lpu {
     private LocalDateTime dataAtualizacao;
 
     public Lpu() {
-    }
-
-    // ADICIONADO: Getter e Setter para a nova lista
-    public List<Lancamento> getLancamentos() {
-        return lancamentos;
-    }
-
-    public void setLancamentos(List<Lancamento> lancamentos) {
-        this.lancamentos = lancamentos;
     }
 
     // (O restante da classe permanece igual...)

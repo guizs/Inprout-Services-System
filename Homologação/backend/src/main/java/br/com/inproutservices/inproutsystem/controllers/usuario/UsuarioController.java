@@ -2,18 +2,25 @@ package br.com.inproutservices.inproutsystem.controllers.usuario;
 
 import br.com.inproutservices.inproutsystem.dtos.login.LoginRequest;
 import br.com.inproutservices.inproutsystem.dtos.usuario.UsuarioRequestDTO;
+import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
+import br.com.inproutservices.inproutsystem.services.TokenService;
 import br.com.inproutservices.inproutsystem.services.usuarios.PasswordService;
 import br.com.inproutservices.inproutsystem.services.usuarios.UsuarioService;
 import org.springframework.beans.factory.annotation.Autowired;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -24,11 +31,41 @@ public class UsuarioController {
     private final UsuarioRepository usuarioRepo;
     private final PasswordService passwordService;
     private final UsuarioService usuarioService;
+    private final AuthenticationManager authenticationManager; // ADICIONADO
+    private final TokenService tokenService; // ADICIONADO
 
-    public UsuarioController(UsuarioRepository usuarioRepo, PasswordService passwordService, UsuarioService usuarioService) {
+    // CONSTRUTOR ATUALIZADO
+    public UsuarioController(UsuarioRepository usuarioRepo, PasswordService passwordService, UsuarioService usuarioService, AuthenticationManager authenticationManager, TokenService tokenService) {
         this.usuarioRepo = usuarioRepo;
         this.passwordService = passwordService;
         this.usuarioService = usuarioService;
+        this.authenticationManager = authenticationManager;
+        this.tokenService = tokenService;
+    }
+
+    // --- ENDPOINT DE LOGIN CORRIGIDO ---
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        try {
+            var usernamePassword = new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getSenha());
+            Authentication auth = this.authenticationManager.authenticate(usernamePassword);
+            Usuario usuario = (Usuario) auth.getPrincipal();
+            String token = tokenService.generateToken(usuario);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("id", usuario.getId());
+            response.put("usuario", usuario.getNome());
+            response.put("email", usuario.getEmail());
+            response.put("role", usuario.getRole());
+            List<Long> segmentoIds = usuario.getSegmentos().stream().map(Segmento::getId).collect(Collectors.toList());
+            response.put("segmentos", segmentoIds);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
+        }
     }
 
     // Criar usuário
@@ -96,35 +133,6 @@ public class UsuarioController {
         }
     }
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @CrossOrigin(origins = "*")
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(loginRequest.getEmail());
-
-        if (usuarioOpt.isPresent()) {
-            Usuario usuario = usuarioOpt.get();
-
-            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-            if (encoder.matches(loginRequest.getSenha(), usuario.getSenha())) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("id", usuario.getId());
-                response.put("token", UUID.randomUUID().toString());
-                response.put("usuario", usuario.getNome());
-                response.put("email", usuario.getEmail());
-                response.put("role", usuario.getRole());
-                List<Long> segmentoIds = usuario.getSegmentos().stream().map(Segmento::getId).collect(Collectors.toList());
-                response.put("segmentos", segmentoIds);
-                return ResponseEntity.ok(response);
-
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
-    }
-
     @PutMapping("/email")
     public ResponseEntity<String> alterarEmail(@RequestParam String emailAtual, @RequestParam String novoEmail) {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(emailAtual);
@@ -160,6 +168,4 @@ public class UsuarioController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
     }
-
-
 }

@@ -46,4 +46,6 @@ public interface OsRepository extends JpaRepository<OS, Long> {
      * Busca uma OS pelo seu nome/código (esta query não precisa de alteração).
      */
     Optional<OS> findByOs(String os);
+
+    List<OS> findByProjeto(String projeto);
 }

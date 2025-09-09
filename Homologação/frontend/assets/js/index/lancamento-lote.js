@@ -9,9 +9,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const formAdicionarEmLote = document.getElementById('formAdicionarEmLote');
     const selectOSLote = document.getElementById('osIdLote');
+    const selectProjetoLote = document.getElementById('projetoIdLote');
     const lpuChecklistContainerLote = document.getElementById('lpuChecklistContainerLote');
     const btnAvancarParaPreenchimentoLote = document.getElementById('btnAvancarParaPreenchimentoLote');
     const formulariosContainerLote = document.getElementById('formulariosContainerLote');
+    const chkAtividadeComplementar = document.getElementById('atividadeComplementarLote');
+    const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
 
     // Botões do rodapé do modal
     const btnSubmitAdicionarLote = document.getElementById('btnSubmitAdicionarLote');
@@ -21,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Variáveis de cache para evitar múltiplas chamadas à API
     let todasAsEtapasLote = [];
     let todosOsPrestadoresLote = [];
+    let todasAsOSLote = [];
 
 
     function inicializarFlatpickrComFormato(selector) {
@@ -58,11 +62,11 @@ document.addEventListener('DOMContentLoaded', () => {
         inicializarFlatpickrComFormato('#dataAtividadeLote');
 
         // Pré-carrega a lista de Ordens de Serviço
-        await carregarOSParaSelectLote();
+        await carregarProjetosEOSParaSelectLote();
     });
 
     // Função para carregar as OSs do usuário no select
-    async function carregarOSParaSelectLote() {
+    async function carregarProjetosEOSParaSelectLote() {
         try {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
@@ -71,21 +75,19 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
+            todasAsOSLote = osData;
 
-            // 1. Usamos um Map para garantir que cada OS seja listada apenas uma vez.
-            const osUnicasMap = new Map();
-            osData.forEach(item => {
-                if (!osUnicasMap.has(item.id)) {
-                    osUnicasMap.set(item.id, item);
-                }
+            // Pega todos os projetos unicos
+            const projetos = [...new Set(osData.map(item => item.projeto))];
+
+            selectProjetoLote.innerHTML = `<option value="" selected disabled>Selecione um Projeto...</option>`;
+            projetos.forEach(projeto => {
+                const option = new Option(projeto, projeto);
+                selectProjetoLote.add(option);
             });
 
-            // 2. Convertemos os valores únicos do Map de volta para um array e ordenamos.
-            const osOrdenadas = Array.from(osUnicasMap.values()).sort((a, b) => a.os.localeCompare(b.os));
-
-            // 3. Populamos o select com a lista já corrigida e sem duplicatas.
             selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
-            osOrdenadas.forEach(item => {
+            todasAsOSLote.forEach(item => {
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
@@ -128,11 +130,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 🔥 ========================================================== 🔥
-    // 🔥 PONTO CENTRAL DA CORREÇÃO NO LANÇAMENTO-LOTE.JS
-    // 🔥 ========================================================== 🔥
+    selectProjetoLote.addEventListener('change', async (e) => {
+        const projeto = e.target.value;
+        const os = todasAsOSLote.find(os => os.projeto === projeto);
+        if (os) {
+            selectOSLote.value = os.id;
+            selectOSLote.dispatchEvent(new Event('change'));
+        }
+    });
+
     selectOSLote.addEventListener('change', async (e) => {
         const osId = e.target.value;
+        const os = todasAsOSLote.find(os => os.id == osId);
+        if (os) {
+            selectProjetoLote.value = os.projeto;
+        }
 
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
@@ -147,20 +159,18 @@ document.addEventListener('DOMContentLoaded', () => {
         preencherCamposOSLote(null);
 
         try {
-            // Buscamos os detalhes completos da OS, que inclui a lista de LPUs
             const response = await fetch(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
             preencherCamposOSLote(osData);
 
-            // CORREÇÃO APLICADA AQUI: Trocamos 'osData.lpus' por 'osData.detalhes'
             const lpus = osData.detalhes || [];
 
             if (lpus.length === 0) {
                 lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
             } else {
-                lpuChecklistContainerLote.innerHTML = lpus.map(item => { // 'item' é o objeto OsLpuDetalhe
+                lpuChecklistContainerLote.innerHTML = lpus.map(item => {
                     const lpu = item.lpu;
                     if (!lpu) return '';
 
@@ -170,9 +180,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     return `
                     <div class="form-check">
-                        <input class="form-check-input lpu-checkbox" type="checkbox" 
-                            value="${lpu.id}" 
-                            data-os-lpu-detalhe-id="${item.id}" 
+                        <input class="form-check-input lpu-checkbox" type="checkbox"
+                            value="${lpu.id}"
+                            data-os-lpu-detalhe-id="${item.id}"
                             id="lpu-lote-${lpu.id}" data-nome="${label}">
                         <label class="form-check-label" for="lpu-lote-${lpu.id}">
                             ${label}
@@ -188,8 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // 3. Evento de mudança nos checkboxes de LPU para habilitar o botão "Avançar"
     lpuChecklistContainerLote.addEventListener('change', (e) => {
         if (e.target.classList.contains('lpu-checkbox')) {
             const algumCheckboxMarcado = lpuChecklistContainerLote.querySelector('.lpu-checkbox:checked');
@@ -197,8 +205,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // 4. Evento de clique no botão "Avançar" para gerar o acordeão
     btnAvancarParaPreenchimentoLote.addEventListener('click', async () => {
         const lpusSelecionadas = document.querySelectorAll('#lpuChecklistContainerLote .lpu-checkbox:checked');
         if (lpusSelecionadas.length === 0) return;
@@ -219,16 +225,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const isPrimeiroItem = index === 0;
 
                 return `
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-${lpuId}">
-                        <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
-                            LPU: ${lpuNome}
-                        </button>
-                    </h2>
-                    <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
-                        <div class="accordion-body">
-                            <h6 class="section-title">Execução</h6>
-                            <div class="etapas-scroll mb-3">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${lpuId}">
+                            <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
+                                LPU: ${lpuNome}
+                            </button>
+                        </h2>
+                        <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
+                            <div class="accordion-body">
+
+                                <h6 class="section-title">Execução</h6>
+                                <div class="etapas-scroll mb-3">
                                 <div class="card etapa-card">
                                     <h6>Vistoria</h6>
                                     <label class="form-label">Status</label>
@@ -332,7 +339,47 @@ document.addEventListener('DOMContentLoaded', () => {
             lpusSelecionadas.forEach(checkbox => {
                 const lpuId = checkbox.value;
                 const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
-                if (selectPrestador) todosOsPrestadoresLote.forEach(p => selectPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+
+                if (selectPrestador) {
+                    // ==========================================================
+                    // ===== INÍCIO DA CORREÇÃO =====
+                    // ==========================================================
+                    // Limpa o select ANTES de inicializar o Choices.js
+                    selectPrestador.innerHTML = '';
+                    // ==========================================================
+                    // ===== FIM DA CORREÇÃO =====
+                    // ==========================================================
+
+                    // 1. Verifica se já existe uma instância do Choices.js no elemento.
+                    if (selectPrestador.choices) {
+                        // 2. Se existir, destrói a instância antiga para evitar o erro.
+                        selectPrestador.choices.destroy();
+                    }
+                    // 3. Limpa qualquer conteúdo HTML residual do select.
+                    selectPrestador.innerHTML = '';
+
+                    // 4. Cria a nova instância do Choices.js.
+                    const choicesInstance = new Choices(selectPrestador, {
+                        searchEnabled: true,
+                        placeholder: true,
+                        placeholderValue: 'Busque pelo nome ou código...',
+                        itemSelectText: '',
+                        noResultsText: 'Nenhum resultado',
+                    });
+
+                    choicesInstance.setChoices(
+                        todosOsPrestadoresLote.map(p => ({
+                            value: p.id,
+                            label: `${p.codigoPrestador} - ${p.prestador}`
+                        })),
+                        'value',
+                        'label',
+                        false // O 'true' para limpar não é mais necessário, já limpamos manualmente
+                    );
+
+                    // 5. Armazena a nova instância no próprio elemento para futuras verificações.
+                    selectPrestador.choices = choicesInstance;
+                }
 
                 const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);
                 if (selectEtapaGeral) todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
@@ -422,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const lancamentosEmLote = [];
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
+            const isComplementar = chkAtividadeComplementar.checked;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
 
@@ -429,11 +477,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lpuId = checkbox.value;
                 const osLpuDetalheId = checkbox.dataset.osLpuDetalheId;
 
+                // Pega a quantidade do input específico de cada LPU, se for complementar
+                const quantidade = isComplementar ? document.getElementById('quantidadeComplementarLote').value : null;
+
                 const dadosLpu = {
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
-                    osLpuDetalheId: osLpuDetalheId, // <-- INCLUSÃO NO PAYLOAD
+                    osLpuDetalheId: !isComplementar ? osLpuDetalheId : null,
                     dataAtividade: formatarDataParaAPI(dataAtividade),
                     vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
                     planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
@@ -451,6 +502,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     detalheDiario: document.getElementById(`detalheDiario-lpu-${lpuId}`).value,
                     prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
                     valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
+                    atividadeComplementar: isComplementar,
+                    quantidade: isComplementar ? parseInt(quantidade, 10) : null
                 };
                 if (acao === 'salvarRascunho') {
                     dadosLpu.situacaoAprovacao = 'RASCUNHO';
@@ -485,24 +538,91 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    if (btnSubmitAdicionarLote) {
-        btnSubmitAdicionarLote.addEventListener('click', (e) => {
-            e.preventDefault();
-            handleFormSubmitLote('enviar', e.currentTarget);
-        });
-    }
     if (btnSalvarRascunhoLote) {
         btnSalvarRascunhoLote.addEventListener('click', (e) => {
             e.preventDefault();
+            // A 'acao' aqui é 'salvarRascunho', que o backend vai entender como RASCUNHO
             handleFormSubmitLote('salvarRascunho', e.currentTarget);
         });
     }
+
+    // Listener para o NOVO botão de "Salvar e Enviar"
     if (btnSalvarEEnviarLote) {
         btnSalvarEEnviarLote.addEventListener('click', (e) => {
             e.preventDefault();
+            // A 'acao' aqui é 'enviar', que o backend vai entender como PENDENTE_COORDENADOR
             handleFormSubmitLote('enviar', e.currentTarget);
         });
     }
+
+    chkAtividadeComplementar.addEventListener('change', async (e) => {
+        const isChecked = e.target.checked;
+        quantidadeComplementarContainer.classList.toggle('d-none', !isChecked);
+        const osId = selectOSLote.value;
+        if (!osId) return;
+
+        lpuChecklistContainerLote.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div>';
+
+        try {
+            let lpusParaExibir = [];
+            const osSelecionada = todasAsOSLote.find(os => os.id == osId);
+            if (!osSelecionada) throw new Error('OS selecionada não encontrada.');
+
+            if (isChecked) {
+                // Atividade Complementar: Buscar todas as LPUs do contrato da OS
+                const primeiroDetalhe = osSelecionada.detalhes?.[0];
+                const contratoId = primeiroDetalhe?.contratoId; // <-- CORREÇÃO APLICADA AQUI
+
+                if (!contratoId) throw new Error('Contrato da OS não encontrado para buscar LPUs complementares.');
+
+                const response = await fetch(`http://localhost:8080/lpu/contrato/${contratoId}`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
+                lpusParaExibir = await response.json();
+            } else {
+                // Atividade Normal: Usar as LPUs já associadas à OS
+                lpusParaExibir = osSelecionada.detalhes?.map(detalhe => ({
+                    ...detalhe.lpu, // Pega os dados da LPU
+                    osLpuDetalheId: detalhe.id // Adiciona o ID do detalhe que será necessário
+                })) || [];
+            }
+
+            if (lpusParaExibir.length === 0) {
+                lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada.</p>';
+            } else {
+                lpuChecklistContainerLote.innerHTML = lpusParaExibir.map(lpu => {
+                    const label = `${lpu.codigoLpu} - ${lpu.nomeLpu}`;
+                    // Se não for complementar, o data-os-lpu-detalhe-id virá preenchido
+                    const detalheIdAttr = lpu.osLpuDetalheId ? `data-os-lpu-detalhe-id="${lpu.osLpuDetalheId}"` : '';
+                    return `
+                    <div class="form-check">
+                        <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}" ${detalheIdAttr}>
+                        <label class="form-check-label" for="lpu-lote-${lpu.id}">${label}</label>
+                    </div>`;
+                }).join('');
+            }
+        } catch (error) {
+            console.error("Erro ao carregar LPUs:", error);
+            lpuChecklistContainerLote.innerHTML = `<p class="text-danger">${error.message}</p>`;
+        }
+    });
+
+    const lpuSearchInputLote = document.getElementById('lpuSearchInputLote');
+    if (lpuSearchInputLote) {
+        lpuSearchInputLote.addEventListener('input', (e) => {
+            const termoBusca = e.target.value.toLowerCase();
+            const todosOsCheckboxes = lpuChecklistContainerLote.querySelectorAll('.form-check');
+
+            todosOsCheckboxes.forEach(checkDiv => {
+                const label = checkDiv.querySelector('label');
+                if (label) {
+                    const textoLabel = label.textContent.toLowerCase();
+                    if (textoLabel.includes(termoBusca)) {
+                        checkDiv.style.display = ''; // Mostra o item
+                    } else {
+                        checkDiv.style.display = 'none'; // Esconde o item
+                    }
+                }
+            });
+        });
+    }
 });
-
-

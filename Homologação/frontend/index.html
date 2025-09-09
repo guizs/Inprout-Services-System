@@ -16,6 +16,10 @@
   <link rel="stylesheet" href="assets/css/global.css" />
   <link rel="stylesheet" href="assets/css/index.css" />
 
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
+
+
 </head>
 
 <body>
@@ -500,22 +504,40 @@
 
             <h6 class="section-title">Dados Gerais</h6>
             <div class="row g-3 mb-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
+                <label for="projetoId" class="form-label">Projeto</label>
+                <select class="form-select" id="projetoId" required>
+                  <option value="" selected disabled>Selecione um Projeto...</option>
+                </select>
+              </div>
+              <div class="col-md-4">
                 <label for="osId" class="form-label">Ordem de Serviço (OS)</label>
                 <select class="form-select" id="osId" required>
                   <option value="" selected disabled>Selecione uma OS...</option>
                 </select>
               </div>
-
-              <div class="col-md-6 d-none" id="lpuContainer">
-                <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
-                <select class="form-select" id="lpuId" required>
-                </select>
-              </div>
-
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="dataAtividade" class="form-label">Data da Atividade</label>
                 <input type="date" class="form-control" id="dataAtividade" required>
+              </div>
+            </div>
+
+            <div class="row g-3 mb-3 align-items-end">
+              <div class="col-md-auto">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="atividadeComplementar" />
+                  <label class="form-check-label" for="atividadeComplementar">Atividade Complementar</label>
+                </div>
+              </div>
+              <div class="col-md-3 d-none" id="quantidadeContainer">
+                <label for="quantidade" class="form-label">Quantidade</label>
+                <input type="number" class="form-control" id="quantidade" min="1" value="1" />
+              </div>
+              <div class="col-md d-none" id="lpuContainer">
+                <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
+                <select class="form-select" id="lpuId" required>
+                  <option value="" selected disabled>Selecione uma LPU...</option>
+                </select>
               </div>
             </div>
 
@@ -666,11 +688,12 @@
             <i class="bi bi-check-circle"></i> Salvar Lançamento
           </button>
 
-          <button type="button" class="btn btn-outline-primary" id="btnSalvarRascunho">
+          <button type="submit" form="formAdicionar" class="btn btn-outline-primary" id="btnSalvarRascunho"
+            data-acao="rascunho">
             <i class="bi bi-save"></i> Salvar Alterações
           </button>
 
-          <button type="button" class="btn btn-primary" id="btnSalvarEEnviar">
+          <button type="submit" form="formAdicionar" class="btn btn-primary" id="btnSalvarEEnviar" data-acao="enviar">
             <i class="bi bi-send"></i> Salvar e Enviar
           </button>
         </div>
@@ -714,56 +737,43 @@
 
             <h6 class="section-title">Dados Gerais</h6>
             <div class="row g-3 mb-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
+                <label for="projetoIdLote" class="form-label">Projeto</label>
+                <select class="form-select" id="projetoIdLote" required>
+                  <option value="" selected disabled>Selecione um Projeto...</option>
+                </select>
+              </div>
+              <div class="col-md-4">
                 <label for="osIdLote" class="form-label">Ordem de Serviço (OS)</label>
                 <select class="form-select" id="osIdLote" required>
                   <option value="" selected disabled>Selecione uma OS...</option>
                 </select>
               </div>
-
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="dataAtividadeLote" class="form-label">Data da Atividade</label>
                 <input type="text" class="form-control" id="dataAtividadeLote" placeholder="Selecione a data..."
                   required autocomplete="off">
               </div>
-
-              <div class="col-12">
-                <label class="form-label">Selecione as LPUs</label>
-                <div id="lpuChecklistContainerLote" class="border rounded p-2"
-                  style="max-height: 150px; overflow-y: auto;">
-                  <p class="text-muted">Selecione uma OS para ver as LPUs.</p>
-                </div>
-              </div>
-
-              <div class="col-12 mt-3 text-end">
-                <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimentoLote"
-                  disabled>Avançar</button>
-              </div>
-
             </div>
 
             <h6 class="section-title">Dados da OS</h6>
             <div class="row g-3 mb-3">
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="siteLote" class="form-label">Site</label>
                 <input type="text" class="form-control" id="siteLote" readonly>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="segmentoLote" class="form-label">Segmento</label>
                 <input type="text" class="form-control" id="segmentoLote" readonly>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="projetoLote" class="form-label">Projeto</label>
                 <input type="text" class="form-control" id="projetoLote" readonly>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-4">
                 <label for="contratoLote" class="form-label">Contrato</label>
                 <input type="text" class="form-control" id="contratoLote" readonly>
               </div>
-            </div>
-
-            <h6 class="section-title">Responsáveis</h6>
-            <div class="row g-3 mb-3">
               <div class="col-md-4">
                 <label for="gestorTimLote" class="form-label">GESTOR TIM</label>
                 <input type="text" class="form-control" id="gestorTimLote" readonly>
@@ -773,8 +783,39 @@
                 <input type="text" class="form-control" id="regionalLote" readonly>
               </div>
             </div>
+            <div class="row g-3 mb-3 align-items-end">
+              <div class="col-md-auto">
+                <div class="form-check form-switch">
+                  <input class="form-check-input" type="checkbox" id="atividadeComplementarLote" />
+                  <label class="form-check-label" for="atividadeComplementarLote">Atividade Complementar</label>
+                </div>
+              </div>
+              <div class="col-md-3 d-none" id="quantidadeComplementarContainerLote">
+                <label for="quantidadeComplementarLote" class="form-label">Quantidade</label>
+                <input type="number" class="form-control" id="quantidadeComplementarLote" min="1" value="1" />
+              </div>
+            </div>
 
-            <div id="formulariosContainerLote" class="accordion"></div>
+            <div class="col-12">
+              <label class="form-label">Selecione os itens LPUs</label>
+
+              <div class="input-group input-group-sm mb-2">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" class="form-control" id="lpuSearchInputLote"
+                  placeholder="Buscar por código ou nome do item LPU...">
+              </div>
+              <div id="lpuChecklistContainerLote" class="border rounded p-2"
+                style="max-height: 150px; overflow-y: auto;">
+                <p class="text-muted">Selecione uma OS para ver os itens LPUs.</p>
+              </div>
+            </div>
+
+            <div class="col-12 mt-3 text-end">
+              <button type="button" class="btn btn-secondary" id="btnAvancarParaPreenchimentoLote"
+                disabled>Avançar</button>
+            </div>
+
+            <div id="formulariosContainerLote" class="accordion mt-3"></div>
 
           </form>
         </div>
@@ -783,11 +824,12 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             <i class="bi bi-x-lg"></i> Fechar
           </button>
-
-          <button type="submit" id="btnSubmitAdicionarLote" form="formAdicionarEmLote" class="btn btn-success">
-            <i class="bi bi-check-circle"></i> Salvar Lançamento
+          <button type="button" class="btn btn-outline-primary" id="btnSalvarRascunhoLote">
+            <i class="bi bi-save"></i> Salvar como Rascunho
           </button>
-
+          <button type="submit" id="btnSalvarEEnviarLote" form="formAdicionarEmLote" class="btn btn-success">
+            <i class="bi bi-send"></i> Salvar e Enviar
+          </button>
         </div>
 
       </div>
@@ -837,17 +879,17 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/js/general/global.js"></script>
-  <script src="assets/js/general/selection.js"></script>
+  <script src="assets/js/general/global.js?v=1.1"></script>
+  <script src="assets/js/general/selection.js?v=1.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-  <script src="assets/js/index/calendary.js" type="module"></script>
-  <script src="assets/js/index/editionfields.js"></script>
-  <script src="assets/js/general/sidebar.js"></script>
-  <script src="assets/js/index/valueformat.js"></script>
-  <script src="assets/js/index/auth-filter.js"></script>
-  <script src="assets/js/index/index.js"></script>
-  <script src="assets/js/index/lancamento-lote.js"></script>
+  <script src="assets/js/index/calendary.js?v=1.1" type="module"></script>
+  <script src="assets/js/index/editionfields.js?v=1.1"></script>
+  <script src="assets/js/general/sidebar.js?v=1.1"></script>
+  <script src="assets/js/index/valueformat.js?v=1.1"></script>
+  <script src="assets/js/index/auth-filter.js?v=1.1"></script>
+  <script src="assets/js/index/index.js?v=1.1"></script>
+  <script src="assets/js/index/lancamento-lote.js?v=1.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <script>
 

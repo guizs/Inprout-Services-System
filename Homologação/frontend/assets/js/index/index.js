@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.show();
     }
 
+    function parseDataBrasileira(dataString) {
+        if (!dataString) return null;
+        // Ex: "21/07/2025 15:04:42"
+        const [data, hora] = dataString.split(' ');
+        if (!data) return null;
+        const [dia, mes, ano] = data.split('/');
+        if (!dia || !mes || !ano) return null;
+        // O mês em JavaScript é 0-indexado (Janeiro=0), por isso mes-1
+        return new Date(`${ano}-${mes}-${dia}T${hora || '00:00:00'}`);
+    }
+
     function labelLpu(lpu) {
         if (!lpu) return '';
         const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
@@ -31,12 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(raw.itens)) return raw.itens;
         if (Array.isArray(raw.lista)) return raw.lista;
         return [];
-    }
-
-    function labelLpu(lpu) {
-        const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
-        const nome = lpu.nome ?? lpu.nomeLpu ?? '';
-        return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
     }
 
     function toggleLoader(ativo = true) {
@@ -321,7 +326,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                         aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                     }
-                    // --- A CORREÇÃO ESTÁ AQUI ---
                     if (nomeColuna === "DETALHE DIÁRIO") {
                         td.classList.add('detalhe-diario-cell');
                     }
@@ -400,19 +404,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function carregarLancamentos() {
-        toggleLoader(true); // <-- MOSTRA O LOADER
+        toggleLoader(true);
         try {
             const response = await fetch('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
-            // ---> ETAPA 1: EXTRAIR O JSON DA RESPOSTA (ESSA LINHA FALTAVA) <---
             const lancamentosDaApi = await response.json();
-
-            // ---> ETAPA 2: ATUALIZAR A VARIÁVEL GLOBAL COM OS DADOS RECEBIDOS <---
-            // Usando a função de filtro que já tínhamos para garantir que cada usuário veja o que deve
             todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
 
-            // AGORA sim, as funções de renderização têm os dados corretos para trabalhar
             renderizarCardsDashboard(todosLancamentos);
             popularFiltroOS();
             renderizarTodasAsTabelas();
@@ -421,7 +420,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Falha ao buscar lançamentos:', error);
             mostrarToast('Falha ao carregar dados do servidor.', 'error');
         } finally {
-            toggleLoader(false); // <-- ESCONDE O LOADER (no sucesso ou no erro)
+            toggleLoader(false);
         }
     }
 
@@ -431,21 +430,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
 
-        // Filtra os dados para cada aba
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO');
         const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao));
         const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao));
+
+        // --- INÍCIO DA CORREÇÃO ---
+
+        // 1. Filtra os lançamentos que pertencem ao histórico
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao));
+
+        // 2. Ordena a lista de histórico pela data de criação, do mais recente para o mais antigo
+        historico.sort((a, b) => {
+            const dataA = parseDataBrasileira(a.dataCriacao);
+            const dataB = parseDataBrasileira(b.dataCriacao);
+            // Coloca itens sem data no final
+            if (!dataA) return 1;
+            if (!dataB) return -1;
+            // Compara as datas (b - a para ordem decrescente)
+            return dataB - dataA;
+        });
+
+        // --- FIM DA CORREÇÃO ---
+
         const paralisados = getProjetosParalisados();
 
-        // Renderiza cada tabela
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
         renderizarTabela(minhasPendencias, tbodyMinhasPendencias, colunasMinhasPendencias);
         renderizarTabela(historico, tbodyHistorico, colunasHistorico);
         renderizarTabela(paralisados, tbodyParalisados, colunasMinhasPendencias);
 
-        // Atualiza a notificação
         if (notificacaoPendencias) {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
@@ -463,18 +477,90 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalTitle = document.getElementById('modalAdicionarLabel');
         const submitButton = document.getElementById('btnSubmitAdicionar');
 
-
         const selectOS = document.getElementById('osId');
+        const selectProjeto = document.getElementById('projetoId');
         const selectPrestador = document.getElementById('prestadorId');
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
         const selectStatus = document.getElementById('status');
+
+        const chkAtividadeComplementar = document.getElementById('atividadeComplementar');
+        const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
+        const lpuContainer = document.getElementById('lpuContainer');
+
         let todasAsOS = [];
         let todasAsEtapas = [];
+        let todosOsPrestadores = []; // Cache para prestadores
 
-        selectOS.addEventListener('change', async (e) => {
-            const osId = e.target.value;
-            const lpuContainer = document.getElementById('lpuContainer');
+        // ==========================================================
+        // ===== INÍCIO DA CORREÇÃO: LÓGICA DE SUBMISSÃO DO FORM =====
+        // ==========================================================
+
+        formAdicionar.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitter = e.submitter || document.activeElement; // Pega o botão que foi cl-icado
+            const acao = submitter.dataset.acao; // Ação será 'rascunho' ou 'enviar'
+            const isComplementar = chkAtividadeComplementar.checked;
+
+            const payload = {
+                managerId: localStorage.getItem('usuarioId'),
+                osId: selectOS.value,
+                prestadorId: selectPrestador.value,
+                etapaDetalhadaId: selectEtapaDetalhada.value,
+                dataAtividade: document.getElementById('dataAtividade').value,
+                equipe: document.getElementById('equipe')?.value, // Adicionado para segurança
+                vistoria: document.getElementById('vistoria').value,
+                planoVistoria: document.getElementById('planoVistoria').value || null,
+                desmobilizacao: document.getElementById('desmobilizacao').value,
+                planoDesmobilizacao: document.getElementById('planoDesmobilizacao').value || null,
+                instalacao: document.getElementById('instalacao').value,
+                planoInstalacao: document.getElementById('planoInstalacao').value || null,
+                ativacao: document.getElementById('ativacao').value,
+                planoAtivacao: document.getElementById('planoAtivacao').value || null,
+                documentacao: document.getElementById('documentacao').value,
+                planoDocumentacao: document.getElementById('planoDocumentacao').value || null,
+                status: selectStatus.value,
+                situacao: document.getElementById('situacao').value,
+                detalheDiario: document.getElementById('detalheDiario').value,
+                valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
+                atividadeComplementar: isComplementar,
+                quantidade: isComplementar ? parseInt(document.getElementById('quantidade').value, 10) : null,
+                situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO',
+
+                // Lógica condicional para lpuId vs osLpuDetalheId
+                lpuId: isComplementar ? document.getElementById('lpuId').value : null,
+                osLpuDetalheId: !isComplementar ? document.getElementById('lpuId').value : null
+            };
+
+            const editingId = formAdicionar.dataset.editingId;
+            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
+            const method = editingId ? 'PUT' : 'POST';
+
+            try {
+                toggleLoader(true);
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error((await response.json()).message || 'Erro ao salvar.');
+
+                mostrarToast('Lançamento salvo com sucesso!', 'success');
+                modalAdicionar.hide();
+                await carregarLancamentos();
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        });
+
+        // ==========================================================
+        // ===== FIM DA CORREÇÃO =====
+        // ==========================================================
+
+        async function carregarEPopularLPU(osId, isComplementar = false) {
             const selectLPU = document.getElementById('lpuId');
 
             if (!osId) {
@@ -483,33 +569,67 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            try {
-                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-                selectLPU.disabled = true;
-                lpuContainer.classList.remove('d-none');
+            lpuContainer.classList.remove('d-none');
+            selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+            selectLPU.disabled = true;
 
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar LPUs para esta OS.');
+            try {
+                let url;
+                const osSelecionada = todasAsOS.find(os => os.id == osId);
+
+                if (isComplementar) {
+                    if (!osSelecionada || !osSelecionada.detalhes[0]?.contratoId) {
+                        throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
+                    }
+                    const contratoId = osSelecionada.detalhes[0].contratoId;
+                    url = `http://localhost:8080/lpu/contrato/${contratoId}`;
+                } else {
+                    url = `http://localhost:8080/os/${osId}/lpus`;
                 }
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs.');
+
                 const lpus = await response.json();
 
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
                 if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => {
-                        // CORREÇÃO: Usa a função auxiliar para criar o label
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
-                    });
+                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), lpu.id)));
                     selectLPU.disabled = false;
                 } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
-                    selectLPU.disabled = true;
+                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
                 }
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 lpuContainer.classList.add('d-none');
+            }
+        }
+
+        chkAtividadeComplementar.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            quantidadeContainer.classList.toggle('d-none', !isChecked);
+            const osId = selectOS.value;
+            if (osId) {
+                carregarEPopularLPU(osId, isChecked);
+            }
+        });
+
+        selectOS.addEventListener('change', async (e) => {
+            const osId = e.target.value;
+            const os = todasAsOS.find(os => os.id == osId);
+            if (os) {
+                selectProjeto.value = os.projeto;
+            }
+            preencherCamposOS(osId);
+            await carregarEPopularLPU(osId, chkAtividadeComplementar.checked);
+        });
+
+        selectProjeto.addEventListener('change', async (e) => {
+            const projeto = e.target.value;
+            const os = todasAsOS.find(os => os.projeto == projeto);
+            if (os) {
+                selectOS.value = os.id;
+                selectOS.dispatchEvent(new Event('change'));
             }
         });
 
@@ -518,13 +638,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Falha ao carregar dados: ${response.statusText}`);
                 const data = await response.json();
-                selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                data.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item[valueField];
-                    option.textContent = textFieldFormatter(item);
-                    selectElement.appendChild(option);
-                });
+
+                if (selectElement.id.includes('prestadorId') && typeof Choices !== 'undefined') {
+                    // --- INÍCIO DA CORREÇÃO ---
+                    if (selectElement.choices) {
+                        selectElement.choices.destroy();
+                    }
+                    selectElement.innerHTML = '';
+
+                    // 1. Criamos a nova instância da biblioteca
+                    const choices = new Choices(selectElement, {
+                        searchEnabled: true,
+                        placeholder: true,
+                        placeholderValue: 'Digite para buscar o prestador...',
+                        removeItemButton: true,
+                        itemSelectText: 'Pressione Enter para selecionar',
+                        noResultsText: 'Nenhum resultado encontrado',
+                        noChoicesText: 'Nenhuma opção para escolher',
+                    });
+
+                    // 2. Mapeamos os dados para o formato que a biblioteca entende
+                    const choicesData = data.map(item => ({
+                        value: item[valueField],
+                        label: textFieldFormatter(item)
+                    }));
+
+                    // 3. Populamos o select com as opções
+                    choices.setChoices(choicesData, 'value', 'label', false);
+
+                    // 4. PONTO CRÍTICO: Guardamos a instância da biblioteca no próprio elemento do select
+                    selectElement.choices = choices;
+                    // --- FIM DA CORREÇÃO ---
+
+                } else {
+                    selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                    data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item[valueField];
+                        option.textContent = textFieldFormatter(item);
+                        selectElement.appendChild(option);
+                    });
+                }
                 return data;
             } catch (error) {
                 console.error(`Erro ao popular o select #${selectElement.id}:`, error);
@@ -536,123 +690,76 @@ document.addEventListener('DOMContentLoaded', () => {
         function preencherCamposOS(osId) {
             const osSelecionada = todasAsOS.find(os => os.id == osId);
             if (osSelecionada) {
-                document.getElementById('site').value = osSelecionada.site || '';
-                document.getElementById('segmento').value = osSelecionada.segmento ? osSelecionada.segmento.nome : '';
+                document.getElementById('site').value = osSelecionada.detalhes?.[0]?.site || '';
+                document.getElementById('segmento').value = osSelecionada.segmento?.nome || '';
                 document.getElementById('projeto').value = osSelecionada.projeto || '';
-                document.getElementById('contrato').value = osSelecionada.contrato || '';
+                document.getElementById('contrato').value = osSelecionada.detalhes?.[0]?.contrato || '';
                 document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
-                document.getElementById('regional').value = osSelecionada.regional || '';
-            }
-        }
-
-        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaId, statusParaSelecionar) {
-            const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
-            selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-            selectEtapaDetalhada.disabled = true;
-
-            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
-                etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
-                    selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
-                });
-                selectEtapaDetalhada.disabled = false;
-                if (etapaDetalhadaId) {
-                    selectEtapaDetalhada.value = etapaDetalhadaId;
-                }
-            }
-
-            // Lógica para popular o Status
-            selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
-            selectStatus.disabled = true;
-
-            // A busca pela etapa detalhada agora acontece aqui dentro
-            let etapaDetalhada;
-            if (etapaGeralId && etapaDetalhadaId) {
-                const etapaGeral = todasAsEtapas.find(e => e.id == etapaGeralId);
-                etapaDetalhada = etapaGeral?.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaId);
-            }
-
-            if (etapaDetalhada) {
-                if (etapaDetalhada.status && etapaDetalhada.status.length > 0) {
-                    etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
-                    selectStatus.disabled = false;
-                } else {
-                    selectStatus.add(new Option("N/A", "NAO_APLICAVEL"));
-                    selectStatus.disabled = false;
-                }
-
-                // --- INÍCIO DA CORREÇÃO ---
-                // Se um status foi passado como parâmetro, seleciona ele no dropdown
-                if (statusParaSelecionar) {
-                    selectStatus.value = statusParaSelecionar;
-                }
-                // --- FIM DA CORREÇÃO ---
+                document.getElementById('regional').value = osSelecionada.detalhes?.[0]?.regional || '';
             }
         }
 
         async function carregarDadosParaModal() {
-            // Busca na API só acontece uma vez para otimizar
             if (todasAsOS.length === 0) {
                 try {
-                    // --- INÍCIO DA ALTERAÇÃO ---
-                    const usuarioId = localStorage.getItem('usuarioId'); // Pega o ID do usuário logado
-                    if (!usuarioId) {
-                        throw new Error('ID do usuário não encontrado no localStorage.');
-                    }
-
-                    // Chama o novo endpoint filtrado
+                    const usuarioId = localStorage.getItem('usuarioId');
+                    if (!usuarioId) throw new Error('ID do usuário não encontrado.');
                     const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                    // --- FIM DA ALTERAÇÃO ---
-
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
-                    const osData = await response.json();
 
-                    // O resto da função continua igual...
-                    const osUnicas = [...new Map(osData.map(os => [os.id, os])).values()];
-                    todasAsOS = osUnicas.sort((a, b) => a.os.localeCompare(b.os));
+                    todasAsOS = await response.json();
+
+                    const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
+
+                    selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                    projetosUnicos.forEach(projeto => {
+                        selectProjeto.add(new Option(projeto, projeto));
+                    });
 
                     selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-
                     todasAsOS.forEach(item => {
-                        const option = document.createElement('option');
-                        option.value = item.id;
-                        option.textContent = item.os;
-                        selectOS.appendChild(option);
+                        selectOS.add(new Option(item.os, item.id));
                     });
 
                 } catch (error) {
-                    console.error('Erro ao popular o select de OS:', error);
-                    selectOS.innerHTML = `<option value="" selected disabled>Erro ao carregar OS</option>`;
+                    console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
-            if (selectPrestador.options.length <= 1) {
-                await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores', 'id', (item) => `${item.codigoPrestador} - ${item.prestador}`);
+            if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
+                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', (item) => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // 1. Garante que os dados de OS, Prestadores e Etapas estejam pré-carregados
+            // 1. Carrega todos os dados necessários (isso permanece igual)
             await carregarDadosParaModal();
             formAdicionar.dataset.editingId = editingId;
 
-            // Guarda o ID do detalhe para ser usado ao retomar um lançamento paralisado
             if (lancamento.detalhe) {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
 
-            // 2. Referências a todos os elementos do DOM que serão manipulados
+            // 2. Preenche todos os campos, exceto o de prestador por enquanto
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
-            const selectOS = document.getElementById('osId');
-            const selectLPU = document.getElementById('lpuId');
-            const lpuContainer = document.getElementById('lpuContainer');
             const dataAtividadeInput = document.getElementById('dataAtividade');
+            const chkAtividadeComplementarContainer = document.getElementById('atividadeComplementar').parentElement;
+            const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
+            const selectProjeto = document.getElementById('projetoId');
 
-            // 3. Controla a visibilidade e o texto dos botões de ação com base no status
+            if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
+            if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
+
+            if (lancamento.os && lancamento.os.projeto) {
+                selectProjeto.value = lancamento.os.projeto;
+                selectProjeto.disabled = true;
+            }
+
             btnSubmitPadrao.style.display = 'none';
             btnSalvarRascunho.style.display = 'none';
             btnSalvarEEnviar.style.display = 'none';
@@ -671,35 +778,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
                     btnSubmitPadrao.innerHTML = `<i class="bi bi-check-circle"></i> Criar Lançamento`;
-                    // Ao retomar, a data da atividade é definida como hoje
                     dataAtividadeInput.value = new Date().toISOString().split('T')[0];
                 }
             }
 
-            // 4. Preenche todos os campos simples com os dados do 'lancamento'
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            document.getElementById('prestadorId').value = lancamento.prestador?.id || '';
             document.getElementById('situacao').value = lancamento.situacao || '';
 
-            // Preenche os campos de execução (Vistoria, Instalação, etc.)
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
             ['planoVistoria', 'planoDesmobilizacao', 'planoInstalacao', 'planoAtivacao', 'planoDocumentacao'].forEach(k => {
                 if (lancamento[k]) document.getElementById(k).value = lancamento[k].split('/').reverse().join('-');
             });
 
-            // 5. Preenche os campos de OS e LPU e os desabilita para edição
             if (lancamento.os && lancamento.os.id) {
                 selectOS.value = lancamento.os.id;
-                const detalhe = lancamento.detalhe || {};
-                const os = lancamento.os || {};
-                document.getElementById('site').value = detalhe.site || '';
-                document.getElementById('segmento').value = os.segmento ? os.segmento.nome : '';
-                document.getElementById('projeto').value = os.projeto || '';
-                document.getElementById('contrato').value = detalhe.contrato || '';
-                document.getElementById('gestorTim').value = os.gestorTim || '';
-                document.getElementById('regional').value = detalhe.regional || '';
+                preencherCamposOS(lancamento.os.id);
             }
+
+            const selectLPU = document.getElementById('lpuId');
             selectLPU.innerHTML = '';
             if (lancamento.detalhe && lancamento.detalhe.lpu) {
                 const lpu = lancamento.detalhe.lpu;
@@ -710,59 +807,60 @@ document.addEventListener('DOMContentLoaded', () => {
             selectOS.disabled = true;
             selectLPU.disabled = true;
 
-            // 6. Preenche os selects em cascata (Etapa Geral -> Detalhada -> Status)
             if (lancamento.etapa && lancamento.etapa.id) {
-                // Encontra a Etapa Geral "pai" usando o código que agora vem no DTO
                 const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
-
                 if (etapaGeralPai) {
-                    document.getElementById('etapaGeralSelect').value = etapaGeralPai.id;
-                    // Popula os selects filhos e JÁ PASSA os valores que devem ser selecionados
+                    selectEtapaGeral.value = etapaGeralPai.id;
                     await popularDropdownsDependentes(etapaGeralPai.id, lancamento.etapa.id, lancamento.status);
                 }
             } else {
-                document.getElementById('etapaGeralSelect').value = '';
+                selectEtapaGeral.value = '';
                 await popularDropdownsDependentes('', null, null);
             }
 
-            // 7. Mostra o modal
-            const modalInstance = bootstrap.Modal.getInstance(modalAdicionarEl) || new bootstrap.Modal(modalAdicionarEl);
-            modalInstance.show();
+            // 3. Mostra o modal
+            modalAdicionar.show();
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // 4. A MÁGICA: Adia o preenchimento do campo do prestador
+            //    Isso garante que o modal e o componente Choices.js estejam 100% prontos.
+            setTimeout(() => {
+                const selectPrestadorEl = document.getElementById('prestadorId');
+                if (selectPrestadorEl && selectPrestadorEl.choices) {
+                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador?.id || ''));
+                }
+            }, 150); // Um pequeno atraso de 150ms é suficiente.
+            // --- FIM DA CORREÇÃO ---
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
-            // Se o modal não foi acionado por um botão de edição (ou seja, se é um NOVO lançamento)
-            await carregarDadosParaModal();
-
             if (!formAdicionar.dataset.editingId) {
+                await carregarDadosParaModal();
                 modalTitle.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Nova Atividade';
-
-                // --- INÍCIO DA CORREÇÃO ---
-                document.getElementById('btnSubmitAdicionar').style.display = 'inline-block';
-                document.getElementById('btnSalvarRascunho').style.display = 'none';
-                document.getElementById('btnSalvarEEnviar').style.display = 'none';
-                // --- FIM DA CORREÇÃO ---
-
-                submitButton.innerHTML = '<i class="bi bi-check-circle"></i> Salvar Lançamento';
-                document.getElementById('osId').disabled = false;
+                document.getElementById('btnSubmitAdicionar').style.display = 'none';
+                document.getElementById('btnSalvarRascunho').style.display = 'inline-block';
+                btnSalvarRascunho.dataset.acao = 'rascunho';
+                document.getElementById('btnSalvarEEnviar').style.display = 'inline-block';
+                btnSalvarEEnviar.dataset.acao = 'enviar';
+                selectOS.disabled = false;
+                selectProjeto.disabled = false;
                 document.getElementById('dataAtividade').disabled = false;
+                chkAtividadeComplementar.parentElement.style.display = 'block';
             }
         });
 
         modalAdicionarEl.addEventListener('hidden.bs.modal', () => {
             formAdicionar.reset();
             delete formAdicionar.dataset.editingId;
-
-            const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
-            const selectStatus = document.getElementById('status');
-
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa geral</option>';
             selectEtapaDetalhada.disabled = true;
             selectStatus.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>';
             selectStatus.disabled = true;
-            document.getElementById('osId').disabled = false;
-            document.getElementById('lpuContainer').classList.add('d-none');
+            selectOS.disabled = false;
+            selectProjeto.disabled = false;
+            lpuContainer.classList.add('d-none');
             document.getElementById('lpuId').innerHTML = '';
+            chkAtividadeComplementar.parentElement.style.display = 'block';
         });
 
         document.body.addEventListener('click', async (e) => {
@@ -770,22 +868,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
 
-            if (reenviarBtn) { // Botões que abrem o modal de edição/criação
+            if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
                 try {
                     reenviarBtn.disabled = true;
                     reenviarBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
-
                     const lancamentoId = reenviarBtn.dataset.id;
                     const lancamento = todosLancamentos.find(l => l.id == lancamentoId);
-
                     if (lancamento) {
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Verifica se o botão é de 'retomar'. Se for, não há ID de edição (será um novo lançamento).
-                        // Caso contrário, passamos o ID do lançamento que será editado.
                         const isRetomar = reenviarBtn.classList.contains('btn-retomar');
                         await abrirModalParaEdicao(lancamento, isRetomar ? null : lancamento.id);
-                        // --- FIM DA CORREÇÃO ---
                     } else {
                         throw new Error('Lançamento não encontrado.');
                     }
@@ -800,108 +892,50 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lancamento = todosLancamentos.find(l => l.id == comentariosBtn.dataset.id);
                 if (lancamento) exibirComentarios(lancamento);
                 else mostrarToast('Lançamento não encontrado.', 'error');
-
             } else if (submeterBtn) {
                 const lancamentoId = submeterBtn.dataset.id;
-
-                // Pega o botão de confirmação do novo modal
                 const btnConfirmar = document.getElementById('btnConfirmarSubmissao');
-
-                // Guarda o ID do lançamento no botão de confirmação para usá-lo depois
                 btnConfirmar.dataset.lancamentoId = lancamentoId;
-
-                // Abre o modal de confirmação
                 const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
                 modalConfirmacao.show();
             }
         });
 
-        async function carregarEPopularLPU(osId) {
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectLPU = document.getElementById('lpuId');
-
-            if (!osId) {
-                lpuContainer.classList.add('d-none');
-                selectLPU.innerHTML = '';
-                return;
-            }
-
-            try {
-                selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-                selectLPU.disabled = true;
-                lpuContainer.classList.remove('d-none');
-
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
-
-                const raw = await response.json();
-                const lpus = normalizarListaLpus(raw); // <— aceita array puro ou paginado
-
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
-                if (lpus.length > 0) {
-                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), String(lpu.id))));
-                    selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
-                    selectLPU.disabled = true;
-                }
-            } catch (error) {
-                console.error(error);
-                mostrarToast(error.message || 'Erro ao carregar LPUs', 'error');
-                lpuContainer.classList.add('d-none');
-            }
-        }
-
         function getProjetosParalisados() {
             const ultimosLancamentos = new Map();
             todosLancamentos.forEach(l => {
-                // --- INÍCIO DA CORREÇÃO ---
-                // Garante que o lançamento tenha os detalhes necessários para criar uma chave única
                 if (l.os && l.detalhe && l.detalhe.lpu) {
                     const chaveProjeto = `${l.os.id}-${l.detalhe.lpu.id}`;
-                    // --- FIM DA CORREÇÃO ---
-
                     if (!ultimosLancamentos.has(chaveProjeto) || l.id > ultimosLancamentos.get(chaveProjeto).id) {
                         ultimosLancamentos.set(chaveProjeto, l);
                     }
                 }
             });
-            // Filtra para retornar apenas os projetos cujo último lançamento está "Paralisado" e não é um rascunho
             return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
         }
 
-        // Listener para o botão de confirmação final de submissão
         document.getElementById('btnConfirmarSubmissao').addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;
             const id = confirmButton.dataset.lancamentoId;
-
             if (!id) return;
 
             const originalContent = confirmButton.innerHTML;
             const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarSubmissao'));
 
             try {
-                // Lógica de "carregando..."
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-
                 const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
                 }
-
                 mostrarToast('Lançamento submetido com sucesso!', 'success');
-
-                // Recarrega os dados para atualizar as tabelas
                 await carregarLancamentos();
                 renderizarTodasAsTabelas();
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                // Restaura o botão e esconde o modal
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = originalContent;
                 if (modalInstance) {
@@ -910,163 +944,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        selectOS.addEventListener('change', async (e) => {
-            const osId = e.target.value;
-            preencherCamposOS(osId);
+        async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaIdSelecionada = null, statusSelecionado = null) {
+            const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
 
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectLPU = document.getElementById('lpuId');
+            selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
+            selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
+            selectEtapaDetalhada.disabled = true;
+            selectStatus.disabled = true;
 
-            if (!osId) {
-                lpuContainer.classList.add('d-none');
-                return;
-            }
-
-            try {
-                lpuContainer.classList.remove('d-none');
-                selectLPU.innerHTML = '<option>Carregando...</option>';
-                selectLPU.disabled = true;
-
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs para esta OS.');
-
-                const lpus = await response.json();
-
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-                if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => {
-                        // CORREÇÃO: Usa a função auxiliar para criar o label
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
-                    });
-                    selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada para esta OS</option>';
-                    selectLPU.disabled = true;
-                }
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-                lpuContainer.classList.add('d-none');
-            }
-        });
-
-        function formatarDataParaAPI(dataString) {
-            if (!dataString) return null;
-
-            // --- INÍCIO DA CORREÇÃO ---
-            // Verifica se a data já está no formato AAAA-MM-DD (que é o formato do input type="date")
-            // Se estiver, apenas a retorna, pois já está pronta para a API.
-            if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                return dataString;
-            }
-            // --- FIM DA CORREÇÃO ---
-
-            // Mantém a lógica antiga para o caso de a data vir no formato brasileiro
-            const partes = dataString.split('/');
-            if (partes.length !== 3) {
-                // Se não for nenhum dos formatos esperados, retorna nulo para evitar erros
-                return null;
-            }
-
-            // Remonta a string no formato AAAA-MM-DD
-            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-        }
-
-        // Função central para lidar com o envio do formulário, chamada por diferentes botões
-        async function handleFormSubmit(acao, submitButton) {
-            const editingId = formAdicionar.dataset.editingId;
-            const originalContent = submitButton.innerHTML;
-            submitButton.disabled = true;
-            submitButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Carregando...`;
-
-            const osLpuDetalheId = formAdicionar.dataset.osLpuDetalheId;
-
-            const dadosParaEnviar = {
-                managerId: localStorage.getItem('usuarioId'),
-                osId: document.getElementById('osId').value,
-                lpuId: document.getElementById('lpuId').value,
-                osLpuDetalheId: osLpuDetalheId,
-                dataAtividade: formatarDataParaAPI(document.getElementById('dataAtividade').value),
-                prestadorId: document.getElementById('prestadorId').value,
-                etapaDetalhadaId: document.getElementById('etapaDetalhadaId').value,
-                vistoria: document.getElementById('vistoria').value,
-                planoVistoria: formatarDataParaAPI(document.getElementById('planoVistoria').value),
-                desmobilizacao: document.getElementById('desmobilizacao').value,
-                planoDesmobilizacao: formatarDataParaAPI(document.getElementById('planoDesmobilizacao').value),
-                instalacao: document.getElementById('instalacao').value,
-                planoInstalacao: formatarDataParaAPI(document.getElementById('planoInstalacao').value),
-                ativacao: document.getElementById('ativacao').value,
-                planoAtivacao: formatarDataParaAPI(document.getElementById('planoAtivacao').value),
-                documentacao: document.getElementById('documentacao').value,
-                planoDocumentacao: formatarDataParaAPI(document.getElementById('planoDocumentacao').value),
-                status: document.getElementById('status').value,
-                situacao: document.getElementById('situacao').value,
-                detalheDiario: document.getElementById('detalheDiario').value,
-                valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
-            };
-
-            let method = 'POST';
-            let url = 'http://localhost:8080/lancamentos';
-
-            if (acao === 'salvar') {
-                dadosParaEnviar.situacaoAprovacao = 'RASCUNHO';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            } else if (acao === 'enviar') {
-                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            } else if (acao === 'reenviar') {
-                dadosParaEnviar.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                method = 'PUT';
-                url = `http://localhost:8080/lancamentos/${editingId}`;
-            }
-
-            try {
-                const resposta = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dadosParaEnviar)
+            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
+                etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
+                    selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
                 });
-                if (!resposta.ok) throw new Error((await resposta.json()).message || 'Erro ao salvar.');
-
-                mostrarToast('Ação realizada com sucesso!', 'success');
-                modalAdicionar.hide();
-                await carregarLancamentos();
-                renderizarTodasAsTabelas();
-
-            } catch (erro) {
-                mostrarToast(erro.message, 'error');
-            } finally {
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalContent;
+                selectEtapaDetalhada.disabled = false;
+                if (etapaDetalhadaIdSelecionada) {
+                    selectEtapaDetalhada.value = etapaDetalhadaIdSelecionada;
+                    const etapaDetalhada = etapaSelecionada.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaIdSelecionada);
+                    if (etapaDetalhada && etapaDetalhada.status.length > 0) {
+                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
+                        selectStatus.disabled = false;
+                        if (statusSelecionado) {
+                            selectStatus.value = statusSelecionado;
+                        }
+                    }
+                }
             }
         }
 
-        // Listener para o botão 'Salvar e Enviar' (de um rascunho)
-        document.getElementById('btnSalvarEEnviar').addEventListener('click', function (e) {
-            handleFormSubmit('enviar', e.currentTarget);
-        });
-
-        // Listener para o botão 'Salvar Alterações' (só salva como rascunho)
-        document.getElementById('btnSalvarRascunho').addEventListener('click', function (e) {
-            handleFormSubmit('salvar', e.currentTarget);
-        });
-
-        // Listener para o botão de submit padrão (usado para Criar Novo e para Reenviar Rejeitado)
-        document.getElementById('btnSubmitAdicionar').addEventListener('click', function (e) {
-            const editingId = formAdicionar.dataset.editingId;
-
-            const isEditing = editingId && editingId !== 'null' && editingId !== 'undefined';
-
-            handleFormSubmit(isEditing ? 'reenviar' : 'criar', e.currentTarget);
-        });
-
-
-
-        selectOS.addEventListener('change', (e) => {
-            carregarEPopularLPU(e.target.value);
-        });
         selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
         selectEtapaDetalhada.addEventListener('change', (e) => {
             const etapaGeralId = selectEtapaGeral.value;
@@ -1079,16 +983,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalTitle = document.getElementById('modalComentariosLabel');
 
         modalTitle.textContent = `Comentários do Lançamento`;
-        modalBody.innerHTML = ''; // Limpa o conteúdo anterior
+        modalBody.innerHTML = '';
 
         if (!lancamento.comentarios || lancamento.comentarios.length === 0) {
             modalBody.innerHTML = '<p class="text-muted text-center">Nenhum comentário para este lançamento.</p>';
             return;
         }
 
-        // Ordena os comentários do mais recente para o mais antigo (opcional, mas bom para UX)
         const comentariosOrdenados = [...lancamento.comentarios].sort((a, b) => {
-            // Função de ordenação robusta que também lida com o parse da data
             const parseDate = (str) => {
                 const [date, time] = str.split(' ');
                 const [day, month, year] = date.split('/');
@@ -1101,20 +1003,11 @@ document.addEventListener('DOMContentLoaded', () => {
         comentariosOrdenados.forEach(comentario => {
             const comentarioCard = document.createElement('div');
             comentarioCard.className = 'card mb-3';
-
-            // --- INÍCIO DA CORREÇÃO ---
-            // Desmonta a string 'DD/MM/YYYY HH:mm' para criar uma data válida
-            const partes = comentario.dataHora.split(' ');         // -> ["15/07/2025", "20:39"]
-            const dataPartes = partes[0].split('/');             // -> ["15", "07", "2025"]
-            const tempoPartes = partes[1].split(':');            // -> ["20", "39"]
-
-            // Formato para o construtor: new Date(ano, mês - 1, dia, hora, minuto)
-            // O mês é -1 porque em JavaScript os meses vão de 0 (Janeiro) a 11 (Dezembro)
+            const partes = comentario.dataHora.split(' ');
+            const dataPartes = partes[0].split('/');
+            const tempoPartes = partes[1].split(':');
             const dataValida = new Date(dataPartes[2], dataPartes[1] - 1, dataPartes[0], tempoPartes[0], tempoPartes[1]);
-
-            // Formata a data válida para o padrão brasileiro
             const dataFormatada = dataValida.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
-            // --- FIM DA CORREÇÃO ---
 
             comentarioCard.innerHTML = `
                 <div class="card-header bg-light d-flex justify-content-between align-items-center small">
@@ -1129,7 +1022,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- LÓGICA DOS FILTROS ---
     const filtroDataCustomEl = document.getElementById('filtroDataCustom');
     const filtroStatusEl = document.getElementById('filtroStatusAprovacao');
     const filtroOsEl = document.getElementById('filtroOS');
@@ -1182,7 +1074,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTodasAsTabelas();
     });
 
-    // --- LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL ---
     const modalSolicitarMaterialEl = document.getElementById('modalSolicitarMaterial');
     if (modalSolicitarMaterialEl) {
         const modalSolicitarMaterial = new bootstrap.Modal(modalSolicitarMaterialEl);
@@ -1191,18 +1082,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectLPU = document.getElementById('lpuSolicitacao');
         const listaItensContainer = document.getElementById('listaItens');
         const btnAdicionarItem = document.getElementById('btnAdicionarItem');
+        let todosOsMateriais = [];
 
-        let todosOsMateriais = []; // Cache para a lista de materiais
-
-        // Função para popular um select de materiais
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                // Busca materiais da API apenas se o cache estiver vazio
                 fetch('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
-                        todosOsMateriais = data; // Armazena no cache
+                        todosOsMateriais = data;
                         preencherOpcoes(selectElement);
                     })
                     .catch(err => {
@@ -1210,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         selectElement.innerHTML = '<option value="">Erro ao carregar</option>';
                     });
             } else {
-                preencherOpcoes(selectElement); // Usa o cache
+                preencherOpcoes(selectElement);
             }
         };
 
@@ -1222,7 +1110,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        // Evento disparado quando o modal de solicitação é aberto
         modalSolicitarMaterialEl.addEventListener('show.bs.modal', async () => {
             formSolicitacao.reset();
             listaItensContainer.innerHTML = `
@@ -1231,24 +1118,16 @@ document.addEventListener('DOMContentLoaded', () => {
               <div class="col-md-3"><input type="number" class="form-control quantidade-input" placeholder="Qtde." min="1" value="1" required></div>
               <div class="col-md-auto"><button type="button" class="btn btn-outline-danger btn-sm btn-remover-item" title="Remover Item" disabled><i class="bi bi-trash"></i></button></div>
             </div>`;
-
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectLPU.disabled = true;
-
-            // Popula o primeiro select de material
             popularSelectMateriais(listaItensContainer.querySelector('.material-select'));
 
-            // Popula o select de OS
             try {
-                // --- INÍCIO DA ALTERAÇÃO ---
                 const usuarioId = localStorage.getItem('usuarioId');
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                // Altera a URL para o endpoint que filtra por usuário
                 const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                // --- FIM DA ALTERAÇÃO ---
-
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1261,11 +1140,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Evento para carregar LPUs quando uma OS é selecionada
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const selectLPU = document.getElementById('lpuSolicitacao'); // Certifique-se de pegar o select correto
-
+            const selectLPU = document.getElementById('lpuSolicitacao');
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
 
@@ -1277,13 +1154,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
-
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        // CORREÇÃO: Usa a função auxiliar para criar o label
                         const option = new Option(labelLpu(lpu), lpu.id);
                         selectLPU.add(option);
                     });
@@ -1297,34 +1171,27 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Evento para adicionar um novo item à solicitação
         btnAdicionarItem.addEventListener('click', () => {
             const novoItemRow = listaItensContainer.firstElementChild.cloneNode(true);
             const newSelect = novoItemRow.querySelector('.material-select');
             novoItemRow.querySelector('.quantidade-input').value = 1;
-
-            // Habilita o botão de remover para o novo item
             const btnRemover = novoItemRow.querySelector('.btn-remover-item');
             btnRemover.disabled = false;
-
             listaItensContainer.appendChild(novoItemRow);
-            popularSelectMateriais(newSelect); // Popula o select do novo item
+            popularSelectMateriais(newSelect);
         });
 
-        // Evento para remover um item (usando delegação de evento)
         listaItensContainer.addEventListener('click', (e) => {
             if (e.target.closest('.btn-remover-item')) {
                 e.target.closest('.item-row').remove();
             }
         });
 
-        // Evento de submissão do formulário
         formSolicitacao.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacao');
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-
             const itens = [];
             document.querySelectorAll('#listaItens .item-row').forEach(row => {
                 const codigoMaterial = row.querySelector('.material-select').value;
@@ -1341,11 +1208,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 justificativa: document.getElementById('justificativaSolicitacao').value,
                 itens: itens
             };
-
-            // ==========================================================
-            // ADICIONE ESTA LINHA PARA VER O PAYLOAD NO CONSOLE DO NAVEGADOR
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
-            // ==========================================================
 
             try {
                 const response = await fetch('http://localhost:8080/solicitacoes', {
@@ -1353,17 +1216,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 if (!response.ok) {
-                    // Tenta ler a resposta de erro como texto, pois pode não ser JSON
                     const errorText = await response.text();
                     console.error("Erro recebido do backend:", errorText);
                     throw new Error('Falha ao criar solicitação. Verifique o console para detalhes.');
                 }
-
                 mostrarToast('Solicitação enviada com sucesso!', 'success');
                 modalSolicitarMaterial.hide();
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1373,10 +1232,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    // ==========================================================
-    // SEÇÃO 4: EXECUÇÃO INICIAL
-    // ==========================================================
     function inicializarCabecalhos() {
         renderizarCabecalho(colunasLancamentos, document.querySelector('#lancamentos-pane thead'));
         renderizarCabecalho(colunasPrincipais, document.querySelector('#pendentes-pane thead'));

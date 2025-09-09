@@ -15,10 +15,9 @@ public interface PrestadorRepository extends JpaRepository<Prestador, Long> {
 
     boolean existsByCodigoPrestador(String codigoPrestador);
 
-    List<Prestador> findByAtivoTrue();
+    List<Prestador> findByAtivoTrueOrderByIdAsc();
+    List<Prestador> findByAtivoFalseOrderByIdAsc();
 
-    List<Prestador> findByAtivoFalse();
-
-    @Query("SELECT p FROM Prestador p WHERE lower(p.prestador) LIKE lower(concat('%', :termo, '%')) OR lower(p.codigoPrestador) LIKE lower(concat('%', :termo, '%'))")
+    @Query("SELECT p FROM Prestador p WHERE lower(p.prestador) LIKE lower(concat('%', :termo, '%')) OR lower(p.codigoPrestador) LIKE lower(concat('%', :termo, '%')) ORDER BY p.id ASC")
     List<Prestador> buscarPorTermo(@Param("termo") String termo);
 }

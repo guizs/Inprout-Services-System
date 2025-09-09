@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -62,7 +63,8 @@ public class OsServiceImpl implements OsService {
 
     @Override
     @Transactional
-    public OS createOs(OsRequestDto osDto) {
+    public OsLpuDetalhe createOs(OsRequestDto osDto) {
+        // 1. Encontra a OS principal ou cria uma nova se não existir. Esta parte está correta.
         OS osParaSalvar = osRepository.findByOs(osDto.getOs())
                 .orElseGet(() -> {
                     OS novaOs = new OS();
@@ -83,54 +85,62 @@ public class OsServiceImpl implements OsService {
         osParaSalvar.setDataAtualizacao(LocalDateTime.now());
         osParaSalvar.setUsuarioAtualizacao("sistema-import");
 
+        OsLpuDetalhe detalheCriado = null;
+
+        // 2. Garante que existam LPUs para associar.
         if (osDto.getLpuIds() != null && !osDto.getLpuIds().isEmpty()) {
             List<Lpu> lpusParaAssociar = lpuRepository.findAllById(osDto.getLpuIds());
             if (lpusParaAssociar.size() != osDto.getLpuIds().size()) {
                 throw new EntityNotFoundException("Uma ou mais LPUs com os IDs fornecidos não foram encontradas.");
             }
 
+            // 3. Itera sobre as LPUs da linha da planilha (normalmente apenas uma).
             for (Lpu lpu : lpusParaAssociar) {
-                boolean detalheJaExiste = osParaSalvar.getDetalhes().stream()
-                        .anyMatch(detalhe -> detalhe.getLpu().getId().equals(lpu.getId()));
 
-                if (!detalheJaExiste) {
-                    OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
-                    novoDetalhe.setOs(osParaSalvar);
-                    novoDetalhe.setLpu(lpu);
-                    novoDetalhe.setKey(osDto.getKey()); // Pega a KEY do DTO
-                    novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+                OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
+                novoDetalhe.setOs(osParaSalvar);
+                novoDetalhe.setLpu(lpu);
+                novoDetalhe.setKey(osDto.getKey()); // Pega a KEY do DTO
+                novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
 
-                    // Preenche todos os campos atualizáveis
-                    novoDetalhe.setSite(osDto.getSite());
-                    novoDetalhe.setContrato(osDto.getContrato());
-                    novoDetalhe.setRegional(osDto.getRegional());
-                    novoDetalhe.setLote(osDto.getLote());
-                    novoDetalhe.setBoq(osDto.getBoq());
-                    novoDetalhe.setPo(osDto.getPo());
-                    novoDetalhe.setItem(osDto.getItem());
-                    novoDetalhe.setUnidade(osDto.getUnidade());
-                    novoDetalhe.setQuantidade(osDto.getQuantidade());
-                    novoDetalhe.setValorTotal(osDto.getValorTotal());
-                    novoDetalhe.setObservacoes(osDto.getObservacoes());
-                    novoDetalhe.setDataPo(osDto.getDataPo());
+                // Adiciona o novo detalhe à lista de detalhes da OS.
+                osParaSalvar.getDetalhes().add(novoDetalhe);
 
-                    // Preenche os campos de faturamento
-                    novoDetalhe.setFaturamento(osDto.getFaturamento());
-                    novoDetalhe.setSolitIdFat(osDto.getSolitIdFat());
-                    novoDetalhe.setRecebIdFat(osDto.getRecebIdFat());
-                    novoDetalhe.setIdFaturamento(osDto.getIdFaturamento());
-                    novoDetalhe.setDataFatInprout(osDto.getDataFatInprout());
-                    novoDetalhe.setSolitFsPortal(osDto.getSolitFsPortal());
-                    novoDetalhe.setDataFs(osDto.getDataFs());
-                    novoDetalhe.setNumFs(osDto.getNumFs());
-                    novoDetalhe.setGate(osDto.getGate());
-                    novoDetalhe.setGateId(osDto.getGateId());
+                // Atribui o novo detalhe à variável que será preenchida a seguir.
+                detalheCriado = novoDetalhe;
+                // --- FIM DA CORREÇÃO ---
 
-                    osParaSalvar.getDetalhes().add(novoDetalhe);
-                }
+                // 4. Preenche todos os campos do novo detalhe com os dados do DTO (da planilha).
+                detalheCriado.setSite(osDto.getSite());
+                detalheCriado.setContrato(osDto.getContrato());
+                detalheCriado.setRegional(osDto.getRegional());
+                detalheCriado.setLote(osDto.getLote());
+                detalheCriado.setBoq(osDto.getBoq());
+                detalheCriado.setPo(osDto.getPo());
+                detalheCriado.setItem(osDto.getItem());
+                detalheCriado.setUnidade(osDto.getUnidade());
+                detalheCriado.setQuantidade(osDto.getQuantidade());
+                detalheCriado.setValorTotal(osDto.getValorTotal());
+                detalheCriado.setObservacoes(osDto.getObservacoes());
+                detalheCriado.setDataPo(osDto.getDataPo());
+
+                // Preenche os campos de faturamento.
+                detalheCriado.setFaturamento(osDto.getFaturamento());
+                detalheCriado.setSolitIdFat(osDto.getSolitIdFat());
+                detalheCriado.setRecebIdFat(osDto.getRecebIdFat());
+                detalheCriado.setIdFaturamento(osDto.getIdFaturamento());
+                detalheCriado.setDataFatInprout(osDto.getDataFatInprout());
+                detalheCriado.setSolitFsPortal(osDto.getSolitFsPortal());
+                detalheCriado.setDataFs(osDto.getDataFs());
+                detalheCriado.setNumFs(osDto.getNumFs());
+                detalheCriado.setGate(osDto.getGate());
+                detalheCriado.setGateId(osDto.getGateId());
             }
         }
-        return osRepository.save(osParaSalvar);
+
+        // 5. Salva a OS e, por consequência (cascade), o novo detalhe criado.
+        osRepository.save(osParaSalvar);
+        return detalheCriado;
     }
 
     @Override
@@ -491,7 +501,7 @@ public class OsServiceImpl implements OsService {
                         if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                             throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                         }
-                        createOs(dto);
+                        this.createOs(dto);
                     }
 
                 } catch (Exception e) {
@@ -543,7 +553,7 @@ public class OsServiceImpl implements OsService {
             if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                 throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
             }
-            createOs(dto);
+            this.createOs(dto);
         }
     }
 
@@ -699,7 +709,7 @@ public class OsServiceImpl implements OsService {
                     if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getContrato() == null || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                         throw new IllegalArgumentException("Para criar novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
                     }
-                    createOs(dto);
+                    this.createOs(dto);
                 }
             } catch (Exception e) {
                 erros.add("Linha " + i + " no lote: " + e.getMessage());
@@ -751,4 +761,41 @@ public class OsServiceImpl implements OsService {
         return null;
     }
 
+    @Override
+    public List<OS> getOsByProjeto(String projeto) {
+        return osRepository.findByProjeto(projeto);
+    }
+
+    @Override
+    @Transactional
+    public OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade) {
+        OS os = osRepository.findById(osId)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
+        Lpu lpu = lpuRepository.findById(lpuId)
+                .orElseThrow(() -> new EntityNotFoundException("LPU não encontrada com o ID: " + lpuId));
+
+        OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
+        novoDetalhe.setOs(os);
+        novoDetalhe.setLpu(lpu);
+
+        // --- INÍCIO DA CORREÇÃO ---
+        int randomCode = ThreadLocalRandom.current().nextInt(10000, 100000); // Gera um número entre 10000 e 99999
+        novoDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_" + randomCode);
+        // --- FIM DA CORREÇÃO ---
+
+        novoDetalhe.setQuantidade(quantidade);
+        novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
+
+        // Copia dados do primeiro detalhe da OS como base
+        os.getDetalhes().stream().findFirst().ifPresent(base -> {
+            novoDetalhe.setSite(base.getSite());
+            novoDetalhe.setContrato(base.getContrato());
+            novoDetalhe.setRegional(base.getRegional());
+        });
+
+        String dataFormatada = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy").format(java.time.LocalDate.now());
+        novoDetalhe.setObservacoes("Criação automática de atividade complementar dia " + dataFormatada);
+
+        return osLpuDetalheRepository.save(novoDetalhe);
+    }
 }

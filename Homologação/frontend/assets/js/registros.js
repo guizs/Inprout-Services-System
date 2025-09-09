@@ -26,14 +26,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return dataStr.split(' ')[0];
     };
 
+    // --- INÍCIO DA CORREÇÃO ---
     // Definição das colunas da tabela
+    const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
+
     const colunasPorRole = {
-        'MANAGER': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "DATA CRIAÇÃO OS", "KEY"],
-        'DEFAULT': ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"]
+        'MANAGER': colunasCompletas, // Manager agora vê todas as colunas
+        'DEFAULT': colunasCompletas
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
+    // --- FIM DA CORREÇÃO ---
 
-    // Mapeamento de dados
+
+    // Mapeamento de dados (permanece o mesmo)
     const dataMapping = {
         "OS": (linha) => get(linha, 'os.os'), "SITE": (linha) => get(linha, 'detalhe.site'),
         "CONTRATO": (linha) => get(linha, 'detalhe.contrato'), "SEGMENTO": (linha) => get(linha, 'os.segmento.nome'),
@@ -297,6 +302,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const sheet = workbook.Sheets[sheetName];
                 const rows = XLSX.utils.sheet_to_json(sheet);
 
+                // --- LOG ADICIONADO ---
+                console.log("--- DADOS LIDOS DA PLANILHA ---");
+                console.table(rows); // Exibe os dados em formato de tabela no console
+
                 if (rows.length === 0) throw new Error("A planilha está vazia.");
 
                 let linhasProcessadas = 0;
@@ -310,17 +319,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     const lote = rows.slice(i, i + TAMANHO_LOTE);
+
+                    // --- LOG ADICIONADO ---
+                    console.log(`--- ENVIANDO LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} (Linhas ${i + 1} a ${i + lote.length}) ---`);
+                    console.log(lote); // Exibe o lote de dados que está sendo enviado
+
                     const response = await fetch(`${API_BASE_URL}/os/importar-lote`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(lote)
                     });
 
-                    if (response.status === 207) {
+                    if (response.status === 207) { // Multi-Status, indica que houve erros parciais
                         const errosDoLote = await response.json();
+                        // --- LOG ADICIONADO ---
+                        console.warn(`--- ERROS RECEBIDOS NO LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} ---`);
+                        console.log(errosDoLote); // Exibe os erros retornados pelo servidor
                         errosGerais.push(...errosDoLote.map(e => `Linha (aprox.) ${i + 1}: ${e}`));
                     } else if (!response.ok) {
+                        // --- LOG ADICIONADO ---
+                        console.error(`--- ERRO GERAL NO SERVIDOR (LOTE ${Math.floor(i / TAMANHO_LOTE) + 1}) ---`);
+                        console.log(response); // Exibe a resposta completa de erro
                         throw new Error(`Erro no servidor ao processar o lote a partir da linha ${i + 1}.`);
+                    } else {
+                        // --- LOG ADICIONADO ---
+                        console.log(`--- LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} PROCESSADO COM SUCESSO ---`);
                     }
 
                     linhasProcessadas += lote.length;

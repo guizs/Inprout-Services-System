@@ -54,7 +54,7 @@ public class OsController {
      */
     @PostMapping
     public ResponseEntity<OS> createOs(@RequestBody OsRequestDto osDto) {
-        OS novaOs = osService.createOs(osDto);
+        OS novaOs = osService.createOs(osDto).getOs();
         // Retorna a OS criada com o status HTTP 201 (Created)
         return new ResponseEntity<>(novaOs, HttpStatus.CREATED);
     }
@@ -160,6 +160,15 @@ public class OsController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @GetMapping("/por-projeto/{projeto}")
+    public ResponseEntity<List<OsResponseDto>> getOsPorProjeto(@PathVariable String projeto) {
+        List<OS> osDoProjeto = osService.getOsByProjeto(projeto);
+        List<OsResponseDto> responseList = osDoProjeto.stream()
+                .map(OsResponseDto::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(responseList);
     }
 
 }

@@ -17,6 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.show();
     }
 
+    function parseDataBrasileira(dataString) {
+        if (!dataString) return null;
+        // Ex: "21/07/2025 15:04:42"
+        const [data, hora] = dataString.split(' ');
+        if (!data) return null;
+        const [dia, mes, ano] = data.split('/');
+        if (!dia || !mes || !ano) return null;
+        // O mês em JavaScript é 0-indexado (Janeiro=0), por isso mes-1
+        return new Date(`${ano}-${mes}-${dia}T${hora || '00:00:00'}`);
+    }
+
     function labelLpu(lpu) {
         if (!lpu) return '';
         const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
@@ -395,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetch('http://3.128.248.3:8080/lancamentos');
+            const response = await fetch('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             const lancamentosDaApi = await response.json();
@@ -422,7 +433,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO');
         const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao));
         const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao));
+
+        // --- INÍCIO DA CORREÇÃO ---
+
+        // 1. Filtra os lançamentos que pertencem ao histórico
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao));
+
+        // 2. Ordena a lista de histórico pela data de criação, do mais recente para o mais antigo
+        historico.sort((a, b) => {
+            const dataA = parseDataBrasileira(a.dataCriacao);
+            const dataB = parseDataBrasileira(b.dataCriacao);
+            // Coloca itens sem data no final
+            if (!dataA) return 1;
+            if (!dataB) return -1;
+            // Compara as datas (b - a para ordem decrescente)
+            return dataB - dataA;
+        });
+
+        // --- FIM DA CORREÇÃO ---
+
         const paralisados = getProjetosParalisados();
 
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
@@ -504,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const editingId = formAdicionar.dataset.editingId;
-            const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
+            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -553,9 +582,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
                     }
                     const contratoId = osSelecionada.detalhes[0].contratoId;
-                    url = `http://3.128.248.3:8080/lpu/contrato/${contratoId}`;
+                    url = `http://localhost:8080/lpu/contrato/${contratoId}`;
                 } else {
-                    url = `http://3.128.248.3:8080/os/${osId}/lpus`;
+                    url = `http://localhost:8080/os/${osId}/lpus`;
                 }
 
                 const response = await fetch(url);
@@ -637,8 +666,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 3. Populamos o select com as opções
                     choices.setChoices(choicesData, 'value', 'label', false);
 
-                    // 4. PONTO CRÍTICO DA CORREÇÃO: Guardamos a instância da biblioteca no próprio elemento do select
+                    // 4. PONTO CRÍTICO: Guardamos a instância da biblioteca no próprio elemento do select
                     selectElement.choices = choices;
+                    // --- FIM DA CORREÇÃO ---
 
                 } else {
                     selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
@@ -674,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
                     todasAsOS = await response.json();
@@ -696,16 +726,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // A otimização da lentidão já está no seu código, que armazena os dados em cache.
-            // Esta chamada garante que os dados estarão disponíveis sem recarregar sempre.
+            // 1. Carrega todos os dados necessários (isso permanece igual)
             await carregarDadosParaModal();
             formAdicionar.dataset.editingId = editingId;
 
@@ -713,31 +742,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
-
-            // 1. Seleciona os elementos que precisam ser manipulados
-            const chkAtividadeComplementarContainer = document.getElementById('atividadeComplementar').parentElement;
-            const quantidadeContainer = document.getElementById('quantidadeContainer'); // ID corrigido
-            const selectProjeto = document.getElementById('projetoId');
-
-            // 2. Esconde os campos de "Atividade Complementar" e "Quantidade"
-            if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
-            if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
-
-            // 3. Preenche e desabilita o campo de Projeto
-            if (lancamento.os && lancamento.os.projeto) {
-                selectProjeto.value = lancamento.os.projeto;
-                selectProjeto.disabled = true;
-            }
-
-            // --- FIM DA CORREÇÃO ---
-
-
+            // 2. Preenche todos os campos, exceto o de prestador por enquanto
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
             const dataAtividadeInput = document.getElementById('dataAtividade');
+            const chkAtividadeComplementarContainer = document.getElementById('atividadeComplementar').parentElement;
+            const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
+            const selectProjeto = document.getElementById('projetoId');
+
+            if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
+            if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
+
+            if (lancamento.os && lancamento.os.projeto) {
+                selectProjeto.value = lancamento.os.projeto;
+                selectProjeto.disabled = true;
+            }
 
             btnSubmitPadrao.style.display = 'none';
             btnSalvarRascunho.style.display = 'none';
@@ -763,15 +784,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-            const selectPrestadorEl = document.getElementById('prestadorId');
-            // A biblioteca Choices.js anexa uma instância ao elemento. Verificamos se ela existe.
-            if (selectPrestadorEl.choices) {
-                // Usamos o método correto da biblioteca para definir o valor pelo ID do prestador.
-                selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador?.id || ''));
-            } else {
-                // Se, por algum motivo, o Choices.js não tiver sido inicializado, usamos o método antigo.
-                selectPrestadorEl.value = lancamento.prestador?.id || '';
-            }
             document.getElementById('situacao').value = lancamento.situacao || '';
 
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
@@ -806,7 +818,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
 
+            // 3. Mostra o modal
             modalAdicionar.show();
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // 4. A MÁGICA: Adia o preenchimento do campo do prestador
+            //    Isso garante que o modal e o componente Choices.js estejam 100% prontos.
+            setTimeout(() => {
+                const selectPrestadorEl = document.getElementById('prestadorId');
+                if (selectPrestadorEl && selectPrestadorEl.choices) {
+                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador?.id || ''));
+                }
+            }, 150); // Um pequeno atraso de 150ms é suficiente.
+            // --- FIM DA CORREÇÃO ---
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
@@ -901,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetch(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1063,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetch('http://3.128.248.3:8080/materiais')
+                fetch('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1103,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetch(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1128,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1187,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetch('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetch('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

@@ -188,7 +188,7 @@ async function carregarTabelaEtapas() {
     `;
 
     try {
-        const res = await fetch(urlEtapas);
+        const res = await fetchComAuth(urlEtapas);
         if (!res.ok) throw new Error('Falha ao carregar etapas da API.');
         const data = await res.json();
 
@@ -255,7 +255,7 @@ function configurarFormularioAdicionarEtapa() {
         if (!codigo || !descricao) return mostrarToast("Preencha todos os campos.", 'error');
 
         try {
-            await fetch(urlEtapas, {
+            await fetchComAuth(urlEtapas, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ codigo, descricao }) // Corrigido para 'nome' se for o caso no backend
@@ -294,7 +294,7 @@ function configurarFormularioAdicionarDetalhada() {
 
         if (!etapa || !nome || statusSelecionados.length === 0) return mostrarToast("Preencha todos os campos.", 'error');
 
-        fetch(`${urlEtapas}/${etapa}/detalhadas`, {
+        fetchComAuth(`${urlEtapas}/${etapa}/detalhadas`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ nome: nome, status: statusSelecionados })
@@ -333,7 +333,7 @@ async function preencherSelectComEtapas(elementoSelect) {
     try {
         if (!window.etapasDisponiveis || window.etapasDisponiveis.length === 0) {
             console.log("Buscando etapas da API...");
-            const res = await fetch(urlEtapas);
+            const res = await fetchComAuth(urlEtapas);
             window.etapasDisponiveis = await res.json();
         }
 
@@ -404,7 +404,7 @@ function configurarModalEditar() {
             return { ...etapa, indice, nome, status };
         });
 
-        fetch(`${urlEtapas}/${codigo}/detalhadas/lote`, {
+        fetchComAuth(`${urlEtapas}/${codigo}/detalhadas/lote`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(atualizadas)

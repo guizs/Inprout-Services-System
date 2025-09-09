@@ -198,11 +198,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ADICIONE ESTA NOVA FUNÇÃO ABAIXO DA fetchData
+    // ADICIONE ESTA NOVA FUNÇÃO ABAIXO DA fetchComAuthData
     async function alterarValorLancamento(lancamentoId, novoValor) {
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
-            const response = await fetch(`${API_URL}/lancamentos/${lancamentoId}/valor`, {
+            const response = await fetchComAuth(`${API_URL}/lancamentos/${lancamentoId}/valor`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             mostrarToast('Valor alterado com sucesso!', 'success');
-            await fetchData(); // Recarrega TODOS os dados para atualizar os totais
+            await fetchComAuthData(); // Recarrega TODOS os dados para atualizar os totais
 
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -227,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- LÓGICA DE DADOS ---
-    async function fetchData() {
+    async function fetchComAuthData() {
         // ▼▼▼ CORREÇÃO PRINCIPAL AQUI ▼▼▼
         // Pega os valores de texto ATUAIS dos inputs de data toda vez que a função é chamada
         let startDate = startDateInput.value;
@@ -247,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
-            const response = await fetch(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
+            const response = await fetchComAuth(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
             if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
 
             fullData = await response.json();
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function fetchDetalhesPorPrestador(codPrestador) {
+    async function fetchComAuthDetalhesPorPrestador(codPrestador) {
         // Mostra o loader
         if (typeof toggleLoader === 'function') toggleLoader(true);
 
@@ -377,7 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startDateInput.value = formatDate(firstDay);
         endDateInput.value = formatDate(lastDay);
 
-        filterBtn.addEventListener('click', fetchData);
+        filterBtn.addEventListener('click', fetchComAuthData);
 
         tableTabs.addEventListener('click', (e) => {
             e.preventDefault();
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const linhaPrestador = e.target.closest('tr[data-cod-prestador]');
             if (linhaPrestador && currentTableView === 'prestadores') {
                 const codPrestador = linhaPrestador.dataset.codPrestador;
-                fetchDetalhesPorPrestador(codPrestador);
+                fetchComAuthDetalhesPorPrestador(codPrestador);
             }
         });
 
@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isNaN(valor) && valor >= 0) {
                     toggleLoader(true);
                     try {
-                        const response = await fetch(`${API_URL}/lancamentos/${lancamentoId}/adiantamento`, {
+                        const response = await fetchComAuth(`${API_URL}/lancamentos/${lancamentoId}/adiantamento`, {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ valor: valor })
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (!response.ok) throw new Error('Falha ao registrar adiantamento.');
 
                         mostrarToast('Adiantamento registrado com sucesso!', 'success');
-                        await fetchData(); // Recarrega todos os dados para atualizar a tela
+                        await fetchComAuthData(); // Recarrega todos os dados para atualizar a tela
                     } catch (error) {
                         mostrarToast(error.message, 'error');
                     } finally {
@@ -478,7 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        fetchData();
+        fetchComAuthData();
     }
 
     // --- FUNÇÕES UTILITÁRIAS ---

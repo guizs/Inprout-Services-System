@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>`;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/os`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/os`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
             if (!response.ok) throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
@@ -379,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     const lote = rows.slice(i, i + TAMANHO_LOTE);
 
-                    const response = await fetch(`${API_BASE_URL}/os/importar-lote`, {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/importar-lote`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(lote)

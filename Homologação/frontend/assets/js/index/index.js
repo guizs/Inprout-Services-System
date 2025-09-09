@@ -406,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetch('http://localhost:8080/lancamentos');
+            const response = await fetchComAuthComAuthComAuth('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             const lancamentosDaApi = await response.json();
@@ -538,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 toggleLoader(true);
-                const response = await fetch(url, {
+                const response = await fetchComAuthComAuth(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -587,7 +587,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     url = `http://localhost:8080/os/${osId}/lpus`;
                 }
 
-                const response = await fetch(url);
+                const response = await fetchComAuthComAuth(url);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
 
                 const lpus = await response.json();
@@ -635,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async function popularSelect(selectElement, url, valueField, textFieldFormatter) {
             try {
-                const response = await fetch(url);
+                const response = await fetchComAuthComAuth(url);
                 if (!response.ok) throw new Error(`Falha ao carregar dados: ${response.statusText}`);
                 const data = await response.json();
 
@@ -704,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuthComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
                     todasAsOS = await response.json();
@@ -925,7 +925,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetch(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuthComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1087,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetch('http://localhost:8080/materiais')
+                fetchComAuthComAuth('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1127,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetch(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuthComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1152,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetchComAuthComAuth(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1211,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetch('http://localhost:8080/solicitacoes', {
+                const response = await fetchComAuthComAuth('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

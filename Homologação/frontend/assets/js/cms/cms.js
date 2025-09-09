@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarMateriais() {
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/materiais`);
+            const response = await fetchComAuth(`${API_BASE_URL}/materiais`);
             if (!response.ok) throw new Error('Erro ao carregar materiais');
             todosOsMateriais = await response.json();
             aplicarFiltrosErenderizar();
@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function abrirModalDetalhes(id) {
         if (typeof toggleLoader === 'function') toggleLoader(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/materiais/${id}`);
+            const response = await fetchComAuth(`${API_BASE_URL}/materiais/${id}`);
             if (!response.ok) throw new Error('Material não encontrado');
             const material = await response.json();
 
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/materiais`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/materiais`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(materialData)
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            const response = await fetch(`${API_BASE_URL}/materiais/entradas`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/materiais/entradas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(entradaData)
@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btnConfirmarExclusao.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
     
         try {
-            const response = await fetch(`${API_BASE_URL}/materiais/${id}`, { method: 'DELETE' });
+            const response = await fetchComAuth(`${API_BASE_URL}/materiais/${id}`, { method: 'DELETE' });
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Erro ao excluir.');

@@ -42,9 +42,6 @@
         <div class="card shadow-sm">
             <div class="card-header bg-white p-3">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                    <div>
-                        <h4 class="mb-0">Registros de atividades</h4>
-                    </div>
                     <div class="d-flex align-items-center gap-2 flex-grow-1">
                         <div class="input-group search-box flex-grow-1">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -68,22 +65,18 @@
                 </div>
             </div>
             <div class="card-body">
-                <div class="table-responsive custom-scroll">
-                    <table class="table modern-table align-middle">
-                        <thead id="registros-table-head"></thead>
-                        <tbody id="registros-table-body"></tbody>
-                    </table>
-                </div>
+                <div class="accordion" id="accordion-registros">
+                    </div>
 
-                <div class="pagination-controls mt-2">
+                <div class="pagination-controls mt-3">
                     <div>
-                        <label for="rowsPerPage" class="form-label me-2">Linhas por página:</label>
+                        <label for="rowsPerPage" class="form-label me-2">Grupos por página:</label>
                         <select id="rowsPerPage" class="form-select form-select-sm d-inline-block" style="width: auto;">
+                            <option value="10">10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
                             <option value="100">100</option>
-                            <option value="200">200</option>
-                            <option value="500">500</option>
-                            <option value="1000">1000</option>
-                            <option value="all">Todas</option>
+                            <option value="all">Todos</option>
                         </select>
                     </div>
                     <div id="pagination-info" class="text-muted">
@@ -102,10 +95,7 @@
             </div>
         </div>
     </div>
-    </div>
-    </div>
-    </div>
-
+    
     <div class="modal fade" id="modalProgressoExportacao" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="modalProgressoLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -193,18 +183,15 @@
         </div>
     </div>
 
-    <!-- Modal Minha Conta -->
     <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">
-
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalMinhaContaLabel">
                         <i class="bi bi-person-circle me-2"></i> Minha Conta
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-
                 <div class="modal-body">
                     <div class="text-center mb-3">
                         <i class="bi bi-person-circle" style="font-size: 4rem; color: #198754;"></i>
@@ -212,13 +199,11 @@
                         <p class="text-muted" id="emailUsuarioModal">email@dominio.com</p>
                         <div id="userInfoDetalhes" class="mt-2"></div>
                     </div>
-
                     <div class="d-grid gap-2">
                         <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
                             data-bs-target="#alterarEmail" aria-expanded="false">
                             <i class="bi bi-envelope"></i> Alterar E-mail
                         </button>
-
                         <div class="collapse mt-2" id="alterarEmail">
                             <form id="formAlterarEmail">
                                 <div class="mb-2">
@@ -228,12 +213,10 @@
                                 </div>
                             </form>
                         </div>
-
                         <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
                             data-bs-target="#alterarSenha" aria-expanded="false">
                             <i class="bi bi-shield-lock"></i> Alterar Senha
                         </button>
-
                         <div class="collapse mt-2" id="alterarSenha">
                             <form id="formAlterarSenha">
                                 <div class="mb-2">
@@ -250,7 +233,6 @@
                         </div>
                     </div>
                 </div>
-
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                         <i class="bi bi-x-circle"></i> Cancelar
@@ -259,7 +241,6 @@
                         <i class="bi bi-check-circle"></i> Salvar Alterações
                     </button>
                 </div>
-
             </div>
         </div>
     </div>

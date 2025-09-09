@@ -3,7 +3,8 @@ package br.com.inproutservices.inproutsystem.services.index;
 import br.com.inproutservices.inproutsystem.entities.index.Prestador;
 import br.com.inproutservices.inproutsystem.repositories.index.PrestadorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,18 +17,15 @@ public class PrestadorService {
     @Autowired
     private PrestadorRepository prestadorRepository;
 
-    public List<Prestador> listarTodos() {
-        // CORREÇÃO: Ordenando por 'id' em vez de 'codigoPrestador'
-        return prestadorRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
+    public Page<Prestador> listarTodos(Pageable pageable) {
+        return prestadorRepository.findAll(pageable);
     }
 
     public List<Prestador> listarAtivos() {
-        // CORREÇÃO: Ordenando por 'id'
         return prestadorRepository.findByAtivoTrueOrderByIdAsc();
     }
 
     public List<Prestador> listarDesativados() {
-        // CORREÇÃO: Ordenando por 'id'
         return prestadorRepository.findByAtivoFalseOrderByIdAsc();
     }
 

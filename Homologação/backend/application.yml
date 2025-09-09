@@ -1,16 +1,15 @@
 spring:
   #datasource:
-    #url: jdbc:postgresql://localhost:5432/inpdatabase_v1
-    #username: postgres
-    #password: inpservices123
+    #url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1
+    #username: ${DB_USER:postgres}
+    #password: ${DB_PASS:inpservices123}
     #driver-class-name: org.postgresql.Driver
 
   datasource:
-    url: jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
-    username: postgres
-    password: inpservices123
+    url: ${DB_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:inpservices123}
     driver-class-name: org.postgresql.Driver
-
 
   jpa:
     properties:
@@ -18,9 +17,10 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
-
     show-sql: true
 
 server:
   port: 8080
 
+jwt:
+  secret: ${JWT_SECRET:sua-chave-secreta-super-longa-e-dificil-de-adivinhar}

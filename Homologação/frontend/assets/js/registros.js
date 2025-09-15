@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'http://3.128.248.3';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
     // Variáveis de estado para a paginação
     let paginaAtual = 1;
-    let linhasPorPagina = 100;
-    let linhasFiltradasCache = []; // Cache para a lista filtrada
+    let linhasPorPagina = 10; // Valor inicial
+    let gruposFiltradosCache = []; // Cache para os GRUPOS filtrados
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
@@ -26,19 +26,14 @@ document.addEventListener('DOMContentLoaded', function () {
         return dataStr.split(' ')[0];
     };
 
-    // --- INÍCIO DA CORREÇÃO ---
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
-
     const colunasPorRole = {
-        'MANAGER': colunasCompletas, // Manager agora vê todas as colunas
+        'MANAGER': colunasCompletas,
         'DEFAULT': colunasCompletas
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
-    // --- FIM DA CORREÇÃO ---
 
-
-    // Mapeamento de dados (permanece o mesmo)
     const dataMapping = {
         "OS": (linha) => get(linha, 'os.os'), "SITE": (linha) => get(linha, 'detalhe.site'),
         "CONTRATO": (linha) => get(linha, 'detalhe.contrato'), "SEGMENTO": (linha) => get(linha, 'os.segmento.nome'),
@@ -75,22 +70,17 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     async function inicializarPagina() {
-        const tableHead = document.getElementById('registros-table-head');
-        const tableBody = document.getElementById('registros-table-body');
-
-        tableHead.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="${headers.length}" class="text-center p-5">
-                    <div class="spinner-border text-success" role="status">
-                        <span class="visually-hidden">Carregando...</span>
-                    </div>
-                    <p class="mt-2 text-muted">Buscando registros...</p>
-                </td>
-            </tr>`;
+        const accordionContainer = document.getElementById('accordion-registros');
+        accordionContainer.innerHTML = `
+            <div class="text-center p-5">
+                <div class="spinner-border text-success" role="status">
+                    <span class="visually-hidden">Carregando...</span>
+                </div>
+                <p class="mt-2 text-muted">Buscando registros...</p>
+            </div>`;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/os`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/os`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
             if (!response.ok) throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
@@ -107,17 +97,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
-                const osInfo = { ...os, detalhes: undefined };
+                const osInfo = { ...os, detalhes: undefined }; // Pega a OS completa aqui
                 if (os.detalhes && os.detalhes.length > 0) {
                     os.detalhes.forEach(detalhe => {
                         todasAsLinhas.push({
-                            os: osInfo,
+                            os: os, // Passa a OS completa para cada linha
                             detalhe: detalhe,
                             ultimoLancamento: detalhe.ultimoLancamento
                         });
                     });
                 } else {
-                    todasAsLinhas.push({ os: osInfo, detalhe: null, ultimoLancamento: null });
+                    todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
                 }
             });
 
@@ -125,72 +115,133 @@ document.addEventListener('DOMContentLoaded', function () {
 
         } catch (error) {
             console.error('Falha ao carregar os registros:', error);
-            tableBody.innerHTML = `<tr><td colspan="${headers.length}" class="text-center text-danger">Erro ao carregar dados. Verifique o console.</td></tr>`;
+            accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados. Verifique o console.</div>`;
         }
     }
 
-    function renderizarTabela(linhas) {
-        const tableBody = document.getElementById('registros-table-body');
+    function renderizarTabela() {
+        const accordionContainer = document.getElementById('accordion-registros');
         const paginationInfo = document.getElementById('pagination-info');
-        tableBody.innerHTML = '';
+        accordionContainer.innerHTML = '';
+        
+        const grupos = gruposFiltradosCache;
 
-        const totalLinhas = linhas.length;
-        const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(totalLinhas / linhasPorPagina);
-        paginaAtual = Math.max(1, Math.min(paginaAtual, totalPaginas));
-
-        const inicio = linhasPorPagina === 'all' ? 0 : (paginaAtual - 1) * linhasPorPagina;
-        const fim = linhasPorPagina === 'all' ? totalLinhas : inicio + linhasPorPagina;
-        const linhasDaPagina = linhas.slice(inicio, fim);
-
-        if (linhasDaPagina.length === 0) {
-            tableBody.innerHTML = `<tr><td colspan="${headers.length}" class="text-center">Nenhum registro encontrado.</td></tr>`;
-            paginationInfo.textContent = 'Mostrando 0 de 0';
+        if (grupos.length === 0) {
+            accordionContainer.innerHTML = `<div class="text-center p-4 text-muted">Nenhum registro encontrado.</div>`;
+            paginationInfo.textContent = 'Mostrando 0 de 0 grupos';
             atualizarBotoesPaginacao(1);
             return;
         }
 
+        const totalGrupos = grupos.length;
+        const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(totalGrupos / linhasPorPagina);
+        paginaAtual = Math.max(1, Math.min(paginaAtual, totalPaginas));
+
+        const inicio = linhasPorPagina === 'all' ? 0 : (paginaAtual - 1) * linhasPorPagina;
+        const fim = linhasPorPagina === 'all' ? totalGrupos : inicio + linhasPorPagina;
+        const gruposDaPagina = grupos.slice(inicio, fim);
+        
         const frag = document.createDocumentFragment();
-        linhasDaPagina.forEach(linhaData => {
-            const tr = document.createElement('tr');
-            headers.forEach(header => {
-                const td = document.createElement('td');
-                const func = dataMapping[header];
-                const valor = func ? func(linhaData) : '-';
-                td.innerHTML = valor;
 
-                // Adiciona estilos para as colunas de status (OK, NOK, N/A)
-                if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
-                    td.classList.add('status-cell');
-                    if (valor === 'OK') td.classList.add('status-ok');
-                    else if (valor === 'NOK') td.classList.add('status-nok');
-                    else if (valor === 'N/A') td.classList.add('status-na');
-                }
+        gruposDaPagina.forEach((grupo, index) => {
+            const uniqueId = `${grupo.id}-${index}`;
+            const item = document.createElement('div');
+            item.className = 'accordion-item';
+            
+            // --- CÁLCULO DOS VALORES TOTAIS POR GRUPO ---
+            const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
+                 .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-                // Adiciona cor de fundo para colunas de faturamento
-                if (["FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID"].includes(header)) {
-                    td.classList.add('faturamento-col');
-                }
+            const valorTotalCPS = grupo.linhas.reduce((sum, l) => {
+                const valorStr = get(l, 'ultimoLancamento.valor', '0').toString().replace(/[^\d,]/g, '').replace(',', '.');
+                return sum + parseFloat(valorStr || 0);
+            }, 0);
+            
+            const percentual = valorTotalOS > 0 ? (valorTotalCPS / valorTotalOS) * 100 : 0;
 
-                // --- A CORREÇÃO ESTÁ AQUI ---
-                // Adiciona a classe para tornar a célula do Detalhe Diário clicável
-                if (header === "DETALHE DIÁRIO") {
-                    td.classList.add('detalhe-diario-cell');
-                }
+            let kpiHTML = '';
+            if (userRole !== 'MANAGER') {
+                kpiHTML = `
+                    <div class="header-kpi-wrapper">
+                        <div class="header-kpi">
+                            <span class="kpi-label">Total OS</span>
+                            <span class="kpi-value">${formatarMoeda(valorTotalOS)}</span>
+                        </div>
+                        <div class="header-kpi">
+                            <span class="kpi-label">Total CPS</span>
+                            <span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span>
+                        </div>
+                        <div class="header-kpi">
+                             <span class="kpi-label">%</span>
+                            <span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span>
+                        </div>
+                    </div>
+                `;
+            }
 
-                tr.appendChild(td);
-            });
-            frag.appendChild(tr);
+            const headerHTML = `
+                <h2 class="accordion-header" id="heading-${uniqueId}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                        <div class="header-content">
+                            <div class="header-title-wrapper">
+                                <span class="header-title-project">${grupo.projeto}</span>
+                                <span class="header-title-os">${grupo.os}</span>
+                            </div>
+                            ${kpiHTML}
+                            <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                        </div>
+                    </button>
+                </h2>
+            `;
+
+            const bodyRowsHTML = grupo.linhas.map(linhaData => {
+                const cellsHTML = headers.map(header => {
+                    const func = dataMapping[header];
+                    const valor = func ? func(linhaData) : '-';
+                    let classes = '';
+                    if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
+                        classes += ' status-cell';
+                        if (valor === 'OK') classes += ' status-ok';
+                        else if (valor === 'NOK') classes += ' status-nok';
+                        else if (valor === 'N/A') classes += ' status-na';
+                    }
+                    if (header === "DETALHE DIÁRIO") {
+                        classes += ' detalhe-diario-cell';
+                    }
+                    return `<td class="${classes}">${valor}</td>`;
+                }).join('');
+                return `<tr>${cellsHTML}</tr>`;
+            }).join('');
+
+            const bodyHTML = `
+                <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
+                    <div class="accordion-body">
+                        <div class="table-responsive">
+                            <table class="table modern-table table-sm">
+                                <thead>
+                                    <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
+                                </thead>
+                                <tbody>
+                                    ${bodyRowsHTML}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            item.innerHTML = headerHTML + bodyHTML;
+            frag.appendChild(item);
         });
-        tableBody.appendChild(frag);
-
-        paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas} (Mostrando ${linhasDaPagina.length} de ${totalLinhas} registros)`;
+        
+        accordionContainer.appendChild(frag);
+        paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas} (${totalGrupos} grupos)`;
         atualizarBotoesPaginacao(totalPaginas);
     }
 
     function renderizarTabelaComFiltro() {
-        paginaAtual = 1;
         const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
-        linhasFiltradasCache = termoBusca
+        const linhasFiltradas = termoBusca
             ? todasAsLinhas.filter(linhaData => {
                 const textoPesquisavel = [
                     get(linhaData, 'os.os', ''), get(linhaData, 'detalhe.site', ''),
@@ -200,9 +251,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 return textoPesquisavel.includes(termoBusca);
             })
             : todasAsLinhas;
-        renderizarTabela(linhasFiltradasCache);
-    }
 
+        const agrupado = Object.values(linhasFiltradas.reduce((acc, linha) => {
+            const chaveGrupo = `${get(linha, 'os.projeto', 'Sem Projeto')} / ${get(linha, 'os.os', 'Sem OS')}`;
+            if (!acc[chaveGrupo]) {
+                acc[chaveGrupo] = {
+                    linhas: [],
+                    projeto: get(linha, 'os.projeto', 'Sem Projeto'),
+                    os: get(linha, 'os.os', 'Sem OS'),
+                    id: get(linha, 'os.id', 'sem-id')
+                };
+            }
+            acc[chaveGrupo].linhas.push(linha);
+            return acc;
+        }, {}));
+        
+        gruposFiltradosCache = agrupado;
+        paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
+        renderizarTabela();
+    }
+    
     function atualizarBotoesPaginacao(totalPaginas) {
         document.getElementById('btnPrimeiraPagina').disabled = paginaAtual <= 1;
         document.getElementById('btnPaginaAnterior').disabled = paginaAtual <= 1;
@@ -210,34 +278,34 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('btnUltimaPagina').disabled = paginaAtual >= totalPaginas;
     }
 
-    // --- FUNÇÃO DE PAGINAÇÃO CORRIGIDA ---
     function adicionarListenersPaginacao() {
         document.getElementById('rowsPerPage').addEventListener('change', (e) => {
             const valor = e.target.value;
             linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
-            renderizarTabela(linhasFiltradasCache); // Renderiza a lista já filtrada
+            paginaAtual = 1; // Volta para a primeira página ao mudar a quantidade de itens
+            renderizarTabela();
         });
         document.getElementById('btnPrimeiraPagina').addEventListener('click', () => {
             paginaAtual = 1;
-            renderizarTabela(linhasFiltradasCache);
+            renderizarTabela();
         });
         document.getElementById('btnPaginaAnterior').addEventListener('click', () => {
             if (paginaAtual > 1) {
                 paginaAtual--;
-                renderizarTabela(linhasFiltradasCache);
+                renderizarTabela();
             }
         });
         document.getElementById('btnProximaPagina').addEventListener('click', () => {
-            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(linhasFiltradasCache.length / linhasPorPagina);
+            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(gruposFiltradosCache.length / linhasPorPagina);
             if (paginaAtual < totalPaginas) {
                 paginaAtual++;
-                renderizarTabela(linhasFiltradasCache);
+                renderizarTabela();
             }
         });
         document.getElementById('btnUltimaPagina').addEventListener('click', () => {
-            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(linhasFiltradasCache.length / linhasPorPagina);
+            const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(gruposFiltradosCache.length / linhasPorPagina);
             paginaAtual = totalPaginas;
-            renderizarTabela(linhasFiltradasCache);
+            renderizarTabela();
         });
     }
 
@@ -254,7 +322,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- LÓGICA DE IMPORTAÇÃO CORRIGIDA ---
     const btnImportar = document.getElementById('btnImportar');
     const importFileInput = document.getElementById('importFile');
 
@@ -268,18 +335,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnFecharProgresso = document.getElementById('btnFecharProgressoImportacao');
         const btnCancelarImportacao = document.getElementById('btnCancelarImportacao');
 
-        // Adiciona o listener para o botão de cancelar
         btnCancelarImportacao.addEventListener('click', () => {
             isImportCancelled = true;
             textoProgresso.textContent = "Cancelando importação...";
         });
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Adiciona o listener de clique no botão "Importar" para abrir a janela de seleção de arquivo
         btnImportar.addEventListener('click', () => {
             importFileInput.click();
         });
-        // --- FIM DA CORREÇÃO ---
 
         importFileInput.addEventListener('change', async (event) => {
             const file = event.target.files[0];
@@ -302,10 +365,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 const sheet = workbook.Sheets[sheetName];
                 const rows = XLSX.utils.sheet_to_json(sheet);
 
-                // --- LOG ADICIONADO ---
-                console.log("--- DADOS LIDOS DA PLANILHA ---");
-                console.table(rows); // Exibe os dados em formato de tabela no console
-
                 if (rows.length === 0) throw new Error("A planilha está vazia.");
 
                 let linhasProcessadas = 0;
@@ -320,30 +379,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     const lote = rows.slice(i, i + TAMANHO_LOTE);
 
-                    // --- LOG ADICIONADO ---
-                    console.log(`--- ENVIANDO LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} (Linhas ${i + 1} a ${i + lote.length}) ---`);
-                    console.log(lote); // Exibe o lote de dados que está sendo enviado
-
-                    const response = await fetch(`${API_BASE_URL}/os/importar-lote`, {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/importar-lote`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(lote)
                     });
 
-                    if (response.status === 207) { // Multi-Status, indica que houve erros parciais
+                    if (response.status === 207) {
                         const errosDoLote = await response.json();
-                        // --- LOG ADICIONADO ---
-                        console.warn(`--- ERROS RECEBIDOS NO LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} ---`);
-                        console.log(errosDoLote); // Exibe os erros retornados pelo servidor
                         errosGerais.push(...errosDoLote.map(e => `Linha (aprox.) ${i + 1}: ${e}`));
                     } else if (!response.ok) {
-                        // --- LOG ADICIONADO ---
-                        console.error(`--- ERRO GERAL NO SERVIDOR (LOTE ${Math.floor(i / TAMANHO_LOTE) + 1}) ---`);
-                        console.log(response); // Exibe a resposta completa de erro
                         throw new Error(`Erro no servidor ao processar o lote a partir da linha ${i + 1}.`);
-                    } else {
-                        // --- LOG ADICIONADO ---
-                        console.log(`--- LOTE ${Math.floor(i / TAMANHO_LOTE) + 1} PROCESSADO COM SUCESSO ---`);
                     }
 
                     linhasProcessadas += lote.length;

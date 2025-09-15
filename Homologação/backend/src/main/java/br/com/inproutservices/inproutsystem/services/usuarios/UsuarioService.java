@@ -6,24 +6,28 @@ import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.repositories.index.SegmentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder; // <<< MUDANÇA
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Service
-public class UsuarioService {
+public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final SegmentoRepository segmentoRepository;
-    private final PasswordService passwordService;
+    private final PasswordEncoder passwordEncoder;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, SegmentoRepository segmentoRepository, PasswordService passwordService) {
+    public UsuarioService(UsuarioRepository usuarioRepository, SegmentoRepository segmentoRepository, @Lazy PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.segmentoRepository = segmentoRepository;
-        this.passwordService = passwordService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -31,7 +35,8 @@ public class UsuarioService {
         Usuario novoUsuario = new Usuario();
         novoUsuario.setNome(dto.nome());
         novoUsuario.setEmail(dto.email());
-        novoUsuario.setSenha(passwordService.encode(dto.senha()));
+        // <<< MUDANÇA: Usamos o encoder injetado
+        novoUsuario.setSenha(passwordEncoder.encode(dto.senha()));
         novoUsuario.setRole(dto.role());
 
         if (dto.segmentoIds() != null && !dto.segmentoIds().isEmpty()) {
@@ -43,5 +48,11 @@ public class UsuarioService {
         }
 
         return usuarioRepository.save(novoUsuario);
+    }
+
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        return usuarioRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Usuário não encontrado com o e-mail: " + username));
     }
 }

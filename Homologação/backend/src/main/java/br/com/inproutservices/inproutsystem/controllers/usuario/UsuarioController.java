@@ -2,18 +2,25 @@ package br.com.inproutservices.inproutsystem.controllers.usuario;
 
 import br.com.inproutservices.inproutsystem.dtos.login.LoginRequest;
 import br.com.inproutservices.inproutsystem.dtos.usuario.UsuarioRequestDTO;
+import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
+import br.com.inproutservices.inproutsystem.services.TokenService;
 import br.com.inproutservices.inproutsystem.services.usuarios.PasswordService;
 import br.com.inproutservices.inproutsystem.services.usuarios.UsuarioService;
-import org.springframework.beans.factory.annotation.Autowired;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -24,20 +31,77 @@ public class UsuarioController {
     private final UsuarioRepository usuarioRepo;
     private final PasswordService passwordService;
     private final UsuarioService usuarioService;
+    private final AuthenticationManager authenticationManager;
+    private final TokenService tokenService;
 
-    public UsuarioController(UsuarioRepository usuarioRepo, PasswordService passwordService, UsuarioService usuarioService) {
+    public UsuarioController(UsuarioRepository usuarioRepo, PasswordService passwordService, UsuarioService usuarioService, AuthenticationManager authenticationManager, TokenService tokenService) {
         this.usuarioRepo = usuarioRepo;
         this.passwordService = passwordService;
         this.usuarioService = usuarioService;
+        this.authenticationManager = authenticationManager;
+        this.tokenService = tokenService;
     }
 
-    // Criar usuário
+    // --- ENDPOINT DE LOGIN COM LÓGICA DE MIGRAÇÃO DE SENHA ---
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
+        var usernamePassword = new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getSenha());
+
+        try {
+            // 1. Tenta autenticar com o método novo (padrão)
+            Authentication auth = this.authenticationManager.authenticate(usernamePassword);
+            Usuario usuario = (Usuario) auth.getPrincipal();
+            return gerarRespostaDeSucesso(usuario);
+
+        } catch (AuthenticationException e) {
+            // 2. Se a autenticação padrão falhar, inicia o "Plano B"
+            Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(loginRequest.getEmail());
+
+            if (usuarioOpt.isPresent()) {
+                Usuario usuario = usuarioOpt.get();
+                String senhaDoBanco = usuario.getSenha();
+                String senhaDigitada = loginRequest.getSenha();
+
+                // 3. Verifica a senha com o método ANTIGO
+                BCryptPasswordEncoder encoderAntigo = new BCryptPasswordEncoder();
+                if (encoderAntigo.matches(senhaDigitada, senhaDoBanco)) {
+
+                    // 4. Se a senha bateu, a migração acontece aqui!
+                    // Criptografa a senha digitada com o NOVO codificador e salva no banco
+                    usuario.setSenha(passwordService.encode(senhaDigitada));
+                    usuarioRepo.save(usuario);
+
+                    // 5. Gera a resposta de sucesso, pois o usuário é válido
+                    return gerarRespostaDeSucesso(usuario);
+                }
+            }
+
+            // 6. Se mesmo o Plano B falhar, a senha está realmente incorreta.
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
+        }
+    }
+
+    // Método auxiliar para não repetir código
+    private ResponseEntity<Map<String, Object>> gerarRespostaDeSucesso(Usuario usuario) {
+        String token = tokenService.generateToken(usuario);
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("id", usuario.getId());
+        response.put("usuario", usuario.getNome());
+        response.put("email", usuario.getEmail());
+        response.put("role", usuario.getRole());
+        List<Long> segmentoIds = usuario.getSegmentos().stream().map(Segmento::getId).collect(Collectors.toList());
+        response.put("segmentos", segmentoIds);
+        return ResponseEntity.ok(response);
+    }
+
+    // O restante dos seus métodos continua igual...
+
     @PostMapping
     public Usuario criar(@RequestBody UsuarioRequestDTO usuarioDTO) {
         return usuarioService.criarUsuario(usuarioDTO);
     }
 
-    // Listar usuários ativos
     @GetMapping
     public List<Usuario> listar() {
         return usuarioRepo.findAll().stream()
@@ -45,7 +109,7 @@ public class UsuarioController {
                 .toList();
     }
 
-    // Alterar senha via email
+    // ... (demais endpoints: /senha, /desativar, /ativar, etc.)
     @PutMapping("/senha")
     public String alterarSenha(@RequestParam String email, @RequestParam String novaSenha) {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(email);
@@ -60,7 +124,6 @@ public class UsuarioController {
         }
     }
 
-    // Desativar usuário (soft delete) via email
     @DeleteMapping
     public String desativarUsuario(@RequestParam String email) {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(email);
@@ -78,7 +141,6 @@ public class UsuarioController {
         }
     }
 
-    // Ativar usuário via email
     @PutMapping("/ativar")
     public String ativarUsuario(@RequestParam String email) {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(email);
@@ -96,35 +158,6 @@ public class UsuarioController {
         }
     }
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @CrossOrigin(origins = "*")
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(loginRequest.getEmail());
-
-        if (usuarioOpt.isPresent()) {
-            Usuario usuario = usuarioOpt.get();
-
-            BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-            if (encoder.matches(loginRequest.getSenha(), usuario.getSenha())) {
-                Map<String, Object> response = new HashMap<>();
-                response.put("id", usuario.getId());
-                response.put("token", UUID.randomUUID().toString());
-                response.put("usuario", usuario.getNome());
-                response.put("email", usuario.getEmail());
-                response.put("role", usuario.getRole());
-                List<Long> segmentoIds = usuario.getSegmentos().stream().map(Segmento::getId).collect(Collectors.toList());
-                response.put("segmentos", segmentoIds);
-                return ResponseEntity.ok(response);
-
-            }
-        }
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
-    }
-
     @PutMapping("/email")
     public ResponseEntity<String> alterarEmail(@RequestParam String emailAtual, @RequestParam String novoEmail) {
         Optional<Usuario> usuarioOpt = usuarioRepo.findByEmail(emailAtual);
@@ -132,7 +165,6 @@ public class UsuarioController {
         if (usuarioOpt.isPresent()) {
             Usuario usuario = usuarioOpt.get();
 
-            // Verifica se o novo email já está em uso
             Optional<Usuario> emailExistente = usuarioRepo.findByEmail(novoEmail);
             if (emailExistente.isPresent()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body("Novo e-mail já está em uso.");
@@ -160,6 +192,4 @@ public class UsuarioController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
     }
-
-
 }

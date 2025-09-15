@@ -21,7 +21,7 @@ const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-seleciona
 const contadorPrazo = document.getElementById('contador-prazo');
 let todasPendenciasMateriais = []; // Variável global para guardar os dados
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://3.128.248.3';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -472,13 +472,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!document.getElementById('tbody-pendentes-materiais')) return;
 
         try {
-            const pendentesResponse = await fetch(`${API_BASE_URL}/solicitacoes/pendentes`, {
+            const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
                 headers: {
                     'X-User-Role': userRole,
                     'X-User-ID': userId
                 }
             });
-            const historicoResponse = await fetch(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
+            const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
 
             if (!pendentesResponse.ok || !historicoResponse.ok) {
                 throw new Error('Falha ao carregar solicitações de materiais.');
@@ -704,19 +704,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // --- INÍCIO DA MUDANÇA ---
             // 1. Busca TODAS as pendências e histórico para os CARDS do dashboard
-            const responseGeral = await fetch(`${API_BASE_URL}/lancamentos`);
+            const responseGeral = await fetchComAuth(`${API_BASE_URL}/lancamentos`);
             if (!responseGeral.ok) throw new Error(`Erro na rede: ${responseGeral.statusText}`);
             const todosLancamentos = await responseGeral.json();
             todosOsLancamentosGlobais = todosLancamentos; // Mantém para a função de ver comentários
             renderizarCardsDashboard(todosLancamentos);
 
             // 2. Busca a lista de PENDÊNCIAS já filtrada para a primeira aba
-            const responsePendencias = await fetch(`${API_BASE_URL}/lancamentos/pendentes/${userId}`);
+            const responsePendencias = await fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`);
             if (!responsePendencias.ok) throw new Error('Falha ao carregar suas pendências.');
             const pendenciasParaExibir = await responsePendencias.json();
 
             // 3. Busca a lista de HISTÓRICO já filtrada para a segunda aba
-            const responseHistorico = await fetch(`${API_BASE_URL}/lancamentos/historico/${userId}`);
+            const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
             if (!responseHistorico.ok) throw new Error('Falha ao carregar seu histórico.');
             const historicoParaExibir = await responseHistorico.json();
 
@@ -881,7 +881,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 payload = { coordenadorId: userId };
             }
 
-            const response = await fetch(endpoint, {
+            const response = await fetchComAuth(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -924,7 +924,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setButtonLoading(btn, true);
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetchComAuth(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -985,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setButtonLoading(btn, true);
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetchComAuth(endpoint, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -1084,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             setButtonLoading(this, true); // Reutiliza sua função de loading
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetchComAuth(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ aprovadorId: userId })
@@ -1117,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             setButtonLoading(btn, true);
             try {
-                const response = await fetch(endpoint, {
+                const response = await fetchComAuth(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ aprovadorId: userId, observacao: motivo })
@@ -1212,7 +1212,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             // --- FIM DA CORREÇÃO ---
 
-            const response = await fetch(endpoint, {
+            const response = await fetchComAuth(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

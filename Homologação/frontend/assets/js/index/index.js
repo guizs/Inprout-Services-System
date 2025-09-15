@@ -783,7 +783,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
-            document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', {
+                minimumFractionDigits: 2
+            });
             document.getElementById('situacao').value = lancamento.situacao || '';
 
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');

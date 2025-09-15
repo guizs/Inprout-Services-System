@@ -411,14 +411,13 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         // 2. Valida se o lançamento está em um status que permite edição
         SituacaoAprovacao statusAtual = lancamento.getSituacaoAprovacao();
-        if (statusAtual != SituacaoAprovacao.RASCUNHO &&
-                statusAtual != SituacaoAprovacao.RECUSADO_COORDENADOR &&
-                statusAtual != SituacaoAprovacao.RECUSADO_CONTROLLER) {
+        boolean isReenvio = statusAtual == SituacaoAprovacao.RECUSADO_COORDENADOR || statusAtual == SituacaoAprovacao.RECUSADO_CONTROLLER;
+
+        if (statusAtual != SituacaoAprovacao.RASCUNHO && !isReenvio) {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // 3. ADICIONA A VALIDAÇÃO DE DATA NA EDIÇÃO
+        // 3. Validação de data
         LocalDate hoje = LocalDate.now();
         LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
                 ? hoje.minusDays(3)
@@ -430,19 +429,17 @@ public class LancamentoServiceImpl implements LancamentoService {
                             dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
             );
         }
-        // --- FIM DA CORREÇÃO ---
 
-        // 4. Busca as entidades relacionadas (Prestador e Etapa) para garantir que os novos IDs são válidos
+        // 4. Busca as entidades relacionadas
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
-
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
         // 5. Atualiza os campos do lançamento com os dados do DTO
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
-        lancamento.setDataAtividade(dto.dataAtividade()); // Atualiza a data da atividade
+        lancamento.setDataAtividade(dto.dataAtividade());
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
         lancamento.setPlanoVistoria(dto.planoVistoria());
@@ -459,12 +456,31 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
-        lancamento.setSituacaoAprovacao(dto.situacaoAprovacao());
-
-        if(dto.situacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR){
+        // --- LÓGICA DE STATUS CORRIGIDA ---
+        if (isReenvio) {
+            // Se for um reenvio, força o status para PENDENTE_COORDENADOR
+            lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
             lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
+
+            // Adiciona um comentário automático
+            Usuario manager = usuarioRepository.findById(dto.managerId())
+                    .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com ID: " + dto.managerId()));
+            Comentario comentarioReenvio = new Comentario();
+            comentarioReenvio.setLancamento(lancamento);
+            comentarioReenvio.setAutor(manager);
+            comentarioReenvio.setTexto("Lançamento corrigido e reenviado para aprovação.");
+            lancamento.getComentarios().add(comentarioReenvio);
+
+        } else {
+            // Lógica original para rascunho
+            lancamento.setSituacaoAprovacao(dto.situacaoAprovacao());
+            if(dto.situacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR){
+                lancamento.setDataSubmissao(LocalDateTime.now());
+                lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
+            }
         }
+        // --- FIM DA CORREÇÃO ---
 
         lancamento.setUltUpdate(LocalDateTime.now());
 

@@ -28,7 +28,12 @@ document.getElementById('formLogin').addEventListener('submit', async (event) =>
     const payload = JSON.stringify({ email, senha });
 
     try {
-        const response = await fetchComAuth('http://localhost:8080/usuarios/login', {
+        // ==========================================================
+        // ===== CORREÇÃO PRINCIPAL AQUI =====
+        // Trocamos fetchComAuth pelo fetch PADRÃO, pois esta é a única
+        // requisição que não precisa (e não pode) enviar um token.
+        // ==========================================================
+        const response = await fetch('http://localhost:8080/usuarios/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: payload
@@ -49,7 +54,8 @@ document.getElementById('formLogin').addEventListener('submit', async (event) =>
                 window.location.href = 'index.html';
             }, 1000);
         } else {
-            mostrarMensagem('E-mail ou senha inválidos!', 'error');
+            const erroTexto = await response.text(); // Pega a mensagem de erro do backend
+            mostrarMensagem(erroTexto || 'E-mail ou senha inválidos!', 'error');
             // Restaura o botão em caso de erro
             btnLogin.disabled = false;
             btnText.textContent = 'Entrar';
@@ -57,6 +63,7 @@ document.getElementById('formLogin').addEventListener('submit', async (event) =>
         }
 
     } catch (error) {
+        console.error("Erro de conexão:", error); // Adiciona um log para ver o erro no console
         mostrarMensagem('Erro ao conectar com o servidor.', 'error');
         // Restaura o botão em caso de erro de conexão
         btnLogin.disabled = false;

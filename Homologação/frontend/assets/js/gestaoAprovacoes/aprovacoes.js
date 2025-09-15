@@ -21,7 +21,7 @@ const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-seleciona
 const contadorPrazo = document.getElementById('contador-prazo');
 let todasPendenciasMateriais = []; // Variável global para guardar os dados
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://3.128.248.3';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {

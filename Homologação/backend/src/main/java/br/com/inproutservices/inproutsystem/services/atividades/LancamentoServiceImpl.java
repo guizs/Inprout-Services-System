@@ -417,26 +417,16 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // 3. Validação de data
-        LocalDate hoje = LocalDate.now();
-        LocalDate dataMinimaPermitida = (hoje.getDayOfWeek() == DayOfWeek.MONDAY)
-                ? hoje.minusDays(3)
-                : prazoService.getDiaUtilAnterior(hoje);
+        // 3. Validação de data (REMOVIDA)
+        // O bloco de código que estava aqui foi removido para permitir a atualização de lançamentos antigos.
 
-        if (dto.dataAtividade().isBefore(dataMinimaPermitida)) {
-            throw new BusinessException(
-                    "Não é permitido alterar a data de um lançamento para antes de " +
-                            dataMinimaPermitida.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-            );
-        }
-
-        // 4. Busca as entidades relacionadas
+        // 4. Busca as entidades relacionadas (continua igual)
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 5. Atualiza os campos do lançamento com os dados do DTO
+        // 5. Atualiza os campos do lançamento com os dados do DTO (continua igual)
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
@@ -456,14 +446,12 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
-        // --- LÓGICA DE STATUS CORRIGIDA ---
+        // --- Lógica de STATUS para Reenvio (continua igual) ---
         if (isReenvio) {
-            // Se for um reenvio, força o status para PENDENTE_COORDENADOR
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
             lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
 
-            // Adiciona um comentário automático
             Usuario manager = usuarioRepository.findById(dto.managerId())
                     .orElseThrow(() -> new EntityNotFoundException("Manager não encontrado com ID: " + dto.managerId()));
             Comentario comentarioReenvio = new Comentario();
@@ -473,14 +461,12 @@ public class LancamentoServiceImpl implements LancamentoService {
             lancamento.getComentarios().add(comentarioReenvio);
 
         } else {
-            // Lógica original para rascunho
             lancamento.setSituacaoAprovacao(dto.situacaoAprovacao());
             if(dto.situacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR){
                 lancamento.setDataSubmissao(LocalDateTime.now());
                 lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
             }
         }
-        // --- FIM DA CORREÇÃO ---
 
         lancamento.setUltUpdate(LocalDateTime.now());
 

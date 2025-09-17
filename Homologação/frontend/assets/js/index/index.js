@@ -734,103 +734,125 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // 1. Carrega todos os dados necessários (isso permanece igual)
+            // 1. Carrega os dados necessários para os selects do modal
             await carregarDadosParaModal();
-            formAdicionar.dataset.editingId = editingId;
+
+            // Limpa ou define o ID de edição
+            if (editingId) {
+                formAdicionar.dataset.editingId = editingId;
+            } else {
+                delete formAdicionar.dataset.editingId;
+            }
 
             if (lancamento.detalhe) {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
 
-            // 2. Preenche todos os campos, exceto o de prestador por enquanto
+            // --- INÍCIO DA CORREÇÃO ---
+            // 2. Referências aos elementos do modal com verificação de existência
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
             const dataAtividadeInput = document.getElementById('dataAtividade');
-            const chkAtividadeComplementarContainer = document.getElementById('atividadeComplementar').parentElement;
+            const chkAtividadeEl = document.getElementById('atividadeComplementar');
+            const chkAtividadeComplementarContainer = chkAtividadeEl ? chkAtividadeEl.parentElement : null;
             const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
+            const lpuContainer = document.getElementById('lpuContainer');
             const selectProjeto = document.getElementById('projetoId');
+            const selectOS = document.getElementById('osId');
+            const selectLPU = document.getElementById('lpuId');
+            const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
+            // 3. Manipulação segura dos elementos (só executa se o elemento existir)
             if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
             if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
+            if (selectProjeto) selectProjeto.disabled = true;
 
-            if (lancamento.os && lancamento.os.projeto) {
-                selectProjeto.value = lancamento.os.projeto;
-                selectProjeto.disabled = true;
-            }
+            if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
+            if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
+            if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
+            // --- FIM DA CORREÇÃO ---
 
-            btnSubmitPadrao.style.display = 'none';
-            btnSalvarRascunho.style.display = 'none';
-            btnSalvarEEnviar.style.display = 'none';
-
-            if (lancamento.situacaoAprovacao === 'RASCUNHO') {
-                modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
-                btnSalvarRascunho.style.display = 'inline-block';
-                btnSalvarEEnviar.style.display = 'inline-block';
-                dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
-            } else {
-                btnSubmitPadrao.style.display = 'inline-block';
-                if (editingId) {
-                    modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Editar Lançamento #${editingId}`;
-                    btnSubmitPadrao.innerHTML = `<i class="bi bi-send-check"></i> Salvar e Reenviar`;
-                    dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
+            // 4. Lógica para preencher o formulário (continua a mesma, mas agora mais segura)
+            if (editingId) {
+                if (lancamento.situacaoAprovacao === 'RASCUNHO') {
+                    if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
+                    if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'inline-block';
+                    if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'inline-block';
                 } else {
-                    modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
-                    btnSubmitPadrao.innerHTML = `<i class="bi bi-check-circle"></i> Criar Lançamento`;
-                    dataAtividadeInput.value = new Date().toISOString().split('T')[0];
+                    if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Editar Lançamento #${editingId}`;
+                    if (btnSubmitPadrao) {
+                        btnSubmitPadrao.style.display = 'inline-block';
+                        btnSubmitPadrao.innerHTML = `<i class="bi bi-send-check"></i> Salvar e Reenviar`;
+                    }
                 }
+                if (dataAtividadeInput) dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
+            } else {
+                if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
+                if (btnSubmitPadrao) {
+                    btnSubmitPadrao.style.display = 'inline-block';
+                    btnSubmitPadrao.innerHTML = `<i class="bi bi-check-circle"></i> Criar Lançamento`;
+                }
+                if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
+            if (lancamento.os && lancamento.os.projeto && selectProjeto) {
+                selectProjeto.value = lancamento.os.projeto;
+            }
+
+            // Preenche o resto do formulário
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
-
-            ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => document.getElementById(k).value = lancamento[k] || 'N/A');
+            ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => {
+                const el = document.getElementById(k);
+                if (el) el.value = lancamento[k] || 'N/A';
+            });
             ['planoVistoria', 'planoDesmobilizacao', 'planoInstalacao', 'planoAtivacao', 'planoDocumentacao'].forEach(k => {
-                if (lancamento[k]) document.getElementById(k).value = lancamento[k].split('/').reverse().join('-');
+                const el = document.getElementById(k);
+                if (el && lancamento[k]) el.value = lancamento[k].split('/').reverse().join('-');
             });
 
-            if (lancamento.os && lancamento.os.id) {
+            if (lancamento.os && lancamento.os.id && selectOS) {
                 selectOS.value = lancamento.os.id;
                 preencherCamposOS(lancamento.os.id);
             }
 
-            const selectLPU = document.getElementById('lpuId');
-            selectLPU.innerHTML = '';
+            if (selectLPU) selectLPU.innerHTML = '';
             if (lancamento.detalhe && lancamento.detalhe.lpu) {
                 const lpu = lancamento.detalhe.lpu;
-                selectLPU.add(new Option(labelLpu(lpu), lpu.id));
-                selectLPU.value = lpu.id;
-                lpuContainer.classList.remove('d-none');
+                if (selectLPU) {
+                    selectLPU.add(new Option(labelLpu(lpu), lpu.id));
+                    selectLPU.value = lpu.id;
+                }
+                if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
-            selectOS.disabled = true;
-            selectLPU.disabled = true;
 
-            if (lancamento.etapa && lancamento.etapa.id) {
+            if (selectOS) selectOS.disabled = true;
+            if (selectLPU) selectLPU.disabled = true;
+
+            if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
                 const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
                 if (etapaGeralPai) {
                     selectEtapaGeral.value = etapaGeralPai.id;
                     await popularDropdownsDependentes(etapaGeralPai.id, lancamento.etapa.id, lancamento.status);
                 }
-            } else {
+            } else if (selectEtapaGeral) {
                 selectEtapaGeral.value = '';
                 await popularDropdownsDependentes('', null, null);
             }
 
-            // 3. Mostra o modal
+            // 5. Mostra o modal
             modalAdicionar.show();
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // 4. A MÁGICA: Adia o preenchimento do campo do prestador
-            //    Isso garante que o modal e o componente Choices.js estejam 100% prontos.
+            // Adia o preenchimento do prestador para o componente Choices.js carregar
             setTimeout(() => {
                 const selectPrestadorEl = document.getElementById('prestadorId');
                 if (selectPrestadorEl && selectPrestadorEl.choices) {
                     selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador?.id || ''));
                 }
-            }, 150); // Um pequeno atraso de 150ms é suficiente.
-            // --- FIM DA CORREÇÃO ---
+            }, 150);
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {

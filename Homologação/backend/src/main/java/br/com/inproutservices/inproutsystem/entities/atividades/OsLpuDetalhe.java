@@ -118,7 +118,19 @@ public class OsLpuDetalhe {
     @JsonIgnore // Evita recursão infinita
     private Set<Lancamento> lancamentos = new HashSet<>();
 
+    @Column(name = "status_registro", length = 20, nullable = false, columnDefinition = "varchar(20) default 'ATIVO'")
+    private String statusRegistro = "ATIVO";
+
     // ---- GETTERS AND SETTERS ----
+
+
+    public String getStatusRegistro() {
+        return statusRegistro;
+    }
+
+    public void setStatusRegistro(String statusRegistro) {
+        this.statusRegistro = statusRegistro;
+    }
 
     public Long getId() {
         return id;

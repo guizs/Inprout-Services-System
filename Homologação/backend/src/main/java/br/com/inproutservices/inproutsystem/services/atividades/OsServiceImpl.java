@@ -13,6 +13,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
+import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
@@ -797,5 +798,39 @@ public class OsServiceImpl implements OsService {
         novoDetalhe.setObservacoes("Criação automática de atividade complementar dia " + dataFormatada);
 
         return osLpuDetalheRepository.save(novoDetalhe);
+    }
+
+    @Transactional
+    public OsLpuDetalhe desativarDetalhe(Long detalheId) {
+        OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
+
+        if (detalhe.getLancamentos() != null && !detalhe.getLancamentos().isEmpty()) {
+            throw new BusinessException("Não é possível excluir um registro que já possui lançamentos de atividade.");
+        }
+
+        detalhe.setStatusRegistro("INATIVO");
+        // Você pode adicionar um log de quem desativou aqui se desejar
+        return osLpuDetalheRepository.save(detalhe);
+    }
+
+    @Transactional
+    public OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave) {
+        if (novaChave == null || novaChave.isBlank()) {
+            throw new BusinessException("A nova chave não pode ser vazia.");
+        }
+
+        OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
+
+        // Valida se a nova chave já não está em uso por outro registro
+        osLpuDetalheRepository.findByKey(novaChave).ifPresent(existente -> {
+            if (!existente.getId().equals(detalhe.getId())) {
+                throw new BusinessException("A chave '" + novaChave + "' já está em uso por outro registro.");
+            }
+        });
+
+        detalhe.setKey(novaChave);
+        return osLpuDetalheRepository.save(detalhe);
     }
 }

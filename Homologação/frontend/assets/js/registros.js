@@ -97,15 +97,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
-                const osInfo = { ...os, detalhes: undefined }; // Pega a OS completa aqui
+                const osInfo = { ...os, detalhes: undefined };
                 if (os.detalhes && os.detalhes.length > 0) {
-                    os.detalhes.forEach(detalhe => {
+
+                    const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
+
+                    detalhesAtivos.forEach(detalhe => {
                         todasAsLinhas.push({
-                            os: os, // Passa a OS completa para cada linha
+                            os: os,
                             detalhe: detalhe,
                             ultimoLancamento: detalhe.ultimoLancamento
                         });
                     });
+
                 } else {
                     todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
                 }
@@ -123,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const accordionContainer = document.getElementById('accordion-registros');
         const paginationInfo = document.getElementById('pagination-info');
         accordionContainer.innerHTML = '';
-        
+
         const grupos = gruposFiltradosCache;
 
         if (grupos.length === 0) {
@@ -140,100 +144,83 @@ document.addEventListener('DOMContentLoaded', function () {
         const inicio = linhasPorPagina === 'all' ? 0 : (paginaAtual - 1) * linhasPorPagina;
         const fim = linhasPorPagina === 'all' ? totalGrupos : inicio + linhasPorPagina;
         const gruposDaPagina = grupos.slice(inicio, fim);
-        
+
         const frag = document.createDocumentFragment();
 
         gruposDaPagina.forEach((grupo, index) => {
             const uniqueId = `${grupo.id}-${index}`;
             const item = document.createElement('div');
             item.className = 'accordion-item';
-            
-            // --- CÁLCULO DOS VALORES TOTAIS POR GRUPO ---
+
             const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
-                 .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-
-            const valorTotalCPS = grupo.linhas.reduce((sum, l) => {
-                const valorStr = get(l, 'ultimoLancamento.valor', '0').toString().replace(/[^\d,]/g, '').replace(',', '.');
-                return sum + parseFloat(valorStr || 0);
-            }, 0);
-            
+                .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
+            const valorTotalCPS = grupo.linhas.reduce((sum, l) => sum + (get(l, 'ultimoLancamento.valor', 0) || 0), 0);
             const percentual = valorTotalOS > 0 ? (valorTotalCPS / valorTotalOS) * 100 : 0;
-
             let kpiHTML = '';
             if (userRole !== 'MANAGER') {
                 kpiHTML = `
-                    <div class="header-kpi-wrapper">
-                        <div class="header-kpi">
-                            <span class="kpi-label">Total OS</span>
-                            <span class="kpi-value">${formatarMoeda(valorTotalOS)}</span>
-                        </div>
-                        <div class="header-kpi">
-                            <span class="kpi-label">Total CPS</span>
-                            <span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span>
-                        </div>
-                        <div class="header-kpi">
-                             <span class="kpi-label">%</span>
-                            <span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span>
-                        </div>
-                    </div>
-                `;
+                <div class="header-kpi-wrapper">
+                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
+                </div>`;
             }
 
             const headerHTML = `
-                <h2 class="accordion-header" id="heading-${uniqueId}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                        <div class="header-content">
-                            <div class="header-title-wrapper">
-                                <span class="header-title-project">${grupo.projeto}</span>
-                                <span class="header-title-os">${grupo.os}</span>
-                            </div>
-                            ${kpiHTML}
-                            <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
-                        </div>
-                    </button>
-                </h2>
-            `;
+            <h2 class="accordion-header" id="heading-${uniqueId}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                    <div class="header-content">
+                        <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
+                        ${kpiHTML}
+                        <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                    </div>
+                </button>
+            </h2>`;
+
+            // ADICIONA A COLUNA DE AÇÕES SE FOR ADMIN OU ASSISTANT
+            const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
 
             const bodyRowsHTML = grupo.linhas.map(linhaData => {
-                const cellsHTML = headers.map(header => {
+                const cellsHTML = headersComAcoes.map(header => {
+                    if (header === "AÇÕES") {
+                        const detalheId = get(linhaData, 'detalhe.id', '');
+                        const chave = get(linhaData, 'detalhe.key', '-');
+                        const semChave = chave === '-' || chave === '' || chave === null;
+
+                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa" ${!semChave ? 'disabled' : ''}><i class="bi bi-pencil-fill"></i></button>`;
+                        const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
+
+                        return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
+                    }
                     const func = dataMapping[header];
                     const valor = func ? func(linhaData) : '-';
                     let classes = '';
                     if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
                         classes += ' status-cell';
-                        if (valor === 'OK') classes += ' status-ok';
-                        else if (valor === 'NOK') classes += ' status-nok';
-                        else if (valor === 'N/A') classes += ' status-na';
+                        if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
                     }
-                    if (header === "DETALHE DIÁRIO") {
-                        classes += ' detalhe-diario-cell';
-                    }
+                    if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
                     return `<td class="${classes}">${valor}</td>`;
                 }).join('');
                 return `<tr>${cellsHTML}</tr>`;
             }).join('');
 
             const bodyHTML = `
-                <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
-                    <div class="accordion-body">
-                        <div class="table-responsive">
-                            <table class="table modern-table table-sm">
-                                <thead>
-                                    <tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>
-                                </thead>
-                                <tbody>
-                                    ${bodyRowsHTML}
-                                </tbody>
-                            </table>
-                        </div>
+            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
+                <div class="accordion-body">
+                    <div class="table-responsive">
+                        <table class="table modern-table table-sm">
+                            <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                            <tbody>${bodyRowsHTML}</tbody>
+                        </table>
                     </div>
                 </div>
-            `;
-            
+            </div>`;
+
             item.innerHTML = headerHTML + bodyHTML;
             frag.appendChild(item);
         });
-        
+
         accordionContainer.appendChild(frag);
         paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas} (${totalGrupos} grupos)`;
         atualizarBotoesPaginacao(totalPaginas);
@@ -265,12 +252,12 @@ document.addEventListener('DOMContentLoaded', function () {
             acc[chaveGrupo].linhas.push(linha);
             return acc;
         }, {}));
-        
+
         gruposFiltradosCache = agrupado;
         paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
         renderizarTabela();
     }
-    
+
     function atualizarBotoesPaginacao(totalPaginas) {
         document.getElementById('btnPrimeiraPagina').disabled = paginaAtual <= 1;
         document.getElementById('btnPaginaAnterior').disabled = paginaAtual <= 1;
@@ -306,6 +293,94 @@ document.addEventListener('DOMContentLoaded', function () {
             const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(gruposFiltradosCache.length / linhasPorPagina);
             paginaAtual = totalPaginas;
             renderizarTabela();
+        });
+    }
+
+    function adicionarListenersDeAcoes() {
+        const accordionContainer = document.getElementById('accordion-registros');
+        const modalEditarKey = new bootstrap.Modal(document.getElementById('modalEditarKey'));
+        const modalConfirmarExclusao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
+
+        accordionContainer.addEventListener('click', function (e) {
+            const btnEdit = e.target.closest('.btn-edit-key');
+            const btnDelete = e.target.closest('.btn-delete-registro');
+
+            if (btnEdit) {
+                const detalheId = btnEdit.dataset.id;
+                document.getElementById('editKeyDetalheId').value = detalheId;
+                document.getElementById('novaKeyValue').value = '';
+                modalEditarKey.show();
+            }
+
+            if (btnDelete) {
+                const detalheId = btnDelete.dataset.id;
+                document.getElementById('deleteDetalheId').value = detalheId;
+                modalConfirmarExclusao.show();
+            }
+        });
+
+        // Lógica para salvar a nova KEY
+        document.getElementById('formEditarKey').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const detalheId = document.getElementById('editKeyDetalheId').value;
+            const novaChave = document.getElementById('novaKeyValue').value;
+            const btnSalvar = document.getElementById('btnSalvarNovaKey');
+
+            btnSalvar.disabled = true;
+            btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
+
+            try {
+                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: novaChave })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erro ao salvar a chave.');
+                }
+
+                mostrarToast('Chave atualizada com sucesso!', 'success');
+                modalEditarKey.hide();
+                await inicializarPagina(); // Recarrega os dados
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                btnSalvar.disabled = false;
+                btnSalvar.innerHTML = 'Salvar Chave';
+            }
+        });
+
+        // Lógica para confirmar a exclusão
+        document.getElementById('btnConfirmarExclusaoDefinitiva').addEventListener('click', async function () {
+            const detalheId = document.getElementById('deleteDetalheId').value;
+            const btnConfirmar = this;
+
+            btnConfirmar.disabled = true;
+            btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+
+            try {
+                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erro ao excluir o registro.');
+                }
+
+                mostrarToast('Registro excluído com sucesso!', 'success');
+                modalConfirmarExclusao.hide();
+                await inicializarPagina(); // Recarrega os dados
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                btnConfirmar.disabled = false;
+                btnConfirmar.innerHTML = 'Sim, Excluir';
+            }
         });
     }
 
@@ -525,4 +600,5 @@ document.addEventListener('DOMContentLoaded', function () {
     inicializarPagina();
     document.getElementById('searchInput').addEventListener('input', renderizarTabelaComFiltro);
     adicionarListenersPaginacao();
+    adicionarListenersDeAcoes();
 });

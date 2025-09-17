@@ -72,4 +72,7 @@ public interface OsService {
     List<OS> getOsByProjeto(String projeto);
 
     OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade);
+
+    OsLpuDetalhe desativarDetalhe(Long detalheId);
+    OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave);
 }

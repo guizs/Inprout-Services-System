@@ -825,47 +825,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function () {
-        const isAcaoEmLote = modalAprovar._element.dataset.acaoEmLote === 'true';
-
+        const isAcaoEmLote = modalAprovvar._element.dataset.acaoEmLote === 'true';
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
             : [document.getElementById('aprovarLancamentoId').value];
 
+        if (ids.length === 0) return;
         const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == ids[0]);
         if (!primeiroLancamento) return;
 
         setButtonLoading(this, true);
-
         try {
             let endpoint = '';
-            let payload = {};
+            let payload = { lancamentoIds: ids, aprovadorId: userId };
 
-            // Define o endpoint e o payload com base na role e no status do primeiro item selecionado
             if (userRole === 'CONTROLLER') {
-                if (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
-                    endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`;
-                } else if (primeiroLancamento.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
-                    endpoint = `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
-                }
-                payload = { lancamentoIds: ids, aprovadorId: userId };
-            } else if (userRole === 'COORDINATOR') {
+                endpoint = primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO'
+                    ? `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`
+                    : `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
+            } else { // COORDENADOR
                 endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
-                payload = { lancamentoIds: ids, aprovadorId: userId };
             }
 
-            const response = await fetchComAuth(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao processar aprovação em lote.');
+            const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao aprovar.');
 
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, 'success');
             modalAprovar.hide();
             await carregarDadosAtividades();
-            atualizarEstadoAcoesLote();
-
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -877,37 +864,33 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         const btn = document.getElementById('btnConfirmarRecusa');
-        const motivo = document.getElementById('motivoRecusa').value;
         const isAcaoEmLote = modalRecusar._element.dataset.acaoEmLote === 'true';
-
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
             : [document.getElementById('recusarLancamentoId').value];
 
-        let payload = {};
-        let endpoint = '';
+        if (ids.length === 0) return;
 
-        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
-            payload = { lancamentoIds: ids, aprovadorId: userId, comentario: motivo };
-            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-rejeitar`;
-        } else if (userRole === 'CONTROLLER') {
-            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo };
+        const motivo = document.getElementById('motivoRecusa').value;
+        let endpoint = '';
+        let payload = {};
+
+        if (userRole === 'CONTROLLER') {
             endpoint = `${API_BASE_URL}/lancamentos/lote/controller-rejeitar`;
+            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo };
+        } else { // COORDENADOR
+            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-rejeitar`;
+            payload = { lancamentoIds: ids, aprovadorId: userId, comentario: motivo };
         }
 
         setButtonLoading(btn, true);
         try {
-            const response = await fetchComAuth(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
             if (!response.ok) throw new Error((await response.json()).message || 'Falha ao recusar.');
 
-            mostrarToast('Ação de recusa realizada com sucesso!', 'success');
+            mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, 'success');
             modalRecusar.hide();
             await carregarDadosAtividades();
-            atualizarEstadoAcoesLote();
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -920,52 +903,33 @@ document.addEventListener('DOMContentLoaded', function () {
         event.preventDefault();
         const btn = document.getElementById('btnEnviarComentario');
         const isAcaoEmLote = modalComentar._element.dataset.acaoEmLote === 'true';
-        const lancamentoId = document.getElementById('comentarLancamentoId').value;
-
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
-            : [lancamentoId];
+            : [document.getElementById('comentarLancamentoId').value];
 
-        let payload = {};
+        if (ids.length === 0) return;
+
         let endpoint = '';
-        let method = 'POST';
+        let payload = {};
+        const comentario = document.getElementById('comentarioCoordenador').value;
+        const novaData = document.getElementById('novaDataProposta').value;
 
         if (userRole === 'CONTROLLER') {
-            const motivo = document.getElementById('comentarioCoordenador').value;
-            const novaData = document.getElementById('novaDataProposta').value;
-
-            if (isAcaoEmLote) {
-                endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/rejeitar`;
-                payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
-            } else {
-                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/prazo/rejeitar`;
-                payload = { controllerId: userId, motivoRejeicao: motivo, novaDataPrazo: novaData };
-            }
-        } else {
-            payload = {
-                lancamentoIds: ids,
-                coordenadorId: userId,
-                comentario: document.getElementById('comentarioCoordenador').value,
-                novaDataSugerida: document.getElementById('novaDataProposta').value
-            };
-            endpoint = isAcaoEmLote
-                ? `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`
-                : `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-solicitar-prazo`;
+            endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/rejeitar`;
+            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: comentario, novaDataPrazo: novaData };
+        } else { // COORDENADOR
+            endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-solicitar-prazo`;
+            payload = { lancamentoIds: ids, coordenadorId: userId, comentario: comentario, novaDataSugerida: novaData };
         }
 
         setButtonLoading(btn, true);
         try {
-            const response = await fetchComAuth(endpoint, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao enviar dados.');
+            const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao enviar solicitação.');
 
-            mostrarToast(`Ação realizada com sucesso!`, 'success');
+            mostrarToast(`Ação realizada com sucesso para ${ids.length} item(ns)!`, 'success');
             modalComentar.hide();
             await carregarDadosAtividades();
-            atualizarEstadoAcoesLote();
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -1090,6 +1054,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const primeiroId = checkboxesSelecionados[0].dataset.id;
         const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == primeiroId);
 
+        // Verifica se é recusa de prazo para o Controller
         if (userRole === 'CONTROLLER' && (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || primeiroLancamento.situacaoAprovacao === 'PRAZO_VENCIDO')) {
             modalComentar._element.dataset.acaoEmLote = 'true';
             recusarPrazoController(null);
@@ -1130,9 +1095,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     btnAprovarSelecionados.addEventListener('click', () => {
-        // Abre o modal de aprovação para a ação em lote
+        // A única responsabilidade deste botão é ABRIR o modal de confirmação.
         modalAprovar._element.dataset.acaoEmLote = 'true';
-        aprovarLancamento(null); // Passa null pois os IDs virão dos checkboxes
+        aprovarLancamento(null); // Passa null, pois os IDs virão dos checkboxes.
     });
 
     btnAprovarSelecionados.addEventListener('click', async () => {

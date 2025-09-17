@@ -19,9 +19,10 @@ const btnRecusarSelecionados = document.getElementById('btn-recusar-selecionados
 const contadorRecusa = document.getElementById('contador-recusa');
 const btnSolicitarPrazo = document.getElementById('btn-solicitar-prazo-selecionados');
 const contadorPrazo = document.getElementById('contador-prazo');
+const filtroHistoricoStatus = document.getElementById('filtro-historico-status');
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://3.128.248.3:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -153,7 +154,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- INÍCIO DA CORREÇÃO ---
     // A variável 'colunas' agora é definida aqui, no escopo principal do DOMContentLoaded.
     const colunas = [
-        "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "TOTAL OS", "VALOR CPS", "VALOR DA ATIVIDADE", "CONTRATO", "SEGMENTO", "PROJETO",
+        "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "VALOR DA ATIVIDADE", "CONTRATO", "SEGMENTO", "PROJETO",
         "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE",
         "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO",
         "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO",
@@ -288,7 +289,6 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             "DATA ATIVIDADE": (lancamento) => formatarData(lancamento.dataAtividade),
             "OS": (lancamento) => get(lancamento, 'os.os'), "SITE": (lancamento) => get(lancamento, 'detalhe.site'),
-            "TOTAL OS": (lancamento) => formatarMoeda(lancamento.totalOs), "VALOR CPS": (lancamento) => formatarMoeda(lancamento.valorCps),
             "VALOR DA ATIVIDADE": (lancamento) => formatarMoeda(lancamento.valor), "CONTRATO": (lancamento) => get(lancamento, 'detalhe.contrato'),
             "SEGMENTO": (lancamento) => get(lancamento, 'os.segmento.nome'), "PROJETO": (lancamento) => get(lancamento, 'os.projeto'),
             "GESTOR TIM": (lancamento) => get(lancamento, 'os.gestorTim'), "REGIONAL": (lancamento) => get(lancamento, 'detalhe.regional'),
@@ -714,14 +714,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!tbodyHistorico) return;
         tbodyHistorico.innerHTML = '';
 
+        // Adiciona a lógica de filtro no início da função
+        const statusFiltrado = document.getElementById('filtro-historico-status').value;
+        const dadosFiltrados = statusFiltrado === 'todos'
+            ? dados
+            : dados.filter(l => l.situacaoAprovacao === statusFiltrado);
+
         const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO" && !c.includes('checkbox'))];
 
         if (theadHistorico) {
             theadHistorico.innerHTML = `<tr>${colunasHistorico.map(c => `<th>${c}</th>`).join('')}</tr>`;
         }
 
-        if (!dados || dados.length === 0) {
-            tbodyHistorico.innerHTML = `<tr><td colspan="${colunasHistorico.length}" class="text-center text-muted p-4">Nenhum lançamento no histórico.</td></tr>`;
+        // A verificação de dados agora usa a variável 'dadosFiltrados'
+        if (!dadosFiltrados || dadosFiltrados.length === 0) {
+            tbodyHistorico.innerHTML = `<tr><td colspan="${colunasHistorico.length}" class="text-center text-muted p-4">Nenhum lançamento no histórico para o filtro selecionado.</td></tr>`;
             return;
         }
 
@@ -733,9 +740,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return `${day}/${month}/${year}`;
         };
 
-        dados.sort((a, b) => parseDataBrasileira(b.ultUpdate) - parseDataBrasileira(a.ultUpdate));
+        // A ordenação e a iteração agora usam 'dadosFiltrados'
+        dadosFiltrados.sort((a, b) => parseDataBrasileira(b.ultUpdate) - parseDataBrasileira(a.ultUpdate));
 
-        dados.forEach(lancamento => {
+        dadosFiltrados.forEach(lancamento => {
             const tr = document.createElement('tr');
 
             let statusBadge = '';
@@ -763,8 +771,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
                 "OS": os.os || '',
                 "SITE": detalhe.site || '',
-                "TOTAL OS": formatarMoeda(lancamento.totalOs),
-                "VALOR CPS": formatarMoeda(lancamento.valorCps),
                 "VALOR DA ATIVIDADE": formatarMoeda(lancamento.valor),
                 "CONTRATO": detalhe.contrato || '',
                 "SEGMENTO": os.segmento ? os.segmento.nome : '',
@@ -825,7 +831,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function () {
-        const isAcaoEmLote = modalAprovvar._element.dataset.acaoEmLote === 'true';
+        const isAcaoEmLote = modalAprovar._element.dataset.acaoEmLote === 'true';
         const ids = isAcaoEmLote
             ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
             : [document.getElementById('aprovarLancamentoId').value];
@@ -857,7 +863,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(this, false);
-            delete modalAprovar._element.dataset.acaoEmLote;
+            delete modalAprovar._element.dataset.acaoEmLote; // Limpa o dataset
         }
     });
 
@@ -1047,6 +1053,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (filtroHistoricoStatus) {
+        filtroHistoricoStatus.addEventListener('change', async () => {
+            toggleLoader(true);
+            try {
+                const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
+                if (!responseHistorico.ok) throw new Error('Falha ao recarregar seu histórico.');
+                const historicoParaExibir = await responseHistorico.json();
+                renderizarTabelaHistorico(historicoParaExibir);
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        });
+    }
+
     btnRecusarSelecionados.addEventListener('click', () => {
         const checkboxesSelecionados = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
         if (checkboxesSelecionados.length === 0) return;
@@ -1098,55 +1120,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // A única responsabilidade deste botão é ABRIR o modal de confirmação.
         modalAprovar._element.dataset.acaoEmLote = 'true';
         aprovarLancamento(null); // Passa null, pois os IDs virão dos checkboxes.
-    });
-
-    btnAprovarSelecionados.addEventListener('click', async () => {
-        const checkboxesSelecionados = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
-        const idsParaAprovar = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
-        const primeiroLancamentoSelecionado = todosOsLancamentosGlobais.find(l => l.id == idsParaAprovar[0]);
-
-        if (idsParaAprovar.length === 0) {
-            mostrarToast('Nenhum item selecionado para aprovar.', 'error');
-            return;
-        }
-
-        setButtonLoading(btnAprovarSelecionados, true);
-        try {
-            let endpoint = '';
-            if (userRole === 'CONTROLLER') {
-                if (primeiroLancamentoSelecionado.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
-                    endpoint = `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
-                } else if (primeiroLancamentoSelecionado.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
-                    endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`;
-                }
-            } else {
-                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
-            }
-
-            const response = await fetchComAuth(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    lancamentoIds: idsParaAprovar,
-                    aprovadorId: userId
-                })
-            });
-
-            if (!response.ok) throw new Error('Falha ao aprovar lançamentos em lote.');
-
-            mostrarToast(`${idsParaAprovar.length} lançamento(s) aprovado(s) com sucesso!`, 'success');
-            await carregarDadosAtividades();
-            atualizarEstadoAcoesLote();
-            acoesLoteContainer.classList.add('d-none');
-
-        } catch (error) {
-            mostrarToast(error.message, 'error');
-        } finally {
-            setButtonLoading(btnAprovarSelecionados, false);
-        }
     });
 
     carregarTodosOsDados();

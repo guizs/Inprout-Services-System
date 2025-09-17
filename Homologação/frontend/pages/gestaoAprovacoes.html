@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="../assets/css/index.css" />
     <link rel="stylesheet" href="../assets/css/gestao.css" />
     <link rel="stylesheet" href="../assets/css/registros.css" />
-    
+
 </head>
 
 <body>
@@ -116,16 +116,25 @@
                     </div>
                     <div class="card-body">
                         <div class="accordion" id="accordion-pendencias">
-                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="tab-pane fade" id="historico-atividades-pane" role="tabpanel"
                 aria-labelledby="historico-atividades-tab" tabindex="0">
                 <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <h5 class="mb-0 card-title-modern"><i class="bi bi-calendar-check me-2"></i>Histórico de
                             Atividades</h5>
+
+                        <div style="width: 250px;">
+                            <select class="form-select form-select-sm" id="filtro-historico-status">
+                                <option value="todos">Todos os Status</option>
+                                <option value="APROVADO">Aprovado</option>
+                                <option value="RECUSADO_COORDENADOR">Recusado Coordenador</option>
+                                <option value="RECUSADO_CONTROLLER">Recusado Controller</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive custom-scroll">
@@ -553,9 +562,9 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-        <script src="../assets/js/general/global.js?v=1.2"></script>
-        <script src="../assets/js/general/sidebar.js?v=1.1"></script>
-        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js?v=1.2"></script>
+        <script src="../assets/js/general/global.js?v=1.5"></script>
+        <script src="../assets/js/general/sidebar.js?v=1.5"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js?v=1.5"></script>
 
 </body>
 

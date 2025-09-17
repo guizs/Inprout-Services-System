@@ -105,7 +105,7 @@ public class LancamentoController {
             return new LancamentoResponseDTO(
                     dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
                     dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
-                    dto.dataCriacao(), dto.dataPrazo(), dto.comentarios(), dto.equipe(), dto.vistoria(),
+                    dto.dataCriacao(), dto.dataPrazo(), dto.dataPrazoProposta(), dto.comentarios(), dto.equipe(), dto.vistoria(),
                     dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
                     dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),

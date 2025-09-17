@@ -33,6 +33,7 @@ function aprovarLancamento(id) {
 function comentarLancamento(id) {
     if (!modalComentar) return;
     document.getElementById('comentarLancamentoId').value = id;
+    document.getElementById('formComentarPrazo').reset();
     modalComentar.show();
 }
 
@@ -251,17 +252,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 let acoesHtml = '';
                 if (userRole === 'COORDINATOR') {
                     acoesHtml = `<div class="d-flex justify-content-center gap-1">
-                        <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                        <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                    </div>`;
+                                    <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                                    <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
+                                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+                                </div>`;
                 } else if (userRole === 'CONTROLLER') {
                     switch (lancamento.situacaoAprovacao) {
                         case 'PENDENTE_CONTROLLER':
-                            acoesHtml = `<div class="d-flex justify-content-center gap-1">...</div>`; // Lógica de botões do controller
+                            acoesHtml = `<div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                         <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+                    </div>`;
                             break;
-                        // ... outros cases
+                        case 'AGUARDANDO_EXTENSAO_PRAZO':
+                        case 'PRAZO_VENCIDO':
+                            acoesHtml = `<div class="d-flex justify-content-center gap-1">
+                        <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Recusar/Definir Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
+                         <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+                    </div>`;
+                            break;
                     }
                 }
                 return acoesHtml;
@@ -303,14 +315,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
-            const valorTotalCPS = grupo.linhas.reduce((sum, l) => sum + (l.valor || 0), 0);
+            const valorTotalCPS = grupo.linhas.length > 0 ? grupo.linhas[0].valorCps : 0;
             const percentual = grupo.totalOs > 0 ? (valorTotalCPS / grupo.totalOs) * 100 : 0;
 
             const kpiHTML = `
                 <div class="header-kpi-wrapper">
                     <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(grupo.totalOs)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total Pendente</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">% Pendente</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
+                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
                 </div>`;
 
             const headerHTML = `
@@ -327,13 +339,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     </button>
                 </h2>`;
 
-            const colunasParaRenderizar = ['<input type="checkbox">', ...colunas];
+            // --- CORREÇÃO APLICADA AQUI ---
+            // 1. Cria uma cópia filtrável das colunas
+            let colunasParaRenderizar = [...colunas];
+
+            // 2. Se o usuário for Controller, remove a coluna "PRAZO AÇÃO"
+            if (userRole === 'CONTROLLER') {
+                colunasParaRenderizar = colunasParaRenderizar.filter(c => c !== "PRAZO AÇÃO");
+            }
 
             const bodyRowsHTML = grupo.linhas.map(lancamento => {
+                // 3. Usa a lista de colunas já filtrada para renderizar as células
                 const cellsHTML = colunasParaRenderizar.map(header => {
-                    if (header.includes('checkbox')) {
-                        return `<td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>`;
-                    }
                     const func = dataMapping[header];
                     const valor = func ? func(lancamento) : '-';
                     let classes = '';
@@ -348,7 +365,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     return `<td class="${classes}">${valor}</td>`;
                 }).join('');
-                return `<tr data-id="${lancamento.id}">${cellsHTML}</tr>`;
+                // Adiciona o checkbox no início de cada linha
+                return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
             }).join('');
 
 
@@ -360,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <thead>
                                     <tr>
                                         <th><input type="checkbox" class="form-check-input selecionar-todos-grupo" data-group-id="${uniqueId}"></th>
-                                        ${colunas.map(c => `<th>${c}</th>`).join('')}
+                                        ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')}
                                     </tr>
                                 </thead>
                                 <tbody data-group-id="${uniqueId}">
@@ -807,24 +825,32 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function () {
-        const lancamentoId = document.getElementById('aprovarLancamentoId').value;
+        const isAcaoEmLote = modalAprovar._element.dataset.acaoEmLote === 'true';
+
+        const ids = isAcaoEmLote
+            ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
+            : [document.getElementById('aprovarLancamentoId').value];
+
+        const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == ids[0]);
+        if (!primeiroLancamento) return;
+
         setButtonLoading(this, true);
 
         try {
-            const userId = localStorage.getItem('usuarioId');
             let endpoint = '';
             let payload = {};
-            const lancamento = todosOsLancamentosGlobais.find(l => l.id == lancamentoId);
 
-            if (userRole === 'CONTROLLER' && lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
-                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/prazo/aprovar`;
-                payload = { controllerId: userId };
-            } else if (userRole === 'CONTROLLER' && lancamento.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
-                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/controller-aprovar`;
-                payload = { controllerId: userId };
+            // Define o endpoint e o payload com base na role e no status do primeiro item selecionado
+            if (userRole === 'CONTROLLER') {
+                if (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`;
+                } else if (primeiroLancamento.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
+                    endpoint = `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
+                }
+                payload = { lancamentoIds: ids, aprovadorId: userId };
             } else if (userRole === 'COORDINATOR') {
-                endpoint = `${API_BASE_URL}/lancamentos/${lancamentoId}/coordenador-aprovar`;
-                payload = { coordenadorId: userId };
+                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+                payload = { lancamentoIds: ids, aprovadorId: userId };
             }
 
             const response = await fetchComAuth(endpoint, {
@@ -833,16 +859,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao processar aprovação.');
+            if (!response.ok) throw new Error((await response.json()).message || 'Falha ao processar aprovação em lote.');
 
-            mostrarToast(`Ação de aprovação realizada com sucesso!`, 'success');
+            mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, 'success');
             modalAprovar.hide();
             await carregarDadosAtividades();
+            atualizarEstadoAcoesLote();
 
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
             setButtonLoading(this, false);
+            delete modalAprovar._element.dataset.acaoEmLote;
         }
     });
 
@@ -955,6 +983,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         acoesContainer.classList.toggle('d-none', totalSelecionado === 0);
         if (totalSelecionado === 0) return;
+
+        document.getElementById('contador-aprovacao').textContent = totalSelecionado;
+        document.getElementById('contador-recusa').textContent = totalSelecionado;
+        document.getElementById('contador-prazo').textContent = totalSelecionado;
 
         const idsSelecionados = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
         const lancamentosSelecionados = todosOsLancamentosGlobais.filter(l => idsSelecionados.includes(String(l.id)));
@@ -1095,6 +1127,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             atualizarEstadoAcoesLote();
         }
+    });
+
+    btnAprovarSelecionados.addEventListener('click', () => {
+        // Abre o modal de aprovação para a ação em lote
+        modalAprovar._element.dataset.acaoEmLote = 'true';
+        aprovarLancamento(null); // Passa null pois os IDs virão dos checkboxes
     });
 
     btnAprovarSelecionados.addEventListener('click', async () => {

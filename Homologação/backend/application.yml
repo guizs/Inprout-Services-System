@@ -1,9 +1,9 @@
 spring:
   datasource:
-  url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
-  username: ${DB_USER:postgres}
-  password: ${DB_PASS:inpservices123}
-  driver-class-name: org.postgresql.Driver
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:inpservices123}
+    driver-class-name: org.postgresql.Driver
 
   #datasource:
     #url: ${DB_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}

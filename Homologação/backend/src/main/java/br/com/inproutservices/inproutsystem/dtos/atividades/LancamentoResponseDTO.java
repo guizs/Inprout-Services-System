@@ -32,6 +32,7 @@ public record LancamentoResponseDTO(
         String detalheDiario,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazo,
+        @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPrazoProposta,
         List<ComentarioDTO> comentarios,
         String equipe,
         String vistoria,
@@ -69,6 +70,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDetalheDiario(),
                 lancamento.getDataCriacao(),
                 lancamento.getDataPrazo(),
+                lancamento.getDataPrazoProposta(),
                 (lancamento.getComentarios() != null)
                         ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
                         : List.of(),

@@ -5,6 +5,7 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
+import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.services.index.LpuService;
 import org.springframework.http.HttpStatus;
@@ -169,6 +170,19 @@ public class OsController {
                 .map(OsResponseDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responseList);
+    }
+
+    @DeleteMapping("/detalhe/{id}")
+    public ResponseEntity<Void> desativarDetalhe(@PathVariable Long id) {
+        osService.desativarDetalhe(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/detalhe/{id}/key")
+    public ResponseEntity<OsLpuDetalhe> atualizarChaveExterna(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String novaChave = payload.get("key");
+        OsLpuDetalhe detalheAtualizado = osService.atualizarChaveExterna(id, novaChave);
+        return ResponseEntity.ok(detalheAtualizado);
     }
 
 }

@@ -66,7 +66,7 @@
             </div>
             <div class="card-body">
                 <div class="accordion" id="accordion-registros">
-                    </div>
+                </div>
 
                 <div class="pagination-controls mt-3">
                     <div>
@@ -95,7 +95,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="modal fade" id="modalProgressoExportacao" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="modalProgressoLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -178,6 +178,56 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalEditarKey" tabindex="-1" aria-labelledby="modalEditarKeyLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEditarKeyLabel"><i class="bi bi-key-fill me-2"></i>Atualizar Chave
+                        Externa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarKey">
+                        <input type="hidden" id="editKeyDetalheId">
+                        <div class="mb-3">
+                            <label for="novaKeyValue" class="form-label">Nova Chave (KEY)</label>
+                            <input type="text" class="form-control" id="novaKeyValue" required
+                                placeholder="Insira a nova chave única">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success" form="formEditarKey" id="btnSalvarNovaKey">Salvar
+                        Chave</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1" aria-labelledby="modalConfirmarExclusaoLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="modalConfirmarExclusaoLabel"><i
+                            class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você tem certeza que deseja excluir este registro?</p>
+                    <p class="small text-muted">Esta ação excluirá o registro. Não poderá ser desfeita, tem certeza que deseja continuar?</p>
+                    <input type="hidden" id="deleteDetalheId">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusaoDefinitiva">Sim,
+                        Excluir</button>
                 </div>
             </div>
         </div>

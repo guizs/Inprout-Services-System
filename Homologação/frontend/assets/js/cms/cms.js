@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkUnitMT = document.getElementById('materiais_checkUnitMT');
     
     let todosOsMateriais = [];
-    const API_BASE_URL = 'http://3.128.248.3:8080';
+    const API_BASE_URL = 'http://localhost:8080/api/usuarios/login';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)

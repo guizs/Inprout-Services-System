@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -130,6 +130,139 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function gerarFormularioHTML(idSufixo, titulo, mostrarAberto = true) {
+        return `
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-${idSufixo}">
+                    <button class="accordion-button ${!mostrarAberto ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${idSufixo}" aria-expanded="${mostrarAberto}">
+                        ${titulo}
+                    </button>
+                </h2>
+                <div id="collapse-${idSufixo}" class="accordion-collapse collapse ${mostrarAberto ? 'show' : ''}">
+                    <div class="accordion-body">
+                        <h6 class="section-title">Execução</h6>
+                        <div class="etapas-scroll mb-3">
+                            <div class="card etapa-card">
+                                <h6>Vistoria</h6>
+                                <select class="form-select" id="vistoria-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoVistoria-lpu-${idSufixo}" placeholder="Plano (Data)">
+                            </div>
+                            <div class="card etapa-card">
+                                <h6>Desmobilização</h6>
+                                <select class="form-select" id="desmobilizacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDesmobilizacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                            </div>
+                            <div class="card etapa-card">
+                                <h6>Instalação</h6>
+                                <select class="form-select" id="instalacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoInstalacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                            </div>
+                             <div class="card etapa-card">
+                                <h6>Ativação</h6>
+                                <select class="form-select" id="ativacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoAtivacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                            </div>
+                            <div class="card etapa-card">
+                                <h6>Documentação</h6>
+                                <select class="form-select" id="documentacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDocumentacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                            </div>
+                        </div>
+                        <h6 class="section-title">Detalhes da Atividade</h6>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="etapaGeral-lpu-${idSufixo}" class="form-label">Etapa Geral</label>
+                                <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${idSufixo}" data-lpu-id="${idSufixo}" required><option value="" selected disabled>Selecione...</option></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="etapaDetalhadaId-lpu-${idSufixo}" class="form-label">Etapa Detalhada</label>
+                                <select class="form-select etapa-detalhada-select" id="etapaDetalhadaId-lpu-${idSufixo}" required disabled></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="status-lpu-${idSufixo}" class="form-label">Status</label>
+                                <select class="form-select status-select" id="status-lpu-${idSufixo}" required disabled></select>
+                            </div>
+                        </div>
+                         <div class="mb-3">
+                            <label for="situacao-lpu-${idSufixo}" class="form-label">Situação</label>
+                            <select class="form-select" id="situacao-lpu-${idSufixo}">
+                                <option value="" selected disabled>Selecione...</option>
+                                <option>Não iniciado</option>
+                                <option>Aguardando documentação</option>
+                                <option>Paralisado</option>
+                                <option selected>Em andamento</option>
+                                <option>Finalizado</option>
+                            </select>
+                        </div>
+                         <div class="mb-3">
+                            <label for="detalheDiario-lpu-${idSufixo}" class="form-label">Detalhe Diário</label>
+                            <textarea class="form-control" id="detalheDiario-lpu-${idSufixo}" rows="2" required></textarea>
+                        </div>
+                        <h6 class="section-title">Financeiro</h6>
+                        <div class="row g-3 mb-3">
+                             <div class="col-md-8">
+                                <label for="prestadorId-lpu-${idSufixo}" class="form-label">Prestador</label>
+                                <select class="form-select" id="prestadorId-lpu-${idSufixo}" required></select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="valor-lpu-${idSufixo}" class="form-label">Valor</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="text" class="form-control" id="valor-lpu-${idSufixo}" inputmode="numeric" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    /**
+     * Inicializa componentes JS (como Choices.js e Flatpickr) em um formulário recém-criado.
+     */
+    function inicializarComponentesFormulario(idSufixo) {
+        inicializarFlatpickrComFormato(`#collapse-${idSufixo} .flatpickr-date-lote`);
+
+        const selectPrestador = document.getElementById(`prestadorId-lpu-${idSufixo}`);
+        if (selectPrestador) {
+            if (selectPrestador.choices) selectPrestador.choices.destroy();
+            selectPrestador.innerHTML = '';
+            const choicesInstance = new Choices(selectPrestador, { searchEnabled: true, placeholder: true, placeholderValue: 'Busque pelo nome ou código...', itemSelectText: '', noResultsText: 'Nenhum resultado' });
+            choicesInstance.setChoices(todosOsPrestadoresLote.map(p => ({ value: p.id, label: `${p.codigoPrestador} - ${p.prestador}` })), 'value', 'label', false);
+            selectPrestador.choices = choicesInstance;
+        }
+
+        const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${idSufixo}`);
+        if (selectEtapaGeral) {
+            selectEtapaGeral.innerHTML = '<option value="" selected disabled>Selecione...</option>';
+            todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
+        }
+    }
+
+    /**
+    * Lê todos os valores de um formulário específico e retorna um objeto.
+    */
+    function lerDadosDeFormulario(idSufixo) {
+        return {
+            vistoria: document.getElementById(`vistoria-lpu-${idSufixo}`).value,
+            planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${idSufixo}`).value),
+            desmobilizacao: document.getElementById(`desmobilizacao-lpu-${idSufixo}`).value,
+            planoDesmobilizacao: formatarDataParaAPI(document.getElementById(`planoDesmobilizacao-lpu-${idSufixo}`).value),
+            instalacao: document.getElementById(`instalacao-lpu-${idSufixo}`).value,
+            planoInstalacao: formatarDataParaAPI(document.getElementById(`planoInstalacao-lpu-${idSufixo}`).value),
+            ativacao: document.getElementById(`ativacao-lpu-${idSufixo}`).value,
+            planoAtivacao: formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${idSufixo}`).value),
+            documentacao: document.getElementById(`documentacao-lpu-${idSufixo}`).value,
+            planoDocumentacao: formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${idSufixo}`).value),
+            etapaDetalhadaId: document.getElementById(`etapaDetalhadaId-lpu-${idSufixo}`).value,
+            status: document.getElementById(`status-lpu-${idSufixo}`).value,
+            situacao: document.getElementById(`situacao-lpu-${idSufixo}`).value,
+            detalheDiario: document.getElementById(`detalheDiario-lpu-${idSufixo}`).value,
+            prestadorId: document.getElementById(`prestadorId-lpu-${idSufixo}`).value,
+            valor: parseFloat(document.getElementById(`valor-lpu-${idSufixo}`).value.replace(/\./g, '').replace(',', '.')) || 0,
+        };
+    }
+
     selectProjetoLote.addEventListener('change', async (e) => {
         const projeto = e.target.value;
         const os = todasAsOSLote.find(os => os.projeto === projeto);
@@ -159,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         preencherCamposOSLote(null);
 
         try {
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -219,173 +352,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 todosOsPrestadoresLote = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
             }
 
-            formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
-                const lpuId = checkbox.value;
-                const lpuNome = checkbox.dataset.nome;
-                const isPrimeiroItem = index === 0;
+            const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
 
-                return `
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="heading-${lpuId}">
-                            <button class="accordion-button ${!isPrimeiroItem ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${lpuId}" aria-expanded="${isPrimeiroItem}">
-                                LPU: ${lpuNome}
-                            </button>
-                        </h2>
-                        <div id="collapse-${lpuId}" class="accordion-collapse collapse ${isPrimeiroItem ? 'show' : ''}">
-                            <div class="accordion-body">
+            if (replicarDados) {
+                // MODO REPLICAR: Gera um formulário único
+                formulariosContainerLote.innerHTML = gerarFormularioHTML('unico', `Informações para ${lpusSelecionadas.length} itens selecionados`);
+                inicializarComponentesFormulario('unico');
+            } else {
+                // MODO INDIVIDUAL: Gera um acordeão para cada LPU
+                formulariosContainerLote.innerHTML = Array.from(lpusSelecionadas).map((checkbox, index) => {
+                    return gerarFormularioHTML(checkbox.value, checkbox.dataset.nome, index === 0);
+                }).join('');
 
-                                <h6 class="section-title">Execução</h6>
-                                <div class="etapas-scroll mb-3">
-                                <div class="card etapa-card">
-                                    <h6>Vistoria</h6>
-                                    <label class="form-label">Status</label>
-                                    <select class="form-select" id="vistoria-lpu-${lpuId}">
-                                        <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                    </select>
-                                    <label class="form-label mt-2">Plano (Data)</label>
-                                    <input type="text" class="form-control flatpickr-date-lote" id="planoVistoria-lpu-${lpuId}" placeholder="dd/mm/aaaa">
-                                </div>
-                                <div class="card etapa-card">
-                                    <h6>Desmobilização</h6>
-                                    <label class="form-label">Status</label>
-                                    <select class="form-select" id="desmobilizacao-lpu-${lpuId}">
-                                        <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                    </select>
-                                    <label class="form-label mt-2">Plano (Data)</label>
-                                    <input type="text" class="form-control flatpickr-date-lote" id="planoDesmobilizacao-lpu-${lpuId}" placeholder="dd/mm/aaaa">
-                                </div>
-                                <div class="card etapa-card">
-                                    <h6>Instalação</h6>
-                                    <label class="form-label">Status</label>
-                                    <select class="form-select" id="instalacao-lpu-${lpuId}">
-                                        <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                    </select>
-                                    <label class="form-label mt-2">Plano (Data)</label>
-                                    <input type="text" class="form-control flatpickr-date-lote" id="planoInstalacao-lpu-${lpuId}" placeholder="dd/mm/aaaa">
-                                </div>
-                                <div class="card etapa-card">
-                                    <h6>Ativação</h6>
-                                    <label class="form-label">Status</label>
-                                    <select class="form-select" id="ativacao-lpu-${lpuId}">
-                                        <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                    </select>
-                                    <label class="form-label mt-2">Plano (Data)</label>
-                                    <input type="text" class="form-control flatpickr-date-lote" id="planoAtivacao-lpu-${lpuId}" placeholder="dd/mm/aaaa">
-                                </div>
-                                <div class="card etapa-card">
-                                    <h6>Documentação</h6>
-                                    <label class="form-label">Status</label>
-                                    <select class="form-select" id="documentacao-lpu-${lpuId}">
-                                        <option>OK</option> <option>NOK</option> <option selected>N/A</option>
-                                    </select>
-                                    <label class="form-label mt-2">Plano (Data)</label>
-                                    <input type="text" class="form-control flatpickr-date-lote" id="planoDocumentacao-lpu-${lpuId}" placeholder="dd/mm/aaaa">
-                                </div>
-                            </div>
-                            <h6 class="section-title">Etapas</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-4">
-                                    <label for="etapaGeral-lpu-${lpuId}" class="form-label">ETAPA GERAL</label>
-                                    <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${lpuId}" data-lpu-id="${lpuId}" required>
-                                        <option value="" selected disabled>Selecione...</option>
-                                        </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="etapaDetalhadaId-lpu-${lpuId}" class="form-label">ETAPA DETALHADA</label>
-                                    <select class="form-select etapa-detalhada-select" id="etapaDetalhadaId-lpu-${lpuId}" required disabled></select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="status-lpu-${lpuId}" class="form-label">STATUS</label>
-                                    <select class="form-select status-select" id="status-lpu-${lpuId}" required disabled></select>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label for="detalheDiario-lpu-${lpuId}" class="form-label">DETALHE DIÁRIO</label>
-                                <textarea class="form-control" id="detalheDiario-lpu-${lpuId}" rows="2" required placeholder="Descreva o detalhe diário aqui..."></textarea>
-                            </div>
-                            <div class="mb-3">
-                                <label for="situacao-lpu-${lpuId}" class="form-label">SITUAÇÃO</label>
-                                <select class="form-select" id="situacao-lpu-${lpuId}">
-                                    <option value="" selected disabled>Selecione a situação...</option>
-                                    <option>Não iniciado</option>
-                                    <option>Aguardando documentação</option>
-                                    <option>Paralisado</option>
-                                    <option selected>Em andamento</option>
-                                    <option>Finalizado</option>
-                                </select>
-                            </div>
-                            <h6 class="section-title">Financeiro</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-8">
-                                    <label for="prestadorId-lpu-${lpuId}" class="form-label">PRESTADOR</label>
-                                    <select class="form-select" id="prestadorId-lpu-${lpuId}" required>
-                                        <option value="" selected disabled>Selecione o prestador...</option>
-                                        </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="valor-lpu-${lpuId}" class="form-label">VALOR DA ATIVIDADE</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">R$</span>
-                                        <input type="text" class="form-control" id="valor-lpu-${lpuId}" inputmode="numeric" />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            }).join('');
-
-            lpusSelecionadas.forEach(checkbox => {
-                const lpuId = checkbox.value;
-                const selectPrestador = document.getElementById(`prestadorId-lpu-${lpuId}`);
-
-                if (selectPrestador) {
-                    // ==========================================================
-                    // ===== INÍCIO DA CORREÇÃO =====
-                    // ==========================================================
-                    // Limpa o select ANTES de inicializar o Choices.js
-                    selectPrestador.innerHTML = '';
-                    // ==========================================================
-                    // ===== FIM DA CORREÇÃO =====
-                    // ==========================================================
-
-                    // 1. Verifica se já existe uma instância do Choices.js no elemento.
-                    if (selectPrestador.choices) {
-                        // 2. Se existir, destrói a instância antiga para evitar o erro.
-                        selectPrestador.choices.destroy();
-                    }
-                    // 3. Limpa qualquer conteúdo HTML residual do select.
-                    selectPrestador.innerHTML = '';
-
-                    // 4. Cria a nova instância do Choices.js.
-                    const choicesInstance = new Choices(selectPrestador, {
-                        searchEnabled: true,
-                        placeholder: true,
-                        placeholderValue: 'Busque pelo nome ou código...',
-                        itemSelectText: '',
-                        noResultsText: 'Nenhum resultado',
-                    });
-
-                    choicesInstance.setChoices(
-                        todosOsPrestadoresLote.map(p => ({
-                            value: p.id,
-                            label: `${p.codigoPrestador} - ${p.prestador}`
-                        })),
-                        'value',
-                        'label',
-                        false // O 'true' para limpar não é mais necessário, já limpamos manualmente
-                    );
-
-                    // 5. Armazena a nova instância no próprio elemento para futuras verificações.
-                    selectPrestador.choices = choicesInstance;
-                }
-
-                const selectEtapaGeral = document.getElementById(`etapaGeral-lpu-${lpuId}`);
-                if (selectEtapaGeral) todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
-            });
-
-            inicializarFlatpickrComFormato('.flatpickr-date-lote');
+                lpusSelecionadas.forEach(checkbox => {
+                    inicializarComponentesFormulario(checkbox.value);
+                });
+            }
 
         } catch (error) {
             console.error("Erro ao gerar formulários:", error);
@@ -470,46 +452,34 @@ document.addEventListener('DOMContentLoaded', () => {
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
             const isComplementar = chkAtividadeComplementar.checked;
+            const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
+
+            let dadosReplicados = {};
+            if (replicarDados) {
+                // Se for replicar, lê os dados do formulário único UMA VEZ
+                dadosReplicados = lerDadosDeFormulario('unico');
+            }
 
             for (const checkbox of lpusSelecionadas) {
                 const lpuId = checkbox.value;
                 const osLpuDetalheId = checkbox.dataset.osLpuDetalheId;
 
-                // Pega a quantidade do input específico de cada LPU, se for complementar
-                const quantidade = isComplementar ? document.getElementById('quantidadeComplementarLote').value : null;
+                // Se não estiver replicando, lê os dados do formulário específico desta LPU
+                const dadosFormulario = replicarDados ? dadosReplicados : lerDadosDeFormulario(lpuId);
 
                 const dadosLpu = {
+                    ...dadosFormulario, // Usa os dados lidos (sejam eles únicos ou replicados)
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
                     osLpuDetalheId: !isComplementar ? osLpuDetalheId : null,
                     dataAtividade: formatarDataParaAPI(dataAtividade),
-                    vistoria: document.getElementById(`vistoria-lpu-${lpuId}`).value,
-                    planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${lpuId}`).value),
-                    desmobilizacao: document.getElementById(`desmobilizacao-lpu-${lpuId}`).value,
-                    planoDesmobilizacao: formatarDataParaAPI(document.getElementById(`planoDesmobilizacao-lpu-${lpuId}`).value),
-                    instalacao: document.getElementById(`instalacao-lpu-${lpuId}`).value,
-                    planoInstalacao: formatarDataParaAPI(document.getElementById(`planoInstalacao-lpu-${lpuId}`).value),
-                    ativacao: document.getElementById(`ativacao-lpu-${lpuId}`).value,
-                    planoAtivacao: formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${lpuId}`).value),
-                    documentacao: document.getElementById(`documentacao-lpu-${lpuId}`).value,
-                    planoDocumentacao: formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${lpuId}`).value),
-                    etapaDetalhadaId: document.getElementById(`etapaDetalhadaId-lpu-${lpuId}`).value,
-                    status: document.getElementById(`status-lpu-${lpuId}`).value,
-                    situacao: document.getElementById(`situacao-lpu-${lpuId}`).value,
-                    detalheDiario: document.getElementById(`detalheDiario-lpu-${lpuId}`).value,
-                    prestadorId: document.getElementById(`prestadorId-lpu-${lpuId}`).value,
-                    valor: parseFloat(document.getElementById(`valor-lpu-${lpuId}`).value.replace(/\./g, '').replace(',', '.')) || 0,
                     atividadeComplementar: isComplementar,
-                    quantidade: isComplementar ? parseInt(quantidade, 10) : null
+                    quantidade: isComplementar ? parseInt(document.getElementById('quantidadeComplementarLote').value, 10) : null,
+                    situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO'
                 };
-                if (acao === 'salvarRascunho') {
-                    dadosLpu.situacaoAprovacao = 'RASCUNHO';
-                } else if (acao === 'enviar') {
-                    dadosLpu.situacaoAprovacao = 'PENDENTE_COORDENADOR';
-                }
 
                 lancamentosEmLote.push(dadosLpu);
             }
@@ -527,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (typeof mostrarToast === 'function') mostrarToast('Lançamentos(s) salvo(s) com sucesso!', 'success');
             bootstrap.Modal.getInstance(modalAdicionarEmLote).hide();
-            await carregarLancamentos();
+            await carregarLancamentos(); // Função do index.js
 
         } catch (error) {
             if (typeof mostrarToast === 'function') mostrarToast(error.message, 'error');
@@ -575,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!contratoId) throw new Error('Contrato da OS não encontrado para buscar LPUs complementares.');
 
-                const response = await fetchComAuth(`http://3.128.248.3:8080/lpu/contrato/${contratoId}`);
+                const response = await fetchComAuth(`http://localhost:8080/lpu/contrato/${contratoId}`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
                 lpusParaExibir = await response.json();
             } else {

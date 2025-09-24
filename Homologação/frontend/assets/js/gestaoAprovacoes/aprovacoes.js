@@ -22,7 +22,7 @@ const contadorPrazo = document.getElementById('contador-prazo');
 const filtroHistoricoStatus = document.getElementById('filtro-historico-status');
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://3.128.248.3:8080';
+const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -712,115 +712,105 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderizarTabelaHistorico(dados) {
         if (!tbodyHistorico) return;
-        tbodyHistorico.innerHTML = '';
 
-        // Adiciona a lógica de filtro no início da função
-        const statusFiltrado = document.getElementById('filtro-historico-status').value;
-        const dadosFiltrados = statusFiltrado === 'todos'
-            ? dados
-            : dados.filter(l => l.situacaoAprovacao === statusFiltrado);
+        // Objeto para guardar o estado da ordenação
+        let sortConfig = { key: 'dataAtividade', direction: 'desc' };
 
-        const colunasHistorico = ["COMENTÁRIOS", ...colunas.filter(c => c !== "AÇÕES" && c !== "PRAZO AÇÃO" && !c.includes('checkbox'))];
+        // Função auxiliar para ordenar os dados
+        function sortData(dadosParaOrdenar) {
+            dadosParaOrdenar.sort((a, b) => {
+                let valA, valB;
 
-        if (theadHistorico) {
-            theadHistorico.innerHTML = `<tr>${colunasHistorico.map(c => `<th>${c}</th>`).join('')}</tr>`;
+                // Lógica para pegar o valor correto dependendo da coluna
+                if (sortConfig.key === 'os') {
+                    valA = a.os?.os || '';
+                    valB = b.os?.os || '';
+                } else if (sortConfig.key === 'valor') {
+                    valA = a.valor || 0;
+                    valB = b.valor || 0;
+                } else { // Padrão para data
+                    valA = a.dataAtividade ? new Date(a.dataAtividade.split('/').reverse().join('-')) : new Date(0);
+                    valB = b.dataAtividade ? new Date(b.dataAtividade.split('/').reverse().join('-')) : new Date(0);
+                }
+
+                if (typeof valA === 'string') {
+                    return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                } else {
+                    return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+                }
+            });
+            return dadosParaOrdenar;
         }
 
-        // A verificação de dados agora usa a variável 'dadosFiltrados'
-        if (!dadosFiltrados || dadosFiltrados.length === 0) {
-            tbodyHistorico.innerHTML = `<tr><td colspan="${colunasHistorico.length}" class="text-center text-muted p-4">Nenhum lançamento no histórico para o filtro selecionado.</td></tr>`;
-            return;
-        }
+        // Função para renderizar
+        function render() {
+            const statusFiltrado = document.getElementById('filtro-historico-status').value;
+            let dadosFiltrados = statusFiltrado === 'todos' ?
+                dados :
+                dados.filter(l => l.situacaoAprovacao === statusFiltrado);
 
-        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
-        const formatarData = (dataStr) => {
-            if (!dataStr) return '';
-            if (dataStr.includes('/')) return dataStr;
-            const [year, month, day] = dataStr.split('-');
-            return `${day}/${month}/${year}`;
-        };
+            dadosFiltrados = sortData(dadosFiltrados); // Ordena os dados
 
-        // A ordenação e a iteração agora usam 'dadosFiltrados'
-        dadosFiltrados.sort((a, b) => parseDataBrasileira(b.ultUpdate) - parseDataBrasileira(a.ultUpdate));
+            const colunasHeaders = [
+                { key: 'dataAtividade', label: 'DATA ATIVIDADE' }, { key: 'statusAprovacao', label: 'STATUS' },
+                { key: 'os', label: 'OS' }, { key: 'site', label: 'SITE' },
+                { key: 'segmento', label: 'SEGMENTO' }, { key: 'valor', label: 'VALOR' },
+                { key: 'prestador', label: 'PRESTADOR' }
+            ];
 
-        dadosFiltrados.forEach(lancamento => {
-            const tr = document.createElement('tr');
-
-            let statusBadge = '';
-            if (lancamento.situacaoAprovacao.includes('RECUSADO')) {
-                statusBadge = `<span class="badge rounded-pill text-bg-danger">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`;
-            } else if (lancamento.situacaoAprovacao === 'APROVADO') {
-                statusBadge = `<span class="badge rounded-pill text-bg-success">${lancamento.situacaoAprovacao}</span>`;
-            } else {
-                statusBadge = `<span class="badge rounded-pill text-bg-info">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>`;
+            if (theadHistorico) {
+                theadHistorico.innerHTML = `<tr>
+                <th>COMENTÁRIOS</th>
+                ${colunasHeaders.map(h => {
+                    const isSorted = sortConfig.key === h.key;
+                    const icon = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
+                    return `<th class="sortable" data-sort-key="${h.key}">${h.label} <i class="bi ${icon}"></i></th>`;
+                }).join('')}
+            </tr>`;
             }
 
-            const detalhe = lancamento.detalhe || {};
-            const os = lancamento.os || {};
-            const lpu = detalhe.lpu || {};
-            const etapa = lancamento.etapa || {};
-            const prestador = lancamento.prestador || {};
-            const manager = lancamento.manager || {};
+            tbodyHistorico.innerHTML = '';
+            if (!dadosFiltrados || dadosFiltrados.length === 0) {
+                tbodyHistorico.innerHTML = `<tr><td colspan="${colunasHeaders.length + 1}" class="text-center text-muted p-4">Nenhum histórico para o filtro.</td></tr>`;
+                return;
+            }
 
-            const mapaDeCelulas = {
-                "COMENTÁRIOS": `
-<button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}>
-    <i class="bi bi-eye"></i>
-</button>`,
-                "STATUS APROVAÇÃO": statusBadge,
-                "DATA ATIVIDADE": formatarData(lancamento.dataAtividade) || '',
-                "OS": os.os || '',
-                "SITE": detalhe.site || '',
-                "VALOR DA ATIVIDADE": formatarMoeda(lancamento.valor),
-                "CONTRATO": detalhe.contrato || '',
-                "SEGMENTO": os.segmento ? os.segmento.nome : '',
-                "PROJETO": os.projeto || '',
-                "GESTOR TIM": os.gestorTim || '',
-                "REGIONAL": detalhe.regional || '',
-                "LPU": (lpu.codigoLpu && lpu.nomeLpu) ? `${lpu.codigoLpu}` : (lpu.codigoLpu || ''),
-                "LOTE": detalhe.lote || '',
-                "BOQ": detalhe.boq || '',
-                "PO": detalhe.po || '',
-                "ITEM": detalhe.item || '',
-                "OBJETO CONTRATADO": lpu.nomeLpu || '',
-                "UNIDADE": detalhe.unidade || '',
-                "QUANTIDADE": detalhe.quantidade || '',
-                "OBSERVAÇÕES": detalhe.observacoes || '',
-                "DATA PO": formatarData(detalhe.dataPo) || '',
-                "VISTORIA": lancamento.vistoria || '',
-                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria) || '',
-                "DESMOBILIZAÇÃO": lancamento.desmobilizacao || '',
-                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao) || '',
-                "INSTALAÇÃO": lancamento.instalacao || '',
-                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao) || '',
-                "ATIVAÇÃO": lancamento.ativacao || '',
-                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao) || '',
-                "DOCUMENTAÇÃO": lancamento.documentacao || '',
-                "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao) || '',
-                "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
-                "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
-                "STATUS": lancamento.status || '',
-                "SITUAÇÃO": lancamento.situacao || '',
-                "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": prestador.codigo || '',
-                "PRESTADOR": prestador.nome || '',
-                "GESTOR": manager.nome || '',
-            };
+            dadosFiltrados.forEach(lancamento => {
+                const tr = document.createElement('tr');
+                const statusBadge = lancamento.situacaoAprovacao.includes('RECUSADO') ? `<span class="badge rounded-pill text-bg-danger">${lancamento.situacaoAprovacao.replace(/_/g, ' ')}</span>` : `<span class="badge rounded-pill text-bg-success">${lancamento.situacaoAprovacao}</span>`;
 
-            colunasHistorico.forEach(nomeColuna => {
-                const td = document.createElement('td');
-                td.dataset.label = nomeColuna;
-                td.innerHTML = mapaDeCelulas[nomeColuna] !== undefined ? mapaDeCelulas[nomeColuna] : '';
-                if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
-                    aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
-                }
-                if (nomeColuna === "DETALHE DIÁRIO") {
-                    td.classList.add('detalhe-diario-cell');
-                }
-                tr.appendChild(td);
+                tr.innerHTML = `
+                <td><button class="btn btn-sm btn-outline-secondary" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button></td>
+                <td>${lancamento.dataAtividade.split('-').reverse().join('/') || ''}</td>
+                <td>${statusBadge}</td>
+                <td>${lancamento.os?.os || ''}</td>
+                <td>${lancamento.detalhe?.site || ''}</td>
+                <td>${lancamento.os?.segmento?.nome || ''}</td>
+                <td>${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lancamento.valor || 0)}</td>
+                <td>${lancamento.prestador?.nome || ''}</td>
+            `;
+                tbodyHistorico.appendChild(tr);
             });
-            tbodyHistorico.appendChild(tr);
-        });
+        }
+
+        // Adiciona o listener de clique no cabeçalho
+        if (theadHistorico) {
+            theadHistorico.addEventListener('click', (e) => {
+                const header = e.target.closest('th.sortable');
+                if (!header) return;
+
+                const key = header.dataset.sortKey;
+                if (sortConfig.key === key) {
+                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortConfig.key = key;
+                    sortConfig.direction = 'desc';
+                }
+                render();
+            });
+        }
+
+        render(); // Renderiza pela primeira vez
     }
 
     const collapseElement = document.getElementById('collapseAprovacoesCards');

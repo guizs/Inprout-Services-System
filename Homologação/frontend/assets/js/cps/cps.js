@@ -145,57 +145,96 @@ document.addEventListener('DOMContentLoaded', () => {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
         const mostrarAcoes = userRole !== 'COORDINATOR';
 
-        tableHead.innerHTML = `
-<tr>
-    <th>DATA ATIVIDADE</th> <th>OS</th> <th>SITE</th> <th>CONTRATO</th> <th>SEGMENTO</th>
-    <th>PROJETO</th> <th>GESTOR TIM</th> <th>REGIONAL</th> <th>LOTE</th> <th>BOQ</th> <th>PO</th>
-    <th>ITEM</th> <th>OBJETO CONTRATADO</th> <th>UNIDADE</th> <th>QTD</th> <th>VALOR TOTAL</th>
-    <th>OBSERVAÇÕES</th> <th>DATA PO</th> <th>LPU</th> <th>EQUIPE</th> <th>VISTORIA</th> <th>PLANO DE VISTORIA</th>
-    <th>DESMOBILIZAÇÃO</th> <th>PLANO DESMOB.</th> <th>INSTALAÇÃO</th> <th>PLANO INST.</th> <th>ATIVAÇÃO</th>
-    <th>PLANO ATIVAÇÃO</th> <th>DOCUMENTAÇÃO</th> <th>PLANO DOC.</th> <th>ETAPA GERAL</th> <th>ETAPA DETALHADA</th>
-    <th>STATUS</th> <th>SITUAÇÃO</th> <th>DETALHE DIÁRIO</th> <th>CÓD PRESTADOR</th> <th>PRESTADOR</th>
-    <th>VALOR PAGO</th> <th>KEY</th> <th>ADIANTAMENTO</th>
-    ${mostrarAcoes ? '<th>AÇÕES</th>' : ''} 
-</tr>`;
+        // Objeto para guardar o estado da ordenação
+        let sortConfig = { key: 'dataAtividade', direction: 'desc' };
 
-        tableBody.innerHTML = '';
+        // Função auxiliar para ordenar os dados
+        function sortData() {
+            lancamentos.sort((a, b) => {
+                let valA = a[sortConfig.key];
+                let valB = b[sortConfig.key];
 
-        if (lancamentos && lancamentos.length > 0) {
-            lancamentos.forEach(lanc => {
-                const acoesCell = mostrarAcoes ? `
-            <td>
-                <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago">
-                    <i class="bi bi-pencil-square"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento">
-                    <i class="bi bi-cash-coin"></i>
-                </button>
-            </td>` : '';
+                // Tratamento especial para datas e valores
+                if (sortConfig.key === 'dataAtividade' || sortConfig.key.toLowerCase().includes('data')) {
+                    valA = valA ? new Date(valA.split('/').reverse().join('-')) : new Date(0);
+                    valB = valB ? new Date(valB.split('/').reverse().join('-')) : new Date(0);
+                } else if (sortConfig.key === 'valorTotal' || sortConfig.key === 'valor' || sortConfig.key === 'valorAdiantamento') {
+                    valA = a[sortConfig.key] || 0;
+                    valB = b[sortConfig.key] || 0;
+                }
 
-                tableBody.innerHTML += `
-        <tr>
-            <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
-            <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td> <td>${lanc.projeto || 'N/A'}</td>
-            <td>${lanc.gestorTim || 'N/A'}</td> <td>${lanc.regional || 'N/A'}</td> <td>${lanc.lote || 'N/A'}</td>
-            <td>${lanc.boq || 'N/A'}</td> <td>${lanc.po || 'N/A'}</td> <td>${lanc.item || 'N/A'}</td>
-            <td>${lanc.objetoContratado || 'N/A'}</td> <td>${lanc.unidade || 'N/A'}</td> <td>${lanc.quantidade || 'N/A'}</td>
-            <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.observacoes || 'N/A'}</td> <td>${lanc.dataPo || 'N/A'}</td>
-            <td>${lanc.lpu || 'N/A'}</td> <td>${lanc.equipe || 'N/A'}</td> <td>${lanc.vistoria || 'N/A'}</td>
-            <td>${lanc.planoDeVistoria || 'N/A'}</td> <td>${lanc.desmobilizacao || 'N/A'}</td> <td>${lanc.planoDeDesmobilizacao || 'N/A'}</td>
-            <td>${lanc.instalacao || 'N/A'}</td> <td>${lanc.planoDeInstalacao || 'N/A'}</td> <td>${lanc.ativacao || 'N/A'}</td>
-            <td>${lanc.planoDeAtivacao || 'N/A'}</td> <td>${lanc.documentacao || 'N/A'}</td> <td>${lanc.planoDeDocumentacao || 'N/A'}</td>
-            <td>${lanc.etapaGeral || 'N/A'}</td> <td>${lanc.etapaDetalhada || 'N/A'}</td> <td>${lanc.status || 'N/A'}</td>
-            <td>${lanc.situacao || 'N/A'}</td> <td class="detalhe-diario-cell">${lanc.detalheDiario || 'N/A'}</td> <td>${lanc.codPrestador || 'N/A'}</td>
-            <td>${lanc.prestador || 'N/A'}</td> <td>${formatCurrency(lanc.valor)}</td>
-            <td>${lanc.key || 'N/A'}</td>
-            <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
-            ${acoesCell}
-        </tr>`;
+                if (valA < valB) {
+                    return sortConfig.direction === 'asc' ? -1 : 1;
+                }
+                if (valA > valB) {
+                    return sortConfig.direction === 'asc' ? 1 : -1;
+                }
+                return 0;
             });
-        } else {
-            const colspan = mostrarAcoes ? 40 : 39;
-            tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
         }
+
+        // Função para renderizar a tabela
+        function render() {
+            sortData(); // Ordena os dados antes de renderizar
+
+            const headers = [
+                { key: 'dataAtividade', label: 'DATA ATIVIDADE' }, { key: 'os', label: 'OS' },
+                { key: 'site', label: 'SITE' }, { key: 'contrato', label: 'CONTRATO' },
+                { key: 'segmento', label: 'SEGMENTO' }, { key: 'valorTotal', label: 'VALOR TOTAL' },
+                { key: 'prestador', label: 'PRESTADOR' }, { key: 'valor', label: 'VALOR PAGO' },
+                { key: 'valorAdiantamento', label: 'ADIANTAMENTO' }
+                // Adicione outras colunas que desejar ordenar aqui
+            ];
+
+            // Gera o cabeçalho com ícones e atributos para ordenação
+            tableHead.innerHTML = `<tr>
+            ${headers.map(h => {
+                const isSorted = sortConfig.key === h.key;
+                const icon = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
+                return `<th class="sortable" data-sort-key="${h.key}">${h.label} <i class="bi ${icon}"></i></th>`;
+            }).join('')}
+            ${mostrarAcoes ? '<th>AÇÕES</th>' : ''}
+        </tr>`;
+
+            // Gera o corpo da tabela
+            tableBody.innerHTML = '';
+            if (lancamentos && lancamentos.length > 0) {
+                lancamentos.forEach(lanc => {
+                    const acoesCell = mostrarAcoes ? `<td>
+                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
+                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
+                </td>` : '';
+
+                    tableBody.innerHTML += `<tr>
+                    <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
+                    <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td>
+                    <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.prestador || 'N/A'}</td>
+                    <td>${formatCurrency(lanc.valor)}</td> <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
+                    ${acoesCell}
+                </tr>`;
+                });
+            } else {
+                const colspan = headers.length + (mostrarAcoes ? 1 : 0);
+                tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
+            }
+        }
+
+        // Adiciona o listener de clique no cabeçalho
+        tableHead.addEventListener('click', (e) => {
+            const header = e.target.closest('th.sortable');
+            if (!header) return;
+
+            const key = header.dataset.sortKey;
+            if (sortConfig.key === key) {
+                sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortConfig.key = key;
+                sortConfig.direction = 'desc';
+            }
+            render(); // Re-renderiza a tabela com a nova ordenação
+        });
+
+        render(); // Renderiza a tabela pela primeira vez
     }
 
     // ADICIONE ESTA NOVA FUNÇÃO ABAIXO DA fetchComAuthData

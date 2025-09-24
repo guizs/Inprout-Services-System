@@ -5,6 +5,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
     const searchInput = document.getElementById('searchInput');
 
+    let sortConfig = {
+        key: 'dataAtividade', // Coluna padrão para ordenação
+        direction: 'desc' // Direção padrão (descendente)
+    };
+
+    // Mapeia o texto do cabeçalho para a chave de dados no objeto de lançamento
+    const columnKeyMap = {
+        "DATA ATIVIDADE": "dataAtividade",
+        "OS": "os.os",
+        "SITE": "detalhe.site",
+        "SEGMENTO": "os.segmento.nome",
+        "PROJETO": "os.projeto",
+        "PRESTADOR": "prestador.nome",
+        "VALOR": "valor",
+        "GESTOR": "manager.nome",
+        "SITUAÇÃO": "situacao",
+        "STATUS APROVAÇÃO": "situacaoAprovacao"
+    };
+
+    // Função auxiliar para pegar valores aninhados de um objeto (ex: 'os.projeto')
+    const getNestedValue = (obj, path) => {
+        if (!path) return undefined;
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    };
+
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
         toastElement.classList.remove('text-bg-success', 'text-bg-danger');
@@ -161,14 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderizarCabecalho(colunas, theadElement) {
         if (!theadElement) return;
-        const tr = document.createElement('tr');
+        let headerHTML = '<tr>';
         colunas.forEach(textoColuna => {
-            const th = document.createElement('th');
-            th.textContent = textoColuna;
-            tr.appendChild(th);
+            const sortKey = columnKeyMap[textoColuna];
+            if (sortKey) {
+                const isSorted = sortConfig.key === sortKey;
+                const iconClass = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
+                headerHTML += `<th class="sortable" data-sort-key="${sortKey}">${textoColuna} <i class="bi ${iconClass}"></i></th>`;
+            } else {
+                headerHTML += `<th>${textoColuna}</th>`; // Colunas não ordenáveis como "AÇÃO"
+            }
         });
-        theadElement.innerHTML = '';
-        theadElement.appendChild(tr);
+        headerHTML += '</tr>';
+        theadElement.innerHTML = headerHTML;
     }
 
     function renderizarCardsDashboard(lancamentos) {
@@ -406,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos');
+            const response = await fetchComAuth('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             const lancamentosDaApi = await response.json();
@@ -427,33 +457,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderizarTodasAsTabelas() {
         const dadosParaExibir = getDadosFiltrados();
 
+        // Função de comparação para ordenação
+        const comparer = (a, b) => {
+            let valA = getNestedValue(a, sortConfig.key);
+            let valB = getNestedValue(b, sortConfig.key);
+
+            // Tratamento especial para diferentes tipos de dados
+            const isDate = sortConfig.key.toLowerCase().includes('data');
+            const isValue = sortConfig.key.toLowerCase().includes('valor');
+
+            if (isDate) {
+                valA = valA ? parseDataBrasileira(valA) : new Date(0);
+                valB = valB ? parseDataBrasileira(valB) : new Date(0);
+            } else if (isValue) {
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
+            }
+
+            if (typeof valA === 'string') {
+                return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            } else {
+                return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+            }
+        };
+
+        // Filtra os dados para cada aba
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
+        const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
+        const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao)).sort(comparer);
+        const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao)).sort(comparer);
+        const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
+        const paralisados = getProjetosParalisados().sort(comparer);
 
-        const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO');
-        const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao));
-        const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao));
+        // Renderiza os cabeçalhos (que agora mostrarão os ícones de ordenação)
+        inicializarCabecalhos();
 
-        // --- INÍCIO DA CORREÇÃO ---
-
-        // 1. Filtra os lançamentos que pertencem ao histórico
-        const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao));
-
-        // 2. Ordena a lista de histórico pela data de criação, do mais recente para o mais antigo
-        historico.sort((a, b) => {
-            const dataA = parseDataBrasileira(a.dataCriacao);
-            const dataB = parseDataBrasileira(b.dataCriacao);
-            // Coloca itens sem data no final
-            if (!dataA) return 1;
-            if (!dataB) return -1;
-            // Compara as datas (b - a para ordem decrescente)
-            return dataB - dataA;
-        });
-
-        // --- FIM DA CORREÇÃO ---
-
-        const paralisados = getProjetosParalisados();
-
+        // Renderiza as tabelas com os dados já ordenados
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
         renderizarTabela(minhasPendencias, tbodyMinhasPendencias, colunasMinhasPendencias);
@@ -464,6 +504,27 @@ document.addEventListener('DOMContentLoaded', () => {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
         }
+    }
+
+    function adicionarListenersDeOrdenacao() {
+        const theads = document.querySelectorAll('.tab-pane thead');
+        theads.forEach(thead => {
+            thead.addEventListener('click', (e) => {
+                const header = e.target.closest('th.sortable');
+                if (!header) return;
+
+                const key = header.dataset.sortKey;
+                // Se clicou na mesma coluna, inverte a direção. Senão, define uma nova coluna e direção padrão.
+                if (sortConfig.key === key) {
+                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortConfig.key = key;
+                    sortConfig.direction = 'desc'; // Padrão é sempre começar do maior/mais recente
+                }
+                // Chama a função principal para re-filtrar, re-ordenar e re-renderizar tudo
+                renderizarTodasAsTabelas();
+            });
+        });
     }
 
     // ==========================================================
@@ -533,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             const editingId = formAdicionar.dataset.editingId;
-            const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
+            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -582,9 +643,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
                     }
                     const contratoId = osSelecionada.detalhes[0].contratoId;
-                    url = `http://3.128.248.3:8080/lpu/contrato/${contratoId}`;
+                    url = `http://localhost:8080/lpu/contrato/${contratoId}`;
                 } else {
-                    url = `http://3.128.248.3:8080/os/${osId}/lpus`;
+                    url = `http://localhost:8080/os/${osId}/lpus`;
                 }
 
                 const response = await fetchComAuth(url);
@@ -704,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
                     todasAsOS = await response.json();
@@ -726,10 +787,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -947,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1109,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://3.128.248.3:8080/materiais')
+                fetchComAuth('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1149,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1174,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1233,7 +1294,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetchComAuth('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetchComAuth('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1263,6 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     inicializarCabecalhos();
+    adicionarListenersDeOrdenacao();
     carregarLancamentos();
     configurarVisibilidadePorRole();
     window.carregarLancamentos = carregarLancamentos;

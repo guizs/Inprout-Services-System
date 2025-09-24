@@ -42,7 +42,7 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH ed.etapa " +
             "LEFT JOIN FETCH l.comentarios c " +
             "LEFT JOIN FETCH c.autor " +
-            "WHERE l.id = :id")
+            "WHERE l.id = :id ORDER BY l.id DESC")
     Optional<Lancamento> findByIdWithDetails(@Param("id") Long id);
 
     @Query("SELECT DISTINCT l FROM Lancamento l " +
@@ -55,17 +55,18 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa " +
             "LEFT JOIN FETCH l.comentarios c " +
-            "LEFT JOIN FETCH c.autor")
+            "LEFT JOIN FETCH c.autor " +
+            "ORDER BY l.id DESC")
     List<Lancamento> findAllWithDetails();
 
     Optional<Lancamento> findFirstByOsLpuDetalheIdOrderByIdDesc(Long osLpuDetalheId);
 
-    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :statuses")
+    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :statuses ORDER BY l.id DESC")
     List<Lancamento> findBySituacaoAprovacaoIn(@Param("statuses") List<SituacaoAprovacao> statuses);
 
     // ================== CORREÇÃO 2 ==================
     @Query("SELECT l FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o " +
-            "WHERE l.situacaoAprovacao IN :statuses AND o.segmento IN :segmentos")
+            "WHERE l.situacaoAprovacao IN :statuses AND o.segmento IN :segmentos ORDER BY l.id DESC")
     List<Lancamento> findBySituacaoAprovacaoInAndOsSegmentoIn(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("segmentos") Set<Segmento> segmentos);
 
     List<Lancamento> findBySituacaoAprovacaoAndDataPrazoBefore(SituacaoAprovacao situacao, LocalDate data);
@@ -81,7 +82,8 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH l.manager " +
             "LEFT JOIN l.comentarios c " +
             "WHERE l.situacaoAprovacao NOT IN ('RASCUNHO', 'PENDENTE_COORDENADOR', 'PENDENTE_CONTROLLER', 'AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO') " +
-            "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId)")
+            "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId) " +
+            "ORDER BY l.id DESC")
     List<Lancamento> findHistoricoByUsuarioId(@Param("usuarioId") Long usuarioId);
 
     // ================== CORREÇÃO 4 ==================
@@ -94,7 +96,8 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa e " +
             "LEFT JOIN FETCH l.manager " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim")
+            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "ORDER BY l.id DESC") // <-- A ordenação foi adicionada aqui
     List<Lancamento> findLancamentosAprovadosPorPeriodo(
             @Param("status") SituacaoAprovacao status,
             @Param("dataInicio") LocalDate dataInicio,
@@ -120,4 +123,10 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     List<Lancamento> findBySituacaoAprovacaoAndOsLpuDetalhe_Os_IdIn(SituacaoAprovacao situacao, List<Long> osIds);
 
+    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :situacoes AND l.osLpuDetalhe.os.id IN :osIds")
+    List<Lancamento> findBySituacaoAprovacaoInAndOsIdIn(@Param("situacoes") List<SituacaoAprovacao> situacoes, @Param("osIds") List<Long> osIds);
+
+    // NOVO MÉTODO PARA BUSCAR LANÇAMENTOS PENDENTES POR OS (para o cálculo da previsão)
+    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :situacoes AND l.osLpuDetalhe.os.id IN :osIds")
+    List<Lancamento> findPendentesBySituacaoAprovacaoInAndOsIdIn(@Param("situacoes") List<SituacaoAprovacao> situacoes, @Param("osIds") List<Long> osIds);
 }

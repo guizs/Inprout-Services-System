@@ -20,6 +20,7 @@ public record OsResponseDto(
         SegmentoSimpleDTO segmento,
         String projeto,
         String gestorTim,
+        BigDecimal custoTotalMateriais,
         List<OsLpuDetalheCompletoDto> detalhes,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataAtualizacao,
@@ -34,6 +35,7 @@ public record OsResponseDto(
                 os.getSegmento() != null ? new SegmentoSimpleDTO(os.getSegmento()) : null,
                 os.getProjeto(),
                 os.getGestorTim(),
+                os.getCustoTotalMateriais(),
                 os.getDetalhes().stream()
                         .map(OsLpuDetalheCompletoDto::new)
                         .collect(Collectors.toList()),

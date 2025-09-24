@@ -48,7 +48,8 @@ public record LancamentoResponseDTO(
         StatusEtapa status,
         SituacaoOperacional situacao,
         BigDecimal totalOs, // Campo para TOTAL OS
-        BigDecimal valorCps // Campo para VALOR CPS
+        BigDecimal valorCps, // Campo para VALOR CPS
+        BigDecimal valorPendente
 ) {
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
@@ -88,7 +89,8 @@ public record LancamentoResponseDTO(
                 lancamento.getStatus(),
                 lancamento.getSituacao(),
                 null, // totalOs será preenchido no controller
-                null  // valorCps será preenchido no controller
+                null,  // valorCps será preenchido no controller
+                null
         );
     }
 

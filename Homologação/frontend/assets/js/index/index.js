@@ -5,6 +5,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
     const searchInput = document.getElementById('searchInput');
 
+    let sortConfig = {
+        key: 'dataAtividade', // Coluna padrão para ordenação
+        direction: 'desc' // Direção padrão (descendente)
+    };
+
+    // Mapeia o texto do cabeçalho para a chave de dados no objeto de lançamento
+    const columnKeyMap = {
+        "DATA ATIVIDADE": "dataAtividade",
+        "OS": "os.os",
+        "SITE": "detalhe.site",
+        "SEGMENTO": "os.segmento.nome",
+        "PROJETO": "os.projeto",
+        "PRESTADOR": "prestador.nome",
+        "VALOR": "valor",
+        "GESTOR": "manager.nome",
+        "SITUAÇÃO": "situacao",
+        "STATUS APROVAÇÃO": "situacaoAprovacao"
+    };
+
+    // Função auxiliar para pegar valores aninhados de um objeto (ex: 'os.projeto')
+    const getNestedValue = (obj, path) => {
+        if (!path) return undefined;
+        return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+    };
+
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
         toastElement.classList.remove('text-bg-success', 'text-bg-danger');
@@ -161,14 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderizarCabecalho(colunas, theadElement) {
         if (!theadElement) return;
-        const tr = document.createElement('tr');
+        let headerHTML = '<tr>';
         colunas.forEach(textoColuna => {
-            const th = document.createElement('th');
-            th.textContent = textoColuna;
-            tr.appendChild(th);
+            const sortKey = columnKeyMap[textoColuna];
+            if (sortKey) {
+                const isSorted = sortConfig.key === sortKey;
+                const iconClass = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
+                headerHTML += `<th class="sortable" data-sort-key="${sortKey}">${textoColuna} <i class="bi ${iconClass}"></i></th>`;
+            } else {
+                headerHTML += `<th>${textoColuna}</th>`; // Colunas não ordenáveis como "AÇÃO"
+            }
         });
-        theadElement.innerHTML = '';
-        theadElement.appendChild(tr);
+        headerHTML += '</tr>';
+        theadElement.innerHTML = headerHTML;
     }
 
     function renderizarCardsDashboard(lancamentos) {
@@ -427,33 +457,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderizarTodasAsTabelas() {
         const dadosParaExibir = getDadosFiltrados();
 
+        // Função de comparação para ordenação
+        const comparer = (a, b) => {
+            let valA = getNestedValue(a, sortConfig.key);
+            let valB = getNestedValue(b, sortConfig.key);
+
+            // Tratamento especial para diferentes tipos de dados
+            const isDate = sortConfig.key.toLowerCase().includes('data');
+            const isValue = sortConfig.key.toLowerCase().includes('valor');
+
+            if (isDate) {
+                valA = valA ? parseDataBrasileira(valA) : new Date(0);
+                valB = valB ? parseDataBrasileira(valB) : new Date(0);
+            } else if (isValue) {
+                valA = Number(valA) || 0;
+                valB = Number(valB) || 0;
+            }
+
+            if (typeof valA === 'string') {
+                return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            } else {
+                return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
+            }
+        };
+
+        // Filtra os dados para cada aba
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
+        const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
+        const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao)).sort(comparer);
+        const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao)).sort(comparer);
+        const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
+        const paralisados = getProjetosParalisados().sort(comparer);
 
-        const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO');
-        const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao));
-        const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao));
+        // Renderiza os cabeçalhos (que agora mostrarão os ícones de ordenação)
+        inicializarCabecalhos();
 
-        // --- INÍCIO DA CORREÇÃO ---
-
-        // 1. Filtra os lançamentos que pertencem ao histórico
-        const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao));
-
-        // 2. Ordena a lista de histórico pela data de criação, do mais recente para o mais antigo
-        historico.sort((a, b) => {
-            const dataA = parseDataBrasileira(a.dataCriacao);
-            const dataB = parseDataBrasileira(b.dataCriacao);
-            // Coloca itens sem data no final
-            if (!dataA) return 1;
-            if (!dataB) return -1;
-            // Compara as datas (b - a para ordem decrescente)
-            return dataB - dataA;
-        });
-
-        // --- FIM DA CORREÇÃO ---
-
-        const paralisados = getProjetosParalisados();
-
+        // Renderiza as tabelas com os dados já ordenados
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
         renderizarTabela(minhasPendencias, tbodyMinhasPendencias, colunasMinhasPendencias);
@@ -464,6 +504,27 @@ document.addEventListener('DOMContentLoaded', () => {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
         }
+    }
+
+    function adicionarListenersDeOrdenacao() {
+        const theads = document.querySelectorAll('.tab-pane thead');
+        theads.forEach(thead => {
+            thead.addEventListener('click', (e) => {
+                const header = e.target.closest('th.sortable');
+                if (!header) return;
+
+                const key = header.dataset.sortKey;
+                // Se clicou na mesma coluna, inverte a direção. Senão, define uma nova coluna e direção padrão.
+                if (sortConfig.key === key) {
+                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortConfig.key = key;
+                    sortConfig.direction = 'desc'; // Padrão é sempre começar do maior/mais recente
+                }
+                // Chama a função principal para re-filtrar, re-ordenar e re-renderizar tudo
+                renderizarTodasAsTabelas();
+            });
+        });
     }
 
     // ==========================================================
@@ -1263,6 +1324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     inicializarCabecalhos();
+    adicionarListenersDeOrdenacao();
     carregarLancamentos();
     configurarVisibilidadePorRole();
     window.carregarLancamentos = carregarLancamentos;

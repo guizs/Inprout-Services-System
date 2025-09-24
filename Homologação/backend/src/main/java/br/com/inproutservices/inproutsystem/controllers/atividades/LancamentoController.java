@@ -76,8 +76,16 @@ public class LancamentoController {
         Map<Long, List<OsLpuDetalhe>> detalhesPorOsId = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(d -> d.getOs().getId()));
 
-        Map<Long, List<Lancamento>> lancamentosAprovadosPorOsId = lancamentoRepository.findBySituacaoAprovacaoAndOsLpuDetalhe_Os_IdIn(SituacaoAprovacao.APROVADO, new ArrayList<>(osIds)).stream()
+        // CORREÇÃO: Usando o novo método do repositório
+        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO);
+        Map<Long, List<Lancamento>> lancamentosAprovadosPorOsId = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
+
+        List<SituacaoAprovacao> statusPendentes = List.of(SituacaoAprovacao.PENDENTE_COORDENADOR, SituacaoAprovacao.PENDENTE_CONTROLLER, SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO, SituacaoAprovacao.PRAZO_VENCIDO);
+        // CORREÇÃO: Usando o novo método do repositório para pendentes
+        Map<Long, List<Lancamento>> lancamentosPendentesPorOsId = lancamentoRepository.findPendentesBySituacaoAprovacaoInAndOsIdIn(statusPendentes, new ArrayList<>(osIds)).stream()
+                .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
+
 
         Map<Long, BigDecimal> totalOsMap = detalhesPorOsId.entrySet().stream()
                 .collect(Collectors.toMap(
@@ -97,10 +105,20 @@ public class LancamentoController {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 ));
 
+        Map<Long, BigDecimal> valorPendenteMap = lancamentosPendentesPorOsId.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().stream()
+                                .map(Lancamento::getValor)
+                                .filter(Objects::nonNull)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                ));
+
         return dtos.stream().map(dto -> {
             Long osId = (dto.os() != null) ? dto.os().id() : null;
             BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
             BigDecimal valorCps = valorCpsMap.getOrDefault(osId, BigDecimal.ZERO);
+            BigDecimal valorPendente = valorPendenteMap.getOrDefault(osId, BigDecimal.ZERO);
 
             return new LancamentoResponseDTO(
                     dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
@@ -110,7 +128,8 @@ public class LancamentoController {
                     dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),
                     totalOs,
-                    valorCps
+                    valorCps,
+                    valorPendente
             );
         }).collect(Collectors.toList());
     }

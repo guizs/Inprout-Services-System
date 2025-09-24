@@ -22,7 +22,7 @@ const contadorPrazo = document.getElementById('contador-prazo');
 const filtroHistoricoStatus = document.getElementById('filtro-historico-status');
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://3.128.248.3:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -231,6 +231,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     os: lancamento.os.os,
                     projeto: lancamento.os.projeto,
                     totalOs: lancamento.totalOs,
+                    valorCps: lancamento.valorCps,
+                    valorPendente: lancamento.valorPendente,
+                    custoTotalMateriais: lancamento.os.custoTotalMateriais,
                     linhas: []
                 };
             }
@@ -248,16 +251,27 @@ document.addEventListener('DOMContentLoaded', function () {
             return value !== undefined ? value : defaultValue;
         };
 
+        // 1. Adicionando a nova coluna na lista, na posição correta.
+        const colunas = [
+            "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE",
+            "VALOR DA ATIVIDADE", "VALOR TOTAL DO ITEM", // <-- ALTERAÇÃO AQUI
+            "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM",
+            "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "OBSERVAÇÕES", "DATA PO", "VISTORIA",
+            "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO",
+            "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL",
+            "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "GESTOR"
+        ];
+
         const dataMapping = {
             "AÇÕES": (lancamento) => {
                 let acoesHtml = '';
                 if (userRole === 'COORDINATOR') {
                     acoesHtml = `<div class="d-flex justify-content-center gap-1">
-                                    <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                                    <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                                    <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                                    <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                                </div>`;
+                                <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
+                                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
+                            </div>`;
                 } else if (userRole === 'CONTROLLER') {
                     switch (lancamento.situacaoAprovacao) {
                         case 'PENDENTE_CONTROLLER':
@@ -289,7 +303,9 @@ document.addEventListener('DOMContentLoaded', function () {
             },
             "DATA ATIVIDADE": (lancamento) => formatarData(lancamento.dataAtividade),
             "OS": (lancamento) => get(lancamento, 'os.os'), "SITE": (lancamento) => get(lancamento, 'detalhe.site'),
-            "VALOR DA ATIVIDADE": (lancamento) => formatarMoeda(lancamento.valor), "CONTRATO": (lancamento) => get(lancamento, 'detalhe.contrato'),
+            "VALOR DA ATIVIDADE": (lancamento) => formatarMoeda(lancamento.valor),
+            "VALOR TOTAL DO ITEM": (lancamento) => formatarMoeda(get(lancamento, 'detalhe.valorTotal')), // <-- ALTERAÇÃO AQUI
+            "CONTRATO": (lancamento) => get(lancamento, 'detalhe.contrato'),
             "SEGMENTO": (lancamento) => get(lancamento, 'os.segmento.nome'), "PROJETO": (lancamento) => get(lancamento, 'os.projeto'),
             "GESTOR TIM": (lancamento) => get(lancamento, 'os.gestorTim'), "REGIONAL": (lancamento) => get(lancamento, 'detalhe.regional'),
             "LPU": (lancamento) => get(lancamento, 'detalhe.lpu.nomeLpu'), "LOTE": (lancamento) => get(lancamento, 'detalhe.lote'), "BOQ": (lancamento) => get(lancamento, 'detalhe.boq'),
@@ -315,41 +331,43 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
-            const valorTotalCPS = grupo.linhas.length > 0 ? grupo.linhas[0].valorCps : 0;
-            const percentual = grupo.totalOs > 0 ? (valorTotalCPS / grupo.totalOs) * 100 : 0;
+            const totalOs = grupo.totalOs || 0;
+            const totalCpsAprovado = grupo.valorCps || 0;
+            const totalMaterial = grupo.custoTotalMateriais || 0;
+            const totalPendente = grupo.valorPendente || 0;
+            const previsaoCps = totalCpsAprovado + totalPendente;
+            const percentualAtual = totalOs > 0 ? ((totalCpsAprovado + totalMaterial) / totalOs) * 100 : 0;
+            const percentualPrevisto = totalOs > 0 ? ((previsaoCps + totalMaterial) / totalOs) * 100 : 0;
 
             const kpiHTML = `
-                <div class="header-kpi-wrapper">
-                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(grupo.totalOs)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
-                </div>`;
+            <div class="header-kpi-wrapper">
+                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(totalOs)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(totalCpsAprovado)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(totalMaterial)}</span></div>
+                <div class="header-kpi"><span class="kpi-label text-primary">Previsão CPS</span><span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">% Atual</span><span class="kpi-value kpi-percentage">${percentualAtual.toFixed(2)}%</span></div>
+                <div class="header-kpi"><span class="kpi-label text-primary">% Previsto</span><span class="kpi-value kpi-percentage text-primary">${percentualPrevisto.toFixed(2)}%</span></div>
+            </div>`;
 
             const headerHTML = `
-                <h2 class="accordion-header" id="heading-${uniqueId}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                        <div class="header-content">
-                            <div class="header-title-wrapper">
-                                <span class="header-title-project">${grupo.projeto}</span>
-                                <span class="header-title-os">${grupo.os}</span>
-                            </div>
-                            ${kpiHTML}
-                            <span class="badge bg-primary header-badge">${grupo.linhas.length} itens pendentes</span>
+            <h2 class="accordion-header" id="heading-${uniqueId}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                    <div class="header-content">
+                        <div class="header-title-wrapper">
+                            <span class="header-title-project">${grupo.projeto}</span>
+                            <span class="header-title-os">${grupo.os}</span>
                         </div>
-                    </button>
-                </h2>`;
+                        ${kpiHTML}
+                        <span class="badge bg-primary header-badge">${grupo.linhas.length} itens pendentes</span>
+                    </div>
+                </button>
+            </h2>`;
 
-            // --- CORREÇÃO APLICADA AQUI ---
-            // 1. Cria uma cópia filtrável das colunas
             let colunasParaRenderizar = [...colunas];
-
-            // 2. Se o usuário for Controller, remove a coluna "PRAZO AÇÃO"
             if (userRole === 'CONTROLLER') {
                 colunasParaRenderizar = colunasParaRenderizar.filter(c => c !== "PRAZO AÇÃO");
             }
-
             const bodyRowsHTML = grupo.linhas.map(lancamento => {
-                // 3. Usa a lista de colunas já filtrada para renderizar as células
                 const cellsHTML = colunasParaRenderizar.map(header => {
                     const func = dataMapping[header];
                     const valor = func ? func(lancamento) : '-';
@@ -365,34 +383,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     return `<td class="${classes}">${valor}</td>`;
                 }).join('');
-                // Adiciona o checkbox no início de cada linha
                 return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
             }).join('');
 
 
             const bodyHTML = `
-                <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-pendencias">
-                    <div class="accordion-body">
-                        <div class="table-responsive">
-                            <table class="table modern-table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" class="form-check-input selecionar-todos-grupo" data-group-id="${uniqueId}"></th>
-                                        ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')}
-                                    </tr>
-                                </thead>
-                                <tbody data-group-id="${uniqueId}">
-                                    ${bodyRowsHTML}
-                                </tbody>
-                            </table>
-                        </div>
+            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-pendencias">
+                <div class="accordion-body">
+                    <div class="table-responsive">
+                        <table class="table modern-table table-sm">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" class="form-check-input selecionar-todos-grupo" data-group-id="${uniqueId}"></th>
+                                    ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody data-group-id="${uniqueId}">
+                                ${bodyRowsHTML}
+                            </tbody>
+                        </table>
                     </div>
-                </div>`;
-
+                </div>
+            </div>`;
             item.innerHTML = headerHTML + bodyHTML;
             frag.appendChild(item);
         });
-
         accordionContainer.appendChild(frag);
     }
 

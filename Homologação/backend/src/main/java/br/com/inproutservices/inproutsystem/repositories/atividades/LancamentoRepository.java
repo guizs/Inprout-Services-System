@@ -123,4 +123,10 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     List<Lancamento> findBySituacaoAprovacaoAndOsLpuDetalhe_Os_IdIn(SituacaoAprovacao situacao, List<Long> osIds);
 
+    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :situacoes AND l.osLpuDetalhe.os.id IN :osIds")
+    List<Lancamento> findBySituacaoAprovacaoInAndOsIdIn(@Param("situacoes") List<SituacaoAprovacao> situacoes, @Param("osIds") List<Long> osIds);
+
+    // NOVO MÉTODO PARA BUSCAR LANÇAMENTOS PENDENTES POR OS (para o cálculo da previsão)
+    @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :situacoes AND l.osLpuDetalhe.os.id IN :osIds")
+    List<Lancamento> findPendentesBySituacaoAprovacaoInAndOsIdIn(@Param("situacoes") List<SituacaoAprovacao> situacoes, @Param("osIds") List<Long> osIds);
 }

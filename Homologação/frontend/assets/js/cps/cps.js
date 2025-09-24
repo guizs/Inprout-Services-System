@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://localhost:8080';
+    const API_URL = 'http://3.128.248.3:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalAdiantamentoEl = document.getElementById('modalAdiantamento'); // <<< Adicione esta linha
     const modalAdiantamento = new bootstrap.Modal(modalAdiantamentoEl);
 
-    let fullData = {};
+    window.fullData = {};
     let currentTableView = 'prestadores';
 
     // --- FUNÇÕES DE RENDERIZAÇÃO ---
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetchComAuth(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
             if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
 
-            fullData = await response.json();
+            window.fullData = await response.json();
 
             // LÓGICA DE CÁLCULO DOS TOTAIS
             const totalBruto = fullData.valorTotalGeral || 0;
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function filterDataBySegment(data, segmento) {
+    window.filterDataBySegment = function(data, segmento) {
         // Se o filtro for 'todos' ou não houver dados detalhados, retorna os dados originais
         if (!segmento || segmento === 'todos' || !data.lancamentosDetalhados) {
             return data;

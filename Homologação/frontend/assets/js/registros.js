@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'http://3.128.248.3:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -152,16 +152,30 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
+            // ===== INÍCIO DA CORREÇÃO E NOVOS CÁLCULOS =====
+            // O valor total da OS é a soma do valor de todos os seus detalhes (linhas da planilha).
             const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                 .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-            const valorTotalCPS = grupo.linhas.reduce((sum, l) => sum + (get(l, 'ultimoLancamento.valor', 0) || 0), 0);
-            const percentual = valorTotalOS > 0 ? (valorTotalCPS / valorTotalOS) * 100 : 0;
+
+            // O Total CPS é a soma dos valores dos últimos lançamentos APROVADOS de cada linha.
+            const valorTotalCPS = grupo.linhas
+                .filter(l => l.ultimoLancamento && l.ultimoLancamento.situacaoAprovacao === 'APROVADO')
+                .reduce((sum, l) => sum + (get(l, 'ultimoLancamento.valor', 0) || 0), 0);
+
+            // Pega o custo de material diretamente do objeto OS (calculado no backend).
+            const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
+
+            // O novo percentual considera tanto o CPS quanto o custo de material.
+            const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+            // ===== FIM DA CORREÇÃO E NOVOS CÁLCULOS =====
+
             let kpiHTML = '';
             if (userRole !== 'MANAGER') {
                 kpiHTML = `
                 <div class="header-kpi-wrapper">
                     <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
                     <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
                     <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
                 </div>`;
             }
@@ -177,7 +191,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 </button>
             </h2>`;
 
-            // ADICIONA A COLUNA DE AÇÕES SE FOR ADMIN OU ASSISTANT
             const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
 
             const bodyRowsHTML = grupo.linhas.map(linhaData => {
@@ -186,10 +199,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         const detalheId = get(linhaData, 'detalhe.id', '');
                         const chave = get(linhaData, 'detalhe.key', '-');
                         const semChave = chave === '-' || chave === '' || chave === null;
-
                         const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa" ${!semChave ? 'disabled' : ''}><i class="bi bi-pencil-fill"></i></button>`;
                         const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
-
                         return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                     }
                     const func = dataMapping[header];
@@ -524,7 +535,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                     indice = fim;
                     atualizarProgresso(indice, dados.length);
-
                     if (indice < dados.length) {
                         setTimeout(processarLote, 0);
                     } else {
@@ -546,20 +556,52 @@ document.addEventListener('DOMContentLoaded', function () {
             atualizarProgresso(0, linhasParaExportar.length);
 
             try {
-                const csvHeaders = headers;
+                const csvHeaders = headers; // Usa os headers já definidos no escopo
                 const csvRows = [];
+
+                // Função para formatar data para um padrão universal (YYYY-MM-DD)
+                const formatarDataParaExcel = (dataStr) => {
+                    if (!dataStr) return '';
+                    if (dataStr.includes('/')) {
+                        const partes = dataStr.split(' ')[0].split('/');
+                        if (partes.length === 3) {
+                            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+                        }
+                    }
+                    return dataStr; // Retorna o original se não estiver no formato esperado
+                };
 
                 await processarEmLotes(linhasParaExportar, 200, (linhaData) => {
                     const row = csvHeaders.map(header => {
+                        // Pega a função de mapeamento para o cabeçalho atual
                         const func = dataMapping[header];
-                        let cell = func ? func(linhaData) : '';
-                        if (typeof cell === 'number') {
-                            cell = cell.toString().replace('.', ',');
+                        if (!func) return '-'; // Se não houver mapeamento, retorna um hífen
+
+                        // Executa a função de mapeamento para obter o valor formatado para a tela
+                        let cellValue = func(linhaData);
+
+                        // ===== INÍCIO DA CORREÇÃO E LÓGICA DE EXPORTAÇÃO =====
+                        // Sobrescreve a formatação para valores numéricos e datas
+                        if (header === "VALOR TOTAL OS") {
+                            const rawValue = get(linhaData, 'detalhe.valorTotal', 0) || 0;
+                            return rawValue.toString().replace('.', ',');
                         }
-                        return cell;
+                        if (header === "VALOR") {
+                            const rawValue = get(linhaData, 'ultimoLancamento.valor', 0) || 0;
+                            return rawValue.toString().replace('.', ',');
+                        }
+                        // Para datas, usamos a função específica para Excel
+                        if (header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) {
+                            const rawDate = func(linhaData); // Pega o valor que seria exibido
+                            return formatarDataParaExcel(rawDate);
+                        }
+                        // ===== FIM DA CORREÇÃO E LÓGICA DE EXPORTAÇÃO =====
+
+                        return cellValue; // Retorna o valor formatado para as outras colunas
                     });
+
                     const rowString = row.map(cell => {
-                        const cellStr = String(cell).replace(/(\r\n|\n|\r)/gm, " ").trim();
+                        const cellStr = String(cell ?? '').replace(/(\r\n|\n|\r)/gm, " ").trim();
                         if (cellStr.includes(';') || cellStr.includes('"') || cellStr.includes('\n')) {
                             return `"${cellStr.replace(/"/g, '""')}"`;
                         }
@@ -567,6 +609,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     }).join(';');
                     csvRows.push(rowString);
                 });
+
 
                 textoProgresso.textContent = 'Gerando arquivo...';
 

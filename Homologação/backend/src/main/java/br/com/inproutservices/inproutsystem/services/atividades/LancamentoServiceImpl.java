@@ -417,16 +417,24 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // 3. Validação de data (REMOVIDA)
-        // O bloco de código que estava aqui foi removido para permitir a atualização de lançamentos antigos.
+        // ==========================================================
+        // ===== CORREÇÃO: Validação explícita dos IDs recebidos =====
+        // ==========================================================
+        if (dto.prestadorId() == null) {
+            throw new IllegalArgumentException("O ID do Prestador é obrigatório.");
+        }
+        if (dto.etapaDetalhadaId() == null) {
+            throw new IllegalArgumentException("O ID da Etapa Detalhada é obrigatório.");
+        }
+        // ==========================================================
 
-        // 4. Busca as entidades relacionadas (continua igual)
+        // 4. Busca as entidades relacionadas
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 5. Atualiza os campos do lançamento com os dados do DTO (continua igual)
+        // 5. Atualiza os campos do lançamento com os dados do DTO
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
@@ -446,7 +454,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
-        // --- Lógica de STATUS para Reenvio (continua igual) ---
         if (isReenvio) {
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
@@ -462,7 +469,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         } else {
             lancamento.setSituacaoAprovacao(dto.situacaoAprovacao());
-            if(dto.situacaoAprovacao() == SituacaoAprovacao.PENDENTE_COORDENADOR){
+            if (SituacaoAprovacao.PENDENTE_COORDENADOR.equals(dto.situacaoAprovacao())) {
                 lancamento.setDataSubmissao(LocalDateTime.now());
                 lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
             }
@@ -470,7 +477,6 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        // 6. Salva as alterações no banco de dados
         return lancamentoRepository.save(lancamento);
     }
 

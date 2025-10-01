@@ -157,17 +157,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                 .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-            // O Total CPS é a soma dos valores dos últimos lançamentos APROVADOS de cada linha.
+            // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
             const valorTotalCPS = grupo.linhas
-                .filter(l => l.ultimoLancamento && l.ultimoLancamento.situacaoAprovacao === 'APROVADO')
-                .reduce((sum, l) => sum + (get(l, 'ultimoLancamento.valor', 0) || 0), 0);
+                .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
+                .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
             // Pega o custo de material diretamente do objeto OS (calculado no backend).
             const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
             // O novo percentual considera tanto o CPS quanto o custo de material.
             const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
-            // ===== FIM DA CORREÇÃO E NOVOS CÁLCULOS =====
 
             let kpiHTML = '';
             if (userRole !== 'MANAGER') {

@@ -559,9 +559,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         formAdicionar.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitter = e.submitter || document.activeElement; // Pega o botão que foi cl-icado
-            const acao = submitter.dataset.acao; // Ação será 'rascunho' ou 'enviar'
+            const submitter = e.submitter || document.activeElement;
+            const acao = submitter.dataset.acao;
             const isComplementar = chkAtividadeComplementar.checked;
+            const editingId = formAdicionar.dataset.editingId;
+
+            const osLpuDetalheIdCorreto = (editingId && !isComplementar)
+                ? formAdicionar.dataset.osLpuDetalheId
+                : (!isComplementar ? document.getElementById('lpuId').value : null);
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
@@ -569,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 prestadorId: selectPrestador.value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
                 dataAtividade: document.getElementById('dataAtividade').value,
-                equipe: document.getElementById('equipe')?.value, // Adicionado para segurança
+                equipe: document.getElementById('equipe')?.value,
                 vistoria: document.getElementById('vistoria').value,
                 planoVistoria: document.getElementById('planoVistoria').value || null,
                 desmobilizacao: document.getElementById('desmobilizacao').value,
@@ -587,13 +592,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 atividadeComplementar: isComplementar,
                 quantidade: isComplementar ? parseInt(document.getElementById('quantidade').value, 10) : null,
                 situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO',
-
-                // Lógica condicional para lpuId vs osLpuDetalheId
                 lpuId: isComplementar ? document.getElementById('lpuId').value : null,
-                osLpuDetalheId: !isComplementar ? document.getElementById('lpuId').value : null
+                osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            const editingId = formAdicionar.dataset.editingId;
+            // ==========================================================
+            // ===== LOGS PARA DEBUG NO FRONTEND ========================
+            // ==========================================================
+            console.log("--- DEBUG: SUBMISSÃO DE FORMULÁRIO DE EDIÇÃO ---");
+            console.log("Ação Realizada:", acao);
+            console.log("É edição?", !!editingId, "| ID:", editingId);
+            console.log("Payload (dados que serão enviados para o backend):");
+            console.log(JSON.stringify(payload, null, 2)); // Mostra o JSON formatado
+            // ==========================================================
+
             const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
@@ -604,7 +616,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                if (!response.ok) throw new Error((await response.json()).message || 'Erro ao salvar.');
+                if (!response.ok) {
+                    // Tenta ler o erro como JSON, se falhar, lê como texto
+                    try {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Erro ao salvar.');
+                    } catch (jsonError) {
+                        const errorText = await response.text();
+                        throw new Error(errorText || 'Erro desconhecido no servidor.');
+                    }
+                }
 
                 mostrarToast('Lançamento salvo com sucesso!', 'success');
                 modalAdicionar.hide();
@@ -805,12 +826,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 delete formAdicionar.dataset.editingId;
             }
 
+            // ==========================================================
+            // ===== CORREÇÃO 1: Armazenar o ID do Detalhe correto =====
+            // ==========================================================
+            // Limpa o ID do detalhe anterior
+            delete formAdicionar.dataset.osLpuDetalheId;
+            // Se o lançamento tem um detalhe, armazena o ID desse detalhe no formulário
             if (lancamento.detalhe) {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
+            // ==========================================================
+            // ===== FIM DA CORREÇÃO 1 ================================
+            // ==========================================================
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // 2. Referências aos elementos do modal com verificação de existência
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
@@ -825,7 +853,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
-            // 3. Manipulação segura dos elementos (só executa se o elemento existir)
             if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
             if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
             if (selectProjeto) selectProjeto.disabled = true;
@@ -833,9 +860,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
-            // --- FIM DA CORREÇÃO ---
 
-            // 4. Lógica para preencher o formulário (continua a mesma, mas agora mais segura)
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -862,7 +887,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectProjeto.value = lancamento.os.projeto;
             }
 
-            // Preenche o resto do formulário
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
@@ -904,10 +928,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
 
-            // 5. Mostra o modal
             modalAdicionar.show();
 
-            // Adia o preenchimento do prestador para o componente Choices.js carregar
             setTimeout(() => {
                 const selectPrestadorEl = document.getElementById('prestadorId');
                 if (selectPrestadorEl && selectPrestadorEl.choices) {

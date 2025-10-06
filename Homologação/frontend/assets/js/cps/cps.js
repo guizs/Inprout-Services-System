@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://3.128.248.3:8080';
+    const API_URL = 'http://localhost:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -110,33 +110,38 @@ document.addEventListener('DOMContentLoaded', () => {
         tableBody.innerHTML = '';
 
         if (currentTableView === 'prestadores') {
+            // --- CABEÇALHO ATUALIZADO ---
             tableHead.innerHTML = `
-            <tr>
-                <th>Código do Prestador</th>
-                <th>Prestador</th>
-                <th>Valor Total</th>
-            </tr>`;
+    <tr>
+        <th>Código do Prestador</th>
+        <th>Prestador</th>
+        <th>Quantidade de Atividades</th>
+        <th>Valor Total</th>
+    </tr>`;
 
             const prestadores = dataToRender.consolidadoPorPrestador || [];
             if (prestadores.length > 0) {
+                // Ordena por valor total, como antes
+                prestadores.sort((a, b) => b.valorTotal - a.valorTotal);
+
                 prestadores.forEach(prest => {
                     const tr = document.createElement('tr');
                     tr.style.cursor = 'pointer';
-                    // Adicionamos os dados no dataset para usar no clique
-                    tr.dataset.codPrestador = prest.codPrestador; // Corrigido para corresponder ao DTO
-                    tr.dataset.nomePrestador = prest.prestadorNome; // Corrigido para corresponder ao DTO
+                    tr.dataset.codPrestador = prest.codPrestador;
+                    tr.dataset.nomePrestador = prest.prestadorNome;
+                    // --- LINHA DA TABELA ATUALIZADA ---
                     tr.innerHTML = `
-                    <td>${prest.codPrestador || 'N/A'}</td>
-                    <td>${prest.prestadorNome}</td>
-                    <td>${formatCurrency(prest.valorTotal)}</td>
-                `;
+            <td>${prest.codPrestador || 'N/A'}</td>
+            <td>${prest.prestadorNome}</td>
+            <td class="text-center">${prest.quantidade || 0}</td>
+            <td>${formatCurrency(prest.valorTotal)}</td>
+        `;
                     tableBody.appendChild(tr);
                 });
             } else {
-                tableBody.innerHTML = `<tr><td colspan="3" class="text-center text-muted p-4">Nenhum prestador encontrado.</td></tr>`;
+                // --- COLSPAN ATUALIZADO ---
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted p-4">Nenhum prestador encontrado.</td></tr>`;
             }
-        } else if (currentTableView === 'lancamentos') {
-            renderLancamentosTable(dataToRender.lancamentosDetalhados || []);
         }
         syncColumnWidths();
     }
@@ -358,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    window.filterDataBySegment = function(data, segmento) {
+    window.filterDataBySegment = function (data, segmento) {
         // Se o filtro for 'todos' ou não houver dados detalhados, retorna os dados originais
         if (!segmento || segmento === 'todos' || !data.lancamentosDetalhados) {
             return data;

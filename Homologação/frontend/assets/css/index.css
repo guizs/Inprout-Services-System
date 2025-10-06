@@ -667,6 +667,37 @@ label.form-label.d-flex {
   border-left: 5px solid #64b5f6;
 }
 
+/* Estilos para o novo layout do label da LPU no modal de lote */
+#lpuChecklistContainerLote .form-check-label {
+    width: 100%; /* Faz o label ocupar todo o espaço */
+    display: flex;
+}
+
+.lpu-label-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    gap: 1rem; /* Espaço entre a parte principal e os detalhes */
+}
+
+.lpu-label-main {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1; /* Permite que a descrição cresça */
+}
+
+.lpu-label-details {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: #6c757d; /* text-secondary */
+    white-space: nowrap;
+    flex-shrink: 0; /* Impede que os detalhes quebrem a linha */
+}
+
 @media (max-width: 768px) {
   .overview-banner h1 {
     font-size: 1rem;

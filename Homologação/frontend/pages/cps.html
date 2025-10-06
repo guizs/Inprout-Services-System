@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="../assets/css/root.css" />
   <link rel="stylesheet" href="../assets/css/global.css" />
   <link rel="stylesheet" href="../assets/css/cps.css" />
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 
 <body>
@@ -79,12 +81,23 @@
           </select>
         </div>
         <div class="col-md-2 d-flex gap-2">
-          <button class="btn btn-primary w-100" id="btn-filter" title="Aplicar Filtros">
+          <button class="btn btn-primary w-50" id="btn-filter" title="Aplicar Filtros">
             <i class="bi bi-search"></i> Filtrar
           </button>
-          <button class="btn btn-outline-success w-100" id="exportBtn" title="Exportar para Excel">
-            <i class="bi bi-file-earmark-excel"></i>
-          </button>
+          <div class="btn-group w-50">
+            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"
+              aria-expanded="false">
+              <i class="bi bi-file-earmark-excel"></i> Exportar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="export-consolidado">Consolidado por Prestador</a></li>
+              <li><a class="dropdown-item" href="#" id="export-lancamentos">Lançamentos Aprovados</a></li>
+              <li>
+                <hr class="dropdown-divider">
+              </li>
+              <li><a class="dropdown-item" href="#" id="export-nao-faturado">Lançamentos Não Faturados</a></li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>

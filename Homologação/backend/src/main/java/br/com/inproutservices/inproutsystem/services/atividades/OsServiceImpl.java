@@ -779,15 +779,17 @@ public class OsServiceImpl implements OsService {
         novoDetalhe.setOs(os);
         novoDetalhe.setLpu(lpu);
 
-        // --- INÍCIO DA CORREÇÃO ---
-        int randomCode = ThreadLocalRandom.current().nextInt(10000, 100000); // Gera um número entre 10000 e 99999
+        int randomCode = ThreadLocalRandom.current().nextInt(10000, 100000);
         novoDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_" + randomCode);
-        // --- FIM DA CORREÇÃO ---
 
         novoDetalhe.setQuantidade(quantidade);
         novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
 
-        // Copia dados do primeiro detalhe da OS como base
+        if (lpu.getValorSemImposto() != null && quantidade != null && quantidade > 0) {
+            BigDecimal valorTotal = lpu.getValorSemImposto().multiply(new BigDecimal(quantidade));
+            novoDetalhe.setValorTotal(valorTotal);
+        }
+
         os.getDetalhes().stream().findFirst().ifPresent(base -> {
             novoDetalhe.setSite(base.getSite());
             novoDetalhe.setContrato(base.getContrato());

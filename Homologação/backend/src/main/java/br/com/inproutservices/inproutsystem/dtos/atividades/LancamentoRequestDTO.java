@@ -4,7 +4,6 @@ import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat; // <-- IMPORT NECESSÁRIO
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 

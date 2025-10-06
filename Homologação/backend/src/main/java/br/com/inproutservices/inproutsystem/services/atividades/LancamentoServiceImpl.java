@@ -417,24 +417,33 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // ==========================================================
-        // ===== CORREÇÃO: Validação explícita dos IDs recebidos =====
-        // ==========================================================
-        if (dto.prestadorId() == null) {
-            throw new IllegalArgumentException("O ID do Prestador é obrigatório.");
-        }
-        if (dto.etapaDetalhadaId() == null) {
-            throw new IllegalArgumentException("O ID da Etapa Detalhada é obrigatório.");
-        }
-        // ==========================================================
+        // --- INÍCIO DA CORREÇÃO ---
 
-        // 4. Busca as entidades relacionadas
+        // 3. Busca todas as entidades relacionadas a partir dos IDs do DTO
+        OS os = osRepository.findById(dto.osId())
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
+
+        OsLpuDetalhe osLpuDetalhe;
+        // Lógica para atividade complementar (caso seja editada como uma)
+        if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+        } else {
+            // Lógica para atividade normal
+            if (dto.osLpuDetalheId() == null) {
+                throw new BusinessException("O ID do detalhe (osLpuDetalheId) é obrigatório.");
+            }
+            osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
+        }
+
         Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 5. Atualiza os campos do lançamento com os dados do DTO
+        // 4. Atualiza os campos do lançamento com os dados do DTO
+        lancamento.setOs(os); // Estava faltando
+        lancamento.setOsLpuDetalhe(osLpuDetalhe); // Estava faltando
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
@@ -454,6 +463,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
+        // 5. Lógica para definir o status de aprovação (reenvio ou salvamento de rascunho)
         if (isReenvio) {
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
@@ -467,7 +477,7 @@ public class LancamentoServiceImpl implements LancamentoService {
             comentarioReenvio.setTexto("Lançamento corrigido e reenviado para aprovação.");
             lancamento.getComentarios().add(comentarioReenvio);
 
-        } else {
+        } else { // Se for Rascunho
             lancamento.setSituacaoAprovacao(dto.situacaoAprovacao());
             if (SituacaoAprovacao.PENDENTE_COORDENADOR.equals(dto.situacaoAprovacao())) {
                 lancamento.setDataSubmissao(LocalDateTime.now());
@@ -478,6 +488,8 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setUltUpdate(LocalDateTime.now());
 
         return lancamentoRepository.save(lancamento);
+
+        // --- FIM DA CORREÇÃO ---
     }
 
     @Override

@@ -58,7 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
 
-        // NOVO: Inicializa o flatpickr no campo de data principal do lote
+        // --- INÍCIO DA CORREÇÃO ---
+        // Garante que o campo de quantidade complementar esteja escondido ao abrir o modal
+        const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
+        if (quantidadeComplementarContainer) {
+            quantidadeComplementarContainer.classList.add('d-none');
+        }
+        // --- FIM DA CORREÇÃO ---
+
+        // Inicializa o flatpickr no campo de data principal do lote
         inicializarFlatpickrComFormato('#dataAtividadeLote');
 
         // Pré-carrega a lista de Ordens de Serviço
@@ -71,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -265,19 +273,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     selectProjetoLote.addEventListener('change', async (e) => {
         const projeto = e.target.value;
-        const os = todasAsOSLote.find(os => os.projeto === projeto);
-        if (os) {
-            selectOSLote.value = os.id;
-            selectOSLote.dispatchEvent(new Event('change'));
-        }
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Filtra as OSs que pertencem ao projeto selecionado
+        const osDoProjeto = todasAsOSLote.filter(os => os.projeto === projeto);
+
+        // Limpa e preenche novamente o select de OS
+        selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
+        osDoProjeto.forEach(item => {
+            const option = new Option(item.os, item.id);
+            selectOSLote.add(option);
+        });
+
+        // Limpa os campos que dependem da OS
+        lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
+        preencherCamposOSLote(null);
+        formulariosContainerLote.innerHTML = '';
+        btnAvancarParaPreenchimentoLote.disabled = true;
+        // --- FIM DA CORREÇÃO ---
     });
 
+    // Adicione este novo bloco de código logo abaixo do anterior
     selectOSLote.addEventListener('change', async (e) => {
         const osId = e.target.value;
         const os = todasAsOSLote.find(os => os.id == osId);
-        if (os) {
+
+        // --- INÍCIO DA CORREÇÃO ---
+        // Garante que o select de projeto reflita a OS selecionada
+        if (os && selectProjetoLote.value !== os.projeto) {
             selectProjetoLote.value = os.projeto;
         }
+        // --- FIM DA CORREÇÃO ---
 
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
@@ -292,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         preencherCamposOSLote(null);
 
         try {
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -307,9 +333,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const lpu = item.lpu;
                     if (!lpu) return '';
 
+                    const quantidade = item.quantidade || 'N/A';
+                    const key = item.key || 'N/A';
                     const codigo = lpu.codigo ?? lpu.codigoLpu ?? '';
                     const nome = lpu.nome ?? lpu.nomeLpu ?? '';
-                    const label = `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
+                    const label = `(${quantidade}) ${key} - ${codigo} - ${nome}`;
 
                     return `
                     <div class="form-check">
@@ -318,7 +346,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             data-os-lpu-detalhe-id="${item.id}"
                             id="lpu-lote-${lpu.id}" data-nome="${label}">
                         <label class="form-check-label" for="lpu-lote-${lpu.id}">
-                            ${label}
+                            <div class="lpu-label-container">
+                                <span class="lpu-label-main">${codigo} - ${nome}</span>
+                                <span class="lpu-label-details">
+                                    <span>Quantidade: ${quantidade}</span>
+                                    <span>Key: ${key}</span>
+                                </span>
+                            </div>
                         </label>
                     </div>
                 `;
@@ -346,10 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetchComAuth('http://3.128.248.3:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetchComAuth('http://localhost:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
@@ -420,17 +454,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function formatarDataParaAPI(dataString) {
-        if (!dataString) return null;
-        if (dataString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            return dataString;
+        if (!dataString) {
+            return null; // Se não houver data, retorna nulo
         }
-        if (dataString.includes('/')) {
-            const [dia, mes, ano] = dataString.split('/');
-            if (dia && mes && ano) {
-                return `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-            }
-        }
-        return null;
+        return dataString;
     }
 
     async function handleFormSubmitLote(acao, submitButton) {
@@ -484,7 +511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos/lote', {
+            const response = await fetchComAuth('http://localhost:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)
@@ -545,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!contratoId) throw new Error('Contrato da OS não encontrado para buscar LPUs complementares.');
 
-                const response = await fetchComAuth(`http://3.128.248.3:8080/lpu/contrato/${contratoId}`);
+                const response = await fetchComAuth(`http://localhost:8080/lpu/contrato/${contratoId}`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
                 lpusParaExibir = await response.json();
             } else {

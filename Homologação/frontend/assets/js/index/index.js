@@ -10,6 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
         direction: 'desc' // Direção padrão (descendente)
     };
 
+    function converterDataParaDDMMYYYY(isoDate) {
+        if (!isoDate || !isoDate.includes('-')) {
+            return isoDate; // Retorna o valor original se for nulo, vazio ou não estiver no formato esperado
+        }
+        const [ano, mes, dia] = isoDate.split('-');
+        return `${dia}/${mes}/${ano}`;
+    }
+
     // Mapeia o texto do cabeçalho para a chave de dados no objeto de lançamento
     const columnKeyMap = {
         "DATA ATIVIDADE": "dataAtividade",
@@ -436,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos');
+            const response = await fetchComAuth('http://localhost:8080/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             const lancamentosDaApi = await response.json();
@@ -573,18 +581,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 osId: selectOS.value,
                 prestadorId: selectPrestador.value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
-                dataAtividade: document.getElementById('dataAtividade').value,
+                dataAtividade: converterDataParaDDMMYYYY(document.getElementById('dataAtividade').value),
                 equipe: document.getElementById('equipe')?.value,
                 vistoria: document.getElementById('vistoria').value,
-                planoVistoria: document.getElementById('planoVistoria').value || null,
+                planoVistoria: converterDataParaDDMMYYYY(document.getElementById('planoVistoria').value) || null,
                 desmobilizacao: document.getElementById('desmobilizacao').value,
-                planoDesmobilizacao: document.getElementById('planoDesmobilizacao').value || null,
+                planoDesmobilizacao: converterDataParaDDMMYYYY(document.getElementById('planoDesmobilizacao').value) || null,
                 instalacao: document.getElementById('instalacao').value,
-                planoInstalacao: document.getElementById('planoInstalacao').value || null,
+                planoInstalacao: converterDataParaDDMMYYYY(document.getElementById('planoInstalacao').value) || null,
                 ativacao: document.getElementById('ativacao').value,
-                planoAtivacao: document.getElementById('planoAtivacao').value || null,
+                planoAtivacao: converterDataParaDDMMYYYY(document.getElementById('planoAtivacao').value) || null,
                 documentacao: document.getElementById('documentacao').value,
-                planoDocumentacao: document.getElementById('planoDocumentacao').value || null,
+                planoDocumentacao: converterDataParaDDMMYYYY(document.getElementById('planoDocumentacao').value) || null,
                 status: selectStatus.value,
                 situacao: document.getElementById('situacao').value,
                 detalheDiario: document.getElementById('detalheDiario').value,
@@ -596,17 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            // ==========================================================
-            // ===== LOGS PARA DEBUG NO FRONTEND ========================
-            // ==========================================================
-            console.log("--- DEBUG: SUBMISSÃO DE FORMULÁRIO DE EDIÇÃO ---");
-            console.log("Ação Realizada:", acao);
-            console.log("É edição?", !!editingId, "| ID:", editingId);
-            console.log("Payload (dados que serão enviados para o backend):");
-            console.log(JSON.stringify(payload, null, 2)); // Mostra o JSON formatado
-            // ==========================================================
-
-            const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
+            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -656,27 +654,40 @@ document.addEventListener('DOMContentLoaded', () => {
             selectLPU.disabled = true;
 
             try {
-                let url;
-                const osSelecionada = todasAsOS.find(os => os.id == osId);
+                let lpusParaExibir;
 
                 if (isComplementar) {
+                    const osSelecionada = todasAsOS.find(os => os.id == osId);
                     if (!osSelecionada || !osSelecionada.detalhes[0]?.contratoId) {
                         throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
                     }
                     const contratoId = osSelecionada.detalhes[0].contratoId;
-                    url = `http://3.128.248.3:8080/lpu/contrato/${contratoId}`;
+                    const response = await fetchComAuth(`http://3.128.248.3:8080/lpu/contrato/${contratoId}`);
+                    if (!response.ok) throw new Error('Falha ao buscar LPUs complementares.');
+                    lpusParaExibir = await response.json();
                 } else {
-                    url = `http://3.128.248.3:8080/os/${osId}/lpus`;
+                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+                    if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
+                    const osData = await response.json();
+                    lpusParaExibir = osData.detalhes;
                 }
 
-                const response = await fetchComAuth(url);
-                if (!response.ok) throw new Error('Falha ao buscar LPUs.');
-
-                const lpus = await response.json();
-
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-                if (lpus && lpus.length > 0) {
-                    lpus.forEach(lpu => selectLPU.add(new Option(labelLpu(lpu), lpu.id)));
+
+                if (lpusParaExibir && lpusParaExibir.length > 0) {
+                    lpusParaExibir.forEach(item => {
+                        const lpu = item.lpu || item;
+                        const quantidade = item.quantidade || 'N/A';
+                        const key = item.key || 'N/A';
+                        const codigo = lpu.codigoLpu || lpu.codigo || '';
+                        const nome = lpu.nomeLpu || lpu.nome || '';
+
+                        // --- NOVO FORMATO DO LABEL ---
+                        const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
+                        const value = isComplementar ? lpu.id : item.id;
+
+                        selectLPU.add(new Option(label, value));
+                    });
                     selectLPU.disabled = false;
                 } else {
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
@@ -699,20 +710,36 @@ document.addEventListener('DOMContentLoaded', () => {
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
             const os = todasAsOS.find(os => os.id == osId);
-            if (os) {
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Atualiza o select de Projeto para corresponder à OS selecionada
+            if (os && selectProjeto.value !== os.projeto) {
                 selectProjeto.value = os.projeto;
             }
+            // --- FIM DA CORREÇÃO ---
+
             preencherCamposOS(osId);
             await carregarEPopularLPU(osId, chkAtividadeComplementar.checked);
         });
 
+        // Substitua este bloco de código também
         selectProjeto.addEventListener('change', async (e) => {
             const projeto = e.target.value;
-            const os = todasAsOS.find(os => os.projeto == projeto);
-            if (os) {
-                selectOS.value = os.id;
-                selectOS.dispatchEvent(new Event('change'));
-            }
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Filtra a lista de OSs com base no projeto selecionado
+            const osDoProjeto = todasAsOS.filter(os => os.projeto === projeto);
+
+            // Limpa e repopula o select de OS
+            selectOS.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
+            osDoProjeto.forEach(item => {
+                selectOS.add(new Option(item.os, item.id));
+            });
+
+            // Limpa os campos dependentes, pois a OS mudou
+            preencherCamposOS(null);
+            await carregarEPopularLPU(null);
+            // --- FIM DA CORREÇÃO ---
         });
 
         async function popularSelect(selectElement, url, valueField, textFieldFormatter) {
@@ -786,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
                     todasAsOS = await response.json();
@@ -808,37 +835,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // 1. Carrega os dados necessários para os selects do modal
+            // 1. Carrega os dados básicos (OS e Etapas), mas não mais os prestadores.
             await carregarDadosParaModal();
 
-            // Limpa ou define o ID de edição
+            // 2. Limpa e define o ID de edição no formulário
             if (editingId) {
                 formAdicionar.dataset.editingId = editingId;
             } else {
                 delete formAdicionar.dataset.editingId;
             }
-
-            // ==========================================================
-            // ===== CORREÇÃO 1: Armazenar o ID do Detalhe correto =====
-            // ==========================================================
-            // Limpa o ID do detalhe anterior
             delete formAdicionar.dataset.osLpuDetalheId;
-            // Se o lançamento tem um detalhe, armazena o ID desse detalhe no formulário
             if (lancamento.detalhe) {
                 formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             }
-            // ==========================================================
-            // ===== FIM DA CORREÇÃO 1 ================================
-            // ==========================================================
 
+            // 3. Referências aos elementos do modal
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
@@ -853,6 +872,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
+            // 4. Reseta a UI do modal para o modo de edição
             if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
             if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
             if (selectProjeto) selectProjeto.disabled = true;
@@ -861,6 +881,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
 
+            // 5. Configura títulos e botões com base no status do lançamento
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -883,6 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
+            // 6. Preenche os campos do formulário com os dados do lançamento
             if (lancamento.os && lancamento.os.projeto && selectProjeto) {
                 selectProjeto.value = lancamento.os.projeto;
             }
@@ -917,6 +939,45 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
 
+            // --- INÍCIO DA CORREÇÃO ---
+            // 7. Lógica corrigida para carregar e selecionar o Prestador
+            const selectPrestadorEl = document.getElementById('prestadorId');
+            if (selectPrestadorEl) {
+                // Destrói a instância anterior do Choices.js para evitar bugs
+                if (selectPrestadorEl.choices) {
+                    selectPrestadorEl.choices.destroy();
+                }
+
+                // Busca a lista de prestadores sempre que o modal de edição abrir
+                const prestadores = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+
+                // Cria uma nova instância do Choices.js
+                const choices = new Choices(selectPrestadorEl, {
+                    searchEnabled: true,
+                    placeholder: true,
+                    placeholderValue: 'Digite para buscar o prestador...',
+                    itemSelectText: '',
+                    noResultsText: 'Nenhum resultado',
+                });
+
+                // Formata os dados e popula o select
+                const choicesData = prestadores.map(item => ({
+                    value: item.id,
+                    label: `${item.codigoPrestador} - ${item.prestador}`
+                }));
+                choices.setChoices(choicesData, 'value', 'label', false);
+                selectPrestadorEl.choices = choices;
+
+                // Espera um instante para o Choices.js renderizar e então define o valor selecionado
+                await new Promise(resolve => setTimeout(resolve, 0));
+                if (lancamento.prestador?.id) {
+                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id));
+                }
+            }
+            // --- FIM DA CORREÇÃO ---
+
+
+            // 8. Preenche os selects de Etapa
             if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
                 const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
                 if (etapaGeralPai) {
@@ -928,18 +989,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
 
+            // 9. Abre o modal
             modalAdicionar.show();
-
-            setTimeout(() => {
-                const selectPrestadorEl = document.getElementById('prestadorId');
-                if (selectPrestadorEl && selectPrestadorEl.choices) {
-                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador?.id || ''));
-                }
-            }, 150);
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
             if (!formAdicionar.dataset.editingId) {
+                // --- INÍCIO DA CORREÇÃO ---
+                // Garante que o campo de quantidade esteja escondido ao abrir o modal para um novo lançamento
+                const quantidadeContainer = document.getElementById('quantidadeContainer');
+                if (quantidadeContainer) {
+                    quantidadeContainer.classList.add('d-none');
+                }
+                // --- FIM DA CORREÇÃO ---
+
                 await carregarDadosParaModal();
                 modalTitle.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Nova Atividade';
                 document.getElementById('btnSubmitAdicionar').style.display = 'none';
@@ -1030,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1192,7 +1255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://3.128.248.3:8080/materiais')
+                fetchComAuth('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1232,7 +1295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1257,7 +1320,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1316,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetchComAuth('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetchComAuth('http://localhost:8080/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

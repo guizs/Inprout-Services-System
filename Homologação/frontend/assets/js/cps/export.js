@@ -1,3 +1,8 @@
+// guizs/inprout-services-system/Inprout-Services-System-Correcao_bo/Homologação/frontend/assets/js/cps/export.js
+
+// --- VARIÁVEL QUE FALTAVA ---
+const API_URL = 'http://localhost:8080';
+
 // Função central para criar e baixar o arquivo .xlsx
 function exportToExcel(rows, headers, fileName) {
     if (!rows || rows.length === 0) {
@@ -14,10 +19,25 @@ function exportToExcel(rows, headers, fileName) {
 
 // Função para formatar data para o Excel
 const formatarDataParaExcel = (dataStr) => {
-    if (!dataStr || !dataStr.includes('/')) return '';
-    const [dia, mes, ano] = dataStr.split('/');
-    return new Date(ano, mes - 1, dia);
+    if (!dataStr) return null;
+
+    if (dataStr.includes('/')) { // Formato dd/mm/yyyy
+        const [dia, mes, ano] = dataStr.split('/');
+        return new Date(ano, mes - 1, dia);
+    } else if (dataStr.includes('-')) { // Formato yyyy-mm-dd
+        const [ano, mes, dia] = dataStr.split('T')[0].split('-'); // Pega só a parte da data
+        return new Date(ano, mes - 1, dia);
+    }
+    return null;
 };
+
+// Converte 'dd/mm/yyyy' para 'yyyy-mm-dd'
+function formatDateToISO(dateStr) {
+    if (!dateStr || !dateStr.includes('/')) return dateStr;
+    const [dia, mes, ano] = dateStr.split('/');
+    return `${ano}-${mes}-${dia}`;
+}
+
 
 // --- Listener para "Consolidado por Prestador" (UNIFICADO) ---
 document.getElementById('export-consolidado').addEventListener('click', function() {
@@ -110,7 +130,6 @@ document.getElementById('export-programacao').addEventListener('click', async fu
         return;
     }
 
-    // Formata a data para o padrão YYYY-MM-DD que a API espera
     const isoStartDate = formatDateToISO(startDate);
     const isoEndDate = formatDateToISO(endDate);
 
@@ -126,7 +145,7 @@ document.getElementById('export-programacao').addEventListener('click', async fu
 
         const headers = ["Data", "Gestor", "Quantidade de Lançamentos"];
         const rows = dadosProgramacao.map(item => [
-            formatarDataParaExcel(item.data), // Reutiliza a função já existente para formatar a data
+            formatarDataParaExcel(item.data), 
             item.gestor,
             item.quantidade
         ]);

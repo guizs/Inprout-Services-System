@@ -493,6 +493,12 @@ public class LancamentoServiceImpl implements LancamentoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim) {
+        return lancamentoRepository.countLancamentosPorDiaEGestor(dataInicio, dataFim);
+    }
+
+    @Override
     @Transactional
     public Lancamento rejeitarExtensaoPrazo(Long lancamentoId, AcaoControllerDTO dto) {
         Lancamento lancamento = getLancamentoById(lancamentoId);

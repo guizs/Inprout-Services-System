@@ -100,3 +100,43 @@ document.getElementById('export-nao-faturado').addEventListener('click', functio
 
     exportToExcel(rows, headers, "relatorio_cps_nao_faturados");
 });
+
+document.getElementById('export-programacao').addEventListener('click', async function() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        mostrarToast('Por favor, selecione as datas de início e fim.', 'error');
+        return;
+    }
+
+    // Formata a data para o padrão YYYY-MM-DD que a API espera
+    const isoStartDate = formatDateToISO(startDate);
+    const isoEndDate = formatDateToISO(endDate);
+
+    try {
+        if (typeof toggleLoader === 'function') toggleLoader(true);
+
+        const response = await fetchComAuth(`${API_URL}/lancamentos/cps/programacao-diaria?dataInicio=${isoStartDate}&dataFim=${isoEndDate}`);
+        if (!response.ok) {
+            throw new Error('Falha ao buscar dados do relatório de programação.');
+        }
+
+        const dadosProgramacao = await response.json();
+
+        const headers = ["Data", "Gestor", "Quantidade de Lançamentos"];
+        const rows = dadosProgramacao.map(item => [
+            formatarDataParaExcel(item.data), // Reutiliza a função já existente para formatar a data
+            item.gestor,
+            item.quantidade
+        ]);
+
+        exportToExcel(rows, headers, "relatorio_cps_programacao_diaria");
+
+    } catch (error) {
+        console.error("Erro ao gerar relatório de programação:", error);
+        mostrarToast(error.message, 'error');
+    } finally {
+        if (typeof toggleLoader === 'function') toggleLoader(false);
+    }
+});

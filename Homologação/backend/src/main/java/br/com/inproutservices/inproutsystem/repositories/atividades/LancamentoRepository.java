@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.repositories.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.ProgramacaoDiariaDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
@@ -129,4 +130,14 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     // NOVO MÉTODO PARA BUSCAR LANÇAMENTOS PENDENTES POR OS (para o cálculo da previsão)
     @Query("SELECT l FROM Lancamento l WHERE l.situacaoAprovacao IN :situacoes AND l.osLpuDetalhe.os.id IN :osIds")
     List<Lancamento> findPendentesBySituacaoAprovacaoInAndOsIdIn(@Param("situacoes") List<SituacaoAprovacao> situacoes, @Param("osIds") List<Long> osIds);
+
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ProgramacaoDiariaDTO(l.dataAtividade, m.nome, COUNT(l.id)) " +
+            "FROM Lancamento l JOIN l.manager m " +
+            "WHERE l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "GROUP BY l.dataAtividade, m.nome " +
+            "ORDER BY l.dataAtividade DESC, m.nome ASC")
+    List<ProgramacaoDiariaDTO> countLancamentosPorDiaEGestor(
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
 }

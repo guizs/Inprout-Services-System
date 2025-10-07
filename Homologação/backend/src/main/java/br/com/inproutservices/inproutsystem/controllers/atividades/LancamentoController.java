@@ -134,6 +134,14 @@ public class LancamentoController {
         }).collect(Collectors.toList());
     }
 
+    @GetMapping("/cps/programacao-diaria")
+    public ResponseEntity<List<ProgramacaoDiariaDTO>> getProgramacaoDiaria(
+            @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+        List<ProgramacaoDiariaDTO> relatorio = lancamentoService.getProgramacaoDiaria(dataInicio, dataFim);
+        return ResponseEntity.ok(relatorio);
+    }
+
     // ==========================================================
     // ENDPOINTS PRINCIPAIS (AGORA OTIMIZADOS)
     // ==========================================================

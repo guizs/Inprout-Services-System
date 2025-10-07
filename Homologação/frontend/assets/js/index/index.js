@@ -91,77 +91,60 @@ document.addEventListener('DOMContentLoaded', () => {
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-        // Seleciona os ITENS (<li>) da navegação por aba
         const navMinhasPendencias = document.getElementById('nav-item-minhas-pendencias');
         const navLancamentos = document.getElementById('nav-item-lancamentos');
         const navPendentes = document.getElementById('nav-item-pendentes');
         const navParalisados = document.getElementById('nav-item-paralisados');
         const navHistorico = document.getElementById('nav-item-historico');
 
-        // Seleciona os BOTÕES de ação principais
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
 
-        // Seletores para ativar a aba correta
-        const tabLancamentos = document.getElementById('lancamentos-tab');
-        const paneLancamentos = document.getElementById('lancamentos-pane');
-        const tabHistorico = document.getElementById('historico-tab');
-        const paneHistorico = document.getElementById('historico-pane');
-        const tabMinhasPendencias = document.getElementById('minhasPendencias-tab');
-        const paneMinhasPendencias = document.getElementById('minhasPendencias-pane');
+        // --- INÍCIO DA CORREÇÃO ---
+        // Todos os itens da navegação são visíveis por padrão para todos os perfis.
+        [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
+            if (el) el.style.display = 'block';
+        });
+        // --- FIM DA CORREÇÃO ---
 
-        // Oculta tudo por padrão para começar do zero
-        [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+        // Oculta botões de ação específicos por padrão
+        [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
             if (el) el.style.display = 'none';
         });
 
-        // Aplica as regras de visibilidade para cada cargo
+        // Aplica regras de visibilidade para cada cargo
         switch (userRole) {
             case 'MANAGER':
-                // Mostra todas as abas e os botões de ação
-                [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+                // Manager pode criar lançamento e solicitar material
+                [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
-                // Define a aba padrão como "Minhas Pendências"
-                tabLancamentos.classList.add('active');
-                paneLancamentos.classList.add('show', 'active');
                 break;
 
             case 'COORDINATOR':
-                // Mostra "Pendente aprovação", "Paralisados" e "Histórico"
-                [navPendentes, navParalisados, navHistorico].forEach(el => {
-                    if (el) el.style.display = 'block';
-                });
-                // Define a aba padrão como "Pendente aprovação"
-                tabLancamentos.classList.remove('active');
-                paneLancamentos.classList.remove('show', 'active');
-                // (Opcional) Se quiser que "Pendente Aprovação" seja a aba padrão para o coordenador:
-                const tabPendentes = document.getElementById('pendentes-tab');
-                const panePendentes = document.getElementById('pendentes-pane');
-                if (tabPendentes) tabPendentes.classList.add('active');
-                if (panePendentes) panePendentes.classList.add('show', 'active');
-                break;
-
-            case 'CONTROLLER':
-                // Mostra todas as abas, exceto "Minhas Pendências"
-                [navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
-                    if (el) el.style.display = 'block';
-                });
+                // Coordenador não vê a aba "Lançamentos" (rascunhos)
+                if (navLancamentos) navLancamentos.style.display = 'none';
                 break;
 
             case 'ADMIN':
-                // Mostra todas as abas, exceto "Minhas Pendências", e mostra os botões de ação
-                [navLancamentos, navPendentes, navParalisados, navHistorico, btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+                // Admin pode criar lançamento e solicitar material
+                [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
 
+            // Outros perfis como CONTROLLER e ASSISTANT mantêm a visibilidade padrão (todas as abas)
             default:
-                // Comportamento padrão para outros cargos (se houver)
-                [navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
-                    if (el) el.style.display = 'block';
-                });
                 break;
+        }
+
+        // Lógica para definir a aba ativa padrão (não precisa de alteração)
+        const tabAtiva = document.querySelector('#lancamentosTab .nav-link.active');
+        if (!tabAtiva || tabAtiva.parentElement.style.display === 'none') {
+            const primeiraAbaVisivel = document.querySelector('#lancamentosTab .nav-item[style*="block"] .nav-link');
+            if (primeiraAbaVisivel) {
+                new bootstrap.Tab(primeiraAbaVisivel).show();
+            }
         }
     }
 

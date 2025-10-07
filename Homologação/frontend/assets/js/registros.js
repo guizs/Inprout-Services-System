@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const detalheId = get(linhaData, 'detalhe.id', '');
                         const chave = get(linhaData, 'detalhe.key', '-');
                         const semChave = chave === '-' || chave === '' || chave === null;
-                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa" ${!semChave ? 'disabled' : ''}><i class="bi bi-pencil-fill"></i></button>`;
+                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa"><i class="bi bi-pencil-fill"></i></button>`;
                         const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
                         return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                     }

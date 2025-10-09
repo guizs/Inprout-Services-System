@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -274,23 +274,26 @@ document.addEventListener('DOMContentLoaded', () => {
     selectProjetoLote.addEventListener('change', async (e) => {
         const projeto = e.target.value;
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Filtra as OSs que pertencem ao projeto selecionado
         const osDoProjeto = todasAsOSLote.filter(os => os.projeto === projeto);
 
-        // Limpa e preenche novamente o select de OS
         selectOSLote.innerHTML = `<option value="" selected disabled>Selecione uma OS...</option>`;
         osDoProjeto.forEach(item => {
             const option = new Option(item.os, item.id);
             selectOSLote.add(option);
         });
 
-        // Limpa os campos que dependem da OS
-        lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
-        preencherCamposOSLote(null);
-        formulariosContainerLote.innerHTML = '';
-        btnAvancarParaPreenchimentoLote.disabled = true;
-        // --- FIM DA CORREÇÃO ---
+        // Se houver OSs para o projeto, seleciona a primeira e dispara o evento 'change'
+        // para carregar seus dados automaticamente.
+        if (osDoProjeto.length > 0) {
+            selectOSLote.value = osDoProjeto[0].id;
+            selectOSLote.dispatchEvent(new Event('change'));
+        } else {
+            // Se não houver OSs, limpa todos os campos dependentes.
+            lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma OS encontrada para este projeto.</p>';
+            preencherCamposOSLote(null);
+            formulariosContainerLote.innerHTML = '';
+            btnAvancarParaPreenchimentoLote.disabled = true;
+        }
     });
 
     // Adicione este novo bloco de código logo abaixo do anterior
@@ -318,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
         preencherCamposOSLote(null);
 
         try {
-            const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
+            const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -380,10 +383,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetchComAuth('http://localhost:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetchComAuth('http://3.128.248.3:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
             }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
@@ -511,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetchComAuth('http://localhost:8080/lancamentos/lote', {
+            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)
@@ -572,7 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (!contratoId) throw new Error('Contrato da OS não encontrado para buscar LPUs complementares.');
 
-                const response = await fetchComAuth(`http://localhost:8080/lpu/contrato/${contratoId}`);
+                const response = await fetchComAuth(`http://3.128.248.3:8080/lpu/contrato/${contratoId}`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs do contrato.');
                 lpusParaExibir = await response.json();
             } else {

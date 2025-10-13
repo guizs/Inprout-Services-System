@@ -270,3 +270,15 @@ body {
     padding: 0.2rem 0.5rem; /* Reduz o espaçamento interno */
     font-size: 0.8rem;      /* Diminui o tamanho do ícone */
 }
+
+.accordion-button-vencido {
+    background-color: #f8d7da !important;
+    color: #58151c !important;
+}
+.accordion-button-vencido:not(.collapsed) {
+    background-color: #f8d7da !important;
+    color: #58151c !important;
+}
+.accordion-button-vencido::after {
+    filter: invert(1) brightness(0.5);
+}

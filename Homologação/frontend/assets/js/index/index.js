@@ -555,9 +555,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const isComplementar = chkAtividadeComplementar.checked;
             const editingId = formAdicionar.dataset.editingId;
 
-            const osLpuDetalheIdCorreto = (editingId && !isComplementar)
-                ? formAdicionar.dataset.osLpuDetalheId
-                : (!isComplementar ? document.getElementById('lpuId').value : null);
+            // --- LÓGICA CORRIGIDA PARA PEGAR O ID DO DETALHE ---
+            // Se estiver editando ou retomando (ou seja, formAdicionar.dataset.osLpuDetalheId existe), use-o.
+            // Senão, pegue o valor do dropdown de LPU.
+            const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId ||
+                (!isComplementar ? document.getElementById('lpuId').value : null);
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
@@ -598,14 +600,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) {
-                    // Tenta ler o erro como JSON, se falhar, lê como texto
+                    // --- TRATAMENTO DE ERRO MELHORADO ---
+                    let errorMsg = 'Erro desconhecido no servidor.';
                     try {
+                        // Tenta ler como JSON primeiro, que é o esperado
                         const errorData = await response.json();
-                        throw new Error(errorData.message || 'Erro ao salvar.');
-                    } catch (jsonError) {
-                        const errorText = await response.text();
-                        throw new Error(errorText || 'Erro desconhecido no servidor.');
+                        errorMsg = errorData.message || JSON.stringify(errorData);
+                    } catch (e) {
+                        // Se falhar, lê como texto (plano B)
+                        errorMsg = await response.text();
                     }
+                    throw new Error(errorMsg);
                 }
 
                 mostrarToast('Lançamento salvo com sucesso!', 'success');
@@ -626,7 +631,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async function carregarEPopularLPU(osId, isComplementar = false) {
             const selectLPU = document.getElementById('lpuId');
 
-            if (!osId) {
+            if (!osId && !isComplementar) {
                 lpuContainer.classList.add('d-none');
                 selectLPU.innerHTML = '';
                 return;
@@ -637,44 +642,55 @@ document.addEventListener('DOMContentLoaded', () => {
             selectLPU.disabled = true;
 
             try {
-                let lpusParaExibir;
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
 
                 if (isComplementar) {
-                    const osSelecionada = todasAsOS.find(os => os.id == osId);
-                    if (!osSelecionada || !osSelecionada.detalhes[0]?.contratoId) {
-                        throw new Error("Contrato da OS não encontrado para buscar LPUs complementares.");
-                    }
-                    const contratoId = osSelecionada.detalhes[0].contratoId;
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/lpu/contrato/${contratoId}`);
-                    if (!response.ok) throw new Error('Falha ao buscar LPUs complementares.');
-                    lpusParaExibir = await response.json();
+                    // --- INÍCIO DA CORREÇÃO ---
+                    // Busca todos os contratos ativos, que já contêm suas LPUs
+                    const response = await fetchComAuth(`http://3.128.248.3:8080/contrato`);
+                    if (!response.ok) throw new Error('Falha ao buscar a lista de contratos e LPUs.');
+                    const contratos = await response.json();
+
+                    // Itera sobre cada contrato e depois sobre suas LPUs
+                    contratos.forEach(contrato => {
+                        if (contrato.lpus && contrato.lpus.length > 0) {
+                            contrato.lpus.forEach(lpu => {
+                                // Cria o novo formato de texto, incluindo o nome do contrato
+                                const label = `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`;
+                                const value = lpu.id;
+                                selectLPU.add(new Option(label, value));
+                            });
+                        }
+                    });
+                    // --- FIM DA CORREÇÃO ---
                 } else {
+                    // Lógica original para atividades normais (não complementares)
                     const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
                     if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                     const osData = await response.json();
-                    lpusParaExibir = osData.detalhes;
+                    const lpusParaExibir = osData.detalhes;
+
+                    if (lpusParaExibir && lpusParaExibir.length > 0) {
+                        lpusParaExibir.forEach(item => {
+                            const lpu = item.lpu || item;
+                            const quantidade = item.quantidade || 'N/A';
+                            const key = item.key || 'N/A';
+                            const codigo = lpu.codigoLpu || lpu.codigo || '';
+                            const nome = lpu.nomeLpu || lpu.nome || '';
+
+                            const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
+                            const value = item.id;
+                            selectLPU.add(new Option(label, value));
+                        });
+                    }
                 }
 
-                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-
-                if (lpusParaExibir && lpusParaExibir.length > 0) {
-                    lpusParaExibir.forEach(item => {
-                        const lpu = item.lpu || item;
-                        const quantidade = item.quantidade || 'N/A';
-                        const key = item.key || 'N/A';
-                        const codigo = lpu.codigoLpu || lpu.codigo || '';
-                        const nome = lpu.nomeLpu || lpu.nome || '';
-
-                        // --- NOVO FORMATO DO LABEL ---
-                        const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
-                        const value = isComplementar ? lpu.id : item.id;
-
-                        selectLPU.add(new Option(label, value));
-                    });
-                    selectLPU.disabled = false;
-                } else {
+                if (selectLPU.options.length <= 1) {
                     selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
+                } else {
+                    selectLPU.disabled = false;
                 }
+
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 lpuContainer.classList.add('d-none');

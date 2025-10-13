@@ -330,6 +330,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
+            // Verifica se algum lançamento no grupo está vencido
+            const isVencido = grupo.linhas.some(lancamento => {
+                const dataPrazo = lancamento.dataPrazo ? new Date(lancamento.dataPrazo.split('/').reverse().join('-')) : null;
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                return dataPrazo && dataPrazo < hoje;
+            });
+
+            const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
+
             const totalOs = grupo.totalOs || 0;
             const totalCpsAprovado = grupo.valorCps || 0;
             const totalMaterial = grupo.custoTotalMateriais || 0;

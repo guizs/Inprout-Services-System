@@ -56,6 +56,10 @@ public class LancamentoScheduledTasks {
     @Scheduled(cron = "0 1 0 * * *", zone = "America/Sao_Paulo")
     @Transactional
     public void verificarPrazosVencidos() {
+        // A lógica foi desativada para que os lançamentos vencidos permaneçam com o coordenador.
+        // O destaque visual será feito no frontend.
+        log.info("Tarefa de verificação de prazos vencidos desativada temporariamente.");
+        /*
         log.info("Iniciando tarefa agendada: Verificação de prazos de coordenador vencidos.");
         try {
             // Busca o usuário "Sistema" para ser o autor do comentário.
@@ -91,5 +95,6 @@ public class LancamentoScheduledTasks {
         } catch (Exception e) {
             log.error("Erro ao executar a tarefa de verificação de prazos vencidos.", e);
         }
+        */
     }
 }

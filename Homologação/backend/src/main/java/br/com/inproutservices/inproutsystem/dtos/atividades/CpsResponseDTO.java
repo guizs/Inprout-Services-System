@@ -69,6 +69,7 @@ public class CpsResponseDTO {
         private BigDecimal valor;
         private String gestor;
         private BigDecimal valorAdiantamento;
+        private String idFaturamento;
 
         // ======================= INÍCIO DA CORREÇÃO =======================
         public LancamentoCpsDetalheDTO(Lancamento l) {
@@ -131,6 +132,7 @@ public class CpsResponseDTO {
             this.valor = l.getValor();
             this.gestor = Optional.ofNullable(l.getManager()).map(u -> u.getNome()).orElse(null);
             this.valorAdiantamento = l.getValorAdiantamento();
+            this.idFaturamento = detalheOptional.map(OsLpuDetalhe::getIdFaturamento).orElse(null);
         }
         // ======================== FIM DA CORREÇÃO =========================
 
@@ -141,6 +143,14 @@ public class CpsResponseDTO {
 
         public void setId(Long id) {
             this.id = id;
+        }
+
+        public String getIdFaturamento() {
+            return idFaturamento;
+        }
+
+        public void setIdFaturamento(String idFaturamento) {
+            this.idFaturamento = idFaturamento;
         }
 
         public LocalDate getDataAtividade() {

@@ -157,17 +157,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                 .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-            // O Total CPS é a soma dos valores dos últimos lançamentos APROVADOS de cada linha.
+            // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
             const valorTotalCPS = grupo.linhas
-                .filter(l => l.ultimoLancamento && l.ultimoLancamento.situacaoAprovacao === 'APROVADO')
-                .reduce((sum, l) => sum + (get(l, 'ultimoLancamento.valor', 0) || 0), 0);
+                .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
+                .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
             // Pega o custo de material diretamente do objeto OS (calculado no backend).
             const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
             // O novo percentual considera tanto o CPS quanto o custo de material.
             const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
-            // ===== FIM DA CORREÇÃO E NOVOS CÁLCULOS =====
 
             let kpiHTML = '';
             if (userRole !== 'MANAGER') {
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         const detalheId = get(linhaData, 'detalhe.id', '');
                         const chave = get(linhaData, 'detalhe.key', '-');
                         const semChave = chave === '-' || chave === '' || chave === null;
-                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa" ${!semChave ? 'disabled' : ''}><i class="bi bi-pencil-fill"></i></button>`;
+                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa"><i class="bi bi-pencil-fill"></i></button>`;
                         const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
                         return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                     }
@@ -546,89 +546,102 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         btnExportar.addEventListener('click', async () => {
-            const linhasParaExportar = todasAsLinhas;
-            if (linhasParaExportar.length === 0) {
+            const gruposParaExportar = gruposFiltradosCache;
+            if (gruposParaExportar.length === 0) {
                 mostrarToast('Não há dados para exportar.', 'error');
                 return;
             }
 
+            // Mostra o modal de progresso
+            const modalProgressoEl = document.getElementById('modalProgressoExportacao');
+            const modalProgresso = new bootstrap.Modal(modalProgressoEl);
+            const textoProgresso = document.getElementById('textoProgresso');
             modalProgresso.show();
-            atualizarProgresso(0, linhasParaExportar.length);
+            textoProgresso.textContent = 'Preparando dados...';
 
             try {
-                const csvHeaders = headers; // Usa os headers já definidos no escopo
-                const csvRows = [];
+                // --- INÍCIO DA LÓGICA PARA MÚLTIPLAS ABAS ---
 
-                // Função para formatar data para um padrão universal (YYYY-MM-DD)
-                const formatarDataParaExcel = (dataStr) => {
-                    if (!dataStr) return '';
-                    if (dataStr.includes('/')) {
-                        const partes = dataStr.split(' ')[0].split('/');
-                        if (partes.length === 3) {
-                            return `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
-                        }
-                    }
-                    return dataStr; // Retorna o original se não estiver no formato esperado
-                };
+                // 1. Prepara os dados para a Aba de Resumo
+                textoProgresso.textContent = 'Gerando aba de resumo...';
+                const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "% Concluído"];
+                const resumoRows = gruposParaExportar.map(grupo => {
+                    // Reutiliza a mesma lógica de cálculo do cabeçalho do acordeão
+                    const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
+                        .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-                await processarEmLotes(linhasParaExportar, 200, (linhaData) => {
-                    const row = csvHeaders.map(header => {
-                        // Pega a função de mapeamento para o cabeçalho atual
-                        const func = dataMapping[header];
-                        if (!func) return '-'; // Se não houver mapeamento, retorna um hífen
+                    const valorTotalCPS = grupo.linhas
+                        .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
+                        .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                        .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
-                        // Executa a função de mapeamento para obter o valor formatado para a tela
-                        let cellValue = func(linhaData);
+                    const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
-                        // ===== INÍCIO DA CORREÇÃO E LÓGICA DE EXPORTAÇÃO =====
-                        // Sobrescreve a formatação para valores numéricos e datas
-                        if (header === "VALOR TOTAL OS") {
-                            const rawValue = get(linhaData, 'detalhe.valorTotal', 0) || 0;
-                            return rawValue.toString().replace('.', ',');
-                        }
-                        if (header === "VALOR") {
-                            const rawValue = get(linhaData, 'ultimoLancamento.valor', 0) || 0;
-                            return rawValue.toString().replace('.', ',');
-                        }
-                        // Para datas, usamos a função específica para Excel
-                        if (header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) {
-                            const rawDate = func(linhaData); // Pega o valor que seria exibido
-                            return formatarDataParaExcel(rawDate);
-                        }
-                        // ===== FIM DA CORREÇÃO E LÓGICA DE EXPORTAÇÃO =====
+                    const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
 
-                        return cellValue; // Retorna o valor formatado para as outras colunas
-                    });
-
-                    const rowString = row.map(cell => {
-                        const cellStr = String(cell ?? '').replace(/(\r\n|\n|\r)/gm, " ").trim();
-                        if (cellStr.includes(';') || cellStr.includes('"') || cellStr.includes('\n')) {
-                            return `"${cellStr.replace(/"/g, '""')}"`;
-                        }
-                        return cellStr;
-                    }).join(';');
-                    csvRows.push(rowString);
+                    return [
+                        grupo.projeto,
+                        grupo.os,
+                        valorTotalOS,
+                        valorTotalCPS,
+                        custoTotalMateriais,
+                        percentual // O Excel pode formatar como porcentagem
+                    ];
                 });
 
+                // 2. Prepara os dados para a Aba de Detalhes (lógica que já tínhamos)
+                textoProgresso.textContent = 'Gerando aba de detalhes...';
+                const detalhesHeaders = headers; // Headers globais da tabela
+                const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
+                    return detalhesHeaders.map(header => {
+                        const func = dataMapping[header];
+                        if (!func) return '-';
 
-                textoProgresso.textContent = 'Gerando arquivo...';
+                        let cellValue = func(linhaData);
 
-                const csvContent = [csvHeaders.join(';'), ...csvRows].join('\n');
-                const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement('a');
-                const url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', 'relatorio_registros.csv');
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                        // Formata para tipos corretos para o Excel
+                        if (header.toUpperCase().includes('VALOR')) {
+                            const rawValue = get(linhaData, header === 'VALOR' ? 'ultimoLancamento.valor' : 'detalhe.valorTotal', 0) || 0;
+                            return rawValue; // Passa como número
+                        }
+                        if (header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) {
+                            if (!cellValue) return null;
+                            const partes = cellValue.split(' ')[0].split('/');
+                            if (partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]);
+                            return cellValue;
+                        }
+                        return cellValue;
+                    });
+                });
+
+                // 3. Cria o arquivo Excel com as duas abas
+                textoProgresso.textContent = 'Montando arquivo...';
+
+                // Cria a planilha de Resumo
+                const ws_resumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
+                ws_resumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }]; // Larguras customizadas
+
+                // Cria a planilha de Detalhes
+                const ws_detalhes = XLSX.utils.aoa_to_sheet([detalhesHeaders, ...detalhesRows]);
+                ws_detalhes['!cols'] = detalhesHeaders.map(h => ({ wch: Math.max(15, h.length + 2) })); // Largura automática
+
+                // Cria um novo "livro" (arquivo Excel)
+                const wb = XLSX.utils.book_new();
+
+                // Adiciona as duas planilhas ao livro, com seus respectivos nomes
+                XLSX.utils.book_append_sheet(wb, ws_resumo, "Resumo OS");
+                XLSX.utils.book_append_sheet(wb, ws_detalhes, "Lançamentos Detalhados");
+
+                // 4. Inicia o download do arquivo
+                XLSX.writeFile(wb, "relatorio_registros.xlsx");
+
+                // --- FIM DA LÓGICA ---
 
             } catch (error) {
                 console.error("Erro durante a exportação:", error);
                 mostrarToast('Ocorreu um erro ao gerar o arquivo de exportação.', 'error');
             } finally {
-                setTimeout(() => modalProgresso.hide(), 1000);
+                setTimeout(() => modalProgresso.hide(), 500);
             }
         });
     }

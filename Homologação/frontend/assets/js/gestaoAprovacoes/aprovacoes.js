@@ -251,10 +251,9 @@ document.addEventListener('DOMContentLoaded', function () {
             return value !== undefined ? value : defaultValue;
         };
 
-        // 1. Adicionando a nova coluna na lista, na posição correta.
         const colunas = [
             "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE",
-            "VALOR DA ATIVIDADE", "VALOR TOTAL DO ITEM", // <-- ALTERAÇÃO AQUI
+            "VALOR DA ATIVIDADE", "VALOR TOTAL DO ITEM",
             "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM",
             "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "OBSERVAÇÕES", "DATA PO", "VISTORIA",
             "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO",
@@ -304,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
             "DATA ATIVIDADE": (lancamento) => formatarData(lancamento.dataAtividade),
             "OS": (lancamento) => get(lancamento, 'os.os'), "SITE": (lancamento) => get(lancamento, 'detalhe.site'),
             "VALOR DA ATIVIDADE": (lancamento) => formatarMoeda(lancamento.valor),
-            "VALOR TOTAL DO ITEM": (lancamento) => formatarMoeda(get(lancamento, 'detalhe.valorTotal')), // <-- ALTERAÇÃO AQUI
+            "VALOR TOTAL DO ITEM": (lancamento) => formatarMoeda(get(lancamento, 'detalhe.valorTotal')),
             "CONTRATO": (lancamento) => get(lancamento, 'detalhe.contrato'),
             "SEGMENTO": (lancamento) => get(lancamento, 'os.segmento.nome'), "PROJETO": (lancamento) => get(lancamento, 'os.projeto'),
             "GESTOR TIM": (lancamento) => get(lancamento, 'os.gestorTim'), "REGIONAL": (lancamento) => get(lancamento, 'detalhe.regional'),
@@ -330,6 +329,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const uniqueId = `${grupo.id}-${index}`;
             const item = document.createElement('div');
             item.className = 'accordion-item';
+
+            // Verifica se algum lançamento no grupo está vencido
+            const isVencido = grupo.linhas.some(lancamento => {
+                const dataPrazo = lancamento.dataPrazo ? new Date(lancamento.dataPrazo.split('/').reverse().join('-')) : null;
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                return dataPrazo && dataPrazo < hoje;
+            });
+
+            const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
             const totalOs = grupo.totalOs || 0;
             const totalCpsAprovado = grupo.valorCps || 0;
@@ -386,9 +395,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
             }).join('');
 
-
+            // --- CORREÇÃO APLICADA AQUI ---
+            // O atributo "data-bs-parent" foi removido do div abaixo
             const bodyHTML = `
-            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-pendencias">
+            <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
                 <div class="accordion-body">
                     <div class="table-responsive">
                         <table class="table modern-table table-sm">

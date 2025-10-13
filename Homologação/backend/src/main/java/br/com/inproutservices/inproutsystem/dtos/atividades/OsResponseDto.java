@@ -53,7 +53,7 @@ public record OsResponseDto(
             LpuSimpleDTO lpu,
             String site,
             String contrato,
-            Long contratoId, // <-- CAMPO ADICIONADO
+            Long contratoId,
             String regional,
             String lote,
             String boq,
@@ -75,7 +75,8 @@ public record OsResponseDto(
             String numFs,
             String gate,
             String gateId,
-            LancamentoResponseDTO ultimoLancamento
+            LancamentoResponseDTO ultimoLancamento,
+            List<LancamentoResponseDTO> lancamentos // <-- CAMPO ADICIONADO
     ) {
         public OsLpuDetalheCompletoDto(OsLpuDetalhe detalhe) {
             this(
@@ -84,7 +85,6 @@ public record OsResponseDto(
                     detalhe.getLpu() != null ? new LpuSimpleDTO(detalhe.getLpu()) : null,
                     detalhe.getSite(),
                     detalhe.getContrato(),
-                    // LÓGICA PARA POPULAR O NOVO CAMPO
                     (detalhe.getLpu() != null && detalhe.getLpu().getContrato() != null) ? detalhe.getLpu().getContrato().getId() : null,
                     detalhe.getRegional(),
                     detalhe.getLote(),
@@ -111,7 +111,11 @@ public record OsResponseDto(
                             .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO)
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                             .map(LancamentoResponseDTO::new)
-                            .orElse(null)
+                            .orElse(null),
+                    // LÓGICA PARA POPULAR A LISTA COMPLETA DE LANÇAMENTOS
+                    detalhe.getLancamentos().stream()
+                            .map(LancamentoResponseDTO::new)
+                            .collect(Collectors.toList())
             );
         }
     }

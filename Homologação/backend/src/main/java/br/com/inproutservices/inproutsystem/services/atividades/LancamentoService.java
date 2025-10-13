@@ -1,9 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoControllerDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.AcaoCoordenadorDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.CpsResponseDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoRequestDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 
 import java.math.BigDecimal;
@@ -67,4 +64,6 @@ public interface LancamentoService {
     List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos);
 
     Lancamento registrarAdiantamento(Long lancamentoId, BigDecimal valorAdiantamento);
+
+    List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim);
 }

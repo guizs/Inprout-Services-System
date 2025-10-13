@@ -3,6 +3,7 @@ package br.com.inproutservices.inproutsystem.dtos.atividades;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
+import com.fasterxml.jackson.annotation.JsonFormat; // <-- IMPORT NECESSÁRIO
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -12,19 +13,37 @@ public record LancamentoRequestDTO(
         Long etapaDetalhadaId,
         Long lpuId,
         Long osLpuDetalheId,
-        LocalDate dataAtividade, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate dataAtividade,
+
         String equipe,
         String vistoria,
-        LocalDate planoVistoria, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate planoVistoria,
+
         String desmobilizacao,
-        LocalDate planoDesmobilizacao, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate planoDesmobilizacao,
+
         String instalacao,
-        LocalDate planoInstalacao, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate planoInstalacao,
+
         String ativacao,
         SituacaoAprovacao situacaoAprovacao,
-        LocalDate planoAtivacao, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate planoAtivacao,
+
         String documentacao,
-        LocalDate planoDocumentacao, // SEM @JsonFormat
+
+        @JsonFormat(pattern = "dd/MM/yyyy") // <-- CORREÇÃO
+        LocalDate planoDocumentacao,
+
         StatusEtapa status,
         SituacaoOperacional situacao,
         String detalheDiario,

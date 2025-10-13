@@ -7,7 +7,7 @@ public class ConsolidadoPorPrestadorDTO {
     private String codPrestador;
     private String prestadorNome;
     private BigDecimal valorTotal;
-    private Long quantidade;
+    private Long quantidade; // <<< CAMPO ADICIONADO
 
     public ConsolidadoPorPrestadorDTO() {}
 
@@ -15,7 +15,7 @@ public class ConsolidadoPorPrestadorDTO {
         this.codPrestador = codPrestador;
         this.prestadorNome = prestadorNome;
         this.valorTotal = valorTotal;
-        this.quantidade = quantidade;
+        this.quantidade = quantidade; // <<< CAMPO ADICIONADO
     }
 
     public String getCodPrestador() {

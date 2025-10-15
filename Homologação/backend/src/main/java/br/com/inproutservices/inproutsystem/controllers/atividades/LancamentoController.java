@@ -134,6 +134,12 @@ public class LancamentoController {
         }).collect(Collectors.toList());
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deletarLancamento(@PathVariable Long id) {
+        lancamentoService.deletarLancamento(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/cps/programacao-diaria")
     public ResponseEntity<List<ProgramacaoDiariaDTO>> getProgramacaoDiaria(
             @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,

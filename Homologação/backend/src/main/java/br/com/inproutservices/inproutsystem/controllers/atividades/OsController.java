@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
+import br.com.inproutservices.inproutsystem.dtos.atividades.OsLpuDetalheUpdateDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
@@ -162,7 +163,7 @@ public class OsController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
+    .
     @GetMapping("/por-projeto/{projeto}")
     public ResponseEntity<List<OsResponseDto>> getOsPorProjeto(@PathVariable String projeto) {
         List<OS> osDoProjeto = osService.getOsByProjeto(projeto);

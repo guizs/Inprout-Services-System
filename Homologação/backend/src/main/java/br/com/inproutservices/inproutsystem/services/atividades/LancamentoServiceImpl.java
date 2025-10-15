@@ -500,6 +500,22 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional
+    public void deletarLancamento(Long id) {
+        Lancamento lancamento = lancamentoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
+
+        // Regra de Negócio: Permite exclusão apenas se for RASCUNHO ou RECUSADO
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RASCUNHO &&
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR &&
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_CONTROLLER) {
+            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS, RECUSADOS POR COORDENADOR ou RECUSADOS POR CONTROLLER. Status atual: " + lancamento.getSituacaoAprovacao());
+        }
+
+        lancamentoRepository.delete(lancamento);
+    }
+
+    @Override
+    @Transactional
     public Lancamento rejeitarExtensaoPrazo(Long lancamentoId, AcaoControllerDTO dto) {
         Lancamento lancamento = getLancamentoById(lancamentoId);
         Usuario controller = usuarioRepository.findById(dto.controllerId())

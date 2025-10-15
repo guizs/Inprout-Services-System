@@ -317,6 +317,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const btnDelete = e.target.closest('.btn-delete-registro');
 
             if (btnEdit) {
+                e.preventDefault(); // <-- Adicionado: Garante que o evento seja tratado corretamente
                 const detalheId = btnEdit.dataset.id;
                 document.getElementById('editKeyDetalheId').value = detalheId;
                 document.getElementById('novaKeyValue').value = '';
@@ -324,6 +325,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (btnDelete) {
+                e.preventDefault(); // <-- Adicionado: Garante que o modal abra
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
                 modalConfirmarExclusao.show();

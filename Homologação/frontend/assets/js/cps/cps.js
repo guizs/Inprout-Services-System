@@ -441,29 +441,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (btnAlterar) {
                 const lancamentoId = btnAlterar.dataset.id;
-                const linha = btnAlterar.closest('tr');
-                const nomePrestador = linha.cells[36].textContent;
-                const valorAtual = linha.cells[37].textContent;
 
-                document.getElementById('lancamentoIdAlterar').value = lancamentoId;
-                document.getElementById('prestadorInfo').value = nomePrestador;
-                document.getElementById('valorAtual').value = valorAtual;
-                document.getElementById('novoValor').value = '';
+                // --- INÍCIO DA CORREÇÃO ---
+                // Encontra o lançamento correto na lista de dados em vez de ler da tabela HTML.
+                // Isso é mais seguro e evita erros de índice.
+                const lancamento = window.fullData.lancamentosDetalhados.find(l => l.id == lancamentoId);
 
-                modalAlterarValor.show();
+                if (lancamento) {
+                    document.getElementById('lancamentoIdAlterar').value = lancamentoId;
+                    document.getElementById('prestadorInfo').value = lancamento.prestador || 'N/A';
+                    document.getElementById('valorAtual').value = formatCurrency(lancamento.valor);
+                    document.getElementById('novoValor').value = '';
+
+                    modalAlterarValor.show();
+                } else {
+                    mostrarToast('Não foi possível encontrar os detalhes para este lançamento.', 'error');
+                }
+                // --- FIM DA CORREÇÃO ---
                 return;
             }
 
             if (btnAdiantamento) {
                 const lancamentoId = btnAdiantamento.dataset.id;
-                const linha = btnAdiantamento.closest('tr');
-                const nomePrestador = linha.cells[36].textContent;
+                // A mesma lógica de busca segura é aplicada aqui.
+                const lancamento = window.fullData.lancamentosDetalhados.find(l => l.id == lancamentoId);
 
-                document.getElementById('lancamentoIdAdiantamento').value = lancamentoId;
-                document.getElementById('prestadorInfoAdiantamento').value = nomePrestador;
-                document.getElementById('valorAdiantamento').value = '';
+                if (lancamento) {
+                    document.getElementById('lancamentoIdAdiantamento').value = lancamentoId;
+                    document.getElementById('prestadorInfoAdiantamento').value = lancamento.prestador || 'N/A';
+                    document.getElementById('valorAdiantamento').value = '';
 
-                modalAdiantamento.show();
+                    modalAdiantamento.show();
+                } else {
+                    mostrarToast('Não foi possível encontrar os detalhes para este lançamento.', 'error');
+                }
                 return;
             }
 

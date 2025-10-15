@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    const API_BASE_URL = 'http://3.128.248.3:8080';
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
@@ -331,8 +332,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
+                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`; // <-- ADICIONADO AQUI
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
+                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`; // <-- ADICIONADO AQUI
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
                             if (!projetosFinalizados.has(chaveProjetoAtual)) {
@@ -1062,6 +1065,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
                 modalConfirmacao.show();
             }
+            else if (e.target.closest('.btn-excluir-lancamento')) {
+                const btnExcluir = e.target.closest('.btn-excluir-lancamento');
+                const lancamentoId = btnExcluir.dataset.id;
+                document.getElementById('deleteLancamentoId').value = lancamentoId;
+                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento'));
+                modalConfirmacao.show();
+            }
         });
 
         function getProjetosParalisados() {
@@ -1076,6 +1086,47 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
         }
+
+        document.getElementById('btnConfirmarExclusaoLancamentoDefinitiva')?.addEventListener('click', async function (e) {
+            const confirmButton = e.currentTarget;
+            const id = document.getElementById('deleteLancamentoId').value;
+            if (!id) return;
+
+            const originalContent = confirmButton.innerHTML;
+            const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusaoLancamento'));
+
+            try {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+
+                // Chama o novo endpoint DELETE
+                const resposta = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}`, { method: 'DELETE' });
+
+                if (!resposta.ok) {
+                    let errorMsg = 'Erro ao excluir o lançamento.';
+                    try {
+                        const errorData = await resposta.json();
+                        errorMsg = errorData.message || errorMsg;
+                    } catch (e) {
+                        errorMsg = await resposta.text();
+                    }
+                    throw new Error(errorMsg);
+                }
+
+                mostrarToast('Lançamento excluído com sucesso!', 'success');
+                await carregarLancamentos(); // Recarrega os dados após o sucesso
+
+            } catch (error) {
+                console.error('Erro na exclusão do lançamento:', error);
+                mostrarToast(error.message, 'error');
+            } finally {
+                confirmButton.disabled = false;
+                confirmButton.innerHTML = originalContent;
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+        });
 
         document.getElementById('btnConfirmarSubmissao').addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;

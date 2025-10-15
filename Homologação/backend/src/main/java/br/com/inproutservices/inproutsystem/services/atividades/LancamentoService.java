@@ -66,4 +66,6 @@ public interface LancamentoService {
     Lancamento registrarAdiantamento(Long lancamentoId, BigDecimal valorAdiantamento);
 
     List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim);
+
+    void deletarLancamento(Long id);
 }

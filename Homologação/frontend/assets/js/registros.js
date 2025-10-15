@@ -100,8 +100,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const osInfo = { ...os, detalhes: undefined };
                 if (os.detalhes && os.detalhes.length > 0) {
 
+                    // ⬅️ ESTA LINHA JÁ ESTAVA NO CÓDIGO
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
+                    // ➡️ CORREÇÃO: Usar 'detalhesAtivos' para iterar
                     detalhesAtivos.forEach(detalhe => {
                         todasAsLinhas.push({
                             os: os,
@@ -309,92 +311,120 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
-        const modalEditarKey = new bootstrap.Modal(document.getElementById('modalEditarKey'));
-        const modalConfirmarExclusao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
+
+        // CORREÇÃO: Cria as instâncias do Modal de forma segura e só se os elementos existirem
+        const modalEditarKeyEl = document.getElementById('modalEditarKey');
+        const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
+
+        const modalEditarKey = modalEditarKeyEl ? new bootstrap.Modal(modalEditarKeyEl) : null;
+        const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
 
         accordionContainer.addEventListener('click', function (e) {
             const btnEdit = e.target.closest('.btn-edit-key');
             const btnDelete = e.target.closest('.btn-delete-registro');
 
             if (btnEdit) {
-                e.preventDefault(); // <-- Adicionado: Garante que o evento seja tratado corretamente
+                e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
                 document.getElementById('editKeyDetalheId').value = detalheId;
                 document.getElementById('novaKeyValue').value = '';
-                modalEditarKey.show();
+
+                // CORREÇÃO: Só chama show() se a instância existir
+                if (modalEditarKey) {
+                    modalEditarKey.show();
+                }
             }
 
             if (btnDelete) {
-                e.preventDefault(); // <-- Adicionado: Garante que o modal abra
+                // e.preventDefault() é removido para permitir o comportamento padrão que abre o modal
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
-                modalConfirmarExclusao.show();
+
+                // CORREÇÃO: Só chama show() se a instância existir
+                if (modalConfirmarExclusao) {
+                    modalConfirmarExclusao.show();
+                }
             }
         });
 
         // Lógica para salvar a nova KEY
-        document.getElementById('formEditarKey').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const detalheId = document.getElementById('editKeyDetalheId').value;
-            const novaChave = document.getElementById('novaKeyValue').value;
-            const btnSalvar = document.getElementById('btnSalvarNovaKey');
+        const formEditarKeyEl = document.getElementById('formEditarKey');
+        if (formEditarKeyEl) { // <--- NULL CHECK para resolver o TypeError
+            formEditarKeyEl.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const detalheId = document.getElementById('editKeyDetalheId').value;
+                const novaChave = document.getElementById('novaKeyValue').value;
+                const btnSalvar = document.getElementById('btnSalvarNovaKey');
 
-            btnSalvar.disabled = true;
-            btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
+                btnSalvar.disabled = true;
+                btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
 
-            try {
-                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: novaChave })
-                });
+                try {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: novaChave })
+                    });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Erro ao salvar a chave.');
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Erro ao salvar a chave.');
+                    }
+
+                    mostrarToast('Chave atualizada com sucesso!', 'success');
+                    if (modalEditarKey) modalEditarKey.hide();
+                    await inicializarPagina(); // Recarrega os dados
+
+                } catch (error) {
+                    mostrarToast(error.message, 'error');
+                } finally {
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = 'Salvar Chave';
                 }
-
-                mostrarToast('Chave atualizada com sucesso!', 'success');
-                modalEditarKey.hide();
-                await inicializarPagina(); // Recarrega os dados
-
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-            } finally {
-                btnSalvar.disabled = false;
-                btnSalvar.innerHTML = 'Salvar Chave';
-            }
-        });
+            });
+        }
 
         // Lógica para confirmar a exclusão
-        document.getElementById('btnConfirmarExclusaoDefinitiva').addEventListener('click', async function () {
-            const detalheId = document.getElementById('deleteDetalheId').value;
-            const btnConfirmar = this;
+        const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
+        if (btnConfirmarExclusaoDefinitivaEl) { // <--- NULL CHECK para resolver o TypeError
+            btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
+                const detalheId = document.getElementById('deleteDetalheId').value;
+                const btnConfirmar = this;
 
-            btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+                btnConfirmar.disabled = true;
+                btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
 
-            try {
-                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
-                    method: 'DELETE'
-                });
+                try {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
+                        method: 'DELETE'
+                    });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Erro ao excluir o registro.');
+                    if (!response.ok) {
+                        // Tenta obter a mensagem de erro do JSON, ou usa um fallback
+                        let errorMsg = 'Erro ao excluir o registro.';
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`;
+                        } catch (e) {
+                            const errorText = await response.text();
+                            errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`;
+                        }
+                        throw new Error(errorMsg);
+                    }
+
+                    mostrarToast('Registro excluído com sucesso!', 'success');
+                    if (modalConfirmarExclusao) modalConfirmarExclusao.hide();
+                    await inicializarPagina(); // Recarrega os dados
+
+                } catch (error) {
+                    console.error("Erro ao excluir o registro:", error);
+                    mostrarToast(error.message, 'error');
+                } finally {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerHTML = 'Sim, Excluir';
                 }
-
-                mostrarToast('Registro excluído com sucesso!', 'success');
-                modalConfirmarExclusao.hide();
-                await inicializarPagina(); // Recarrega os dados
-
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-            } finally {
-                btnConfirmar.disabled = false;
-                btnConfirmar.innerHTML = 'Sim, Excluir';
-            }
-        });
+            });
+        }
     }
 
     const btnDownloadTemplate = document.getElementById('btnDownloadTemplate');

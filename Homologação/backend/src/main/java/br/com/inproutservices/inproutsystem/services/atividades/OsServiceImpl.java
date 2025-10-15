@@ -803,17 +803,18 @@ public class OsServiceImpl implements OsService {
     }
 
     @Transactional
-    public OsLpuDetalhe desativarDetalhe(Long detalheId) {
+    public void desativarDetalhe(Long detalheId) {
         OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
 
+        // Regra de Negócio: Impede a exclusão se houver lançamentos.
         if (detalhe.getLancamentos() != null && !detalhe.getLancamentos().isEmpty()) {
             throw new BusinessException("Não é possível excluir um registro que já possui lançamentos de atividade.");
         }
 
-        detalhe.setStatusRegistro("INATIVO");
-        // Você pode adicionar um log de quem desativou aqui se desejar
-        return osLpuDetalheRepository.save(detalhe);
+        // CORREÇÃO: Exclui fisicamente o registro.
+        // Isso remove a linha da tabela e libera a KEY para reutilização.
+        osLpuDetalheRepository.delete(detalhe);
     }
 
     @Transactional

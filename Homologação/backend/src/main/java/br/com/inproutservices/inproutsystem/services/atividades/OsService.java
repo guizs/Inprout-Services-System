@@ -73,7 +73,7 @@ public interface OsService {
 
     OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade);
 
-    OsLpuDetalhe desativarDetalhe(Long detalheId);
+    void desativarDetalhe(Long detalheId);
     OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave);
 
 }

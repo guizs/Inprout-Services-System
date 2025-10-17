@@ -515,6 +515,12 @@ public class LancamentoServiceImpl implements LancamentoService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador() {
+        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR);
+    }
+
+    @Override
     @Transactional
     public Lancamento rejeitarExtensaoPrazo(Long lancamentoId, AcaoControllerDTO dto) {
         Lancamento lancamento = getLancamentoById(lancamentoId);

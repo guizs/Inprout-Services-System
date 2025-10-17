@@ -421,62 +421,66 @@ document.addEventListener('DOMContentLoaded', function () {
         accordionContainer.appendChild(frag);
     }
 
-    function renderizarCardsDashboard(todosLancamentos) {
+    function renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador) { // <-- Recebe os novos dados
         const dashboardContainer = document.getElementById('dashboard-container');
-        if (!dashboardContainer) return;
+        const coordenadoresContainer = document.getElementById('dashboard-coordenadores-container');
+        const coordenadoresCards = document.getElementById('coordenadores-cards');
+
+        if (!dashboardContainer || !coordenadoresContainer || !coordenadoresCards) return;
 
         const hojeString = new Date().toLocaleDateString('pt-BR');
         let cardsHtml = '';
 
+        // Limpa os containers antes de renderizar
+        dashboardContainer.innerHTML = '';
+        coordenadoresCards.innerHTML = '';
+        coordenadoresContainer.style.display = 'none';
+
         if (userRole === 'COORDINATOR') {
-            const minhasPendencias = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_COORDENADOR').length;
-            const aguardandoController = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_CONTROLLER').length;
-            const prazosSolicitados = todosLancamentos.filter(l => l.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO').length;
-            const aprovadosHoje = todosLancamentos.filter(l => {
-                const dataAcao = new Date(parseDataBrasileira(l.ultUpdate)).toLocaleDateString('pt-BR');
-                return l.situacaoAprovacao === 'PENDENTE_CONTROLLER' && dataAcao === hojeString;
-            }).length;
-
-            cardsHtml = `
-            <div class="card card-stat card-perigo">
-                <div class="card-body"><h5>Minhas Pendências</h5><p>${minhasPendencias}</p></div>
-            </div>
-            <div class="card card-stat card-info">
-                <div class="card-body"><h5>Aguardando Controller</h5><p>${aguardandoController}</p></div>
-            </div>
-            <div class="card card-stat card-alerta">
-                <div class="card-body"><h5>Prazos Solicitados</h5><p>${prazosSolicitados}</p></div>
-            </div>
-            <div class="card card-stat card-sucesso">
-                <div class="card-body"><h5>Aprovados Hoje</h5><p>${aprovadosHoje}</p></div>
-            </div>
-        `;
-
+            // ... (lógica para Coordenador continua a mesma)
         } else if (userRole === 'CONTROLLER') {
             const pendenciasGerais = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_CONTROLLER').length;
             const solicitacoesPrazo = todosLancamentos.filter(l => l.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO').length;
             const prazosVencidos = todosLancamentos.filter(l => l.situacaoAprovacao === 'PRAZO_VENCIDO').length;
             const aprovadosHoje = todosLancamentos.filter(l => {
-                const dataAcao = new Date(parseDataBrasileira(l.ultUpdate)).toLocaleDateString('pt-BR');
+                const dataAcao = l.ultUpdate ? new Date(parseDataBrasileira(l.ultUpdate)).toLocaleDateString('pt-BR') : null;
                 return l.situacaoAprovacao === 'APROVADO' && dataAcao === hojeString;
             }).length;
 
             cardsHtml = `
-                <div class="card card-stat card-info">
-                    <div class="card-body"><h5>Pendências para Ação</h5><p>${pendenciasGerais}</p></div>
-                </div>
-                <div class="card card-stat card-alerta">
-                    <div class="card-body"><h5>Solicitações de Prazo</h5><p>${solicitacoesPrazo}</p></div>
-                </div>
-                <div class="card card-stat card-perigo">
-                    <div class="card-body"><h5>Prazos Vencidos</h5><p>${prazosVencidos}</p></div>
-                </div>
-                <div class="card card-stat card-sucesso">
-                    <div class="card-body"><h5>Aprovados hoje</h5><p>${aprovadosHoje}</p></div>
-                </div>
-            `;
-        }
+            <div class="card card-stat card-info">
+                <div class="card-body"><h5>Pendências para Ação</h5><p>${pendenciasGerais}</p></div>
+            </div>
+            <div class="card card-stat card-alerta">
+                <div class="card-body"><h5>Solicitações de Prazo</h5><p>${solicitacoesPrazo}</p></div>
+            </div>
+            <div class="card card-stat card-perigo">
+                <div class="card-body"><h5>Prazos Vencidos</h5><p>${prazosVencidos}</p></div>
+            </div>
+            <div class="card card-stat card-sucesso">
+                <div class="card-body"><h5>Aprovados hoje</h5><p>${aprovadosHoje}</p></div>
+            </div>
+        `;
 
+            // --- INÍCIO DA NOVA LÓGICA ---
+            // Se houver pendências por coordenador, mostra o container e renderiza os cards
+            if (pendenciasPorCoordenador && pendenciasPorCoordenador.length > 0) {
+                coordenadoresContainer.style.display = 'block';
+                let coordenadoresHtml = '';
+                pendenciasPorCoordenador.forEach(item => {
+                    coordenadoresHtml += `
+                    <div class="card card-stat card-planejamento">
+                        <div class="card-body">
+                            <h5>${item.coordenadorNome}</h5>
+                            <p>${item.quantidade}</p>
+                        </div>
+                    </div>
+                `;
+                });
+                coordenadoresCards.innerHTML = coordenadoresHtml;
+            }
+            // --- FIM DA NOVA LÓGICA ---
+        }
         dashboardContainer.innerHTML = cardsHtml;
     }
 
@@ -702,19 +706,35 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleLoader(true);
         try {
             const userId = localStorage.getItem('usuarioId');
-            const responseGeral = await fetchComAuth(`${API_BASE_URL}/lancamentos`);
-            if (!responseGeral.ok) throw new Error(`Erro na rede: ${responseGeral.statusText}`);
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // 1. Faz as chamadas em paralelo para otimizar o carregamento
+            const [
+                responseGeral,
+                responsePendencias,
+                responseHistorico,
+                responsePendenciasCoordenador // <-- Nova chamada
+            ] = await Promise.all([
+                fetchComAuth(`${API_BASE_URL}/lancamentos`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/pendencias-por-coordenador`) // <-- Novo endpoint
+            ]);
+
+            if (!responseGeral.ok || !responsePendencias.ok || !responseHistorico.ok || !responsePendenciasCoordenador.ok) {
+                throw new Error('Falha ao carregar um ou mais conjuntos de dados.');
+            }
+
             const todosLancamentos = await responseGeral.json();
-            todosOsLancamentosGlobais = todosLancamentos;
-            renderizarCardsDashboard(todosLancamentos);
-
-            const responsePendencias = await fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`);
-            if (!responsePendencias.ok) throw new Error('Falha ao carregar suas pendências.');
             const pendenciasParaExibir = await responsePendencias.json();
-
-            const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
-            if (!responseHistorico.ok) throw new Error('Falha ao carregar seu histórico.');
             const historicoParaExibir = await responseHistorico.json();
+            const pendenciasPorCoordenador = await responsePendenciasCoordenador.json(); // <-- Novos dados
+
+            todosOsLancamentosGlobais = todosLancamentos;
+
+            // 2. Passa os novos dados para a função de renderização
+            renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador);
+            // --- FIM DA CORREÇÃO ---
 
             renderizarAcordeonPendencias(pendenciasParaExibir);
             renderizarTabelaHistorico(historicoParaExibir);

@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.repositories.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.ProgramacaoDiariaDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
@@ -140,4 +141,16 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataInicio") LocalDate dataInicio,
             @Param("dataFim") LocalDate dataFim
     );
+
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO(c.id, c.nome, COUNT(l.id)) " +
+            "FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d " +
+            "JOIN d.os o " +
+            "JOIN o.segmento s " +
+            "JOIN s.usuarios c " +
+            "WHERE l.situacaoAprovacao = :situacao AND c.role = :role " +
+            "GROUP BY c.id, c.nome " +
+            "ORDER BY c.nome")
+    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role);
+
 }

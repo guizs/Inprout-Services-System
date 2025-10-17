@@ -140,6 +140,12 @@ public class LancamentoController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/pendencias-por-coordenador")
+    public ResponseEntity<List<PendenciasPorCoordenadorDTO>> getPendenciasPorCoordenador() {
+        List<PendenciasPorCoordenadorDTO> pendencias = lancamentoService.getPendenciasPorCoordenador();
+        return ResponseEntity.ok(pendencias);
+    }
+
     @GetMapping("/cps/programacao-diaria")
     public ResponseEntity<List<ProgramacaoDiariaDTO>> getProgramacaoDiaria(
             @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,

@@ -68,4 +68,5 @@ public interface LancamentoService {
     List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim);
 
     void deletarLancamento(Long id);
+    List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador();
 }

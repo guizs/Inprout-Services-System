@@ -23,6 +23,7 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <button class="btn toggle-sidebar" id="menu-toggle"><i class="bi bi-grid fs-5"></i></button>
+            <link rel="icon" href="../assets/imgs/login/logo.png" type="image/png">
             <img src="../assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
             <div class="dropdown ms-auto">
                 <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
@@ -55,6 +56,12 @@
             <div class="collapse" id="collapseAprovacoesCards">
                 <div class="card-body">
                     <div id="dashboard-container" class="d-flex flex-wrap gap-2 dashboard-cards">
+                    </div>
+
+                    <div id="dashboard-coordenadores-container" class="mt-4" style="display: none;">
+                        <h6 class="section-title">Pendências por Coordenador</h6>
+                        <div id="coordenadores-cards" class="d-flex flex-wrap gap-2 dashboard-cards">
+                        </div>
                     </div>
                 </div>
             </div>

@@ -75,5 +75,6 @@ public interface OsService {
 
     void desativarDetalhe(Long detalheId);
     OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave);
+    void atualizarSegmentoDaOs(Long detalheId, Long novoSegmentoId);
 
 }

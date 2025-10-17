@@ -186,4 +186,14 @@ public class OsController {
         return ResponseEntity.ok(detalheAtualizado);
     }
 
+    @PatchMapping("/detalhe/{id}/segmento")
+    public ResponseEntity<Void> atualizarSegmento(@PathVariable Long id, @RequestBody Map<String, Long> payload) {
+        Long novoSegmentoId = payload.get("novoSegmentoId");
+        if (novoSegmentoId == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        osService.atualizarSegmentoDaOs(id, novoSegmentoId);
+        return ResponseEntity.ok().build();
+    }
+
 }

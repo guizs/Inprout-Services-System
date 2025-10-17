@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://3.128.248.3:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -201,7 +201,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         const detalheId = get(linhaData, 'detalhe.id', '');
                         const chave = get(linhaData, 'detalhe.key', '-');
                         const semChave = chave === '-' || chave === '' || chave === null;
-                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa"><i class="bi bi-pencil-fill"></i></button>`;
+
+                        // [CORREÇÃO 1] Altera a classe do botão de editar para .btn-edit-detalhe
+                        // O botão só será renderizado se houver um detalheId
+                        let btnEditar = '';
+                        if (detalheId) {
+                            btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>`;
+                        }
+
                         const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
                         return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                     }
@@ -237,6 +244,34 @@ document.addEventListener('DOMContentLoaded', function () {
         accordionContainer.appendChild(frag);
         paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas} (${totalGrupos} grupos)`;
         atualizarBotoesPaginacao(totalPaginas);
+    }
+
+    async function carregarSegmentosESelecionarAtual(segmentoAtualId) {
+        const selectSegmento = document.getElementById('selectSegmento');
+
+        try {
+            // Reutiliza a lógica de busca de segmentos
+            const response = await fetchComAuth(`${API_BASE_URL}/segmentos`);
+            if (!response.ok) throw new Error('Falha ao carregar segmentos.');
+            const segmentos = await response.json();
+
+            selectSegmento.innerHTML = '<option value="" disabled>Selecione o segmento...</option>';
+            segmentos.forEach(seg => {
+                const option = document.createElement('option');
+                option.value = seg.id;
+                option.textContent = seg.nome;
+                // Compara o ID de forma frouxa para garantir que a seleção funcione
+                if (seg.id == segmentoAtualId) {
+                    option.selected = true;
+                }
+                selectSegmento.appendChild(option);
+            });
+            // Mantém desabilitado até o toggle ser ativado
+            selectSegmento.disabled = true;
+
+        } catch (error) {
+            selectSegmento.innerHTML = '<option value="" disabled>Erro ao carregar</option>';
+        }
     }
 
     function renderizarTabelaComFiltro() {
@@ -312,87 +347,208 @@ document.addEventListener('DOMContentLoaded', function () {
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
 
-        // CORREÇÃO: Cria as instâncias do Modal de forma segura e só se os elementos existirem
-        const modalEditarKeyEl = document.getElementById('modalEditarKey');
-        const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
+        // [CORREÇÃO 2] Instancia ambos os modais UMA ÚNICA vez na função
+        const modalEditarDetalheEl = document.getElementById('modalEditarDetalhe');
+        const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
 
-        const modalEditarKey = modalEditarKeyEl ? new bootstrap.Modal(modalEditarKeyEl) : null;
+        const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
 
+        // Listener para editar/excluir
         accordionContainer.addEventListener('click', function (e) {
-            const btnEdit = e.target.closest('.btn-edit-key');
+
+            // [CORREÇÃO 3] Busca pelo nome da classe corrigida (.btn-edit-detalhe)
+            const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
 
             if (btnEdit) {
                 e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
-                document.getElementById('editKeyDetalheId').value = detalheId;
-                document.getElementById('novaKeyValue').value = '';
 
-                // CORREÇÃO: Só chama show() se a instância existir
-                if (modalEditarKey) {
-                    modalEditarKey.show();
+                if (!detalheId) {
+                    mostrarToast("Registro de detalhe não possui ID para edição.", "warning");
+                    return;
+                }
+
+                const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
+
+                if (modalEditarDetalhe && linhaData) {
+
+                    const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
+                    document.getElementById('editDetalheId').value = detalheId;
+
+                    document.getElementById('osValue').value = get(linhaData, 'os.os', 'N/A');
+
+                    const chaveExistente = get(linhaData, 'detalhe.key', '');
+                    document.getElementById('novaKeyValue').value = chaveExistente;
+
+                    const segmentoAtualId = get(linhaData, 'os.segmento.id');
+                    carregarSegmentosESelecionarAtual(segmentoAtualId);
+
+                    // Armazena valores originais no dataset para comparação
+                    formEditarDetalheEl.dataset.originalKey = chaveExistente;
+                    formEditarDetalheEl.dataset.originalSegmentoId = segmentoAtualId;
+
+                    // Reseta o estado dos switches e campos
+                    document.querySelectorAll('#formEditarDetalhe .toggle-editar').forEach(toggle => {
+                        toggle.checked = false;
+                        const targetInput = document.querySelector(toggle.dataset.target);
+                        if (targetInput) targetInput.disabled = true;
+                    });
+
+                    // Desabilita o botão de salvar até que algo seja alterado
+                    document.getElementById('btnSalvarDetalhe').disabled = true;
+
+                    // [CORREÇÃO 4] Ação final: mostra o modal de edição
+                    modalEditarDetalhe.show();
+                } else {
+                    mostrarToast("Não foi possível carregar os dados para edição.", "error");
                 }
             }
 
             if (btnDelete) {
-                // e.preventDefault() é removido para permitir o comportamento padrão que abre o modal
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
 
-                // CORREÇÃO: Só chama show() se a instância existir
                 if (modalConfirmarExclusao) {
+                    // [CORREÇÃO 5] Ação final: mostra o modal de exclusão (agora que modalConfirmarExclusao é uma instância válida)
                     modalConfirmarExclusao.show();
                 }
             }
         });
 
-        // Lógica para salvar a nova KEY
-        const formEditarKeyEl = document.getElementById('formEditarKey');
-        if (formEditarKeyEl) { // <--- NULL CHECK para resolver o TypeError
-            formEditarKeyEl.addEventListener('submit', async function (e) {
+        // Adiciona o listener para habilitar/desabilitar o botão salvar
+        const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
+        if (formEditarDetalheEl) {
+
+            formEditarDetalheEl.addEventListener('change', (e) => {
+                if (e.target.classList.contains('toggle-editar')) {
+                    const toggle = e.target;
+                    const targetSelector = toggle.dataset.target;
+                    const targetInput = document.querySelector(targetSelector);
+
+                    if (targetInput) {
+                        targetInput.disabled = !toggle.checked;
+
+                        // Garante que o evento 'input' seja disparado para reavaliar o botão Salvar
+                        const event = new Event('input', { bubbles: true });
+                        targetInput.dispatchEvent(event);
+                    }
+                }
+            });
+
+            // Este listener verifica se os toggles estão ativos E se os valores mudaram.
+            formEditarDetalheEl.addEventListener('input', () => {
+                const originalKey = formEditarDetalheEl.dataset.originalKey || '';
+                const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+
+                const currentKey = document.getElementById('novaKeyValue').value;
+                const currentSegmentoId = document.getElementById('selectSegmento').value;
+
+                // Verifica se o toggle está ligado E se o valor atual é diferente do original
+                const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
+                const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
+
+                // Habilita o botão se qualquer um dos dois for verdadeiro
+                document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged);
+            });
+
+            // Lógica para salvar a nova KEY e Segmento
+            formEditarDetalheEl.addEventListener('submit', async function (e) {
                 e.preventDefault();
-                const detalheId = document.getElementById('editKeyDetalheId').value;
-                const novaChave = document.getElementById('novaKeyValue').value;
-                const btnSalvar = document.getElementById('btnSalvarNovaKey');
+                const detalheId = document.getElementById('editDetalheId').value;
+                const btnSalvar = document.getElementById('btnSalvarDetalhe');
+
+                // Pega os valores para comparação
+                const originalKey = formEditarDetalheEl.dataset.originalKey || '';
+                const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+
+                const currentKey = document.getElementById('novaKeyValue').value;
+                const currentSegmentoId = document.getElementById('selectSegmento').value;
+
+                const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
+                const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
+
+                if (!(keyChanged || segmentoChanged)) {
+                    mostrarToast('Nenhuma alteração para salvar.', 'warning');
+                    return;
+                }
 
                 btnSalvar.disabled = true;
                 btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
 
-                try {
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
+                const promises = [];
+
+                // 1. Promessa para atualizar a Key
+                if (keyChanged) {
+                    promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ key: novaChave })
-                    });
+                        body: JSON.stringify({ key: currentKey })
+                    }));
+                }
 
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.message || 'Erro ao salvar a chave.');
+                // 2. Promessa para atualizar o Segmento (chama o novo endpoint)
+                if (segmentoChanged) {
+                    promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/segmento`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ novoSegmentoId: parseInt(currentSegmentoId) })
+                    }));
+                }
+
+                try {
+                    const results = await Promise.all(promises);
+
+                    let allSuccessful = true;
+                    let errorMessages = [];
+
+                    for (let i = 0; i < results.length; i++) {
+                        const response = results[i];
+                        if (!response.ok) {
+                            allSuccessful = false;
+                            const errorType = (i === 0 && keyChanged) ? "Chave Externa" : "Segmento";
+                            let errorMessage = `${errorType}: Erro desconhecido ou de rede.`;
+                            try {
+                                // Tenta ler a mensagem de erro do backend
+                                const errorData = await response.json();
+                                errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`;
+                            } catch { }
+                            errorMessages.push(errorMessage);
+                        }
                     }
 
-                    mostrarToast('Chave atualizada com sucesso!', 'success');
-                    if (modalEditarKey) modalEditarKey.hide();
-                    await inicializarPagina(); // Recarrega os dados
+                    if (allSuccessful) {
+                        mostrarToast('Detalhes atualizados com sucesso!', 'success');
+                    } else {
+                        // Lançar um erro para o bloco catch tratar
+                        throw new Error(errorMessages.join(' | '));
+                    }
+
+                    if (modalEditarDetalhe) modalEditarDetalhe.hide();
+                    await inicializarPagina();
 
                 } catch (error) {
                     mostrarToast(error.message, 'error');
                 } finally {
                     btnSalvar.disabled = false;
-                    btnSalvar.innerHTML = 'Salvar Chave';
+                    btnSalvar.innerHTML = 'Salvar Alterações';
                 }
             });
         }
 
-        // Lógica para confirmar a exclusão
+
+
+        // Lógica para confirmar a exclusão (mantida)
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
-        if (btnConfirmarExclusaoDefinitivaEl) { // <--- NULL CHECK para resolver o TypeError
+        if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
                 const detalheId = document.getElementById('deleteDetalheId').value;
                 const btnConfirmar = this;
 
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+                const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
 
                 try {
                     const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
@@ -400,7 +556,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
 
                     if (!response.ok) {
-                        // Tenta obter a mensagem de erro do JSON, ou usa um fallback
                         let errorMsg = 'Erro ao excluir o registro.';
                         try {
                             const errorData = await response.json();
@@ -413,8 +568,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
 
                     mostrarToast('Registro excluído com sucesso!', 'success');
-                    if (modalConfirmarExclusao) modalConfirmarExclusao.hide();
-                    await inicializarPagina(); // Recarrega os dados
+                    if (modalInstance) modalInstance.hide();
+                    await inicializarPagina();
 
                 } catch (error) {
                     console.error("Erro ao excluir o registro:", error);

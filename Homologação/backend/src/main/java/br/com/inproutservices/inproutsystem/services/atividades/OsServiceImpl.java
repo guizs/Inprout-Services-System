@@ -817,6 +817,30 @@ public class OsServiceImpl implements OsService {
         osLpuDetalheRepository.delete(detalhe);
     }
 
+    @Override
+    @Transactional
+    public void atualizarSegmentoDaOs(Long detalheId, Long novoSegmentoId) {
+        OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
+                .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
+
+        OS os = detalhe.getOs();
+        if (os == null) {
+            throw new EntityNotFoundException("OS principal não encontrada para o Detalhe com ID: " + detalheId);
+        }
+
+        Segmento novoSegmento = segmentoRepository.findById(novoSegmentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Segmento não encontrado com o ID: " + novoSegmentoId));
+
+        // 1. Atualiza o Segmento na OS principal
+        os.setSegmento(novoSegmento);
+
+        // 2. Atualiza campos de auditoria
+        os.setDataAtualizacao(LocalDateTime.now());
+
+        // 3. Salva a OS
+        osRepository.save(os);
+    }
+
     @Transactional
     public OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave) {
         if (novaChave == null || novaChave.isBlank()) {

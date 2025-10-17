@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE_URL = 'http://3.128.248.3:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br';
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos');
+            const response = await fetchComAuth('https://www.inproutservices.com.br/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
             const lancamentosDaApi = await response.json();
@@ -592,7 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
+            const url = editingId ? `https://www.inproutservices.com.br/lancamentos/${editingId}` : 'https://www.inproutservices.com.br/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -650,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isComplementar) {
                     // --- INÍCIO DA CORREÇÃO ---
                     // Busca todos os contratos ativos, que já contêm suas LPUs
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/contrato`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/contrato`);
                     if (!response.ok) throw new Error('Falha ao buscar a lista de contratos e LPUs.');
                     const contratos = await response.json();
 
@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // --- FIM DA CORREÇÃO ---
                 } else {
                     // Lógica original para atividades normais (não complementares)
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/os/${osId}`);
                     if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                     const osData = await response.json();
                     const lpusParaExibir = osData.detalhes;
@@ -811,7 +811,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
                     todasAsOS = await response.json();
@@ -833,10 +833,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'https://www.inproutservices.com.br/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'https://www.inproutservices.com.br/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -947,7 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Busca a lista de prestadores sempre que o modal de edição abrir
-                const prestadores = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
+                const prestadores = await fetchComAuth('https://www.inproutservices.com.br/index/prestadores/ativos').then(res => res.json());
 
                 // Cria uma nova instância do Choices.js
                 const choices = new Choices(selectPrestadorEl, {
@@ -1139,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuth(`https://www.inproutservices.com.br/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1301,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://3.128.248.3:8080/materiais')
+                fetchComAuth('https://www.inproutservices.com.br/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1341,7 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1366,7 +1366,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1425,7 +1425,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetchComAuth('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetchComAuth('https://www.inproutservices.com.br/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)

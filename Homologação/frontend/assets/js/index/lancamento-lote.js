@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`https://www.inproutservices.com.br/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ==========================================
 
         try {
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+            const response = await fetchComAuth(`https://www.inproutservices.com.br/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -384,10 +384,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetchComAuth('http://3.128.248.3:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetchComAuth('https://www.inproutservices.com.br/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetchComAuth('https://www.inproutservices.com.br/index/prestadores/ativos').then(res => res.json());
             }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos/lote', {
+            const response = await fetchComAuth('https://www.inproutservices.com.br/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isChecked) {
                 // --- INÍCIO DA CORREÇÃO ---
                 // Atividade Complementar: Busca todos os contratos com suas LPUs
-                const response = await fetchComAuth(`http://3.128.248.3:8080/contrato`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/contrato`);
                 if (!response.ok) throw new Error('Falha ao buscar a lista de contratos e LPUs.');
                 const contratos = await response.json();
 
@@ -602,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/os/${osId}`);
                 if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                 const osData = await response.json();
 

@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return mostrarToast('O novo e-mail é igual ao atual.', 'error');
                 }
                 try {
-                    const response = await fetch(`https://www.inproutservices.com.br/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
+                    const response = await fetch(`https://www.inproutservices.com.br/api/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
                     if (!response.ok) {
                         const resultado = await response.text();
                         throw new Error(resultado);
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!novaSenha) return mostrarToast('Preencha ambos os campos de senha.', 'error');
 
                 try {
-                    const responseSenha = await fetchComAuth(`https://www.inproutservices.com.br/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
+                    const responseSenha = await fetchComAuth(`https://www.inproutservices.com.br/api/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
                     if (!responseSenha.ok) {
                         const resultadoSenha = await responseSenha.text();
                         throw new Error(resultadoSenha);
@@ -169,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         // Busca a lista completa de segmentos na API
-                        const response = await fetchComAuth('https://www.inproutservices.com.br/segmentos');
+                        const response = await fetchComAuth('https://www.inproutservices.com.br/api/segmentos');
                         if (!response.ok) throw new Error('Falha ao buscar segmentos.');
                         const todosSegmentos = await response.json();
 

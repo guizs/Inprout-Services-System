@@ -22,7 +22,7 @@ const contadorPrazo = document.getElementById('contador-prazo');
 const filtroHistoricoStatus = document.getElementById('filtro-historico-status');
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'https://www.inproutservices.com.br';
+const API_BASE_URL = 'https://www.inproutservices.com.br/api';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {

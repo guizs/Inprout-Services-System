@@ -22,7 +22,7 @@ const contadorPrazo = document.getElementById('contador-prazo');
 const filtroHistoricoStatus = document.getElementById('filtro-historico-status');
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
-const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais (sem alterações)
 function aprovarLancamento(id) {
@@ -360,8 +360,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const headerHTML = `
             <h2 class="accordion-header" id="heading-${uniqueId}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
                     <div class="header-content">
+                        <div class="form-check me-2" onclick="event.stopPropagation()">
+                            <input class="form-check-input selecionar-todos-acordeon" type="checkbox" data-target-body="collapse-${uniqueId}">
+                        </div>
                         <div class="header-title-wrapper">
                             <span class="header-title-project">${grupo.projeto}</span>
                             <span class="header-title-os">${grupo.os}</span>
@@ -404,7 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <table class="table modern-table table-sm">
                             <thead>
                                 <tr>
-                                    <th><input type="checkbox" class="form-check-input selecionar-todos-grupo" data-group-id="${uniqueId}"></th>
+                                    <th></th>
                                     ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')}
                                 </tr>
                             </thead>
@@ -1133,22 +1136,72 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const accordionContainer = document.getElementById('accordion-pendencias');
+    if (accordionContainer) {
+        accordionContainer.addEventListener('change', (e) => {
+            // Lógica para o novo checkbox do cabeçalho
+            if (e.target.classList.contains('selecionar-todos-acordeon')) {
+                const headerCheckbox = e.target;
+                const isChecked = headerCheckbox.checked;
+                const targetBodyId = headerCheckbox.dataset.targetBody;
+
+                const accordionItem = headerCheckbox.closest('.accordion-item');
+                if (!accordionItem) return;
+
+                // Seleciona/deseleciona os checkboxes individuais
+                const itemCheckboxes = accordionItem.querySelectorAll(`#${targetBodyId} .linha-checkbox`);
+                itemCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                    const linha = checkbox.closest('tr');
+                    if (linha) {
+                        linha.classList.toggle('table-active', isChecked);
+                    }
+                });
+
+                // Sincroniza com o checkbox que fica dentro do corpo do acordeão
+                const bodySelectAll = accordionItem.querySelector('.selecionar-todos-grupo');
+                if (bodySelectAll) {
+                    bodySelectAll.checked = isChecked;
+                    bodySelectAll.indeterminate = false;
+                }
+
+                atualizarEstadoAcoesLote();
+            }
+        });
+    }
+
     document.getElementById('atividades-pane').addEventListener('change', (e) => {
         const target = e.target;
+
+        // Lógica para os checkboxes individuais das linhas (MODIFICADA)
         if (target.classList.contains('linha-checkbox')) {
             const linha = target.closest('tr');
             linha.classList.toggle('table-active', target.checked);
-            atualizarEstadoAcoesLote();
-        } else if (target.classList.contains('selecionar-todos-grupo')) {
-            const isChecked = target.checked;
-            const groupId = target.dataset.groupId;
-            document.querySelectorAll(`tbody[data-group-id="${groupId}"] .linha-checkbox`).forEach(checkbox => {
-                checkbox.checked = isChecked;
-                const linha = checkbox.closest('tr');
-                linha.classList.toggle('table-active', isChecked);
-            });
+
+            // Atualiza o estado do checkbox do cabeçalho
+            const accordionItem = target.closest('.accordion-item');
+            if (accordionItem) {
+                const allCheckboxesInGroup = accordionItem.querySelectorAll('.linha-checkbox');
+                const checkedCount = Array.from(allCheckboxesInGroup).filter(cb => cb.checked).length;
+                const totalCount = allCheckboxesInGroup.length;
+
+                const headerCheckbox = accordionItem.querySelector('.selecionar-todos-acordeon');
+
+                if (headerCheckbox) {
+                    if (checkedCount === 0) {
+                        headerCheckbox.checked = false;
+                        headerCheckbox.indeterminate = false;
+                    } else if (checkedCount === totalCount) {
+                        headerCheckbox.checked = true;
+                        headerCheckbox.indeterminate = false;
+                    } else {
+                        headerCheckbox.indeterminate = true;
+                    }
+                }
+            }
             atualizarEstadoAcoesLote();
         }
+        // O bloco 'else if' para 'selecionar-todos-grupo' foi removido daqui.
     });
 
     btnAprovarSelecionados.addEventListener('click', () => {

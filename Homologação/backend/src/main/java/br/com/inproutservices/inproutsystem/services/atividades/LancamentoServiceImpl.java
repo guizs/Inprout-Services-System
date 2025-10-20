@@ -517,7 +517,8 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador() {
-        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR);
+        LocalDateTime dataLimite = LocalDateTime.now().minusDays(2);
+        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR, dataLimite);
     }
 
     @Override

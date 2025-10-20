@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -142,15 +143,15 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataFim") LocalDate dataFim
     );
 
-    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO(c.id, c.nome, COUNT(l.id)) " +
-            "FROM Lancamento l " +
-            "JOIN l.osLpuDetalhe d " +
-            "JOIN d.os o " +
-            "JOIN o.segmento s " +
-            "JOIN s.usuarios c " +
-            "WHERE l.situacaoAprovacao = :situacao AND c.role = :role " +
-            "GROUP BY c.id, c.nome " +
-            "ORDER BY c.nome")
-    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role);
-
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO(u.id, u.nome, COUNT(l.id)) " +
+            "FROM Usuario u " +
+            "LEFT JOIN u.segmentos s " +
+            "LEFT JOIN OS o ON o.segmento = s " +
+            "LEFT JOIN OsLpuDetalhe d ON d.os = o " +
+            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d AND l.situacaoAprovacao = :situacao AND l.dataSubmissao < :dataLimite " +
+            "WHERE u.role = :role " +
+            "AND (UPPER(u.nome) LIKE '%PAULO%' OR UPPER(u.nome) LIKE '%GUSTAVO%') " +
+            "GROUP BY u.id, u.nome " +
+            "ORDER BY u.nome")
+    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role, @Param("dataLimite") LocalDateTime dataLimite);
 }

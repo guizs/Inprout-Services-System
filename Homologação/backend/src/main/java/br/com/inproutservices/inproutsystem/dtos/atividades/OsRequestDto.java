@@ -42,6 +42,19 @@ public class OsRequestDto {
     private String gate;
     private String gateId;
 
+    // --- NOVOS CAMPOS PARA IMPORTAÇÃO LEGADO ---
+    private String vistoria;
+    private LocalDate planoVistoria;
+    private String desmobilizacao;
+    private LocalDate planoDesmobilizacao;
+    private String instalacao;
+    private LocalDate planoInstalacao;
+    private String ativacao;
+    private LocalDate planoAtivacao;
+    private String documentacao;
+    private LocalDate planoDocumentacao;
+
+
     // --- Getters e Setters para todos os campos ---
 
     public String getOs() { return os; }
@@ -102,4 +115,27 @@ public class OsRequestDto {
     public void setGate(String gate) { this.gate = gate; }
     public String getGateId() { return gateId; }
     public void setGateId(String gateId) { this.gateId = gateId; }
+
+    // --- Getters e Setters para os novos campos ---
+
+    public String getVistoria() { return vistoria; }
+    public void setVistoria(String vistoria) { this.vistoria = vistoria; }
+    public LocalDate getPlanoVistoria() { return planoVistoria; }
+    public void setPlanoVistoria(LocalDate planoVistoria) { this.planoVistoria = planoVistoria; }
+    public String getDesmobilizacao() { return desmobilizacao; }
+    public void setDesmobilizacao(String desmobilizacao) { this.desmobilizacao = desmobilizacao; }
+    public LocalDate getPlanoDesmobilizacao() { return planoDesmobilizacao; }
+    public void setPlanoDesmobilizacao(LocalDate planoDesmobilizacao) { this.planoDesmobilizacao = planoDesmobilizacao; }
+    public String getInstalacao() { return instalacao; }
+    public void setInstalacao(String instalacao) { this.instalacao = instalacao; }
+    public LocalDate getPlanoInstalacao() { return planoInstalacao; }
+    public void setPlanoInstalacao(LocalDate planoInstalacao) { this.planoInstalacao = planoInstalacao; }
+    public String getAtivacao() { return ativacao; }
+    public void setAtivacao(String ativacao) { this.ativacao = ativacao; }
+    public LocalDate getPlanoAtivacao() { return planoAtivacao; }
+    public void setPlanoAtivacao(LocalDate planoAtivacao) { this.planoAtivacao = planoAtivacao; }
+    public String getDocumentacao() { return documentacao; }
+    public void setDocumentacao(String documentacao) { this.documentacao = documentacao; }
+    public LocalDate getPlanoDocumentacao() { return planoDocumentacao; }
+    public void setPlanoDocumentacao(LocalDate planoDocumentacao) { this.planoDocumentacao = planoDocumentacao; }
 }

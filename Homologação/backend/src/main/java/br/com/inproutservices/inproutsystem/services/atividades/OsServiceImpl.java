@@ -36,6 +36,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
@@ -369,7 +370,7 @@ public class OsServiceImpl implements OsService {
         return true;
     }
 
-    private OsRequestDto criarDtoDaLinha(Row row, Map<String, Segmento> segmentoMap, Map<String, Lpu> lpuMap) {
+    private OsRequestDto criarDtoDaLinha(Row row, Map<String, Segmento> segmentoMap, Map<String, Lpu> lpuMap, boolean isLegado) {
         OsRequestDto dto = new OsRequestDto();
 
         String contratoDaLinha = getStringCellValue(row, 2).toUpperCase();
@@ -420,12 +421,26 @@ public class OsServiceImpl implements OsService {
         // KEY
         dto.setKey(getStringCellValue(row, 49));
 
+        if (isLegado) {
+            // Preenche os campos de execução que normalmente seriam ignorados
+            dto.setVistoria(getStringCellValue(row, 18));
+            dto.setPlanoVistoria(getLocalDateCellValue(row, 19));
+            dto.setDesmobilizacao(getStringCellValue(row, 20));
+            dto.setPlanoDesmobilizacao(getLocalDateCellValue(row, 21));
+            dto.setInstalacao(getStringCellValue(row, 22));
+            dto.setPlanoInstalacao(getLocalDateCellValue(row, 23));
+            dto.setAtivacao(getStringCellValue(row, 24));
+            dto.setPlanoAtivacao(getLocalDateCellValue(row, 25));
+            dto.setDocumentacao(getStringCellValue(row, 26));
+            dto.setPlanoDocumentacao(getLocalDateCellValue(row, 27));
+        }
+
         return dto;
     }
 
     @Override
     @Transactional
-    public void importarOsDePlanilha(MultipartFile file) throws IOException {
+    public void importarOsDePlanilha(MultipartFile file, boolean isLegado) throws IOException {
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
@@ -454,54 +469,34 @@ public class OsServiceImpl implements OsService {
                 if (isRowEmpty(currentRow)) continue;
 
                 try {
-                    OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap);
+                    OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
 
-                    if (dto == null || dto.getKey() == null || dto.getKey().isBlank()) {
-                        System.out.println("Pulando linha " + numeroLinha + " por falta de KEY.");
-                        continue;
-                    }
-
-                    Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
-
-                    if (detalheExistenteOpt.isPresent()) {
-                        // A KEY JÁ EXISTE: ATUALIZAR
-                        OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
-
-                        // Atualiza os campos de detalhe editáveis
-                        detalheExistente.setSite(dto.getSite());
-                        detalheExistente.setRegional(dto.getRegional());
-                        detalheExistente.setLote(dto.getLote());
-                        detalheExistente.setBoq(dto.getBoq());
-                        detalheExistente.setPo(dto.getPo());
-                        detalheExistente.setItem(dto.getItem());
-                        detalheExistente.setObjetoContratado(dto.getObjetoContratado());
-                        detalheExistente.setUnidade(dto.getUnidade());
-                        detalheExistente.setQuantidade(dto.getQuantidade());
-                        detalheExistente.setValorTotal(dto.getValorTotal());
-                        detalheExistente.setObservacoes(dto.getObservacoes());
-                        detalheExistente.setDataPo(dto.getDataPo());
-
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Adiciona a atualização dos campos de faturamento que estava faltando
-                        detalheExistente.setFaturamento(dto.getFaturamento());
-                        detalheExistente.setSolitIdFat(dto.getSolitIdFat());
-                        detalheExistente.setRecebIdFat(dto.getRecebIdFat());
-                        detalheExistente.setIdFaturamento(dto.getIdFaturamento());
-                        detalheExistente.setDataFatInprout(dto.getDataFatInprout());
-                        detalheExistente.setSolitFsPortal(dto.getSolitFsPortal());
-                        detalheExistente.setDataFs(dto.getDataFs());
-                        detalheExistente.setNumFs(dto.getNumFs());
-                        detalheExistente.setGate(dto.getGate());
-                        detalheExistente.setGateId(dto.getGateId());
-                        // --- FIM DA CORREÇÃO ---
-
-                        osLpuDetalheRepository.save(detalheExistente);
-
-                    } else {
-                        // A KEY NÃO EXISTE: CRIAR
-                        if (dto.getOs() == null || dto.getOs().isEmpty() || dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
-                            throw new IllegalArgumentException("Para criar um novo registro (KEY não encontrada), as colunas OS, Contrato e LPU são obrigatórias.");
+                    // LÓGICA DE ATUALIZAÇÃO (UPSERT) PELA KEY
+                    if (dto.getKey() != null && !dto.getKey().isBlank()) {
+                        Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
+                        if (detalheExistenteOpt.isPresent()) {
+                            atualizarDetalheExistente(detalheExistenteOpt.get(), dto, isLegado);
+                        } else {
+                            // Se a KEY foi fornecida mas não encontrada, tratamos como uma criação normal.
+                            // Isso pode ser ajustado se a regra de negócio for diferente.
+                            createOs(dto);
                         }
+                    }
+                    // NOVA LÓGICA DE CRIAÇÃO SEM KEY E OS
+                    else if ((dto.getOs() == null || dto.getOs().isBlank()) && (dto.getKey() == null || dto.getKey().isBlank())) {
+                        if (dto.getProjeto() == null || dto.getProjeto().isBlank() || dto.getSegmentoId() == null) {
+                            throw new IllegalArgumentException("Para criar uma nova OS, as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
+                        }
+
+                        String novaOsString = gerarNovaOsSequencial();
+                        String novaKey = novaOsString + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis();
+
+                        dto.setOs(novaOsString);
+                        dto.setKey(novaKey);
+                        createOs(dto);
+                    }
+                    // LÓGICA ANTIGA DE CRIAÇÃO (mantida para compatibilidade)
+                    else {
                         this.createOs(dto);
                     }
 
@@ -512,6 +507,84 @@ public class OsServiceImpl implements OsService {
         } catch (IOException e) {
             throw new IOException("Falha ao ler o arquivo. Pode estar corrompido.", e);
         }
+    }
+
+
+    private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado) {
+        // Atualiza os campos de detalhe editáveis
+        detalheExistente.setSite(dto.getSite());
+        detalheExistente.setRegional(dto.getRegional());
+        detalheExistente.setLote(dto.getLote());
+        detalheExistente.setBoq(dto.getBoq());
+        detalheExistente.setPo(dto.getPo());
+        detalheExistente.setItem(dto.getItem());
+        detalheExistente.setObjetoContratado(dto.getObjetoContratado());
+        detalheExistente.setUnidade(dto.getUnidade());
+        detalheExistente.setQuantidade(dto.getQuantidade());
+        detalheExistente.setValorTotal(dto.getValorTotal());
+        detalheExistente.setObservacoes(dto.getObservacoes());
+        detalheExistente.setDataPo(dto.getDataPo());
+        detalheExistente.setFaturamento(dto.getFaturamento());
+        detalheExistente.setSolitIdFat(dto.getSolitIdFat());
+        detalheExistente.setRecebIdFat(dto.getRecebIdFat());
+        detalheExistente.setIdFaturamento(dto.getIdFaturamento());
+        detalheExistente.setDataFatInprout(dto.getDataFatInprout());
+        detalheExistente.setSolitFsPortal(dto.getSolitFsPortal());
+        detalheExistente.setDataFs(dto.getDataFs());
+        detalheExistente.setNumFs(dto.getNumFs());
+        detalheExistente.setGate(dto.getGate());
+        detalheExistente.setGateId(dto.getGateId());
+
+        if (isLegado) {
+            // Se for legado, atualiza também os campos de execução no primeiro lançamento (ou cria um se não existir)
+            Lancamento lancamento;
+            if (detalheExistente.getLancamentos() != null && !detalheExistente.getLancamentos().isEmpty()) {
+                lancamento = detalheExistente.getLancamentos().iterator().next();
+            } else {
+                lancamento = new Lancamento();
+                lancamento.setOsLpuDetalhe(detalheExistente);
+                // Preencha os campos obrigatórios do lançamento
+                lancamento.setDataAtividade(LocalDate.now());
+                Usuario manager = usuarioRepository.findById(1L)
+                        .orElseThrow(() -> new EntityNotFoundException("Manager padrão não encontrado com o ID: 1"));
+                lancamento.setManager(manager);
+                detalheExistente.getLancamentos().add(lancamento);
+            }
+
+            lancamento.setVistoria(dto.getVistoria());
+            lancamento.setPlanoVistoria(dto.getPlanoVistoria());
+            lancamento.setDesmobilizacao(dto.getDesmobilizacao());
+            lancamento.setPlanoDesmobilizacao(dto.getPlanoDesmobilizacao());
+            lancamento.setInstalacao(dto.getInstalacao());
+            lancamento.setPlanoInstalacao(dto.getPlanoInstalacao());
+            lancamento.setAtivacao(dto.getAtivacao());
+            lancamento.setPlanoAtivacao(dto.getPlanoAtivacao());
+            lancamento.setDocumentacao(dto.getDocumentacao());
+            lancamento.setPlanoDocumentacao(dto.getPlanoDocumentacao());
+            lancamentoRepository.save(lancamento);
+        }
+
+        osLpuDetalheRepository.save(detalheExistente);
+    }
+
+    private String gerarNovaOsSequencial() {
+        String ano = String.valueOf(LocalDate.now().getYear()).substring(2);
+        String sufixo = "-" + ano;
+        List<String> ultimasOsDoAno = osRepository.findLastOsByYearSuffix(sufixo);
+
+        int proximoNumero = 1;
+        if (!ultimasOsDoAno.isEmpty()) {
+            String ultimaOs = ultimasOsDoAno.get(0);
+            try {
+                int ultimoNumero = Integer.parseInt(ultimaOs.split("-")[0]);
+                proximoNumero = ultimoNumero + 1;
+            } catch (NumberFormatException e) {
+                // Lidar com o caso de a OS não estar no formato esperado
+                // Poderia lançar uma exceção ou ter uma lógica de fallback
+            }
+        }
+
+        return String.format("%05d-%s", proximoNumero, ano);
     }
 
     @Override
@@ -646,6 +719,11 @@ public class OsServiceImpl implements OsService {
         }
         // Retorna nulo se não for um número (outros formatos não são suportados)
         return null;
+    }
+
+    @Override
+    public void importarOsDePlanilha(MultipartFile file) throws IOException {
+        importarOsDePlanilha(file, false); // Chamada padrão com 'legado' = false
     }
 
     @Override

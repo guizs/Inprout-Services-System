@@ -36,6 +36,11 @@ public class OsLpuDetalhe {
     @Column(name = "chave_externa", unique = true, nullable = false)
     private String key;
 
+    // NOVO CAMPO ADICIONADO
+    @Column(name = "origem", length = 50, nullable = false, columnDefinition = "varchar(50) default 'SISTEMA GERAL'")
+    private String origem = "SISTEMA GERAL";
+
+
     // ---- CAMPOS DE DETALHE ----
 
     @Column(name = "site")
@@ -95,7 +100,7 @@ public class OsLpuDetalhe {
 
     @Column(name = "data_fat_inprout")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy")
-    private LocalDate dataFatInprout;
+    private LocalDate dataFatInrout;
 
     @Column(name = "solit_fs_portal")
     private String solitFsPortal;
@@ -122,6 +127,14 @@ public class OsLpuDetalhe {
     private String statusRegistro = "ATIVO";
 
     // ---- GETTERS AND SETTERS ----
+
+    public String getOrigem() {
+        return origem;
+    }
+
+    public void setOrigem(String origem) {
+        this.origem = origem;
+    }
 
 
     public String getStatusRegistro() {
@@ -301,11 +314,11 @@ public class OsLpuDetalhe {
     }
 
     public LocalDate getDataFatInprout() {
-        return dataFatInprout;
+        return dataFatInrout;
     }
 
-    public void setDataFatInprout(LocalDate dataFatInprout) {
-        this.dataFatInprout = dataFatInprout;
+    public void setDataFatInprout(LocalDate dataFatInrout) {
+        this.dataFatInrout = dataFatInrout;
     }
 
     public String getSolitFsPortal() {
@@ -355,4 +368,6 @@ public class OsLpuDetalhe {
     public void setLancamentos(Set<Lancamento> lancamentos) {
         this.lancamentos = lancamentos;
     }
+
+
 }

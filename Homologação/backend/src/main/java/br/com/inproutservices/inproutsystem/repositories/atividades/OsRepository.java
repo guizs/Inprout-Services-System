@@ -48,4 +48,7 @@ public interface OsRepository extends JpaRepository<OS, Long> {
     Optional<OS> findByOs(String os);
 
     List<OS> findByProjeto(String projeto);
+    
+    @Query("SELECT os.os FROM OS os WHERE os.os LIKE %:sufixo ORDER BY os.os DESC")
+    List<String> findLastOsByYearSuffix(@Param("sufixo") String sufixo);
 }

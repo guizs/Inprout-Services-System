@@ -607,6 +607,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const listaErros = document.getElementById('listaErrosImportacao');
         const btnFecharProgresso = document.getElementById('btnFecharProgressoImportacao');
         const btnCancelarImportacao = document.getElementById('btnCancelarImportacao');
+        const importLegadoCheckbox = document.getElementById('importLegado');
+
 
         btnCancelarImportacao.addEventListener('click', () => {
             isImportCancelled = true;
@@ -621,8 +623,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const file = event.target.files[0];
             if (!file) return;
 
+            const isLegado = importLegadoCheckbox.checked;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
             isImportCancelled = false;
-            textoProgresso.textContent = 'Lendo arquivo...';
+            textoProgresso.textContent = 'Enviando arquivo...';
             barraProgresso.style.width = '0%';
             barraProgresso.textContent = '0%';
             errosContainer.classList.add('d-none');
@@ -632,56 +639,18 @@ document.addEventListener('DOMContentLoaded', function () {
             modalProgresso.show();
 
             try {
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(sheet);
+                
+                const response = await fetchComAuth(`${API_BASE_URL}/os/importar?legado=${isLegado}`, {
+                    method: 'POST',
+                    body: formData 
+                });
 
-                if (rows.length === 0) throw new Error("A planilha está vazia.");
-
-                let linhasProcessadas = 0;
-                let errosGerais = [];
-                const TAMANHO_LOTE = 100;
-
-                for (let i = 0; i < rows.length; i += TAMANHO_LOTE) {
-                    if (isImportCancelled) {
-                        textoProgresso.textContent = 'Importação cancelada pelo usuário.';
-                        break;
-                    }
-
-                    const lote = rows.slice(i, i + TAMANHO_LOTE);
-
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/importar-lote`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(lote)
-                    });
-
-                    if (response.status === 207) {
-                        const errosDoLote = await response.json();
-                        errosGerais.push(...errosDoLote.map(e => `Linha (aprox.) ${i + 1}: ${e}`));
-                    } else if (!response.ok) {
-                        throw new Error(`Erro no servidor ao processar o lote a partir da linha ${i + 1}.`);
-                    }
-
-                    linhasProcessadas += lote.length;
-                    const porcentagem = Math.round((linhasProcessadas / rows.length) * 100);
-                    barraProgresso.style.width = `${porcentagem}%`;
-                    barraProgresso.textContent = `${porcentagem}%`;
-                    textoProgresso.textContent = `Processando... ${linhasProcessadas} de ${rows.length} linhas concluídas.`;
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || `Erro no servidor durante a importação.`);
                 }
-
-                if (!isImportCancelled) {
-                    if (errosGerais.length > 0) {
-                        textoProgresso.textContent = `Importação concluída com ${errosGerais.length} erro(s).`;
-                        errosContainer.classList.remove('d-none');
-                        listaErros.innerHTML = errosGerais.map(e => `<li class="list-group-item list-group-item-danger">${e}</li>`).join('');
-                    } else {
-                        textoProgresso.textContent = 'Importação concluída com sucesso!';
-                    }
-                }
-
+                
+                textoProgresso.textContent = 'Importação concluída com sucesso!';
                 await inicializarPagina();
 
             } catch (error) {

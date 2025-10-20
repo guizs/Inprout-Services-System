@@ -150,12 +150,12 @@ public class OsController {
     }
 
     @PostMapping("/importar")
-    public ResponseEntity<String> importarOs(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<String> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Por favor, envie um arquivo!");
         }
         try {
-            osService.importarOsDePlanilha(file);
+            osService.importarOsDePlanilha(file, isLegado);
             return ResponseEntity.ok("Importação concluída com sucesso!");
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Falha ao processar o arquivo.");

@@ -65,6 +65,11 @@ public interface OsService {
 
     void importarOsDePlanilha(MultipartFile file) throws IOException;
 
+    // --- NOVA LINHA ADICIONADA ---
+    // Adiciona a assinatura do método sobrecarregado que aceita o parâmetro 'legado'.
+    void importarOsDePlanilha(MultipartFile file, boolean isLegado) throws IOException;
+
+
     void processarLinhaDePlanilha(Map<String, Object> rowData);
 
     List<OS> findAllWithDetails();

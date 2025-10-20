@@ -438,6 +438,7 @@ public class OsServiceImpl implements OsService {
         return dto;
     }
 
+    // --- MÉTODO CORRIGIDO E FINAL ---
     @Override
     @Transactional
     public void importarOsDePlanilha(MultipartFile file, boolean isLegado) throws IOException {
@@ -451,7 +452,6 @@ public class OsServiceImpl implements OsService {
                 rows.next(); // Pula o cabeçalho
             }
 
-            // Cache para otimizar buscas no banco
             Map<String, Segmento> segmentoMap = segmentoRepository.findAll().stream()
                     .collect(Collectors.toMap(s -> s.getNome().toUpperCase(), s -> s, (s1, s2) -> s1));
             Map<String, Lpu> lpuMap = lpuRepository.findAll().stream()
@@ -471,21 +471,29 @@ public class OsServiceImpl implements OsService {
                 try {
                     OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
 
-                    // LÓGICA DE ATUALIZAÇÃO (UPSERT) PELA KEY
+                    // 1. LÓGICA DE ATUALIZAÇÃO (se a KEY existe)
                     if (dto.getKey() != null && !dto.getKey().isBlank()) {
                         Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
                         if (detalheExistenteOpt.isPresent()) {
                             atualizarDetalheExistente(detalheExistenteOpt.get(), dto, isLegado);
                         } else {
-                            // Se a KEY foi fornecida mas não encontrada, tratamos como uma criação normal.
-                            // Isso pode ser ajustado se a regra de negócio for diferente.
+                            // 2. LÓGICA DE CRIAÇÃO QUANDO A KEY É FORNECIDA MAS NÃO EXISTE
+                            if (dto.getOs() == null || dto.getOs().isBlank()) {
+                                throw new IllegalArgumentException("A KEY '" + dto.getKey() + "' não foi encontrada. Para criar um novo item com uma KEY específica, a coluna 'OS' também deve ser preenchida.");
+                            }
+                            if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+                                throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada. Verifique os dados da planilha.");
+                            }
                             createOs(dto);
                         }
                     }
-                    // NOVA LÓGICA DE CRIAÇÃO SEM KEY E OS
+                    // 3. LÓGICA PARA CRIAR UMA OS COMPLETAMENTE NOVA (sem KEY e sem OS na planilha)
                     else if ((dto.getOs() == null || dto.getOs().isBlank()) && (dto.getKey() == null || dto.getKey().isBlank())) {
                         if (dto.getProjeto() == null || dto.getProjeto().isBlank() || dto.getSegmentoId() == null) {
-                            throw new IllegalArgumentException("Para criar uma nova OS, as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
+                            throw new IllegalArgumentException("Para criar uma nova OS (sem KEY e OS preenchidas), as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
+                        }
+                        if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+                            throw new IllegalArgumentException("Para criar uma nova OS, a combinação de 'CONTRATO' e 'LPU' deve ser válida e existir no sistema.");
                         }
 
                         String novaOsString = gerarNovaOsSequencial();
@@ -495,13 +503,21 @@ public class OsServiceImpl implements OsService {
                         dto.setKey(novaKey);
                         createOs(dto);
                     }
-                    // LÓGICA ANTIGA DE CRIAÇÃO (mantida para compatibilidade)
+                    // 4. LÓGICA ANTIGA (criar um novo item em uma OS existente, mas sem fornecer KEY)
                     else {
+                        if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+                            throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada. Verifique os dados da planilha.");
+                        }
+                        // Gera uma KEY aleatória para garantir a unicidade
+                        dto.setKey(dto.getOs() + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis());
                         this.createOs(dto);
                     }
 
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Erro na linha " + numeroLinha + ": " + e.getMessage());
                 } catch (Exception e) {
-                    throw new IllegalArgumentException("Erro ao processar a linha " + numeroLinha + " da planilha: " + e.getMessage(), e);
+                    e.printStackTrace();
+                    throw new RuntimeException("Erro inesperado ao processar a linha " + numeroLinha + ". Verifique o log do servidor para detalhes.", e);
                 }
             }
         } catch (IOException e) {
@@ -721,9 +737,10 @@ public class OsServiceImpl implements OsService {
         return null;
     }
 
+    // Este método chama a implementação principal, mantendo a compatibilidade
     @Override
     public void importarOsDePlanilha(MultipartFile file) throws IOException {
-        importarOsDePlanilha(file, false); // Chamada padrão com 'legado' = false
+        importarOsDePlanilha(file, false);
     }
 
     @Override
@@ -938,4 +955,5 @@ public class OsServiceImpl implements OsService {
         detalhe.setKey(novaChave);
         return osLpuDetalheRepository.save(detalhe);
     }
+
 }

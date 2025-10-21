@@ -4,14 +4,11 @@
 
 async function fetchComAuth(url, options = {}) {
     const token = localStorage.getItem('token');
-
-    // Clona as opções para não modificar o objeto original
     const newOptions = { ...options };
 
-    // Define os cabeçalhos, garantindo que o 'headers' original seja mantido se existir
+    // Define os cabeçalhos, garantindo que o 'headers' original seja mantido
     newOptions.headers = {
         ...newOptions.headers,
-        'Content-Type': 'application/json', // Padrão para nossas requisições
     };
 
     // Adiciona o cabeçalho de autorização APENAS se o token existir
@@ -19,10 +16,15 @@ async function fetchComAuth(url, options = {}) {
         newOptions.headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // *** INÍCIO DA CORREÇÃO ***
+    // Apenas define o Content-Type se o corpo NÃO for FormData
+    if (!(newOptions.body instanceof FormData)) {
+        newOptions.headers['Content-Type'] = 'application/json';
+    }
+    // *** FIM DA CORREÇÃO ***
+
     const response = await fetch(url, newOptions);
 
-    // Se a resposta for 403 (Proibido), significa que o token é inválido ou expirou.
-    // A melhor ação é deslogar o usuário.
     if (response.status === 403) {
         redirectToLogin();
     }

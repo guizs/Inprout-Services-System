@@ -7,6 +7,7 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
+import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.services.index.LpuService;
 import org.springframework.http.HttpStatus;
@@ -150,17 +151,22 @@ public class OsController {
     }
 
     @PostMapping("/importar")
-    public ResponseEntity<String> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
+    public ResponseEntity<List<OsResponseDto>> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Por favor, envie um arquivo!");
+            // Retorna um erro claro se nenhum arquivo for enviado
+            throw new BusinessException("Por favor, envie um arquivo!");
         }
         try {
-            osService.importarOsDePlanilha(file, isLegado);
-            return ResponseEntity.ok("Importação concluída com sucesso!");
+            List<OS> updatedOses = osService.importarOsDePlanilha(file, isLegado);
+            List<OsResponseDto> dtos = updatedOses.stream()
+                    .map(OsResponseDto::new)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(dtos);
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Falha ao processar o arquivo.");
+            throw new BusinessException("Falha ao processar o arquivo. Pode estar corrompido.");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            // Deixa o GlobalExceptionHandler cuidar da mensagem de erro
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 

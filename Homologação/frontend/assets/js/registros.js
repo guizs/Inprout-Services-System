@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let paginaAtual = 1;
     let linhasPorPagina = 10; // Valor inicial
     let gruposFiltradosCache = []; // Cache para os GRUPOS filtrados
+    let osSortDirection = 'desc'; // Ordenação padrão: 'desc' (mais recente primeiro)
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
@@ -100,10 +101,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const osInfo = { ...os, detalhes: undefined };
                 if (os.detalhes && os.detalhes.length > 0) {
 
-                    // ⬅️ ESTA LINHA JÁ ESTAVA NO CÓDIGO
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
-                    // ➡️ CORREÇÃO: Usar 'detalhesAtivos' para iterar
                     detalhesAtivos.forEach(detalhe => {
                         todasAsLinhas.push({
                             os: os,
@@ -123,6 +122,80 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Falha ao carregar os registros:', error);
             accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados. Verifique o console.</div>`;
         }
+    }
+
+    function gerarHtmlParaGrupo(grupo) {
+        const uniqueId = grupo.id;
+
+        const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
+            .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
+
+        const valorTotalCPS = grupo.linhas
+            .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
+            .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+            .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+
+        const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
+        const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+
+        let kpiHTML = '';
+        if (userRole !== 'MANAGER') {
+            kpiHTML = `
+            <div class="header-kpi-wrapper">
+                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
+            </div>`;
+        }
+
+        const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
+
+        const bodyRowsHTML = grupo.linhas.map(linhaData => {
+            const cellsHTML = headersComAcoes.map(header => {
+                if (header === "AÇÕES") {
+                    const detalheId = get(linhaData, 'detalhe.id', '');
+                    let btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>` : '';
+                    const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
+                    return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
+                }
+                const func = dataMapping[header];
+                const valor = func ? func(linhaData) : '-';
+                let classes = '';
+                if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
+                    classes += ' status-cell';
+                    if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
+                }
+                if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
+                return `<td class="${classes}">${valor}</td>`;
+            }).join('');
+            return `<tr>${cellsHTML}</tr>`;
+        }).join('');
+
+        const headerHTML = `
+        <h2 class="accordion-header" id="heading-${uniqueId}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                <div class="header-content">
+                    <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
+                    ${kpiHTML}
+                    <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                </div>
+            </button>
+        </h2>`;
+
+        const bodyHTML = `
+        <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
+            <div class="accordion-body">
+                <div class="table-responsive">
+                    <table class="table modern-table table-sm">
+                        <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                        <tbody>${bodyRowsHTML}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+
+        return `<div class="accordion-item" id="accordion-item-${uniqueId}">${headerHTML}${bodyHTML}</div>`;
     }
 
     function renderizarTabela() {
@@ -149,96 +222,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const frag = document.createDocumentFragment();
 
-        gruposDaPagina.forEach((grupo, index) => {
-            const uniqueId = `${grupo.id}-${index}`;
-            const item = document.createElement('div');
-            item.className = 'accordion-item';
-
-            // ===== INÍCIO DA CORREÇÃO E NOVOS CÁLCULOS =====
-            // O valor total da OS é a soma do valor de todos os seus detalhes (linhas da planilha).
-            const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
-                .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-
-            // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
-            const valorTotalCPS = grupo.linhas
-                .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
-                .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
-            // Pega o custo de material diretamente do objeto OS (calculado no backend).
-            const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-
-            // O novo percentual considera tanto o CPS quanto o custo de material.
-            const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
-
-            let kpiHTML = '';
-            if (userRole !== 'MANAGER') {
-                kpiHTML = `
-                <div class="header-kpi-wrapper">
-                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
-                </div>`;
-            }
-
-            const headerHTML = `
-            <h2 class="accordion-header" id="heading-${uniqueId}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                    <div class="header-content">
-                        <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
-                        ${kpiHTML}
-                        <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
-                    </div>
-                </button>
-            </h2>`;
-
-            const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
-
-            const bodyRowsHTML = grupo.linhas.map(linhaData => {
-                const cellsHTML = headersComAcoes.map(header => {
-                    if (header === "AÇÕES") {
-                        const detalheId = get(linhaData, 'detalhe.id', '');
-                        const chave = get(linhaData, 'detalhe.key', '-');
-                        const semChave = chave === '-' || chave === '' || chave === null;
-
-                        // [CORREÇÃO 1] Altera a classe do botão de editar para .btn-edit-detalhe
-                        // O botão só será renderizado se houver um detalheId
-                        let btnEditar = '';
-                        if (detalheId) {
-                            btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>`;
-                        }
-
-                        const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
-                        return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
-                    }
-                    const func = dataMapping[header];
-                    const valor = func ? func(linhaData) : '-';
-                    let classes = '';
-                    if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
-                        classes += ' status-cell';
-                        if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
-                    }
-                    if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
-                    return `<td class="${classes}">${valor}</td>`;
-                }).join('');
-                return `<tr>${cellsHTML}</tr>`;
-            }).join('');
-
-            const bodyHTML = `
-            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
-                <div class="accordion-body">
-                    <div class="table-responsive">
-                        <table class="table modern-table table-sm">
-                            <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-                            <tbody>${bodyRowsHTML}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>`;
-
-            item.innerHTML = headerHTML + bodyHTML;
-            frag.appendChild(item);
+        gruposDaPagina.forEach((grupo) => {
+            const htmlGrupo = gerarHtmlParaGrupo(grupo);
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlGrupo.trim();
+            frag.appendChild(tempDiv.firstChild);
         });
 
         accordionContainer.appendChild(frag);
@@ -250,7 +238,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const selectSegmento = document.getElementById('selectSegmento');
 
         try {
-            // Reutiliza a lógica de busca de segmentos
             const response = await fetchComAuth(`${API_BASE_URL}/segmentos`);
             if (!response.ok) throw new Error('Falha ao carregar segmentos.');
             const segmentos = await response.json();
@@ -260,13 +247,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const option = document.createElement('option');
                 option.value = seg.id;
                 option.textContent = seg.nome;
-                // Compara o ID de forma frouxa para garantir que a seleção funcione
                 if (seg.id == segmentoAtualId) {
                     option.selected = true;
                 }
                 selectSegmento.appendChild(option);
             });
-            // Mantém desabilitado até o toggle ser ativado
             selectSegmento.disabled = true;
 
         } catch (error) {
@@ -281,7 +266,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const textoPesquisavel = [
                     get(linhaData, 'os.os', ''), get(linhaData, 'detalhe.site', ''),
                     get(linhaData, 'detalhe.contrato', ''), get(linhaData, 'os.projeto', ''),
-                    get(linhaData, 'detalhe.lpu.nomeLpu', ''), get(linhaData, 'detalhe.lpu.codigoLpu', '')
+                    get(linhaData, 'detalhe.lpu.nomeLpu', ''), get(linhaData, 'detalhe.lpu.codigoLpu', ''),
+                    get(linhaData, 'detalhe.key', '')
                 ].join(' ').toLowerCase();
                 return textoPesquisavel.includes(termoBusca);
             })
@@ -300,9 +286,22 @@ document.addEventListener('DOMContentLoaded', function () {
             acc[chaveGrupo].linhas.push(linha);
             return acc;
         }, {}));
+        
+        // LÓGICA DE ORDENAÇÃO DOS GRUPOS DE OS
+        agrupado.sort((a, b) => {
+            const osA = a.os || '0-0';
+            const osB = b.os || '0-0';
+            const [numA, anoA] = osA.split('-').map(Number);
+            const [numB, anoB] = osB.split('-').map(Number);
+
+            if (anoA !== anoB) {
+                return osSortDirection === 'asc' ? anoA - anoB : anoB - anoA;
+            }
+            return osSortDirection === 'asc' ? numA - numB : numB - numA;
+        });
 
         gruposFiltradosCache = agrupado;
-        paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
+        paginaAtual = 1; 
         renderizarTabela();
     }
 
@@ -317,7 +316,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('rowsPerPage').addEventListener('change', (e) => {
             const valor = e.target.value;
             linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
-            paginaAtual = 1; // Volta para a primeira página ao mudar a quantidade de itens
+            paginaAtual = 1; 
             renderizarTabela();
         });
         document.getElementById('btnPrimeiraPagina').addEventListener('click', () => {
@@ -342,64 +341,57 @@ document.addEventListener('DOMContentLoaded', function () {
             paginaAtual = totalPaginas;
             renderizarTabela();
         });
+        
+        // Listener para o novo botão de ordenação
+        const btnSortOS = document.getElementById('btnSortOS');
+        if (btnSortOS) {
+            btnSortOS.addEventListener('click', () => {
+                osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
+                const icon = btnSortOS.querySelector('i');
+                if (icon) {
+                    icon.className = osSortDirection === 'asc' ? 'bi bi-sort-up' : 'bi bi-sort-down';
+                }
+                renderizarTabelaComFiltro();
+            });
+        }
     }
 
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
-
-        // [CORREÇÃO 2] Instancia ambos os modais UMA ÚNICA vez na função
         const modalEditarDetalheEl = document.getElementById('modalEditarDetalhe');
         const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
-
         const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
 
-        // Listener para editar/excluir
         accordionContainer.addEventListener('click', function (e) {
-
-            // [CORREÇÃO 3] Busca pelo nome da classe corrigida (.btn-edit-detalhe)
             const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
 
             if (btnEdit) {
                 e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
-
                 if (!detalheId) {
                     mostrarToast("Registro de detalhe não possui ID para edição.", "warning");
                     return;
                 }
-
                 const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
 
                 if (modalEditarDetalhe && linhaData) {
-
                     const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
                     document.getElementById('editDetalheId').value = detalheId;
-
                     document.getElementById('osValue').value = get(linhaData, 'os.os', 'N/A');
-
                     const chaveExistente = get(linhaData, 'detalhe.key', '');
                     document.getElementById('novaKeyValue').value = chaveExistente;
-
                     const segmentoAtualId = get(linhaData, 'os.segmento.id');
                     carregarSegmentosESelecionarAtual(segmentoAtualId);
-
-                    // Armazena valores originais no dataset para comparação
                     formEditarDetalheEl.dataset.originalKey = chaveExistente;
                     formEditarDetalheEl.dataset.originalSegmentoId = segmentoAtualId;
-
-                    // Reseta o estado dos switches e campos
                     document.querySelectorAll('#formEditarDetalhe .toggle-editar').forEach(toggle => {
                         toggle.checked = false;
                         const targetInput = document.querySelector(toggle.dataset.target);
                         if (targetInput) targetInput.disabled = true;
                     });
-
-                    // Desabilita o botão de salvar até que algo seja alterado
                     document.getElementById('btnSalvarDetalhe').disabled = true;
-
-                    // [CORREÇÃO 4] Ação final: mostra o modal de edição
                     modalEditarDetalhe.show();
                 } else {
                     mostrarToast("Não foi possível carregar os dados para edição.", "error");
@@ -409,15 +401,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (btnDelete) {
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
-
                 if (modalConfirmarExclusao) {
-                    // [CORREÇÃO 5] Ação final: mostra o modal de exclusão (agora que modalConfirmarExclusao é uma instância válida)
                     modalConfirmarExclusao.show();
                 }
             }
         });
-
-        // Adiciona o listener para habilitar/desabilitar o botão salvar
+        
         const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
         if (formEditarDetalheEl) {
 
@@ -426,46 +415,32 @@ document.addEventListener('DOMContentLoaded', function () {
                     const toggle = e.target;
                     const targetSelector = toggle.dataset.target;
                     const targetInput = document.querySelector(targetSelector);
-
                     if (targetInput) {
                         targetInput.disabled = !toggle.checked;
-
-                        // Garante que o evento 'input' seja disparado para reavaliar o botão Salvar
                         const event = new Event('input', { bubbles: true });
                         targetInput.dispatchEvent(event);
                     }
                 }
             });
 
-            // Este listener verifica se os toggles estão ativos E se os valores mudaram.
             formEditarDetalheEl.addEventListener('input', () => {
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
-
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
-
-                // Verifica se o toggle está ligado E se o valor atual é diferente do original
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
-
-                // Habilita o botão se qualquer um dos dois for verdadeiro
                 document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged);
             });
 
-            // Lógica para salvar a nova KEY e Segmento
             formEditarDetalheEl.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const detalheId = document.getElementById('editDetalheId').value;
                 const btnSalvar = document.getElementById('btnSalvarDetalhe');
-
-                // Pega os valores para comparação
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
-
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
-
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
 
@@ -476,10 +451,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 btnSalvar.disabled = true;
                 btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
-
                 const promises = [];
 
-                // 1. Promessa para atualizar a Key
                 if (keyChanged) {
                     promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
                         method: 'PATCH',
@@ -488,7 +461,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     }));
                 }
 
-                // 2. Promessa para atualizar o Segmento (chama o novo endpoint)
                 if (segmentoChanged) {
                     promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/segmento`, {
                         method: 'PATCH',
@@ -499,7 +471,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 try {
                     const results = await Promise.all(promises);
-
                     let allSuccessful = true;
                     let errorMessages = [];
 
@@ -510,7 +481,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             const errorType = (i === 0 && keyChanged) ? "Chave Externa" : "Segmento";
                             let errorMessage = `${errorType}: Erro desconhecido ou de rede.`;
                             try {
-                                // Tenta ler a mensagem de erro do backend
                                 const errorData = await response.json();
                                 errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`;
                             } catch { }
@@ -521,7 +491,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (allSuccessful) {
                         mostrarToast('Detalhes atualizados com sucesso!', 'success');
                     } else {
-                        // Lançar um erro para o bloco catch tratar
                         throw new Error(errorMessages.join(' | '));
                     }
 
@@ -536,25 +505,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         }
-
-
-
-        // Lógica para confirmar a exclusão (mantida)
+        
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
         if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
                 const detalheId = document.getElementById('deleteDetalheId').value;
                 const btnConfirmar = this;
-
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
-
                 try {
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
-                        method: 'DELETE'
-                    });
-
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, { method: 'DELETE' });
                     if (!response.ok) {
                         let errorMsg = 'Erro ao excluir o registro.';
                         try {
@@ -566,11 +527,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         throw new Error(errorMsg);
                     }
-
                     mostrarToast('Registro excluído com sucesso!', 'success');
                     if (modalInstance) modalInstance.hide();
                     await inicializarPagina();
-
                 } catch (error) {
                     console.error("Erro ao excluir o registro:", error);
                     mostrarToast(error.message, 'error');
@@ -650,8 +609,46 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(errorText || `Erro no servidor durante a importação.`);
                 }
                 
+                const updatedOsList = await response.json();
+
+                const updatedOsIds = updatedOsList.map(os => os.id);
+                todasAsLinhas = todasAsLinhas.filter(linha => !updatedOsIds.includes(linha.os.id));
+
+                updatedOsList.forEach(os => {
+                    (os.detalhes || []).forEach(detalhe => {
+                        todasAsLinhas.push({
+                            os: os,
+                            detalhe: detalhe,
+                            ultimoLancamento: detalhe.ultimoLancamento
+                        });
+                    });
+                });
+                
+                const accordionContainer = document.getElementById('accordion-registros');
+                updatedOsList.forEach(os => {
+                    const grupo = {
+                        id: os.id,
+                        os: os.os,
+                        projeto: os.projeto,
+                        linhas: (os.detalhes || []).map(detalhe => ({
+                            os: os,
+                            detalhe: detalhe,
+                            ultimoLancamento: detalhe.ultimoLancamento
+                        }))
+                    };
+                    const novoHtml = gerarHtmlParaGrupo(grupo);
+                    const elementoExistente = document.getElementById(`accordion-item-${os.id}`);
+
+                    if (elementoExistente) {
+                        elementoExistente.outerHTML = novoHtml;
+                    } else {
+                        accordionContainer.insertAdjacentHTML('afterbegin', novoHtml);
+                    }
+                });
+                
+                barraProgresso.style.width = '100%';
+                barraProgresso.textContent = '100%';
                 textoProgresso.textContent = 'Importação concluída com sucesso!';
-                await inicializarPagina();
 
             } catch (error) {
                 console.error('Erro na importação:', error);
@@ -708,7 +705,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            // Mostra o modal de progresso
             const modalProgressoEl = document.getElementById('modalProgressoExportacao');
             const modalProgresso = new bootstrap.Modal(modalProgressoEl);
             const textoProgresso = document.getElementById('textoProgresso');
@@ -716,13 +712,10 @@ document.addEventListener('DOMContentLoaded', function () {
             textoProgresso.textContent = 'Preparando dados...';
 
             try {
-                // --- INÍCIO DA LÓGICA PARA MÚLTIPLAS ABAS ---
 
-                // 1. Prepara os dados para a Aba de Resumo
                 textoProgresso.textContent = 'Gerando aba de resumo...';
                 const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "% Concluído"];
                 const resumoRows = gruposParaExportar.map(grupo => {
-                    // Reutiliza a mesma lógica de cálculo do cabeçalho do acordeão
                     const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                         .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
@@ -741,13 +734,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         valorTotalOS,
                         valorTotalCPS,
                         custoTotalMateriais,
-                        percentual // O Excel pode formatar como porcentagem
+                        percentual
                     ];
                 });
 
-                // 2. Prepara os dados para a Aba de Detalhes (lógica que já tínhamos)
                 textoProgresso.textContent = 'Gerando aba de detalhes...';
-                const detalhesHeaders = headers; // Headers globais da tabela
+                const detalhesHeaders = headers; 
                 const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
                     return detalhesHeaders.map(header => {
                         const func = dataMapping[header];
@@ -755,10 +747,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                         let cellValue = func(linhaData);
 
-                        // Formata para tipos corretos para o Excel
                         if (header.toUpperCase().includes('VALOR')) {
                             const rawValue = get(linhaData, header === 'VALOR' ? 'ultimoLancamento.valor' : 'detalhe.valorTotal', 0) || 0;
-                            return rawValue; // Passa como número
+                            return rawValue;
                         }
                         if (header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) {
                             if (!cellValue) return null;
@@ -770,28 +761,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
 
-                // 3. Cria o arquivo Excel com as duas abas
                 textoProgresso.textContent = 'Montando arquivo...';
 
-                // Cria a planilha de Resumo
                 const ws_resumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
-                ws_resumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }]; // Larguras customizadas
+                ws_resumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
 
-                // Cria a planilha de Detalhes
                 const ws_detalhes = XLSX.utils.aoa_to_sheet([detalhesHeaders, ...detalhesRows]);
-                ws_detalhes['!cols'] = detalhesHeaders.map(h => ({ wch: Math.max(15, h.length + 2) })); // Largura automática
+                ws_detalhes['!cols'] = detalhesHeaders.map(h => ({ wch: Math.max(15, h.length + 2) }));
 
-                // Cria um novo "livro" (arquivo Excel)
                 const wb = XLSX.utils.book_new();
 
-                // Adiciona as duas planilhas ao livro, com seus respectivos nomes
                 XLSX.utils.book_append_sheet(wb, ws_resumo, "Resumo OS");
                 XLSX.utils.book_append_sheet(wb, ws_detalhes, "Lançamentos Detalhados");
 
-                // 4. Inicia o download do arquivo
                 XLSX.writeFile(wb, "relatorio_registros.xlsx");
 
-                // --- FIM DA LÓGICA ---
 
             } catch (error) {
                 console.error("Erro durante a exportação:", error);

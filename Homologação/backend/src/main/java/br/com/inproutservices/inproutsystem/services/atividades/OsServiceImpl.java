@@ -29,6 +29,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.apache.poi.ss.usermodel.DataFormatter;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -441,7 +442,10 @@ public class OsServiceImpl implements OsService {
     // --- MÉTODO CORRIGIDO E FINAL ---
     @Override
     @Transactional
-    public void importarOsDePlanilha(MultipartFile file, boolean isLegado) throws IOException {
+    public List<OS> importarOsDePlanilha(MultipartFile file, boolean isLegado) throws IOException {
+        // 1. Rastreia os IDs das OSs que foram criadas ou atualizadas.
+        Set<Long> affectedOsIds = new HashSet<>();
+
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
@@ -471,23 +475,25 @@ public class OsServiceImpl implements OsService {
                 try {
                     OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
 
-                    // 1. LÓGICA DE ATUALIZAÇÃO (se a KEY existe)
                     if (dto.getKey() != null && !dto.getKey().isBlank()) {
                         Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
                         if (detalheExistenteOpt.isPresent()) {
-                            atualizarDetalheExistente(detalheExistenteOpt.get(), dto, isLegado);
+                            OsLpuDetalhe detalhe = detalheExistenteOpt.get();
+                            atualizarDetalheExistente(detalhe, dto, isLegado);
+                            affectedOsIds.add(detalhe.getOs().getId()); // Rastreia o ID da OS atualizada
                         } else {
-                            // 2. LÓGICA DE CRIAÇÃO QUANDO A KEY É FORNECIDA MAS NÃO EXISTE
                             if (dto.getOs() == null || dto.getOs().isBlank()) {
                                 throw new IllegalArgumentException("A KEY '" + dto.getKey() + "' não foi encontrada. Para criar um novo item com uma KEY específica, a coluna 'OS' também deve ser preenchida.");
                             }
                             if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                                 throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada. Verifique os dados da planilha.");
                             }
-                            createOs(dto);
+                            OsLpuDetalhe novoDetalhe = createOs(dto);
+                            if (novoDetalhe != null) {
+                                affectedOsIds.add(novoDetalhe.getOs().getId()); // Rastreia o ID da OS criada
+                            }
                         }
                     }
-                    // 3. LÓGICA PARA CRIAR UMA OS COMPLETAMENTE NOVA (sem KEY e sem OS na planilha)
                     else if ((dto.getOs() == null || dto.getOs().isBlank()) && (dto.getKey() == null || dto.getKey().isBlank())) {
                         if (dto.getProjeto() == null || dto.getProjeto().isBlank() || dto.getSegmentoId() == null) {
                             throw new IllegalArgumentException("Para criar uma nova OS (sem KEY e OS preenchidas), as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
@@ -501,16 +507,20 @@ public class OsServiceImpl implements OsService {
 
                         dto.setOs(novaOsString);
                         dto.setKey(novaKey);
-                        createOs(dto);
+                        OsLpuDetalhe novoDetalhe = createOs(dto);
+                        if (novoDetalhe != null) {
+                            affectedOsIds.add(novoDetalhe.getOs().getId()); // Rastreia o ID da OS criada
+                        }
                     }
-                    // 4. LÓGICA ANTIGA (criar um novo item em uma OS existente, mas sem fornecer KEY)
                     else {
                         if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                             throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada. Verifique os dados da planilha.");
                         }
-                        // Gera uma KEY aleatória para garantir a unicidade
                         dto.setKey(dto.getOs() + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis());
-                        this.createOs(dto);
+                        OsLpuDetalhe novoDetalhe = this.createOs(dto);
+                        if (novoDetalhe != null) {
+                            affectedOsIds.add(novoDetalhe.getOs().getId()); // Rastreia o ID da OS criada
+                        }
                     }
 
                 } catch (IllegalArgumentException e) {
@@ -523,6 +533,14 @@ public class OsServiceImpl implements OsService {
         } catch (IOException e) {
             throw new IOException("Falha ao ler o arquivo. Pode estar corrompido.", e);
         }
+
+        // 2. Se nenhum ID foi afetado, retorna uma lista vazia.
+        if (affectedOsIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 3. Busca e retorna a lista completa das OSs que foram alteradas.
+        return osRepository.findAllWithDetailsByIds(new ArrayList<>(affectedOsIds));
     }
 
 
@@ -819,11 +837,10 @@ public class OsServiceImpl implements OsService {
         if (cell == null) {
             return "";
         }
-        if (cell.getCellType() == CellType.NUMERIC) {
-            // Converte números para string sem o ".0"
-            return new BigDecimal(cell.getNumericCellValue()).toPlainString();
-        }
-        return cell.getStringCellValue().trim();
+        // Usa um DataFormatter para obter o valor da célula como uma string de forma segura,
+        // independentemente do tipo (número, data, fórmula, etc.).
+        DataFormatter formatter = new DataFormatter();
+        return formatter.formatCellValue(cell).trim();
     }
 
     private Integer getIntegerCellValue(Row row, int cellIndex) {

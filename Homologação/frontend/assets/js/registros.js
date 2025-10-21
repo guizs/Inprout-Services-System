@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let paginaAtual = 1;
     let linhasPorPagina = 10; // Valor inicial
     let gruposFiltradosCache = []; // Cache para os GRUPOS filtrados
+    let osSortDirection = 'asc';
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
@@ -116,6 +117,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
                 }
             });
+
+            const btnSortOS = document.getElementById('btnSortOS');
+            if (btnSortOS) {
+                btnSortOS.addEventListener('click', () => {
+                    // Inverte a direção da ordenação
+                    osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
+
+                    // Atualiza o ícone do botão
+                    const icon = btnSortOS.querySelector('i');
+                    icon.classList.toggle('bi-sort-down', osSortDirection === 'asc');
+                    icon.classList.toggle('bi-sort-up-alt', osSortDirection === 'desc');
+
+                    // Chama a função que renderiza a tabela para aplicar a nova ordem
+                    renderizarTabelaComFiltro();
+                });
+            }
 
             renderizarTabelaComFiltro();
 
@@ -232,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const uniqueId = `${grupo.id}-${index}`;
             const item = document.createElement('div');
             item.className = 'accordion-item';
-            item.id = `accordion-item-${uniqueId}`; 
+            item.id = `accordion-item-${uniqueId}`;
 
             // ===== INÍCIO DA CORREÇÃO E NOVOS CÁLCULOS =====
             // O valor total da OS é a soma do valor de todos os seus detalhes (linhas da planilha).
@@ -384,6 +401,18 @@ document.addEventListener('DOMContentLoaded', function () {
             acc[chaveGrupo].linhas.push(linha);
             return acc;
         }, {}));
+
+        agrupado.sort((a, b) => {
+            const osA = a.os.toLowerCase();
+            const osB = b.os.toLowerCase();
+            if (osA < osB) {
+                return osSortDirection === 'asc' ? -1 : 1;
+            }
+            if (osA > osB) {
+                return osSortDirection === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
 
         gruposFiltradosCache = agrupado;
         paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
@@ -710,7 +739,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const isLegado = importLegadoCheckbox.checked;
             const formData = new FormData();
             formData.append('file', file);
-            
+
             // Configuração inicial do modal de progresso
             isImportCancelled = false;
             textoProgresso.textContent = 'Enviando arquivo...';
@@ -739,7 +768,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // ================== INÍCIO DA NOVA LÓGICA DE ATUALIZAÇÃO ==================
                 const updatedOsList = await response.json();
-                
+
                 if (updatedOsList.length > 0) {
                     const updatedOsIds = updatedOsList.map(os => os.id);
 
@@ -789,11 +818,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     });
                 }
-                
+
                 // Força a atualização do cache de grupos filtrados para a paginação
                 renderizarTabelaComFiltro();
                 // ================== FIM DA NOVA LÓGICA DE ATUALIZAÇÃO ==================
-                
+
                 textoProgresso.textContent = 'Importação concluída com sucesso!';
 
             } catch (error) {

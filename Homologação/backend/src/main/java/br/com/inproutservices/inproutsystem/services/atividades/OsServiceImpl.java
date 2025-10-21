@@ -17,9 +17,7 @@ import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessExcepti
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.ContratoRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.SegmentoRepository;
+import br.com.inproutservices.inproutsystem.repositories.index.*;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
@@ -53,15 +51,18 @@ public class OsServiceImpl implements OsService {
     private final UsuarioRepository usuarioRepository;
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
+    private final PrestadorRepository prestadorRepository;
+    private final EtapaDetalhadaRepository etapaDetalhadaRepository;
 
-    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository) {
-        this.osRepository = osRepository;
+    public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository, PrestadorRepository prestadorRepository, EtapaDetalhadaRepository etapaDetalhadaRepository) {        this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
         this.contratoRepository = contratoRepository;
         this.segmentoRepository = segmentoRepository;
         this.usuarioRepository = usuarioRepository;
         this.lancamentoRepository = lancamentoRepository;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
+        this.prestadorRepository = prestadorRepository;
+        this.etapaDetalhadaRepository = etapaDetalhadaRepository;
     }
 
     @Override
@@ -434,6 +435,17 @@ public class OsServiceImpl implements OsService {
             dto.setPlanoAtivacao(getLocalDateCellValue(row, 25));
             dto.setDocumentacao(getStringCellValue(row, 26));
             dto.setPlanoDocumentacao(getLocalDateCellValue(row, 27));
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Leitura das colunas de Lançamento
+            dto.setNomeEtapaDetalhada(getStringCellValue(row, 29));
+            dto.setStatusLancamento(getStringCellValue(row, 30));
+            dto.setDetalheDiario(getStringCellValue(row, 31));
+            dto.setCodigoPrestador(getStringCellValue(row, 32));
+            dto.setValorLancamento(getBigDecimalCellValue(row, 34));
+            dto.setSituacaoLancamento(getStringCellValue(row, 36));
+            dto.setDataAtividadeLancamento(getLocalDateCellValue(row, 37));
+            // --- FIM DA CORREÇÃO ---
         }
 
         return dto;
@@ -545,7 +557,7 @@ public class OsServiceImpl implements OsService {
 
 
     private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado) {
-        // Atualiza os campos de detalhe editáveis
+        // 1. Atualiza os campos do 'Detalhe' da OS (isso já estava funcionando)
         detalheExistente.setSite(dto.getSite());
         detalheExistente.setRegional(dto.getRegional());
         detalheExistente.setLote(dto.getLote());
@@ -569,22 +581,28 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setGate(dto.getGate());
         detalheExistente.setGateId(dto.getGateId());
 
+        // 2. Lógica de importação legada (aqui estava a falha)
         if (isLegado) {
-            // Se for legado, atualiza também os campos de execução no primeiro lançamento (ou cria um se não existir)
-            Lancamento lancamento;
-            if (detalheExistente.getLancamentos() != null && !detalheExistente.getLancamentos().isEmpty()) {
-                lancamento = detalheExistente.getLancamentos().iterator().next();
-            } else {
-                lancamento = new Lancamento();
-                lancamento.setOsLpuDetalhe(detalheExistente);
-                // Preencha os campos obrigatórios do lançamento
-                lancamento.setDataAtividade(LocalDate.now());
-                Usuario manager = usuarioRepository.findById(1L)
-                        .orElseThrow(() -> new EntityNotFoundException("Manager padrão não encontrado com o ID: 1"));
-                lancamento.setManager(manager);
-                detalheExistente.getLancamentos().add(lancamento);
-            }
+            // Busca o lançamento mais recente pelo ID para atualizar, ou cria um novo.
+            Lancamento lancamento = detalheExistente.getLancamentos().stream()
+                    .max(Comparator.comparing(Lancamento::getId))
+                    .orElseGet(() -> {
+                        Lancamento novoLancamento = new Lancamento();
+                        novoLancamento.setOsLpuDetalhe(detalheExistente);
+                        // --- CORREÇÃO CRÍTICA: Associa a OS principal também ---
+                        novoLancamento.setOs(detalheExistente.getOs());
 
+                        // Define um gestor padrão para lançamentos legados
+                        Usuario manager = usuarioRepository.findById(1L)
+                                .orElseThrow(() -> new EntityNotFoundException("Manager padrão (ID 1) não encontrado."));
+                        novoLancamento.setManager(manager);
+
+                        // A associação é feita aqui, mas o save final é do repositório de lançamento
+                        detalheExistente.getLancamentos().add(novoLancamento);
+                        return novoLancamento;
+                    });
+
+            // 3. Preenche ou atualiza todos os campos do lançamento com os dados da planilha
             lancamento.setVistoria(dto.getVistoria());
             lancamento.setPlanoVistoria(dto.getPlanoVistoria());
             lancamento.setDesmobilizacao(dto.getDesmobilizacao());
@@ -595,9 +613,44 @@ public class OsServiceImpl implements OsService {
             lancamento.setPlanoAtivacao(dto.getPlanoAtivacao());
             lancamento.setDocumentacao(dto.getDocumentacao());
             lancamento.setPlanoDocumentacao(dto.getPlanoDocumentacao());
+
+            if (dto.getDataAtividadeLancamento() != null) {
+                lancamento.setDataAtividade(dto.getDataAtividadeLancamento());
+            } else if (lancamento.getDataAtividade() == null) {
+                lancamento.setDataAtividade(LocalDate.now());
+            }
+
+            if (dto.getCodigoPrestador() != null && !dto.getCodigoPrestador().isBlank()) {
+                prestadorRepository.findByCodigoPrestador(dto.getCodigoPrestador())
+                        .ifPresent(lancamento::setPrestador);
+            }
+
+            if (dto.getNomeEtapaDetalhada() != null && !dto.getNomeEtapaDetalhada().isBlank()) {
+                etapaDetalhadaRepository.findByNome(dto.getNomeEtapaDetalhada())
+                        .stream().findFirst().ifPresent(lancamento::setEtapaDetalhada);
+            }
+
+            if (dto.getStatusLancamento() != null && !dto.getStatusLancamento().isBlank()) {
+                try {
+                    lancamento.setStatus(br.com.inproutservices.inproutsystem.enums.index.StatusEtapa.fromDescricao(dto.getStatusLancamento()));
+                } catch (IllegalArgumentException e) { /* Ignora status inválido */ }
+            }
+
+            if (dto.getSituacaoLancamento() != null && !dto.getSituacaoLancamento().isBlank()) {
+                try {
+                    lancamento.setSituacao(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional.fromDescricao(dto.getSituacaoLancamento()));
+                } catch (IllegalArgumentException e) { /* Ignora situação inválida */ }
+            }
+
+            lancamento.setDetalheDiario(dto.getDetalheDiario());
+            lancamento.setValor(dto.getValorLancamento());
+            lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
+
+            // Salva o lançamento (se for novo, será criado; se for existente, será atualizado)
             lancamentoRepository.save(lancamento);
         }
 
+        // 4. Salva o detalhe da OS (pai) com suas atualizações
         osLpuDetalheRepository.save(detalheExistente);
     }
 
@@ -853,10 +906,25 @@ public class OsServiceImpl implements OsService {
 
     private BigDecimal getBigDecimalCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex);
-        if (cell == null || cell.getCellType() != CellType.NUMERIC) {
+        if (cell == null) {
             return null;
         }
-        return BigDecimal.valueOf(cell.getNumericCellValue());
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
+        }
+        if (cell.getCellType() == CellType.STRING) {
+            // Remove "R$", espaços, e troca o separador de milhar "." por nada, e a vírgula "," por "."
+            String value = cell.getStringCellValue()
+                    .replaceAll("[^\\d,.-]", "")
+                    .replace(".", "")
+                    .replace(",", ".");
+            try {
+                return new BigDecimal(value);
+            } catch (NumberFormatException e) {
+                return null; // Retorna nulo se a conversão falhar
+            }
+        }
+        return null;
     }
 
     private LocalDate getLocalDateCellValue(Row row, int cellIndex) {
@@ -864,11 +932,31 @@ public class OsServiceImpl implements OsService {
         if (cell == null) {
             return null;
         }
+        // Se a célula for numérica e formatada como data no Excel
         if (cell.getCellType() == CellType.NUMERIC) {
             if (DateUtil.isCellDateFormatted(cell)) {
                 return cell.getDateCellValue().toInstant()
                         .atZone(ZoneId.systemDefault())
                         .toLocalDate();
+            }
+        }
+        // Se a célula for texto (comum em CSVs ou planilhas formatadas como texto)
+        if (cell.getCellType() == CellType.STRING) {
+            String dateStr = cell.getStringCellValue();
+            if (dateStr == null || dateStr.isBlank() || dateStr.equals("-")) {
+                return null;
+            }
+            try {
+                // Tenta interpretar o formato dd/MM/yyyy
+                return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            } catch (Exception e) {
+                try {
+                    // Se falhar, tenta o formato yyyy-MM-dd
+                    return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+                } catch (Exception e2) {
+                    // Retorna nulo se não conseguir interpretar nenhum dos formatos
+                    return null;
+                }
             }
         }
         return null;

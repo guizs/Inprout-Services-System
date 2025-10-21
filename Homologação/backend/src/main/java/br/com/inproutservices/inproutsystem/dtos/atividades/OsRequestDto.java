@@ -53,6 +53,13 @@ public class OsRequestDto {
     private LocalDate planoAtivacao;
     private String documentacao;
     private LocalDate planoDocumentacao;
+    private LocalDate dataAtividadeLancamento;
+    private String codigoPrestador;
+    private String nomeEtapaDetalhada;
+    private String statusLancamento;
+    private String situacaoLancamento;
+    private String detalheDiario;
+    private BigDecimal valorLancamento;
 
 
     // --- Getters e Setters para todos os campos ---
@@ -138,4 +145,60 @@ public class OsRequestDto {
     public void setDocumentacao(String documentacao) { this.documentacao = documentacao; }
     public LocalDate getPlanoDocumentacao() { return planoDocumentacao; }
     public void setPlanoDocumentacao(LocalDate planoDocumentacao) { this.planoDocumentacao = planoDocumentacao; }
+
+    public LocalDate getDataAtividadeLancamento() {
+        return dataAtividadeLancamento;
+    }
+
+    public void setDataAtividadeLancamento(LocalDate dataAtividadeLancamento) {
+        this.dataAtividadeLancamento = dataAtividadeLancamento;
+    }
+
+    public String getCodigoPrestador() {
+        return codigoPrestador;
+    }
+
+    public void setCodigoPrestador(String codigoPrestador) {
+        this.codigoPrestador = codigoPrestador;
+    }
+
+    public String getNomeEtapaDetalhada() {
+        return nomeEtapaDetalhada;
+    }
+
+    public void setNomeEtapaDetalhada(String nomeEtapaDetalhada) {
+        this.nomeEtapaDetalhada = nomeEtapaDetalhada;
+    }
+
+    public String getStatusLancamento() {
+        return statusLancamento;
+    }
+
+    public void setStatusLancamento(String statusLancamento) {
+        this.statusLancamento = statusLancamento;
+    }
+
+    public String getSituacaoLancamento() {
+        return situacaoLancamento;
+    }
+
+    public void setSituacaoLancamento(String situacaoLancamento) {
+        this.situacaoLancamento = situacaoLancamento;
+    }
+
+    public String getDetalheDiario() {
+        return detalheDiario;
+    }
+
+    public void setDetalheDiario(String detalheDiario) {
+        this.detalheDiario = detalheDiario;
+    }
+
+    public BigDecimal getValorLancamento() {
+        return valorLancamento;
+    }
+
+    public void setValorLancamento(BigDecimal valorLancamento) {
+        this.valorLancamento = valorLancamento;
+    }
 }

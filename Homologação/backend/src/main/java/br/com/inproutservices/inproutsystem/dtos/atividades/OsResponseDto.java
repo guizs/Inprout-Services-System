@@ -108,7 +108,7 @@ public record OsResponseDto(
                     detalhe.getGate(),
                     detalhe.getGateId(),
                     detalhe.getLancamentos().stream()
-                            .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO)
+                            .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO || lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO_LEGADO)
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                             .map(LancamentoResponseDTO::new)
                             .orElse(null),

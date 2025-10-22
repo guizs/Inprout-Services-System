@@ -49,12 +49,10 @@ public class OsServiceImpl implements OsService {
     private final UsuarioRepository usuarioRepository;
     private final LancamentoRepository lancamentoRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
-    // --- ADIÇÃO DAS DEPENDÊNCIAS FALTANTES ---
     private final PrestadorRepository prestadorRepository;
     private final EtapaDetalhadaRepository etapaDetalhadaRepository;
 
 
-    // --- CONSTRUTOR CORRIGIDO ---
     public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository, PrestadorRepository prestadorRepository, EtapaDetalhadaRepository etapaDetalhadaRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
@@ -329,7 +327,6 @@ public class OsServiceImpl implements OsService {
         return true;
     }
 
-    // --- FUNÇÃO DE LEITURA DA PLANILHA CORRIGIDA ---
     private OsRequestDto criarDtoDaLinha(Row row, Map<String, Segmento> segmentoMap, Map<String, Lpu> lpuMap, boolean isLegado) {
         OsRequestDto dto = new OsRequestDto();
 
@@ -453,6 +450,9 @@ public class OsServiceImpl implements OsService {
                             }
                             OsLpuDetalhe novoDetalhe = createOs(dto);
                             if (novoDetalhe != null) {
+                                if (isLegado) {
+                                    criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
+                                }
                                 affectedOsIds.add(novoDetalhe.getOs().getId());
                             }
                         }
@@ -472,6 +472,9 @@ public class OsServiceImpl implements OsService {
                         dto.setKey(novaKey);
                         OsLpuDetalhe novoDetalhe = createOs(dto);
                         if (novoDetalhe != null) {
+                            if (isLegado) {
+                                criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
+                            }
                             affectedOsIds.add(novoDetalhe.getOs().getId());
                         }
                     }
@@ -482,6 +485,9 @@ public class OsServiceImpl implements OsService {
                         dto.setKey(dto.getOs() + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis());
                         OsLpuDetalhe novoDetalhe = this.createOs(dto);
                         if (novoDetalhe != null) {
+                            if (isLegado) {
+                                criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
+                            }
                             affectedOsIds.add(novoDetalhe.getOs().getId());
                         }
                     }
@@ -504,7 +510,6 @@ public class OsServiceImpl implements OsService {
         return osRepository.findAllWithDetailsByIds(new ArrayList<>(affectedOsIds));
     }
 
-    // --- FUNÇÃO DE ATUALIZAÇÃO CORRIGIDA E COMPLETA ---
     private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado) {
         detalheExistente.setSite(dto.getSite());
         detalheExistente.setRegional(dto.getRegional());
@@ -528,69 +533,71 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setNumFs(dto.getNumFs());
         detalheExistente.setGate(dto.getGate());
         detalheExistente.setGateId(dto.getGateId());
+        osLpuDetalheRepository.save(detalheExistente);
 
         if (isLegado) {
-            Lancamento lancamento = detalheExistente.getLancamentos().stream()
-                    .max(Comparator.comparing(Lancamento::getId))
-                    .orElseGet(() -> {
-                        Lancamento novoLancamento = new Lancamento();
-                        novoLancamento.setOsLpuDetalhe(detalheExistente);
-                        novoLancamento.setOs(detalheExistente.getOs());
-                        Usuario manager = usuarioRepository.findById(1L)
-                                .orElseThrow(() -> new EntityNotFoundException("Manager padrão (ID 1) não encontrado."));
-                        novoLancamento.setManager(manager);
-                        detalheExistente.getLancamentos().add(novoLancamento);
-                        return novoLancamento;
-                    });
+            criarOuAtualizarLancamentoLegado(detalheExistente, dto);
+        }
+    }
 
-            lancamento.setVistoria(dto.getVistoria());
-            lancamento.setPlanoVistoria(dto.getPlanoVistoria());
-            lancamento.setDesmobilizacao(dto.getDesmobilizacao());
-            lancamento.setPlanoDesmobilizacao(dto.getPlanoDesmobilizacao());
-            lancamento.setInstalacao(dto.getInstalacao());
-            lancamento.setPlanoInstalacao(dto.getPlanoInstalacao());
-            lancamento.setAtivacao(dto.getAtivacao());
-            lancamento.setPlanoAtivacao(dto.getPlanoAtivacao());
-            lancamento.setDocumentacao(dto.getDocumentacao());
-            lancamento.setPlanoDocumentacao(dto.getPlanoDocumentacao());
+    private void criarOuAtualizarLancamentoLegado(OsLpuDetalhe detalhe, OsRequestDto dto) {
+        Lancamento lancamento = detalhe.getLancamentos().stream()
+                .max(Comparator.comparing(Lancamento::getId))
+                .orElseGet(() -> {
+                    Lancamento novoLancamento = new Lancamento();
+                    novoLancamento.setOsLpuDetalhe(detalhe);
+                    novoLancamento.setOs(detalhe.getOs());
+                    Usuario manager = usuarioRepository.findById(1L)
+                            .orElseThrow(() -> new EntityNotFoundException("Manager padrão (ID 1) não encontrado."));
+                    novoLancamento.setManager(manager);
+                    detalhe.getLancamentos().add(novoLancamento);
+                    return novoLancamento;
+                });
 
-            if (dto.getDataAtividadeLancamento() != null) {
-                lancamento.setDataAtividade(dto.getDataAtividadeLancamento());
-            } else if (lancamento.getDataAtividade() == null) {
-                lancamento.setDataAtividade(LocalDate.now());
-            }
+        lancamento.setVistoria(dto.getVistoria());
+        lancamento.setPlanoVistoria(dto.getPlanoVistoria());
+        lancamento.setDesmobilizacao(dto.getDesmobilizacao());
+        lancamento.setPlanoDesmobilizacao(dto.getPlanoDesmobilizacao());
+        lancamento.setInstalacao(dto.getInstalacao());
+        lancamento.setPlanoInstalacao(dto.getPlanoInstalacao());
+        lancamento.setAtivacao(dto.getAtivacao());
+        lancamento.setPlanoAtivacao(dto.getPlanoAtivacao());
+        lancamento.setDocumentacao(dto.getDocumentacao());
+        lancamento.setPlanoDocumentacao(dto.getPlanoDocumentacao());
 
-            if (dto.getCodigoPrestador() != null && !dto.getCodigoPrestador().isBlank()) {
-                prestadorRepository.findByCodigoPrestador(dto.getCodigoPrestador())
-                        .ifPresent(lancamento::setPrestador);
-            }
-
-            if (dto.getNomeEtapaDetalhada() != null && !dto.getNomeEtapaDetalhada().isBlank()) {
-                etapaDetalhadaRepository.findByNome(dto.getNomeEtapaDetalhada())
-                        .stream().findFirst().ifPresent(lancamento::setEtapaDetalhada);
-            }
-
-            if (dto.getStatusLancamento() != null && !dto.getStatusLancamento().isBlank()) {
-                try {
-                    lancamento.setStatus(br.com.inproutservices.inproutsystem.enums.index.StatusEtapa.fromDescricao(dto.getStatusLancamento()));
-                } catch (IllegalArgumentException e) { /* Ignora status inválido */ }
-            }
-
-            if (dto.getSituacaoLancamento() != null && !dto.getSituacaoLancamento().isBlank()) {
-                try {
-                    lancamento.setSituacao(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional.fromDescricao(dto.getSituacaoLancamento()));
-                } catch (IllegalArgumentException e) { /* Ignora situação inválida */ }
-            }
-
-            lancamento.setDetalheDiario(dto.getDetalheDiario());
-            lancamento.setValor(dto.getValorLancamento());
-            lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
-
-            lancamentoRepository.save(lancamento);
+        if (dto.getDataAtividadeLancamento() != null) {
+            lancamento.setDataAtividade(dto.getDataAtividadeLancamento());
+        } else if (lancamento.getDataAtividade() == null) {
+            lancamento.setDataAtividade(LocalDate.now());
         }
 
-        osLpuDetalheRepository.save(detalheExistente);
+        if (dto.getCodigoPrestador() != null && !dto.getCodigoPrestador().isBlank()) {
+            prestadorRepository.findByCodigoPrestador(dto.getCodigoPrestador())
+                    .ifPresent(lancamento::setPrestador);
+        }
+
+        if (dto.getNomeEtapaDetalhada() != null && !dto.getNomeEtapaDetalhada().isBlank()) {
+            etapaDetalhadaRepository.findByNome(dto.getNomeEtapaDetalhada())
+                    .stream().findFirst().ifPresent(lancamento::setEtapaDetalhada);
+        }
+
+        if (dto.getStatusLancamento() != null && !dto.getStatusLancamento().isBlank()) {
+            try {
+                lancamento.setStatus(br.com.inproutservices.inproutsystem.enums.index.StatusEtapa.fromDescricao(dto.getStatusLancamento()));
+            } catch (IllegalArgumentException e) { /* Ignora status inválido */ }
+        }
+
+        if (dto.getSituacaoLancamento() != null && !dto.getSituacaoLancamento().isBlank()) {
+            try {
+                lancamento.setSituacao(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional.fromDescricao(dto.getSituacaoLancamento()));
+            } catch (IllegalArgumentException e) { /* Ignora situação inválida */ }
+        }
+
+        lancamento.setDetalheDiario(dto.getDetalheDiario());
+        lancamento.setValor(dto.getValorLancamento());
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_LEGADO);
     }
+
 
     private String gerarNovaOsSequencial() {
         String ano = String.valueOf(LocalDate.now().getYear()).substring(2);
@@ -803,7 +810,6 @@ public class OsServiceImpl implements OsService {
         return erros;
     }
 
-    // --- FUNÇÕES AUXILIARES DE LEITURA DE CÉLULA CORRIGIDAS ---
     private String getStringCellValue(Row row, int cellIndex) {
         Cell cell = row.getCell(cellIndex);
         if (cell == null) {

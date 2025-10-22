@@ -98,21 +98,31 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
-                const osInfo = { ...os, detalhes: undefined };
                 if (os.detalhes && os.detalhes.length > 0) {
-
-                    // ⬅️ ESTA LINHA JÁ ESTAVA NO CÓDIGO
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
-                    // ➡️ CORREÇÃO: Usar 'detalhesAtivos' para iterar
                     detalhesAtivos.forEach(detalhe => {
+                        // --- INÍCIO DA CORREÇÃO ---
+                        // Define qual lançamento será usado para exibição na linha
+                        let lancamentoParaExibir = detalhe.ultimoLancamento;
+
+                        // SE o backend não retornou um "ultimoLancamento" (caso do legado),
+                        // E SE existe uma lista de lançamentos disponíveis...
+                        if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
+                            // ...nós encontramos manualmente o lançamento com o maior ID (o mais recente).
+                            lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
+                                return (maisRecente.id > atual.id) ? maisRecente : atual;
+                            });
+                        }
+                        // --- FIM DA CORREÇÃO ---
+
                         todasAsLinhas.push({
                             os: os,
                             detalhe: detalhe,
-                            ultimoLancamento: detalhe.ultimoLancamento
+                            // Usa o lançamento que definimos acima, garantindo que nunca seja nulo se houver dados.
+                            ultimoLancamento: lancamentoParaExibir
                         });
                     });
-
                 } else {
                     todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
                 }

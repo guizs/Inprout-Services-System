@@ -148,7 +148,10 @@ public class LancamentoServiceImpl implements LancamentoService {
         OsLpuDetalhe osLpuDetalhe;
 
         if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+            // Para atividade complementar, precisamos do ID da OS, que está no osLpuDetalhe "pai"
+            OsLpuDetalhe detalhePai = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS base não encontrado para atividade complementar."));
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(detalhePai.getOs().getId(), dto.lpuId(), dto.quantidade());
         } else {
             // Lógica existente para atividades não complementares
             if (dto.osLpuDetalheId() == null) {
@@ -182,11 +185,9 @@ public class LancamentoServiceImpl implements LancamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
-        OS os = osRepository.findById(dto.osId())
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
 
         Lancamento lancamento = new Lancamento();
-        lancamento.setOs(os);
+        lancamento.setOs(osLpuDetalhe.getOs()); // Define a OS a partir do detalhe
         lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setManager(manager);
         lancamento.setPrestador(prestador);
@@ -405,11 +406,9 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional
     public Lancamento atualizarLancamento(Long id, LancamentoRequestDTO dto) {
-        // 1. Busca o lançamento existente no banco
         Lancamento lancamento = lancamentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
 
-        // 2. Valida se o lançamento está em um status que permite edição
         SituacaoAprovacao statusAtual = lancamento.getSituacaoAprovacao();
         boolean isReenvio = statusAtual == SituacaoAprovacao.RECUSADO_COORDENADOR || statusAtual == SituacaoAprovacao.RECUSADO_CONTROLLER;
 
@@ -417,18 +416,10 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-
-        // 3. Busca todas as entidades relacionadas a partir dos IDs do DTO
-        OS os = osRepository.findById(dto.osId())
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-
         OsLpuDetalhe osLpuDetalhe;
-        // Lógica para atividade complementar (caso seja editada como uma)
         if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(lancamento.getOs().getId(), dto.lpuId(), dto.quantidade());
         } else {
-            // Lógica para atividade normal
             if (dto.osLpuDetalheId() == null) {
                 throw new BusinessException("O ID do detalhe (osLpuDetalheId) é obrigatório.");
             }
@@ -441,9 +432,8 @@ public class LancamentoServiceImpl implements LancamentoService {
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 4. Atualiza os campos do lançamento com os dados do DTO
-        lancamento.setOs(os); // Estava faltando
-        lancamento.setOsLpuDetalhe(osLpuDetalhe); // Estava faltando
+        lancamento.setOs(osLpuDetalhe.getOs());
+        lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
@@ -463,7 +453,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
-        // 5. Lógica para definir o status de aprovação (reenvio ou salvamento de rascunho)
         if (isReenvio) {
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
@@ -488,8 +477,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setUltUpdate(LocalDateTime.now());
 
         return lancamentoRepository.save(lancamento);
-
-        // --- FIM DA CORREÇÃO ---
     }
 
     @Override
@@ -618,7 +605,12 @@ public class LancamentoServiceImpl implements LancamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
 
         Role role = usuario.getRole();
-        List<SituacaoAprovacao> statusHistorico = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.RECUSADO_COORDENADOR, SituacaoAprovacao.RECUSADO_CONTROLLER);
+        List<SituacaoAprovacao> statusHistorico = List.of(
+                SituacaoAprovacao.APROVADO,
+                SituacaoAprovacao.APROVADO_LEGADO,
+                SituacaoAprovacao.RECUSADO_COORDENADOR,
+                SituacaoAprovacao.RECUSADO_CONTROLLER
+        );
 
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             return lancamentoRepository.findBySituacaoAprovacaoIn(statusHistorico);
@@ -878,6 +870,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         return lancamento;
     }
 
+    @Override
     @Transactional
     public List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) {
@@ -905,21 +898,21 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             OsLpuDetalhe osLpuDetalhe;
             if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-                osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+                OsLpuDetalhe detalhePai = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                        .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS base não encontrado para atividade complementar."));
+                osLpuDetalhe = osService.criarOsLpuDetalheComplementar(detalhePai.getOs().getId(), dto.lpuId(), dto.quantidade());
             } else {
                 osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                         .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
             }
 
-            OS os = osRepository.findById(dto.osId())
-                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
             EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                     .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
             Lancamento lancamento = new Lancamento();
-            lancamento.setOs(os);
+            lancamento.setOs(osLpuDetalhe.getOs());
             lancamento.setManager(manager);
             lancamento.setOsLpuDetalhe(osLpuDetalhe);
             lancamento.setDataAtividade(dto.dataAtividade());
@@ -944,13 +937,10 @@ public class LancamentoServiceImpl implements LancamentoService {
             SituacaoAprovacao situacao = dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO;
             lancamento.setSituacaoAprovacao(situacao);
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Se o lançamento já está sendo criado como pendente, define o prazo imediatamente.
             if (situacao == SituacaoAprovacao.PENDENTE_COORDENADOR) {
                 lancamento.setDataSubmissao(LocalDateTime.now());
                 lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
             }
-            // --- FIM DA CORREÇÃO ---
 
             novosLancamentos.add(lancamento);
         }

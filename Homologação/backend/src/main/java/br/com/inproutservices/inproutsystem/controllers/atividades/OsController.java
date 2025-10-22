@@ -1,9 +1,6 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
-import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
-import br.com.inproutservices.inproutsystem.dtos.atividades.OsLpuDetalheUpdateDTO;
-import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
-import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
+import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
@@ -16,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -166,6 +164,32 @@ public class OsController {
             throw new BusinessException("Falha ao processar o arquivo. Pode estar corrompido.");
         } catch (Exception e) {
             // Deixa o GlobalExceptionHandler cuidar da mensagem de erro
+            throw new RuntimeException(e.getMessage(), e);
+        }
+    }
+
+    @PostMapping("/importar")
+    public ResponseEntity<ImportResponseDTO> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
+        if (file.isEmpty()) {
+            throw new BusinessException("Por favor, envie um arquivo!");
+        }
+        try {
+            // A chamada de serviço agora retorna uma lista de avisos
+            List<String> warnings = new ArrayList<>();
+            List<OS> updatedOses = osService.importarOsDePlanilha(file, isLegado, warnings); // Passa a lista de avisos
+
+            List<OsResponseDto> dtos = updatedOses.stream()
+                    .map(OsResponseDto::new)
+                    .collect(Collectors.toList());
+
+            // Cria o novo DTO de resposta contendo as OSs e os avisos
+            ImportResponseDTO response = new ImportResponseDTO(dtos, warnings);
+
+            return ResponseEntity.ok(response);
+
+        } catch (IOException e) {
+            throw new BusinessException("Falha ao processar o arquivo. Pode estar corrompido.");
+        } catch (Exception e) {
             throw new RuntimeException(e.getMessage(), e);
         }
     }

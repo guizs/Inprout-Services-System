@@ -79,7 +79,11 @@ public interface OsService {
     OsLpuDetalhe criarOsLpuDetalheComplementar(Long osId, Long lpuId, Integer quantidade);
 
     void desativarDetalhe(Long detalheId);
+
     OsLpuDetalhe atualizarChaveExterna(Long detalheId, String novaChave);
+
     void atualizarSegmentoDaOs(Long detalheId, Long novoSegmentoId);
+
+    List<OS> importarOsDePlanilha(MultipartFile file, boolean isLegado, List<String> warnings) throws IOException;
 
 }

@@ -772,6 +772,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     throw new Error(errorText || `Erro no servidor durante a importação.`);
                 }
 
+                const importResult = await response.json(); // Agora recebemos o ImportResponseDTO
+                updatedOsList = importResult.oses;
+                const warnings = importResult.warnings;
+
+                // Se houver avisos, exibe-os no modal
+                if (warnings && warnings.length > 0) {
+                    errosContainer.classList.remove('d-none');
+                    errosContainer.querySelector('h6').textContent = 'Avisos da Importação:';
+                    listaErros.innerHTML = warnings.map(warn => `<li class="list-group-item list-group-item-warning">${warn}</li>`).join('');
+                }
+
                 barraProgresso.style.width = '100%';
                 barraProgresso.textContent = '100%';
                 textoProgresso.textContent = 'Processando atualizações...';

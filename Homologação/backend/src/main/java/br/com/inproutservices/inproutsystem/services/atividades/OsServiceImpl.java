@@ -100,7 +100,18 @@ public class OsServiceImpl implements OsService {
                 OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
                 novoDetalhe.setOs(osParaSalvar);
                 novoDetalhe.setLpu(lpu);
-                novoDetalhe.setKey(osDto.getKey());
+
+                // --- INÍCIO DA LÓGICA DE GERAÇÃO DE KEY (ATIVIDADE NORMAL) ---
+                if (osDto.getKey() != null && !osDto.getKey().isBlank()) {
+                    novoDetalhe.setKey(osDto.getKey());
+                } else {
+                    long count = osLpuDetalheRepository.countByOsAndLpuAndKeyNotContaining(osParaSalvar, lpu, "_AC_");
+                    String sequencia = String.format("%04d", count + 1);
+                    String novaKey = osParaSalvar.getOs() + "_" + lpu.getId() + "_" + sequencia;
+                    novoDetalhe.setKey(novaKey);
+                }
+                // --- FIM DA LÓGICA DE GERAÇÃO DE KEY ---
+
                 novoDetalhe.setObjetoContratado(lpu.getNomeLpu());
                 osParaSalvar.getDetalhes().add(novoDetalhe);
                 detalheCriado = novoDetalhe;
@@ -435,6 +446,9 @@ public class OsServiceImpl implements OsService {
                 try {
                     OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
 
+                    // --- INÍCIO DA LÓGICA DE KEY ALTERADA ---
+                    // Removemos a geração de KEY com timestamp daqui.
+                    // A geração agora é de responsabilidade do método 'createOs'.
                     if (dto.getKey() != null && !dto.getKey().isBlank()) {
                         Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(dto.getKey());
                         if (detalheExistenteOpt.isPresent()) {
@@ -442,12 +456,16 @@ public class OsServiceImpl implements OsService {
                             atualizarDetalheExistente(detalhe, dto, isLegado);
                             affectedOsIds.add(detalhe.getOs().getId());
                         } else {
+                            // Se a KEY foi informada mas não existe, tratamos como uma criação normal.
+                            // O 'createOs' vai gerar a chave sequencial.
                             if (dto.getOs() == null || dto.getOs().isBlank()) {
                                 throw new IllegalArgumentException("A KEY '" + dto.getKey() + "' não foi encontrada. Para criar um novo item, a coluna 'OS' deve ser preenchida.");
                             }
                             if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
                                 throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada.");
                             }
+                            // Limpamos a KEY inválida para que o 'createOs' gere uma nova e correta.
+                            dto.setKey(null);
                             OsLpuDetalhe novoDetalhe = createOs(dto);
                             if (novoDetalhe != null) {
                                 if (isLegado) {
@@ -456,20 +474,20 @@ public class OsServiceImpl implements OsService {
                                 affectedOsIds.add(novoDetalhe.getOs().getId());
                             }
                         }
-                    }
-                    else if ((dto.getOs() == null || dto.getOs().isBlank()) && (dto.getKey() == null || dto.getKey().isBlank())) {
-                        if (dto.getProjeto() == null || dto.getProjeto().isBlank() || dto.getSegmentoId() == null) {
-                            throw new IllegalArgumentException("Para criar uma nova OS (sem KEY e OS), as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
+                    } else { // Se a KEY não foi informada na planilha
+                        if (dto.getOs() == null || dto.getOs().isBlank()) {
+                            if (dto.getProjeto() == null || dto.getProjeto().isBlank() || dto.getSegmentoId() == null) {
+                                throw new IllegalArgumentException("Para criar uma nova OS (sem KEY e OS), as colunas 'PROJETO' e 'SEGMENTO' são obrigatórias.");
+                            }
+                            String novaOsString = gerarNovaOsSequencial();
+                            dto.setOs(novaOsString);
                         }
+
                         if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
-                            throw new IllegalArgumentException("Para criar uma nova OS, a combinação de 'CONTRATO' e 'LPU' deve ser válida.");
+                            throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' deve ser válida.");
                         }
 
-                        String novaOsString = gerarNovaOsSequencial();
-                        String novaKey = novaOsString + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis();
-
-                        dto.setOs(novaOsString);
-                        dto.setKey(novaKey);
+                        // A KEY será gerada dentro do 'createOs'
                         OsLpuDetalhe novoDetalhe = createOs(dto);
                         if (novoDetalhe != null) {
                             if (isLegado) {
@@ -478,19 +496,7 @@ public class OsServiceImpl implements OsService {
                             affectedOsIds.add(novoDetalhe.getOs().getId());
                         }
                     }
-                    else {
-                        if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
-                            throw new IllegalArgumentException("A combinação de 'CONTRATO' e 'LPU' não foi encontrada.");
-                        }
-                        dto.setKey(dto.getOs() + "_" + dto.getLpuIds().get(0) + "_" + System.currentTimeMillis());
-                        OsLpuDetalhe novoDetalhe = this.createOs(dto);
-                        if (novoDetalhe != null) {
-                            if (isLegado) {
-                                criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
-                            }
-                            affectedOsIds.add(novoDetalhe.getOs().getId());
-                        }
-                    }
+                    // --- FIM DA LÓGICA DE KEY ALTERADA ---
 
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("Erro na linha " + numeroLinha + ": " + e.getMessage());
@@ -905,8 +911,12 @@ public class OsServiceImpl implements OsService {
         novoDetalhe.setOs(os);
         novoDetalhe.setLpu(lpu);
 
-        int randomCode = ThreadLocalRandom.current().nextInt(10000, 100000);
-        novoDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_" + randomCode);
+        // --- INÍCIO DA LÓGICA DE GERAÇÃO DE KEY (ATIVIDADE COMPLEMENTAR) ---
+        long count = osLpuDetalheRepository.countByOsAndLpuAndKeyContaining(os, lpu, "_AC_");
+        String sequencia = String.format("%04d", count + 1);
+        String novaKey = os.getOs() + "_" + lpu.getId() + "_AC_" + sequencia;
+        novoDetalhe.setKey(novaKey);
+        // --- FIM DA LÓGICA DE GERAÇÃO DE KEY ---
 
         novoDetalhe.setQuantidade(quantidade);
         novoDetalhe.setObjetoContratado(lpu.getNomeLpu());

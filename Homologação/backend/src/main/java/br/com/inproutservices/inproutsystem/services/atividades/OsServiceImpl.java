@@ -88,8 +88,6 @@ public class OsServiceImpl implements OsService {
         osParaSalvar.setDataAtualizacao(LocalDateTime.now());
         osParaSalvar.setUsuarioAtualizacao("sistema-import");
 
-        // --- CORREÇÃO PRINCIPAL AQUI ---
-        // Salvamos a OS *antes* de usá-la em qualquer outra operação.
         osRepository.save(osParaSalvar);
 
         OsLpuDetalhe detalheCriado = null;
@@ -142,7 +140,6 @@ public class OsServiceImpl implements OsService {
             }
         }
 
-        // A OS já foi salva, agora o save vai apenas atualizar a coleção de detalhes
         osRepository.save(osParaSalvar);
         return detalheCriado;
     }
@@ -914,7 +911,9 @@ public class OsServiceImpl implements OsService {
 
     @Override
     public List<OS> getOsByProjeto(String projeto) {
-        return osRepository.findByProjeto(projeto);
+        return osRepository.findByProjeto(projeto)
+                .map(Collections::singletonList) // Se encontrar, cria uma lista com o único elemento
+                .orElse(Collections.emptyList()); // Se não encontrar, retorna uma lista vazia
     }
 
     @Override

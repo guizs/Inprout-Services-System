@@ -14,39 +14,26 @@ import java.util.Set;
 @Repository
 public interface OsRepository extends JpaRepository<OS, Long> {
 
-    /**
-     * Busca todas as OSs, trazendo junto (FETCH) as novas linhas de detalhe
-     * para evitar LazyInitializationException e o problema N+1.
-     */
-    // ================== CORREÇÃO 1 ==================
     @Query("SELECT DISTINCT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH os.segmento")
     List<OS> findAllWithDetails();
 
-    /**
-     * Busca uma OS por ID, trazendo junto (FETCH) as novas linhas de detalhe.
-     */
-    // ================== CORREÇÃO 2 ==================
     @Query("SELECT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
-            "LEFT JOIN FETCH d.lancamentos l " + // Agora isso funciona!
+            "LEFT JOIN FETCH d.lancamentos l " +
             "LEFT JOIN FETCH os.segmento " +
             "WHERE os.id = :id")
     Optional<OS> findByIdWithDetails(@Param("id") Long id);
 
-    /**
-     * Busca todas as OSs que pertencem a um conjunto de segmentos (esta query não precisa de alteração).
-     */
     List<OS> findAllBySegmentoIn(Set<Segmento> segmentos);
 
-    /**
-     * Busca uma OS pelo seu nome/código (esta query não precisa de alteração).
-     */
     Optional<OS> findByOs(String os);
 
+    // --- CORREÇÃO APLICADA ---
+    // Garante que a busca por projeto retorna no máximo um resultado, alinhado à regra de negócio.
     Optional<OS> findByProjeto(String projeto);
 
     @Query("SELECT os.os FROM OS os WHERE os.os LIKE %:sufixo ORDER BY os.os DESC")

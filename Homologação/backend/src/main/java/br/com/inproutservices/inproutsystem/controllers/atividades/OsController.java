@@ -19,25 +19,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RestController // Anotação que combina @Controller e @ResponseBody, ideal para APIs REST
-@RequestMapping("/os") // Define o caminho base para todos os endpoints neste controller
+@RestController
+@RequestMapping("/os")
 @CrossOrigin(origins = "*")
 public class OsController {
 
     private final OsService osService;
     private final LpuService lpuService;
 
-    // Injeção de dependência do serviço via construtor
     public OsController(OsService osService, LpuService lpuService) {
         this.osService = osService;
         this.lpuService = lpuService;
     }
 
-    /**
-     * Endpoint para buscar Ordens de Serviço filtradas por usuário.
-     * HTTP Method: GET
-     * URL: /os/por-usuario/{usuarioId}
-     */
     @GetMapping("/por-usuario/{usuarioId}")
     public ResponseEntity<List<OsResponseDto>> getOsPorUsuario(@PathVariable Long usuarioId) {
         List<OS> osDoUsuario = osService.getAllOsByUsuario(usuarioId);
@@ -47,41 +41,23 @@ public class OsController {
         return ResponseEntity.ok(responseList);
     }
 
-    /**
-     * Endpoint para criar uma nova Ordem de Serviço.
-     * HTTP Method: POST
-     * URL: /api/os
-     * Corpo da Requisição: JSON com os dados de OsRequestDto
-     */
     @PostMapping
     public ResponseEntity<OS> createOs(@RequestBody OsRequestDto osDto) {
         OS novaOs = osService.createOs(osDto).getOs();
-        // Retorna a OS criada com o status HTTP 201 (Created)
         return new ResponseEntity<>(novaOs, HttpStatus.CREATED);
     }
 
-    /**
-     * Endpoint para buscar todas as Ordens de Serviço.
-     * HTTP Method: GET
-     * URL: /api/os
-     */
     @GetMapping("/{id}")
     public ResponseEntity<OsResponseDto> getOsById(@PathVariable Long id) {
         OS osEncontrada = osService.getOsById(id);
-        // Converte a entidade para o DTO antes de retornar
         return ResponseEntity.ok(new OsResponseDto(osEncontrada));
     }
 
-    /**
-     * Endpoint para buscar uma Ordem de Serviço pelo seu ID.
-     * HTTP Method: GET
-     * URL: /os/{id}
-     */
     @GetMapping
     public ResponseEntity<List<OsResponseDto>> getAllOs() {
         List<OS> oss = osService.findAllWithDetails();
         List<OsResponseDto> dtos = oss.stream()
-                .map(OsResponseDto::new) // USA O DTO CORRIGIDO
+                .map(OsResponseDto::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
@@ -98,12 +74,6 @@ public class OsController {
         }
     }
 
-    /**
-     * Endpoint para atualizar uma Ordem de Serviço existente.
-     * HTTP Method: PUT
-     * URL: /api/os/{id}
-     * Corpo da Requisição: JSON com os novos dados de OsRequestDto
-     */
     @PutMapping("/{id}")
     public ResponseEntity<OS> updateOs(@PathVariable Long id, @RequestBody OsRequestDto osDto) {
         OS osAtualizada = osService.updateOs(id, osDto);
@@ -124,15 +94,9 @@ public class OsController {
         }
     }
 
-    /**
-     * Endpoint para deletar uma Ordem de Serviço.
-     * HTTP Method: DELETE
-     * URL: /api/os/{id}
-     */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteOs(@PathVariable Long id) {
         osService.deleteOs(id);
-        // Retorna uma resposta vazia com status 204 (No Content), indicando sucesso na exclusão
         return ResponseEntity.noContent().build();
     }
 
@@ -148,41 +112,20 @@ public class OsController {
         return ResponseEntity.ok(data);
     }
 
-    @PostMapping("/importar")
-    public ResponseEntity<List<OsResponseDto>> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
-        if (file.isEmpty()) {
-            // Retorna um erro claro se nenhum arquivo for enviado
-            throw new BusinessException("Por favor, envie um arquivo!");
-        }
-        try {
-            List<OS> updatedOses = osService.importarOsDePlanilha(file, isLegado);
-            List<OsResponseDto> dtos = updatedOses.stream()
-                    .map(OsResponseDto::new)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(dtos);
-        } catch (IOException e) {
-            throw new BusinessException("Falha ao processar o arquivo. Pode estar corrompido.");
-        } catch (Exception e) {
-            // Deixa o GlobalExceptionHandler cuidar da mensagem de erro
-            throw new RuntimeException(e.getMessage(), e);
-        }
-    }
-
+    // --- VERSÃO ÚNICA E CORRIGIDA DO MÉTODO DE IMPORTAÇÃO ---
     @PostMapping("/importar")
     public ResponseEntity<ImportResponseDTO> importarOs(@RequestParam("file") MultipartFile file, @RequestParam(name = "legado", defaultValue = "false") boolean isLegado) {
         if (file.isEmpty()) {
             throw new BusinessException("Por favor, envie um arquivo!");
         }
         try {
-            // A chamada de serviço agora retorna uma lista de avisos
             List<String> warnings = new ArrayList<>();
-            List<OS> updatedOses = osService.importarOsDePlanilha(file, isLegado, warnings); // Passa a lista de avisos
+            List<OS> updatedOses = osService.importarOsDePlanilha(file, isLegado, warnings);
 
             List<OsResponseDto> dtos = updatedOses.stream()
                     .map(OsResponseDto::new)
                     .collect(Collectors.toList());
 
-            // Cria o novo DTO de resposta contendo as OSs e os avisos
             ImportResponseDTO response = new ImportResponseDTO(dtos, warnings);
 
             return ResponseEntity.ok(response);
@@ -225,5 +168,4 @@ public class OsController {
         osService.atualizarSegmentoDaOs(id, novoSegmentoId);
         return ResponseEntity.ok().build();
     }
-
 }

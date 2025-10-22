@@ -750,9 +750,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const formData = new FormData();
             formData.append('file', file);
 
-            // Configuração inicial do modal de progresso
             isImportCancelled = false;
-            textoProgresso.textContent = 'Enviando arquivo...';
+            textoProgresso.textContent = 'Iniciando importação...';
             barraProgresso.style.width = '0%';
             barraProgresso.textContent = '0%';
             errosContainer.classList.add('d-none');
@@ -761,6 +760,15 @@ document.addEventListener('DOMContentLoaded', function () {
             btnCancelarImportacao.classList.remove('d-none');
             modalProgresso.show();
 
+            // --- INÍCIO DA CORREÇÃO ---
+            // Damos um pequeno tempo para o modal aparecer e então iniciamos a animação da barra
+            setTimeout(() => {
+                textoProgresso.textContent = 'Enviando arquivo...';
+                barraProgresso.style.width = '40%'; // Avança a barra para um valor intermediário
+                barraProgresso.textContent = '40%';
+            }, 200); // 200ms de delay
+            // --- FIM DA CORREÇÃO ---
+
             try {
                 const response = await fetchComAuth(`${API_BASE_URL}/os/importar?legado=${isLegado}`, {
                     method: 'POST',
@@ -768,15 +776,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(errorText || `Erro no servidor durante a importação.`);
+                    let errorMsg = `Erro no servidor: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.message || JSON.stringify(errorData);
+                    } catch (e) {
+                        errorMsg = await response.text();
+                    }
+                    throw new Error(errorMsg);
                 }
 
-                const importResult = await response.json(); // Agora recebemos o ImportResponseDTO
-                updatedOsList = importResult.oses;
+                const importResult = await response.json();
+                const updatedOsList = importResult.oses;
                 const warnings = importResult.warnings;
 
-                // Se houver avisos, exibe-os no modal
                 if (warnings && warnings.length > 0) {
                     errosContainer.classList.remove('d-none');
                     errosContainer.querySelector('h6').textContent = 'Avisos da Importação:';
@@ -787,13 +800,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 barraProgresso.textContent = '100%';
                 textoProgresso.textContent = 'Processando atualizações...';
 
-                // ================== INÍCIO DA NOVA LÓGICA DE ATUALIZAÇÃO ==================
-                const updatedOsList = await response.json();
-
-                if (updatedOsList.length > 0) {
+                if (updatedOsList && updatedOsList.length > 0) {
+                    // ... (o restante da lógica para atualizar a tabela continua igual)
                     const updatedOsIds = updatedOsList.map(os => os.id);
 
-                    // 1. Adiciona um feedback visual de "Atualizando..." nos itens que serão modificados
                     updatedOsIds.forEach(id => {
                         const elementoExistente = document.getElementById(`accordion-item-${id}`);
                         if (elementoExistente) {
@@ -801,10 +811,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     });
 
-                    // Pequeno delay para o navegador renderizar o spinner
                     await new Promise(resolve => setTimeout(resolve, 100));
 
-                    // 2. Atualiza o cache de dados global (`todasAsLinhas`)
                     todasAsLinhas = todasAsLinhas.filter(linha => !updatedOsIds.includes(linha.os.id));
                     updatedOsList.forEach(os => {
                         (os.detalhes || []).forEach(detalhe => {
@@ -816,7 +824,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     });
 
-                    // 3. Substitui os placeholders pelos novos conteúdos ou adiciona novos itens
                     const accordionContainer = document.getElementById('accordion-registros');
                     updatedOsList.forEach(os => {
                         const grupo = {
@@ -833,23 +840,21 @@ document.addEventListener('DOMContentLoaded', function () {
                         const placeholderElement = document.getElementById(`accordion-item-${os.id}`);
 
                         if (placeholderElement) {
-                            placeholderElement.outerHTML = novoHtml; // Substitui o item
+                            placeholderElement.outerHTML = novoHtml;
                         } else {
-                            accordionContainer.insertAdjacentHTML('afterbegin', novoHtml); // Adiciona novo item no topo
+                            accordionContainer.insertAdjacentHTML('afterbegin', novoHtml);
                         }
                     });
                 }
 
-                // Força a atualização do cache de grupos filtrados para a paginação
                 renderizarTabelaComFiltro();
-                // ================== FIM DA NOVA LÓGICA DE ATUALIZAÇÃO ==================
-
                 textoProgresso.textContent = 'Importação concluída com sucesso!';
 
             } catch (error) {
                 console.error('Erro na importação:', error);
                 textoProgresso.textContent = 'Erro Crítico na Importação!';
                 errosContainer.classList.remove('d-none');
+                errosContainer.querySelector('h6').textContent = 'Ocorreu um erro:';
                 listaErros.innerHTML = `<li class="list-group-item list-group-item-danger">${error.message}</li>`;
             } finally {
                 btnFecharProgresso.disabled = false;

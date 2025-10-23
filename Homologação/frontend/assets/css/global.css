@@ -59,7 +59,7 @@ body {
   background-color: #f5fdf7;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  z-index: 999;
+  z-index: 10000;
   border-radius: 0 12px 12px 0;
   padding: 1rem;
 }
@@ -272,13 +272,13 @@ tr.selected {
 }
 
 .overlay-loader {
-  position: absolute; /* ALTERADO DE 'fixed' PARA 'absolute' */
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   background: rgba(255, 255, 255, 0.7);
-  z-index: 999; /* Reduzido para ficar dentro do container */
+  z-index: 999; 
   display: flex;
   align-items: center;
   justify-content: center;

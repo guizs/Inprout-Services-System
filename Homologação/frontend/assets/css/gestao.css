@@ -268,3 +268,17 @@ body {
 .accordion-button-vencido::after {
     filter: invert(1) brightness(0.5);
 }
+
+/* 1. Define o container como o "limite" para o loader */
+.content-loader-container {
+    position: relative; /* Essencial para conter o loader */
+    min-height: 300px;  /* Altura mínima para o loader ser visível em conteúdo vazio */
+}
+
+/* 2. Regra específica que SOBRESCREVE qualquer outra definição global */
+/* Esta regra só se aplica a um .overlay-loader que está DENTRO de um .content-loader-container */
+.content-loader-container .overlay-loader {
+    position: absolute; /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
+    z-index: 999;     /* Garante que fique por cima das abas */
+    border-radius: 0.75rem; /* Opcional: arredonda as bordas do loader igual ao card */
+}

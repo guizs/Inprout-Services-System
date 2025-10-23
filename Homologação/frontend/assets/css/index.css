@@ -698,6 +698,18 @@ label.form-label.d-flex {
     flex-shrink: 0; /* Impede que os detalhes quebrem a linha */
 }
 
+/* Adicionado para o loader localizado */
+.content-loader-container {
+    position: relative;
+    min-height: 400px; /* Garante uma altura mínima para o loader ser visível */
+}
+
+/* Regra específica para o loader dentro do novo container */
+.content-loader-container .overlay-loader {
+    position: absolute; /* Faz o loader ficar contido no container */
+    border-radius: 0.5rem; /* Opcional: para arredondar as bordas */
+}
+
 @media (max-width: 768px) {
   .overview-banner h1 {
     font-size: 1rem;

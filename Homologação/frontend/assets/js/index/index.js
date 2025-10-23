@@ -79,15 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleLoader(ativo = true) {
-        const overlay = document.getElementById("overlay-loader");
+
+    const container = document.querySelector('.content-loader-container');
+    if (container) {
+        const overlay = container.querySelector("#overlay-loader");
         if (overlay) {
-            if (ativo) {
-                overlay.classList.remove("d-none");
-            } else {
-                overlay.classList.add("d-none");
-            }
+            overlay.classList.toggle("d-none", !ativo);
         }
     }
+}
 
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();

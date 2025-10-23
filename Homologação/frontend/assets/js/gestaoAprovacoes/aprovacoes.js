@@ -53,7 +53,7 @@ function toggleLoader(ativo = true) {
             overlay.classList.toggle("d-none", !ativo);
         }
     }
-}   
+} 
 
 function aprovarMaterial(id) {
     if (!modalAprovarMaterial) return;

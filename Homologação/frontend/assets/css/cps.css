@@ -1,20 +1,29 @@
 /* ===============================================
+ * >>>>> CORREÇÃO DE SCROLL DA PÁGINA E DA TABELA <<<<<
+ * =============================================== */
+
+/* 1. Libera a barra de rolagem para a PÁGINA INTEIRA, apenas na tela de CPS */
+body {
+    overflow-y: auto !important; /* Libera a rolagem vertical SÓ NESTA PÁGINA */
+    height: auto !important;     /* Permite que o corpo da página cresça com o conteúdo */
+    display: block !important;    /* Retorna ao fluxo normal de exibição */
+}
+
+/* ===============================================
  * ESTILOS GERAIS DA PÁGINA DE CPS
  * =============================================== */
 
-/* Card principal que agrupa os KPIs e segmentos */
 .overview-card {
-    margin-bottom: 1rem !important; /* Espaço abaixo do card principal */
+    margin-bottom: 1rem !important;
 }
 
-/* Container dos 3 totais (Bruto, Adiantado, Líquido) */
 .kpi-total {
-    background-color: var(--card-success); /* COR VERDE RESTAURADA */
+    background-color: var(--card-success);
     border-radius: 12px;
-    padding: 0.75rem; /* Espaçamento interno reduzido */
+    padding: 0.75rem;
     text-align: center;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-    margin-bottom: 1rem; /* Espaço abaixo dos totais */
+    margin-bottom: 1rem;
 }
 
 .kpi-total .kpi-label {
@@ -28,7 +37,6 @@
     font-weight: bold;
 }
 
-/* Grid para os cards de segmento individuais */
 .segment-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -38,7 +46,7 @@
 .segment-card {
     background: #ffffff;
     border-radius: 12px;
-    padding: 0.5rem; /* Espaçamento interno ainda mais reduzido */
+    padding: 0.5rem;
     box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
     text-align: center;
     transition: transform 0.2s ease-in-out;
@@ -48,11 +56,10 @@
     transform: translateY(-2px);
 }
 
-/* ÍCONES DOS SEGMENTOS MENORES */
 .segment-card i {
-    font-size: 1.1rem; /* Tamanho do ícone reduzido */
+    font-size: 1.1rem;
     color: var(--accent-color);
-    margin-bottom: 0.15rem; /* Margem inferior reduzida */
+    margin-bottom: 0.15rem;
 }
 
 .segment-card span {
@@ -60,19 +67,40 @@
     color: var(--text-color);
 }
 
-/* Card de Filtros */
 .card.p-3.mb-3 {
     padding: 1rem !important;
     margin-bottom: 1rem !important;
 }
 
-/* Container da Tabela com Scroll (ALTURA AUMENTADA) */
+/* ==========================================================
+ * >>>>> ESTILO FINAL DA TABELA <<<<<
+ * ========================================================== */
+
+/* 2. Container da Tabela com scroll VERTICAL e HORIZONTAL */
 .table-wrapper {
     position: relative;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    max-height: 150px;/* ALTURA DA TABELA AUMENTADA */
-    overflow: auto;
+    overflow: auto; /* Habilita os dois scrolls (vertical e horizontal) */
+    width: 100%;
+    /* 3. Define uma altura máxima PADRÃO para a tabela */
+    max-height: 500px; /* Você pode ajustar este valor se achar melhor */
+}
+
+#table-cps {
+    width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+/* 4. Mantém as linhas com altura uniforme, truncando o texto */
+#table-cps th,
+#table-cps td {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0.75rem;
 }
 
 .sticky-header th {
@@ -82,7 +110,7 @@
     z-index: 2;
 }
 
-/* Loader */
+/* Loader (mantido) */
 .overlay-loader {
     position: fixed;
     top: 0;
@@ -97,7 +125,7 @@
     transition: opacity 0.3s ease;
 }
 
-/* Responsividade */
+/* Responsividade (mantida) */
 @media (max-width: 992px) {
     .dashboard-cards {
         overflow-x: auto;

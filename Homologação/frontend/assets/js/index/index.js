@@ -80,14 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function toggleLoader(ativo = true) {
 
-    const container = document.querySelector('.content-loader-container');
-    if (container) {
-        const overlay = container.querySelector("#overlay-loader");
-        if (overlay) {
-            overlay.classList.toggle("d-none", !ativo);
+        const container = document.querySelector('.content-loader-container');
+        if (container) {
+            const overlay = container.querySelector("#overlay-loader");
+            if (overlay) {
+                overlay.classList.toggle("d-none", !ativo);
+            }
         }
     }
-}
 
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
@@ -332,7 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
-                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`; // <-- ADICIONADO AQUI
+                            buttonsHtml += ` <button class="btn btn-sm btn-info btn-add-complementar" data-id="${lancamento.id}" title="Adicionar Complementar"><i class="bi bi-plus-lg"></i></button>`;
+                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
                             buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`; // <-- ADICIONADO AQUI
@@ -991,6 +992,48 @@ document.addEventListener('DOMContentLoaded', () => {
             modalAdicionar.show();
         }
 
+        async function abrirModalParaComplementar(lancamento) {
+            // 1. Carrega dados de OS, Etapas, etc.
+            await carregarDadosParaModal();
+
+            // 2. Limpa o formulário e reseta estados de edição
+            formAdicionar.reset();
+            delete formAdicionar.dataset.editingId;
+            delete formAdicionar.dataset.osLpuDetalheId; // Crucial: estamos criando, não editando
+
+            // 3. Configura a UI do Modal para o modo "Complementar"
+            modalTitle.innerHTML = `<i class="bi bi-plus-circle"></i> Adicionar Atividade Complementar`;
+            document.getElementById('btnSubmitAdicionar').style.display = 'none';
+            document.getElementById('btnSalvarRascunho').style.display = 'inline-block';
+            document.getElementById('btnSalvarEEnviar').style.display = 'inline-block';
+
+            // Força o modo "Atividade Complementar"
+            const chkAtividadeEl = document.getElementById('atividadeComplementar');
+            chkAtividadeEl.checked = true;
+            chkAtividadeEl.disabled = true; // Impede o usuário de desmarcar
+            chkAtividadeComplementar.parentElement.style.display = 'block'; // Garante que o switch esteja visível
+            quantidadeContainer.classList.remove('d-none'); // Mostra o campo de quantidade
+            lpuContainer.classList.remove('d-none'); // Mostra o campo de LPU
+
+            // 4. Preenche os campos com os dados do lançamento original
+            if (lancamento.os && lancamento.os.id) {
+                selectOS.value = lancamento.os.id;
+                preencherCamposOS(lancamento.os.id); // Preenche campos de texto (site, segmento, etc.)
+            }
+            // Desabilita a troca de OS e Projeto, pois são herdados
+            selectOS.disabled = true;
+            selectProjeto.disabled = true;
+
+            // A data da atividade é a de hoje por padrão
+            document.getElementById('dataAtividade').value = new Date().toISOString().split('T')[0];
+
+            // 5. Carrega a lista COMPLETA de LPUs para o usuário escolher
+            await carregarEPopularLPU(lancamento.os.id, true);
+
+            // 6. Abre o modal
+            modalAdicionar.show();
+        }
+
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
             if (!formAdicionar.dataset.editingId) {
                 // --- INÍCIO DA CORREÇÃO ---
@@ -1018,6 +1061,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modalAdicionarEl.addEventListener('hidden.bs.modal', () => {
             formAdicionar.reset();
             delete formAdicionar.dataset.editingId;
+            delete formAdicionar.dataset.osLpuDetalheId; // Adicione esta linha
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa geral</option>';
             selectEtapaDetalhada.disabled = true;
             selectStatus.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>';
@@ -1027,7 +1071,8 @@ document.addEventListener('DOMContentLoaded', () => {
             lpuContainer.classList.add('d-none');
             document.getElementById('lpuId').innerHTML = '';
             chkAtividadeComplementar.parentElement.style.display = 'block';
-        });
+            chkAtividadeComplementar.disabled = false; // Adicione esta linha
+        }); 
 
         document.body.addEventListener('click', async (e) => {
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
@@ -1053,6 +1098,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 } finally {
                     reenviarBtn.disabled = false;
                     reenviarBtn.innerHTML = originalContent;
+                }
+            } else if (addComplementarBtn) { // Adicione este bloco
+                const originalContent = addComplementarBtn.innerHTML;
+                try {
+                    addComplementarBtn.disabled = true;
+                    addComplementarBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+                    const lancamentoId = addComplementarBtn.dataset.id;
+                    const lancamento = todosLancamentos.find(l => l.id == lancamentoId);
+                    if (lancamento) {
+                        await abrirModalParaComplementar(lancamento);
+                    } else {
+                        throw new Error('Lançamento original não encontrado.');
+                    }
+                } catch (error) {
+                    console.error("Erro ao preparar modal complementar:", error);
+                    mostrarToast(error.message, 'error');
+                } finally {
+                    addComplementarBtn.disabled = false;
+                    addComplementarBtn.innerHTML = originalContent;
                 }
             } else if (comentariosBtn) {
                 const lancamento = todosLancamentos.find(l => l.id == comentariosBtn.dataset.id);

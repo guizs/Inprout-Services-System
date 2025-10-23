@@ -18,7 +18,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
-
+  <link rel="icon" href="" type="image/png">
 
 </head>
 
@@ -29,8 +29,10 @@
         <i class="bi bi-grid fs-5"></i>
       </button>
 
-      <link rel="icon" href="assets/imgs/login/logo.png" type="image/png">
-      <img src="assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+
+      <a href="index.html">
+        <img src="assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+      </a>
 
       <div class="dropdown ms-auto">
         <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
@@ -243,64 +245,56 @@
       </li>
     </ul>
 
-    <div class="tab-content" id="lancamentosTabContent">
-
-
-      <div class="tab-pane fade" id="minhasPendencias-pane" role="tabpanel" aria-labelledby="minhasPendencias-tab"
-        tabindex="0">
-        <div class="table-responsive custom-scroll">
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-minhas-pendencias"> </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="tab-pane fade show active" id="lancamentos-pane" role="tabpanel" aria-labelledby="lancamentos-tab"
-        tabindex="0">
-
-        <div class="table-responsive custom-scroll">
-
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-lancamentos">
-            </tbody>
-
-          </table>
+    <div class="content-loader-container">
+      <div class="tab-content" id="lancamentosTabContent">
+        <div class="tab-pane fade" id="minhasPendencias-pane" role="tabpanel" aria-labelledby="minhasPendencias-tab"
+          tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-minhas-pendencias"> </tbody>
+            </table>
+          </div>
         </div>
 
-      </div>
-
-      <div class="tab-pane fade" id="pendentes-pane" role="tabpanel" aria-labelledby="pendentes-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
-
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-pendentes">
-            </tbody>
-
-          </table>
+        <div class="tab-pane fade show active" id="lancamentos-pane" role="tabpanel" aria-labelledby="lancamentos-tab"
+          tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-lancamentos">
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      <div class="tab-pane fade" id="paralisados-pane" role="tabpanel" aria-labelledby="paralisados-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-paralisados"> </tbody>
-          </table>
+        <div class="tab-pane fade" id="pendentes-pane" role="tabpanel" aria-labelledby="pendentes-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-pendentes">
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      <div class="tab-pane fade" id="historico-pane" role="tabpanel" aria-labelledby="historico-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
+        <div class="tab-pane fade" id="paralisados-pane" role="tabpanel" aria-labelledby="paralisados-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-paralisados"> </tbody>
+            </table>
+          </div>
+        </div>
 
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-historico">
-            </tbody>
-
-          </table>
+        <div class="tab-pane fade" id="historico-pane" role="tabpanel" aria-labelledby="historico-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-historico">
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -309,7 +303,6 @@
           <span class="visually-hidden">Carregando...</span>
         </div>
       </div>
-
     </div>
   </div>
 

@@ -100,94 +100,123 @@
         <div class="tab-content" id="aprovacoesTabContent">
             <div class="tab-pane fade show active" id="atividades-pane" role="tabpanel" aria-labelledby="atividades-tab"
                 tabindex="0">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0 card-title-modern" id="titulo-tabela"><i
-                                    class="bi bi-clock-history me-2"></i>
-                                Pendências de Aprovação
-                            </h5>
-                            <div id="acoes-lote-container" class="d-none">
-                                <button class="btn-acao-lote btn-lote-success" id="btn-aprovar-selecionados">
-                                    <i class="bi bi-check-lg"></i> Aprovar (<span id="contador-aprovacao">0</span>)
-                                </button>
-                                <button class="btn-acao-lote btn-lote-danger" id="btn-recusar-selecionados">
-                                    <i class="bi bi-x-lg"></i> Recusar (<span id="contador-recusa">0</span>)
-                                </button>
-                                <button class="btn-acao-lote btn-lote-warning" id="btn-solicitar-prazo-selecionados">
-                                    <i class="bi bi-calendar-plus"></i> Solicitar Prazo (<span
-                                        id="contador-prazo">0</span>)
-                                </button>
+                <div class="content-loader-container">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 card-title-modern" id="titulo-tabela">
+                                    <i class="bi bi-clock-history me-2"></i> Pendências de Aprovação
+                                </h5>
+                                <div id="acoes-lote-container" class="d-none">
+                                    <button class="btn-acao-lote btn-lote-success" id="btn-aprovar-selecionados">
+                                        <i class="bi bi-check-lg"></i> Aprovar (<span id="contador-aprovacao">0</span>)
+                                    </button>
+                                    <button class="btn-acao-lote btn-lote-danger" id="btn-recusar-selecionados">
+                                        <i class="bi bi-x-lg"></i> Recusar (<span id="contador-recusa">0</span>)
+                                    </button>
+                                    <button class="btn-acao-lote btn-lote-warning"
+                                        id="btn-solicitar-prazo-selecionados">
+                                        <i class="bi bi-calendar-plus"></i> Solicitar Prazo (<span
+                                            id="contador-prazo">0</span>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="accordion-pendencias">
                             </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="accordion" id="accordion-pendencias">
+                    <div id="overlay-loader-atividades" class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="tab-pane fade" id="historico-atividades-pane" role="tabpanel"
                 aria-labelledby="historico-atividades-tab" tabindex="0">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 card-title-modern"><i class="bi bi-calendar-check me-2"></i>Histórico de
-                            Atividades</h5>
-
-                        <div style="width: 250px;">
-                            <select class="form-select form-select-sm" id="filtro-historico-status">
-                                <option value="todos">Todos os Status</option>
-                                <option value="APROVADO">Aprovado</option>
-                                <option value="RECUSADO_COORDENADOR">Recusado Coordenador</option>
-                                <option value="RECUSADO_CONTROLLER">Recusado Controller</option>
-                            </select>
+                <div class="content-loader-container">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 card-title-modern"><i class="bi bi-calendar-check me-2"></i>Histórico de
+                                Atividades</h5>
+                            <div style="width: 250px;">
+                                <select class="form-select form-select-sm" id="filtro-historico-status">
+                                    <option value="todos">Todos os Status</option>
+                                    <option value="APROVADO">Aprovado</option>
+                                    <option value="RECUSADO_COORDENADOR">Recusado Coordenador</option>
+                                    <option value="RECUSADO_CONTROLLER">Recusado Controller</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive custom-scroll">
+                                <table class="table modern-table align-middle">
+                                    <thead id="thead-historico"></thead>
+                                    <tbody id="tbody-historico"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive custom-scroll">
-                            <table class="table modern-table align-middle">
-                                <thead id="thead-historico"></thead>
-                                <tbody id="tbody-historico"></tbody>
-                            </table>
+                    <div id="overlay-loader-historico-atividades" class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab" tabindex="0">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 card-title-modern"><i class="bi bi-inbox-fill me-2"></i> Pendências de Materiais
-                        </h5>
-
-                        <div style="width: 250px;">
-                            <select class="form-select form-select-sm" id="filtro-segmento-materiais">
-                                <option value="todos">Todos os Segmentos</option>
-                            </select>
+                <div class="content-loader-container">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 card-title-modern"><i class="bi bi-inbox-fill me-2"></i> Pendências de
+                                Materiais</h5>
+                            <div style="width: 250px;">
+                                <select class="form-select form-select-sm" id="filtro-segmento-materiais">
+                                    <option value="todos">Todos os Segmentos</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive custom-scroll">
+                                <table class="table modern-table align-middle">
+                                    <thead id="thead-pendentes-materiais"></thead>
+                                    <tbody id="tbody-pendentes-materiais"></tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive custom-scroll">
-                            <table class="table modern-table align-middle">
-                                <thead id="thead-pendentes-materiais"></thead>
-                                <tbody id="tbody-pendentes-materiais"></tbody>
-                            </table>
+                    <div id="overlay-loader-materiais" class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="tab-pane fade" id="historico-materiais-pane" role="tabpanel"
                 aria-labelledby="historico-materiais-tab" tabindex="0">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0 card-title-modern"><i class="bi bi-archive-fill me-2"></i> Histórico de
-                            Solicitações de Materiais</h5>
+                <div class="content-loader-container">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <h5 class="mb-0 card-title-modern"><i class="bi bi-archive-fill me-2"></i> Histórico de
+                                Solicitações de Materiais</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive custom-scroll">
+                                <table class="table modern-table align-middle">
+                                    <thead id="thead-historico-materiais"></thead>
+                                    <tbody id="tbody-historico-materiais"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="table-responsive custom-scroll">
-                            <table class="table modern-table align-middle">
-                                <thead id="thead-historico-materiais"></thead>
-                                <tbody id="tbody-historico-materiais"></tbody>
-                            </table>
+                    <div id="overlay-loader-historico-materiais" class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
                         </div>
                     </div>
                 </div>

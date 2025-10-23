@@ -45,15 +45,15 @@ function recusarLancamento(id) {
     modalRecusar.show();
 }
 
-function toggleLoader(ativo = true, containerSelector = 'body') {
-    const container = document.querySelector(containerSelector);
+function toggleLoader(ativo = true) {
+    const container = document.querySelector('.content-loader-container');
     if (container) {
         const overlay = container.querySelector(".overlay-loader");
         if (overlay) {
             overlay.classList.toggle("d-none", !ativo);
         }
     }
-}
+}   
 
 function aprovarMaterial(id) {
     if (!modalAprovarMaterial) return;
@@ -709,7 +709,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarDadosAtividades() {
-        toggleLoader(true, '.content-loader-container');
+        toggleLoader(true);
         try {
             const userId = localStorage.getItem('usuarioId');
 
@@ -757,7 +757,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const accordionContainer = document.getElementById('accordion-pendencias');
             if (accordionContainer) accordionContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados.</div>`;
         } finally {
-            toggleLoader(false, '.content-loader-container');
+            toggleLoader(false);
         }
     }
 
@@ -1026,12 +1026,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarTodosOsDados() {
-        toggleLoader(true, '.content-loader-container');
+        toggleLoader(true);
         await Promise.all([
             carregarDadosAtividades(),
             carregarDadosMateriais()
         ]);
-        toggleLoader(false, '.content-loader-container');
+        toggleLoader(false);
     }
 
     const btnConfirmarAprovacaoMaterial = document.getElementById('btnConfirmarAprovacaoMaterial');
@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (filtroHistoricoStatus) {
         filtroHistoricoStatus.addEventListener('change', async () => {
-            toggleLoader(true, '.content-loader-container');
+            toggleLoader(true);
             try {
                 const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
                 if (!responseHistorico.ok) throw new Error('Falha ao recarregar seu histórico.');
@@ -1105,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                toggleLoader(false, '.content-loader-container');
+                toggleLoader(false);
             }
         });
     }

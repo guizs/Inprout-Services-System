@@ -79,13 +79,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleLoader(ativo = true) {
-
         const container = document.querySelector('.content-loader-container');
         if (container) {
             const overlay = container.querySelector("#overlay-loader");
             if (overlay) {
                 overlay.classList.toggle("d-none", !ativo);
             }
+        }
+    }
+
+    function toggleModalLoader(ativo = true) {
+        const modalLoader = document.getElementById('modal-overlay-loader');
+        if (modalLoader) {
+            modalLoader.classList.toggle('d-none', !ativo);
         }
     }
 
@@ -597,7 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const method = editingId ? 'PUT' : 'POST';
 
             try {
-                toggleLoader(true);
+                toggleModalLoader(true);
                 const response = await fetchComAuth(url, {
                     method: method,
                     headers: { 'Content-Type': 'application/json' },
@@ -624,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                toggleLoader(false);
+                toggleModalLoader(false);
             }
         });
 
@@ -842,21 +848,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // 1. Carrega os dados básicos (OS e Etapas), mas não mais os prestadores.
-            await carregarDadosParaModal();
-
-            // 2. Limpa e define o ID de edição no formulário
-            if (editingId) {
-                formAdicionar.dataset.editingId = editingId;
-            } else {
-                delete formAdicionar.dataset.editingId;
-            }
-            delete formAdicionar.dataset.osLpuDetalheId;
-            if (lancamento.detalhe) {
-                formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
-            }
-
-            // 3. Referências aos elementos do modal
+            // 1. Referências a todos os elementos do modal para garantir que sejam encontrados
+            const formAdicionar = document.getElementById('formAdicionar');
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
@@ -864,18 +857,35 @@ document.addEventListener('DOMContentLoaded', () => {
             const dataAtividadeInput = document.getElementById('dataAtividade');
             const chkAtividadeEl = document.getElementById('atividadeComplementar');
             const chkAtividadeComplementarContainer = chkAtividadeEl ? chkAtividadeEl.parentElement : null;
-            const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
+            const quantidadeContainer = document.getElementById('quantidadeContainer'); // Corrigido
             const lpuContainer = document.getElementById('lpuContainer');
             const selectProjeto = document.getElementById('projetoId');
             const selectOS = document.getElementById('osId');
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
+            const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
 
-            // 4. Reseta a UI do modal para o modo de edição
+            // 2. Carrega dados básicos necessários para os selects (OS, Etapas)
+            await carregarDadosParaModal();
+
+            // 3. Limpa e configura os IDs de controle no formulário
+            formAdicionar.reset(); // Limpa visualmente o formulário
+            if (editingId) {
+                formAdicionar.dataset.editingId = editingId;
+            } else {
+                delete formAdicionar.dataset.editingId;
+            }
+            // Guarda o ID do detalhe (OsLpuDetalhe) para ser usado no submit
+            if (lancamento.detalhe && lancamento.detalhe.id) {
+                formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
+            } else {
+                delete formAdicionar.dataset.osLpuDetalheId;
+            }
+
+            // 4. Reseta a UI do modal para o estado padrão de "edição"
             if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
             if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
             if (selectProjeto) selectProjeto.disabled = true;
-
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
@@ -886,7 +896,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
                     if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'inline-block';
                     if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'inline-block';
-                } else {
+                } else { // Para RECUSADO_COORDENADOR, RECUSADO_CONTROLLER, etc.
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil-square"></i> Editar Lançamento #${editingId}`;
                     if (btnSubmitPadrao) {
                         btnSubmitPadrao.style.display = 'inline-block';
@@ -894,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 if (dataAtividadeInput) dataAtividadeInput.value = lancamento.dataAtividade ? lancamento.dataAtividade.split('/').reverse().join('-') : '';
-            } else {
+            } else { // Modo "Retomar"
                 if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-play-circle"></i> Retomar Lançamento (Novo)`;
                 if (btnSubmitPadrao) {
                     btnSubmitPadrao.style.display = 'inline-block';
@@ -903,11 +913,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
-            // 6. Preenche os campos do formulário com os dados do lançamento
+            // 6. Preenche todos os campos do formulário com os dados do 'lancamento'
             if (lancamento.os && lancamento.os.projeto && selectProjeto) {
                 selectProjeto.value = lancamento.os.projeto;
             }
-
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
@@ -919,12 +928,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(k);
                 if (el && lancamento[k]) el.value = lancamento[k].split('/').reverse().join('-');
             });
-
             if (lancamento.os && lancamento.os.id && selectOS) {
                 selectOS.value = lancamento.os.id;
-                preencherCamposOS(lancamento.os.id);
+                preencherCamposOS(lancamento.os.id); // Preenche campos de texto como Site, Segmento, etc.
             }
 
+            // Preenche a LPU (que não pode ser alterada na edição)
             if (selectLPU) selectLPU.innerHTML = '';
             if (lancamento.detalhe && lancamento.detalhe.lpu) {
                 const lpu = lancamento.detalhe.lpu;
@@ -934,23 +943,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
-
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // 7. Lógica corrigida para carregar e selecionar o Prestador
+            // 7. Lógica robusta para carregar e selecionar o Prestador com Choices.js
             const selectPrestadorEl = document.getElementById('prestadorId');
             if (selectPrestadorEl) {
-                // Destrói a instância anterior do Choices.js para evitar bugs
                 if (selectPrestadorEl.choices) {
                     selectPrestadorEl.choices.destroy();
                 }
-
-                // Busca a lista de prestadores sempre que o modal de edição abrir
                 const prestadores = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
-
-                // Cria uma nova instância do Choices.js
                 const choices = new Choices(selectPrestadorEl, {
                     searchEnabled: true,
                     placeholder: true,
@@ -958,8 +960,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     itemSelectText: '',
                     noResultsText: 'Nenhum resultado',
                 });
-
-                // Formata os dados e popula o select
                 const choicesData = prestadores.map(item => ({
                     value: item.id,
                     label: `${item.codigoPrestador} - ${item.prestador}`
@@ -967,20 +967,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 choices.setChoices(choicesData, 'value', 'label', false);
                 selectPrestadorEl.choices = choices;
 
-                // Espera um instante para o Choices.js renderizar e então define o valor selecionado
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Garante que a seleção aconteça após a renderização do Choices.js
                 if (lancamento.prestador?.id) {
-                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id));
+                    // Usamos um pequeno timeout para garantir que a UI foi atualizada
+                    setTimeout(() => {
+                        selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id));
+                    }, 100);
                 }
             }
-            // --- FIM DA CORREÇÃO ---
 
-
-            // 8. Preenche os selects de Etapa
+            // 8. Preenche os selects de Etapa de forma dependente
             if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
                 const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
                 if (etapaGeralPai) {
                     selectEtapaGeral.value = etapaGeralPai.id;
+                    // A função popularDropdownsDependentes irá carregar a detalhada e o status corretos
                     await popularDropdownsDependentes(etapaGeralPai.id, lancamento.etapa.id, lancamento.status);
                 }
             } else if (selectEtapaGeral) {
@@ -988,11 +989,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
 
-            // 9. Abre o modal
+            // 9. Finalmente, abre o modal
             modalAdicionar.show();
         }
 
         async function abrirModalParaComplementar(lancamento) {
+            // Referências aos elementos do DOM para garantir que sejam encontrados
+            const formAdicionar = document.getElementById('formAdicionar');
+            const modalTitle = document.getElementById('modalAdicionarLabel');
+            const selectOS = document.getElementById('osId');
+            const selectProjeto = document.getElementById('projetoId');
+            const chkAtividadeEl = document.getElementById('atividadeComplementar');
+            const quantidadeContainer = document.getElementById('quantidadeContainer'); // <-- ID CORRIGIDO AQUI
+            const lpuContainer = document.getElementById('lpuContainer');
+            const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
+
             // 1. Carrega dados de OS, Etapas, etc.
             await carregarDadosParaModal();
 
@@ -1008,10 +1019,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('btnSalvarEEnviar').style.display = 'inline-block';
 
             // Força o modo "Atividade Complementar"
-            const chkAtividadeEl = document.getElementById('atividadeComplementar');
             chkAtividadeEl.checked = true;
             chkAtividadeEl.disabled = true; // Impede o usuário de desmarcar
-            chkAtividadeComplementar.parentElement.style.display = 'block'; // Garante que o switch esteja visível
+            chkAtividadeEl.parentElement.style.display = 'block'; // Garante que o switch esteja visível
             quantidadeContainer.classList.remove('d-none'); // Mostra o campo de quantidade
             lpuContainer.classList.remove('d-none'); // Mostra o campo de LPU
 
@@ -1072,13 +1082,19 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('lpuId').innerHTML = '';
             chkAtividadeComplementar.parentElement.style.display = 'block';
             chkAtividadeComplementar.disabled = false; // Adicione esta linha
-        }); 
+        });
 
         document.body.addEventListener('click', async (e) => {
+            // Variáveis que já existiam
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
 
+            // --- CORREÇÃO ESTÁ AQUI ---
+            // Adicione esta linha para declarar a variável do novo botão
+            const addComplementarBtn = e.target.closest('.btn-add-complementar');
+
+            // O restante do código permanece o mesmo
             if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
                 try {
@@ -1099,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     reenviarBtn.disabled = false;
                     reenviarBtn.innerHTML = originalContent;
                 }
-            } else if (addComplementarBtn) { // Adicione este bloco
+            } else if (addComplementarBtn) { // Agora esta verificação vai funcionar
                 const originalContent = addComplementarBtn.innerHTML;
                 try {
                     addComplementarBtn.disabled = true;
@@ -1223,24 +1239,48 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaIdSelecionada = null, statusSelecionado = null) {
+            // Referências aos selects
+            const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
+            const selectStatus = document.getElementById('status');
+
+            // Encontra a Etapa Geral selecionada no nosso cache de dados
             const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
 
+            // Reseta ambos os dropdowns dependentes
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectStatus.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             selectEtapaDetalhada.disabled = true;
             selectStatus.disabled = true;
 
-            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
+            // Se uma Etapa Geral válida foi selecionada e ela tem etapas detalhadas...
+            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas && etapaSelecionada.etapasDetalhadas.length > 0) {
+
+                // Popula o select de Etapa Detalhada
                 etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
                     selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
                 });
                 selectEtapaDetalhada.disabled = false;
+
+                // Se uma etapa detalhada já deve vir selecionada (modo de edição)...
                 if (etapaDetalhadaIdSelecionada) {
                     selectEtapaDetalhada.value = etapaDetalhadaIdSelecionada;
+
+                    // Encontra os status DENTRO da etapa detalhada selecionada
                     const etapaDetalhada = etapaSelecionada.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaIdSelecionada);
-                    if (etapaDetalhada && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
+
+                    // Se essa etapa detalhada tiver status definidos...
+                    if (etapaDetalhada && etapaDetalhada.status && etapaDetalhada.status.length > 0) {
+
+                        // --- AQUI ESTÁ A CORREÇÃO PRINCIPAL ---
+                        // Popula o select de STATUS com as opções corretas do Enum StatusEtapa
+                        etapaDetalhada.status.forEach(statusValue => {
+                            // O 'statusValue' aqui será "TRABALHADO", "NAO_TRABALHADO", etc.
+                            // que o backend espera. O texto visível será a descrição amigável.
+                            selectStatus.add(new Option(statusValue, statusValue));
+                        });
                         selectStatus.disabled = false;
+
+                        // Se um status já deve vir selecionado...
                         if (statusSelecionado) {
                             selectStatus.value = statusSelecionado;
                         }

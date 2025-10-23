@@ -665,10 +665,8 @@
 
               <div class="col-md-4">
                 <label class="form-label">STATUS</label>
-                <select class="form-select" id="status">
-                  <option>Aguardando documentação</option>
-                  <option>Paralisado</option>
-                  <option>Em andamento</option>
+                <select class="form-select" id="status" required disabled>
+                  <option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>
                 </select>
               </div>
             </div>
@@ -678,13 +676,17 @@
               <textarea class="form-control" id="detalheDiario" rows="2" required></textarea>
             </div>
 
-            <label class="form-label">SITUAÇÃO</label>
-            <select class="form-select" id="situacao">
-              <option>Aguardando documentação</option>
-              <option>Paralisado</option>
-              <option selected>Em andamento</option>
-              <option>Finalizado</option>
-            </select>
+            <div class="mb-3">
+              <label class="form-label">SITUAÇÃO</label>
+              <select class="form-select" id="situacao" required>
+                <option value="" disabled>Selecione...</option>
+                <option value="Não iniciado">Não iniciado</option>
+                <option value="Aguardando documentação">Aguardando documentação</option>
+                <option value="Paralisado">Paralisado</option>
+                <option value="Em andamento" selected>Em andamento</option>
+                <option value="Finalizado">Finalizado</option>
+              </select>
+            </div>
 
             <h6 class="section-title">Financeiro</h6>
             <div class="row g-3 mb-3">
@@ -700,6 +702,11 @@
                   <span class="input-group-text">R$</span>
                   <input type="text" class="form-control" id="valor" inputmode="numeric" />
                 </div>
+              </div>
+            </div>
+            <div id="modal-overlay-loader" class="overlay-loader d-none">
+              <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Salvando...</span>
               </div>
             </div>
           </form>

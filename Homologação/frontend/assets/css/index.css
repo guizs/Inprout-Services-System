@@ -708,6 +708,7 @@ label.form-label.d-flex {
 .content-loader-container .overlay-loader {
     position: absolute; /* Faz o loader ficar contido no container */
     border-radius: 0.5rem; /* Opcional: para arredondar as bordas */
+    z-index: 1056; /* Garante que o loader fique por cima do conteúdo do modal */
 }
 
 @media (max-width: 768px) {
@@ -769,6 +770,23 @@ label.form-label.d-flex {
 .filtros-dropdown .dropdown-item {
   flex: 1 1 45%;
   /* Permite que os botões de período ocupem o espaço */
+}
+
+/* Garante que o corpo do modal sirva como limite para o loader */
+#modalAdicionar .modal-body {
+    position: relative;
+}
+
+/* Regra específica para o loader DENTRO do modal */
+#modalAdicionar .overlay-loader {
+    position: absolute; /* Fica contido dentro do modal-body */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8); /* Fundo branco mais opaco */
+    z-index: 1056; /* z-index maior que os elementos do formulário */
+    border-radius: 0 0 12px 12px; /* Arredonda os cantos inferiores */
 }
 
 /* Para telas de tablet e menores (abaixo de 768px) */

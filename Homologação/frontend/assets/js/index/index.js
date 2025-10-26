@@ -106,7 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
-        const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar'); // Novo botão
+        const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar');
+        const btnExportar = document.getElementById('btnExportar'); // Botão de exportar
 
         // Todos os itens da navegação são visíveis por padrão
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
@@ -114,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // Oculta botões de ação específicos por padrão
-        [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar].forEach(el => {
+        [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
             if (el) el.style.display = 'none';
         });
 
@@ -131,7 +132,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             case 'ADMIN':
-                [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar].forEach(el => {
+            case 'CONTROLLER':
+            case 'ASSISTANT':
+                [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
@@ -1351,6 +1354,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar para Aprovação';
             }
+        });
+    }
+
+    const btnExportar = document.getElementById('btnExportar');
+    if (btnExportar) {
+        btnExportar.addEventListener('click', () => {
+            const dadosParaExportar = {
+                "Pendências": {
+                    dados: getDadosFiltrados().filter(l => ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasMinhasPendencias
+                },
+                "Lançamentos": {
+                    dados: getDadosFiltrados().filter(l => l.situacaoAprovacao === 'RASCUNHO'),
+                    colunas: colunasLancamentos
+                },
+                "Pendente Aprovação": {
+                    dados: getDadosFiltrados().filter(l => ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasPrincipais
+                },
+                "Paralisados": {
+                    dados: getProjetosParalisados(),
+                    colunas: colunasMinhasPendencias
+                },
+                "Histórico": {
+                    dados: getDadosFiltrados().filter(l => !['RASCUNHO', 'PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER', 'RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasHistorico
+                }
+            };
+
+            const wb = XLSX.utils.book_new();
+
+            for (const aba in dadosParaExportar) {
+                const { dados, colunas } = dadosParaExportar[aba];
+                const rows = dados.map(lancamento => {
+                    return colunas.map(coluna => {
+                        const func = dataMapping[coluna];
+                        if (func) {
+                            return func(lancamento);
+                        }
+                        return "";
+                    });
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet([colunas, ...rows]);
+
+                // Ajuste de largura das colunas
+                const colWidths = colunas.map(col => ({ wch: Math.max(15, col.length + 2) }));
+                ws['!cols'] = colWidths;
+
+                XLSX.utils.book_append_sheet(wb, ws, aba);
+            }
+
+            XLSX.writeFile(wb, "lancamentos.xlsx");
         });
     }
 

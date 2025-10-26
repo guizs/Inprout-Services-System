@@ -64,4 +64,33 @@ public class SolicitacaoAtividadeComplementarController {
         SolicitacaoAtividadeComplementar s = service.rejeitar(id, dto.aprovadorId(), dto.motivo());
         return ResponseEntity.ok(new SolicitacaoAtividadeComplementarDTO.Response(s));
     }
+
+    // NOVOS ENDPOINTS DE LOTE
+    @PostMapping("/lote/coordenador/aprovar")
+    public ResponseEntity<Void> aprovarLotePeloCoordenador(@RequestBody AprovacaoLoteRequest request) {
+        service.aprovarLotePeloCoordenador(request.solicitacaoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/coordenador/rejeitar")
+    public ResponseEntity<Void> rejeitarLotePeloCoordenador(@RequestBody RejeicaoLoteRequest request) {
+        service.rejeitarLote(request.solicitacaoIds(), request.aprovadorId(), request.motivo());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/controller/aprovar")
+    public ResponseEntity<Void> aprovarLotePeloController(@RequestBody AprovacaoLoteRequest request) {
+        service.aprovarLotePeloController(request.solicitacaoIds(), request.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/controller/rejeitar")
+    public ResponseEntity<Void> rejeitarLotePeloController(@RequestBody RejeicaoLoteRequest request) {
+        service.rejeitarLote(request.solicitacaoIds(), request.aprovadorId(), request.motivo());
+        return ResponseEntity.ok().build();
+    }
+
+    // DTOs auxiliares para as requisições em lote
+    record AprovacaoLoteRequest(List<Long> solicitacaoIds, Long aprovadorId) {}
+    record RejeicaoLoteRequest(List<Long> solicitacaoIds, Long aprovadorId, String motivo) {}
 }

@@ -143,4 +143,63 @@ public class SolicitacaoAtividadeComplementarService {
         solicitacao.setDataAcaoController(LocalDateTime.now());
         return solicitacaoRepository.save(solicitacao);
     }
+
+    // NOVOS MÉTODOS DE LOTE
+    @Transactional
+    public void aprovarLotePeloCoordenador(List<Long> solicitacaoIds, Long aprovadorId) {
+        List<SolicitacaoAtividadeComplementar> solicitacoes = solicitacaoRepository.findAllById(solicitacaoIds);
+        Usuario aprovador = usuarioRepository.findById(aprovadorId).orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        for (SolicitacaoAtividadeComplementar s : solicitacoes) {
+            if (s.getStatus() == StatusSolicitacaoComplementar.PENDENTE_COORDENADOR) {
+                s.setStatus(StatusSolicitacaoComplementar.PENDENTE_CONTROLLER);
+                s.setAprovadorCoordenador(aprovador);
+                s.setDataAcaoCoordenador(LocalDateTime.now());
+            }
+        }
+        solicitacaoRepository.saveAll(solicitacoes);
+    }
+
+    @Transactional
+    public void aprovarLotePeloController(List<Long> solicitacaoIds, Long aprovadorId) {
+        List<SolicitacaoAtividadeComplementar> solicitacoes = solicitacaoRepository.findAllById(solicitacaoIds);
+        Usuario aprovador = usuarioRepository.findById(aprovadorId).orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+
+        for (SolicitacaoAtividadeComplementar s : solicitacoes) {
+            if (s.getStatus() == StatusSolicitacaoComplementar.PENDENTE_CONTROLLER) {
+                osService.criarOsLpuDetalheComplementar(s.getOs().getId(), s.getLpu().getId(), s.getQuantidade());
+                s.setStatus(StatusSolicitacaoComplementar.APROVADO);
+                s.setAprovadorController(aprovador);
+                s.setDataAcaoController(LocalDateTime.now());
+            }
+        }
+        solicitacaoRepository.saveAll(solicitacoes);
+    }
+
+    @Transactional
+    public void rejeitarLote(List<Long> solicitacaoIds, Long aprovadorId, String motivo) {
+        List<SolicitacaoAtividadeComplementar> solicitacoes = solicitacaoRepository.findAllById(solicitacaoIds);
+        Usuario aprovador = usuarioRepository.findById(aprovadorId).orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+        if (motivo == null || motivo.isBlank()) {
+            throw new BusinessException("O motivo da recusa é obrigatório.");
+        }
+
+        for (SolicitacaoAtividadeComplementar s : solicitacoes) {
+            boolean podeRejeitar = (aprovador.getRole() == Role.COORDINATOR && s.getStatus() == StatusSolicitacaoComplementar.PENDENTE_COORDENADOR) ||
+                    (aprovador.getRole() == Role.CONTROLLER && s.getStatus() == StatusSolicitacaoComplementar.PENDENTE_CONTROLLER);
+
+            if (podeRejeitar) {
+                if (aprovador.getRole() == Role.COORDINATOR) {
+                    s.setAprovadorCoordenador(aprovador);
+                    s.setDataAcaoCoordenador(LocalDateTime.now());
+                } else {
+                    s.setAprovadorController(aprovador);
+                    s.setDataAcaoController(LocalDateTime.now());
+                }
+                s.setStatus(StatusSolicitacaoComplementar.REJEITADO);
+                s.setMotivoRecusa(motivo);
+            }
+        }
+        solicitacaoRepository.saveAll(solicitacoes);
+    }
 }

@@ -52,8 +52,8 @@ function recusarLancamento(id) {
     modalRecusar.show();
 }
 
-function toggleLoader(ativo = true) {
-    const container = document.querySelector('.content-loader-container');
+function toggleLoader(ativo = true, containerSelector = '.content-loader-container') {
+    const container = document.querySelector(containerSelector);
     if (container) {
         const overlay = container.querySelector(".overlay-loader");
         if (overlay) {
@@ -61,6 +61,7 @@ function toggleLoader(ativo = true) {
         }
     }
 }
+
 
 function aprovarMaterial(id) {
     if (!modalAprovarMaterial) return;
@@ -620,12 +621,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function carregarDadosMateriais() {
         if (!document.getElementById('tbody-pendentes-materiais')) return;
+        toggleLoader(true, '#materiais-pane');
+        toggleLoader(true, '#historico-materiais-pane');
 
         try {
-            const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
-                headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
-            });
-            const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
+            const [pendentesResponse, historicoResponse] = await Promise.all([
+                 fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
+                    headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
+                }),
+                 fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`)
+            ]);
+
 
             if (!pendentesResponse.ok || !historicoResponse.ok) {
                 throw new Error('Falha ao carregar solicitações de materiais.');
@@ -641,12 +647,16 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error("Erro ao carregar dados de materiais:", error);
             mostrarToast(error.message, 'error');
+        } finally {
+            toggleLoader(false, '#materiais-pane');
+            toggleLoader(false, '#historico-materiais-pane');
         }
     }
     
     async function carregarDadosComplementares() {
         const tabComplementares = document.getElementById('complementares-tab');
         if (!tabComplementares) return;
+        toggleLoader(true, '#complementares-pane');
     
         try {
             const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
@@ -681,11 +691,14 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error("Erro ao carregar dados de atividades complementares:", error);
             mostrarToast(error.message, 'error');
+        } finally {
+            toggleLoader(false, '#complementares-pane');
         }
     }
 
     async function carregarDadosHistoricoComplementares() {
         if (!document.getElementById('tbody-historico-complementares')) return;
+        toggleLoader(true, '#historico-complementares-pane');
 
         try {
             const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/historico/${userId}`);
@@ -697,6 +710,8 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.error("Erro ao carregar histórico de ativ. complementares:", error);
             mostrarToast(error.message, 'error');
+        } finally {
+            toggleLoader(false, '#historico-complementares-pane');
         }
     }
 
@@ -875,7 +890,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarDadosAtividades() {
-        toggleLoader(true);
+        toggleLoader(true, '#atividades-pane');
+        toggleLoader(true, '#historico-atividades-pane');
         try {
             const userId = localStorage.getItem('usuarioId');
 
@@ -892,7 +908,7 @@ document.addEventListener('DOMContentLoaded', function () {
             ]);
 
             if (!responseGeral.ok || !responsePendencias.ok || !responseHistorico.ok || !responsePendenciasCoordenador.ok) {
-                throw new Error('Falha ao carregar um ou mais conjuntos de dados.');
+                throw new Error('Falha ao carregar um ou mais conjuntos de dados de atividades.');
             }
 
             const todosLancamentos = await responseGeral.json();
@@ -913,14 +929,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
         } catch (error) {
-            console.error('Falha ao buscar dados:', error);
-            mostrarToast('Falha ao carregar os dados da página.', 'error');
+            console.error('Falha ao buscar dados de atividades:', error);
+            mostrarToast('Falha ao carregar os dados da página de atividades.', 'error');
             const accordionContainer = document.getElementById('accordion-pendencias');
             if (accordionContainer) accordionContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados.</div>`;
         } finally {
-            toggleLoader(false);
+            toggleLoader(false, '#atividades-pane');
+            toggleLoader(false, '#historico-atividades-pane');
         }
     }
+
 
     function renderizarTabelaHistorico(dados) {
         if (!tbodyHistorico) return;
@@ -1180,17 +1198,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    async function carregarTodosOsDados() {
-        toggleLoader(true);
-        await Promise.all([
-            carregarDadosAtividades(),
-            carregarDadosMateriais(),
-            carregarDadosComplementares(),
-            carregarDadosHistoricoComplementares()
-        ]);
-        toggleLoader(false);
-    }
-
     const btnConfirmarAprovacaoMaterial = document.getElementById('btnConfirmarAprovacaoMaterial');
     if (btnConfirmarAprovacaoMaterial) {
         btnConfirmarAprovacaoMaterial.addEventListener('click', async function () {
@@ -1210,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast('Solicitação de material aprovada!', 'success');
                 modalAprovarMaterial.hide();
-                await carregarTodosOsDados();
+                await carregarDadosMateriais();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1242,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast('Solicitação de material recusada.', 'success');
                 modalRecusarMaterial.hide();
-                await carregarTodosOsDados();
+                await carregarDadosMateriais();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1270,7 +1277,8 @@ document.addEventListener('DOMContentLoaded', function () {
     
                 mostrarToast('Solicitação complementar aprovada!', 'success');
                 modalAprovarComplementar.hide();
-                await carregarTodosOsDados();
+                await carregarDadosComplementares();
+                await carregarDadosHistoricoComplementares();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1302,7 +1310,8 @@ document.addEventListener('DOMContentLoaded', function () {
     
                 mostrarToast('Solicitação complementar recusada.', 'success');
                 modalRecusarComplementar.hide();
-                await carregarTodosOsDados();
+                await carregarDadosComplementares();
+                await carregarDadosHistoricoComplementares();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1313,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (filtroHistoricoStatus) {
         filtroHistoricoStatus.addEventListener('change', async () => {
-            toggleLoader(true);
+            toggleLoader(true, '#historico-atividades-pane');
             try {
                 const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
                 if (!responseHistorico.ok) throw new Error('Falha ao recarregar seu histórico.');
@@ -1322,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                toggleLoader(false);
+                toggleLoader(false, '#historico-atividades-pane');
             }
         });
     }
@@ -1421,6 +1430,73 @@ document.addEventListener('DOMContentLoaded', function () {
         modalAprovar._element.dataset.acaoEmLote = 'true';
         aprovarLancamento(null);
     });
+    
+    // Dispara o carregamento inicial da primeira aba visível
+    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
+    if (primeiraAba) {
+        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
+        const targetPane = document.querySelector(targetPaneId);
+        
+        if (targetPane) {
+            // Marca a aba como 'loading' para o caso de o usuário clicar em outra antes de terminar
+            targetPane.dataset.loading = 'true';
+            
+            // Chama a função de carregamento correspondente
+            if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
+                carregarDadosAtividades().finally(() => {
+                    targetPane.dataset.loading = 'false'; // Marca como carregado
+                });
+            } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
+                carregarDadosMateriais().finally(() => {
+                    targetPane.dataset.loading = 'false';
+                });
+            } else if (targetPaneId === '#complementares-pane') {
+                 carregarDadosComplementares().finally(() => {
+                    targetPane.dataset.loading = 'false';
+                });
+            } else if (targetPaneId === '#historico-complementares-pane') {
+                 carregarDadosHistoricoComplementares().finally(() => {
+                    targetPane.dataset.loading = 'false';
+                });
+            }
+        }
+    }
 
-    carregarTodosOsDados();
+
+    // Listener para carregar dados de outras abas quando elas são mostradas pela primeira vez
+    const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');
+    tabElements.forEach(tabEl => {
+        tabEl.addEventListener('show.bs.tab', function(event) {
+            const targetPaneId = event.target.getAttribute('data-bs-target');
+            const targetPane = document.querySelector(targetPaneId);
+
+            // Se a aba ainda não foi carregada e não está em processo de carregamento
+            if (targetPane && !targetPane.dataset.loaded && targetPane.dataset.loading !== 'true') {
+                targetPane.dataset.loading = 'true'; // Previne múltiplos carregamentos
+                
+                // Escolhe qual função de carregamento chamar
+                if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
+                    carregarDadosAtividades().finally(() => {
+                        targetPane.dataset.loaded = 'true';
+                        targetPane.dataset.loading = 'false';
+                    });
+                } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
+                    carregarDadosMateriais().finally(() => {
+                        targetPane.dataset.loaded = 'true';
+                        targetPane.dataset.loading = 'false';
+                    });
+                } else if (targetPaneId === '#complementares-pane') {
+                    carregarDadosComplementares().finally(() => {
+                        targetPane.dataset.loaded = 'true';
+                        targetPane.dataset.loading = 'false';
+                    });
+                } else if (targetPaneId === '#historico-complementares-pane') {
+                    carregarDadosHistoricoComplementares().finally(() => {
+                        targetPane.dataset.loaded = 'true';
+                        targetPane.dataset.loading = 'false';
+                    });
+                }
+            }
+        });
+    });
 });

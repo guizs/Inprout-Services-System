@@ -114,10 +114,10 @@
             </li>
         </ul>
 
-        <div class="content-loader-container">
-            <div class="tab-content" id="aprovacoesTabContent">
-                <div class="tab-pane fade show active" id="atividades-pane" role="tabpanel"
-                    aria-labelledby="atividades-tab" tabindex="0">
+        <div class="tab-content" id="aprovacoesTabContent">
+
+            <div class="tab-pane fade show active" id="atividades-pane" role="tabpanel" aria-labelledby="atividades-tab" tabindex="0">
+                <div class="content-loader-container">
                     <div class="card shadow-sm">
                         <div class="card-header bg-white py-3">
                             <div class="d-flex justify-content-between align-items-center">
@@ -144,10 +144,16 @@
                             </div>
                         </div>
                     </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div class="tab-pane fade" id="historico-atividades-pane" role="tabpanel"
-                    aria-labelledby="historico-atividades-tab" tabindex="0">
+            <div class="tab-pane fade" id="historico-atividades-pane" role="tabpanel" aria-labelledby="historico-atividades-tab" tabindex="0">
+                <div class="content-loader-container">
                     <div class="card shadow-sm">
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                             <h5 class="mb-0 card-title-modern"><i class="bi bi-calendar-check me-2"></i>Histórico de
@@ -170,25 +176,49 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="tab-pane fade" id="complementares-pane" role="tabpanel" aria-labelledby="complementares-tab" tabindex="0">
-                  <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
-                      <h5 class="mb-0 card-title-modern"><i class="bi bi-plus-circle-dotted me-2"></i>Pendências de Atividades Complementares</h5>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
                     </div>
-                    <div class="card-body">
-                      <div class="table-responsive custom-scroll">
-                        <table class="table modern-table align-middle">
-                          <thead id="thead-pendentes-complementares"></thead>
-                          <tbody id="tbody-pendentes-complementares"></tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
                 </div>
+            </div>
 
-                <div class="tab-pane fade" id="historico-complementares-pane" role="tabpanel" aria-labelledby="historico-complementares-tab" tabindex="0">
+            <div class="tab-pane fade" id="complementares-pane" role="tabpanel" aria-labelledby="complementares-tab" tabindex="0">
+                <div class="content-loader-container">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 card-title-modern"><i class="bi bi-plus-circle-dotted me-2"></i>Pendências de Atividades Complementares</h5>
+                                <div id="acoes-lote-container-complementar" class="d-none">
+                                    <button class="btn-acao-lote btn-lote-success" id="btn-aprovar-selecionados-complementar">
+                                        <i class="bi bi-check-lg"></i> Aprovar (<span id="contador-aprovacao-complementar">0</span>)
+                                    </button>
+                                    <button class="btn-acao-lote btn-lote-danger" id="btn-recusar-selecionados-complementar">
+                                        <i class="bi bi-x-lg"></i> Recusar (<span id="contador-recusa-complementar">0</span>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive custom-scroll">
+                                <table class="table modern-table align-middle">
+                                    <thead id="thead-pendentes-complementares"></thead>
+                                    <tbody id="tbody-pendentes-complementares"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="historico-complementares-pane" role="tabpanel" aria-labelledby="historico-complementares-tab" tabindex="0">
+                <div class="content-loader-container">
                     <div class="card shadow-sm">
                         <div class="card-header bg-white py-3">
                             <h5 class="mb-0 card-title-modern"><i class="bi bi-hourglass-split me-2"></i>Histórico de Solicitações Complementares</h5>
@@ -202,10 +232,16 @@
                             </div>
                         </div>
                     </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab"
-                    tabindex="0">
+            <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab" tabindex="0">
+                <div class="content-loader-container">
                     <div class="card shadow-sm">
                         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                             <h5 class="mb-0 card-title-modern"><i class="bi bi-inbox-fill me-2"></i> Pendências de
@@ -225,10 +261,17 @@
                             </div>
                         </div>
                     </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
                 </div>
+            </div>
 
-                <div class="tab-pane fade" id="historico-materiais-pane" role="tabpanel"
-                    aria-labelledby="historico-materiais-tab" tabindex="0">
+            <div class="tab-pane fade" id="historico-materiais-pane" role="tabpanel"
+                aria-labelledby="historico-materiais-tab" tabindex="0">
+                <div class="content-loader-container">
                     <div class="card shadow-sm">
                         <div class="card-header bg-white py-3">
                             <h5 class="mb-0 card-title-modern"><i class="bi bi-archive-fill me-2"></i> Histórico de
@@ -243,16 +286,15 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div id="overlay-loader" class="overlay-loader d-none">
-                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-                    <span class="visually-hidden">Carregando...</span>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-
+    </div>
         <div class="modal fade" id="modalAprovarLancamento" tabindex="-1" aria-labelledby="modalAprovarLabel"
             aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -429,6 +471,49 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                         <button type="submit" class="btn btn-danger" form="formRecusarMaterial"
                             id="btnConfirmarRecusaMaterial">Confirmar Recusa</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalAprovarComplementar" tabindex="-1" aria-labelledby="modalAprovarComplementarLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalAprovarComplementarLabel"><i class="bi bi-check-circle-fill text-success me-2"></i>Confirmar Aprovação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Você tem certeza que deseja aprovar esta solicitação de atividade complementar?</p>
+                        <p class="text-muted small">Uma nova linha de registro será criada para esta OS.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-success" id="btnConfirmarAprovacaoComplementar">Sim, Aprovar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal fade" id="modalRecusarComplementar" tabindex="-1" aria-labelledby="modalRecusarComplementarLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalRecusarComplementarLabel"><i class="bi bi-x-circle-fill text-danger me-2"></i>Recusar Solicitação Complementar</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="formRecusarComplementar">
+                            <p>Você está prestes a recusar esta solicitação.</p>
+                            <div class="mb-3">
+                                <label for="motivoRecusaComplementar" class="form-label">Motivo da Recusa (Obrigatório)</label>
+                                <textarea class="form-control" id="motivoRecusaComplementar" rows="3" required></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger" form="formRecusarComplementar" id="btnConfirmarRecusaComplementar">Confirmar Recusa</button>
                     </div>
                 </div>
             </div>

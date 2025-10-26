@@ -11,6 +11,43 @@ document.addEventListener('DOMContentLoaded', () => {
         direction: 'desc' // Direção padrão (descendente)
     };
 
+    const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+    const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
+
+    // INÍCIO DA CORREÇÃO: Definição do dataMapping que estava faltando
+    const dataMapping = {
+        "STATUS APROVAÇÃO": (lancamento) => (lancamento.situacaoAprovacao || '').replace(/_/g, ' '),
+        "DATA ATIVIDADE": (lancamento) => lancamento.dataAtividade || '',
+        "OS": (lancamento) => getNestedValue(lancamento, 'os.os'),
+        "SITE": (lancamento) => getNestedValue(lancamento, 'detalhe.site'),
+        "SEGMENTO": (lancamento) => getNestedValue(lancamento, 'os.segmento.nome'),
+        "PROJETO": (lancamento) => getNestedValue(lancamento, 'os.projeto'),
+        "LPU": (lancamento) => labelLpu(getNestedValue(lancamento, 'detalhe.lpu')),
+        "GESTOR TIM": (lancamento) => getNestedValue(lancamento, 'os.gestorTim'),
+        "REGIONAL": (lancamento) => getNestedValue(lancamento, 'detalhe.regional'),
+        "VISTORIA": (lancamento) => lancamento.vistoria || 'N/A',
+        "PLANO DE VISTORIA": (lancamento) => formatarData(lancamento.planoVistoria),
+        "DESMOBILIZAÇÃO": (lancamento) => lancamento.desmobilizacao || 'N/A',
+        "PLANO DE DESMOBILIZAÇÃO": (lancamento) => formatarData(lancamento.planoDesmobilizacao),
+        "INSTALAÇÃO": (lancamento) => lancamento.instalacao || 'N/A',
+        "PLANO DE INSTALAÇÃO": (lancamento) => formatarData(lancamento.planoInstalacao),
+        "ATIVAÇÃO": (lancamento) => lancamento.ativacao || 'N/A',
+        "PLANO DE ATIVAÇÃO": (lancamento) => formatarData(lancamento.planoAtivacao),
+        "DOCUMENTAÇÃO": (lancamento) => lancamento.documentacao || 'N/A',
+        "PLANO DE DOCUMENTAÇÃO": (lancamento) => formatarData(lancamento.planoDocumentacao),
+        "ETAPA GERAL": (lancamento) => (getNestedValue(lancamento, 'etapa.codigoGeral') && getNestedValue(lancamento, 'etapa.nomeGeral')) ? `${getNestedValue(lancamento, 'etapa.codigoGeral')} - ${getNestedValue(lancamento, 'etapa.nomeGeral')}` : '',
+        "ETAPA DETALHADA": (lancamento) => (getNestedValue(lancamento, 'etapa.indiceDetalhado') && getNestedValue(lancamento, 'etapa.nomeDetalhado')) ? `${getNestedValue(lancamento, 'etapa.indiceDetalhado')} - ${getNestedValue(lancamento, 'etapa.nomeDetalhado')}` : '',
+        "STATUS": (lancamento) => lancamento.status || '',
+        "SITUAÇÃO": (lancamento) => lancamento.situacao || '',
+        "DETALHE DIÁRIO": (lancamento) => lancamento.detalheDiario || '',
+        "CÓD. PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.codigo'),
+        "PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.nome'),
+        "VALOR": (lancamento) => formatarMoeda(lancamento.valor),
+        "GESTOR": (lancamento) => getNestedValue(lancamento, 'manager.nome'),
+        "AÇÃO": () => '' // Coluna de ação não exporta dados
+    };
+    // FIM DA CORREÇÃO
+
     function converterDataParaDDMMYYYY(isoDate) {
         if (!isoDate || !isoDate.includes('-')) {
             return isoDate; // Retorna o valor original se for nulo, vazio ou não estiver no formato esperado

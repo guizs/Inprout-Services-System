@@ -511,6 +511,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
         thead.innerHTML = `
             <tr>
+                <th><input type="checkbox" class="form-check-input" id="selecionar-todos-complementar" title="Selecionar Todos"></th>
                 <th>Ações</th>
                 <th>Data Solicitação</th>
                 <th>Solicitante</th>
@@ -524,14 +525,16 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     
         if (!solicitacoes || solicitacoes.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Nenhuma pendência de atividade complementar.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">Nenhuma pendência de atividade complementar.</td></tr>`;
             return;
         }
     
         solicitacoes.forEach(s => {
             const tr = document.createElement('tr');
+            tr.dataset.id = s.id;
             let acoesHtml = '';
             let statusBadge = '';
+            let checkboxHtml = `<input type="checkbox" class="form-check-input linha-checkbox-complementar" data-id="${s.id}">`;
             const statusFormatado = (s.status || '').replace(/_/g, ' ');
 
             if ((userRole === 'COORDINATOR' && s.status === 'PENDENTE_COORDENADOR') || (userRole === 'CONTROLLER' && s.status === 'PENDENTE_CONTROLLER')) {
@@ -541,6 +544,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 statusBadge = `<span class="badge rounded-pill text-bg-warning">${statusFormatado}</span>`;
             } else {
+                 checkboxHtml = ''; // Não mostra checkbox se não for passível de ação
                  acoesHtml = `—`;
                  statusBadge = `<span class="badge rounded-pill text-bg-info">${statusFormatado}</span>`;
             }
@@ -548,6 +552,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const dataFormatada = s.dataSolicitacao ? new Date(parseDataBrasileira(s.dataSolicitacao)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'Data inválida';
 
             tr.innerHTML = `
+                <td data-label="Selecionar">${checkboxHtml}</td>
                 <td data-label="Ações" class="text-center">${acoesHtml}</td>
                 <td data-label="Data">${dataFormatada}</td>
                 <td data-label="Solicitante">${s.solicitanteNome || 'N/A'}</td>
@@ -1261,21 +1266,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const btnConfirmarAprovacaoComplementar = document.getElementById('btnConfirmarAprovacaoComplementar');
     if (btnConfirmarAprovacaoComplementar) {
         btnConfirmarAprovacaoComplementar.addEventListener('click', async function () {
-            const solicitacaoId = this.dataset.id;
+            const isAcaoEmLote = modalAprovarComplementar._element.dataset.acaoEmLote === 'true';
+            const ids = isAcaoEmLote
+                ? Array.from(document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked')).map(cb => cb.dataset.id)
+                : [this.dataset.id];
+
+            if(ids.length === 0) return;
+
             const endpoint = userRole === 'COORDINATOR'
-                ? `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/coordenador/aprovar`
-                : `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/controller/aprovar`;
+                ? `${API_BASE_URL}/solicitacoes-complementares/lote/coordenador/aprovar`
+                : `${API_BASE_URL}/solicitacoes-complementares/lote/controller/aprovar`;
     
             setButtonLoading(this, true);
             try {
                 const response = await fetchComAuth(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ aprovadorId: userId })
+                    body: JSON.stringify({ solicitacaoIds: ids, aprovadorId: userId })
                 });
                 if (!response.ok) throw new Error((await response.json()).message || 'Falha ao aprovar.');
     
-                mostrarToast('Solicitação complementar aprovada!', 'success');
+                mostrarToast(`${ids.length} solicitação(ões) complementar(es) aprovada(s)!`, 'success');
                 modalAprovarComplementar.hide();
                 await carregarDadosComplementares();
                 await carregarDadosHistoricoComplementares();
@@ -1283,6 +1294,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 mostrarToast(error.message, 'error');
             } finally {
                 setButtonLoading(this, false);
+                delete modalAprovarComplementar._element.dataset.acaoEmLote;
             }
         });
     }
@@ -1291,24 +1303,30 @@ document.addEventListener('DOMContentLoaded', function () {
     if (formRecusarComplementar) {
         formRecusarComplementar.addEventListener('submit', async function (event) {
             event.preventDefault();
-            const solicitacaoId = this.dataset.id;
+            const isAcaoEmLote = modalRecusarComplementar._element.dataset.acaoEmLote === 'true';
+            const ids = isAcaoEmLote
+                ? Array.from(document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked')).map(cb => cb.dataset.id)
+                : [this.dataset.id];
+            
+            if(ids.length === 0) return;
+            
             const motivo = document.getElementById('motivoRecusaComplementar').value;
             const btn = document.getElementById('btnConfirmarRecusaComplementar');
     
             const endpoint = userRole === 'COORDINATOR'
-                ? `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/coordenador/rejeitar`
-                : `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/controller/rejeitar`;
+                ? `${API_BASE_URL}/solicitacoes-complementares/lote/coordenador/rejeitar`
+                : `${API_BASE_URL}/solicitacoes-complementares/lote/controller/rejeitar`;
     
             setButtonLoading(btn, true);
             try {
                 const response = await fetchComAuth(endpoint, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ aprovadorId: userId, motivo: motivo })
+                    body: JSON.stringify({ solicitacaoIds: ids, aprovadorId: userId, motivo: motivo })
                 });
                 if (!response.ok) throw new Error((await response.json()).message || 'Falha ao recusar.');
     
-                mostrarToast('Solicitação complementar recusada.', 'success');
+                mostrarToast(`${ids.length} solicitação(ões) complementar(es) recusada(s).`, 'success');
                 modalRecusarComplementar.hide();
                 await carregarDadosComplementares();
                 await carregarDadosHistoricoComplementares();
@@ -1316,6 +1334,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 mostrarToast(error.message, 'error');
             } finally {
                 setButtonLoading(btn, false);
+                 delete modalRecusarComplementar._element.dataset.acaoEmLote;
             }
         });
     }
@@ -1438,13 +1457,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const targetPane = document.querySelector(targetPaneId);
         
         if (targetPane) {
-            // Marca a aba como 'loading' para o caso de o usuário clicar em outra antes de terminar
             targetPane.dataset.loading = 'true';
             
-            // Chama a função de carregamento correspondente
             if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
                 carregarDadosAtividades().finally(() => {
-                    targetPane.dataset.loading = 'false'; // Marca como carregado
+                    targetPane.dataset.loading = 'false';
                 });
             } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
                 carregarDadosMateriais().finally(() => {
@@ -1463,18 +1480,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
 
-    // Listener para carregar dados de outras abas quando elas são mostradas pela primeira vez
     const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');
     tabElements.forEach(tabEl => {
         tabEl.addEventListener('show.bs.tab', function(event) {
             const targetPaneId = event.target.getAttribute('data-bs-target');
             const targetPane = document.querySelector(targetPaneId);
 
-            // Se a aba ainda não foi carregada e não está em processo de carregamento
             if (targetPane && !targetPane.dataset.loaded && targetPane.dataset.loading !== 'true') {
-                targetPane.dataset.loading = 'true'; // Previne múltiplos carregamentos
+                targetPane.dataset.loading = 'true';
                 
-                // Escolhe qual função de carregamento chamar
                 if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
                     carregarDadosAtividades().finally(() => {
                         targetPane.dataset.loaded = 'true';
@@ -1498,5 +1512,67 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         });
+    });
+
+    // ==========================================================
+    // LÓGICA DE AÇÕES EM LOTE PARA ABA COMPLEMENTAR
+    // ==========================================================
+
+    function atualizarEstadoAcoesLoteComplementar() {
+        const container = document.getElementById('acoes-lote-container-complementar');
+        const checkboxes = document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked');
+        const total = checkboxes.length;
+
+        if (!container) return;
+        container.classList.toggle('d-none', total === 0);
+
+        if (total > 0) {
+            document.getElementById('contador-aprovacao-complementar').textContent = total;
+            document.getElementById('contador-recusa-complementar').textContent = total;
+        }
+    }
+
+    const painelComplementar = document.getElementById('complementares-pane');
+    if (painelComplementar) {
+        painelComplementar.addEventListener('change', (e) => {
+            const target = e.target;
+            const cbTodos = document.getElementById('selecionar-todos-complementar');
+
+            if (target.classList.contains('linha-checkbox-complementar')) {
+                const linha = target.closest('tr');
+                linha.classList.toggle('table-active', target.checked);
+
+                const totalCheckboxes = document.querySelectorAll('.linha-checkbox-complementar').length;
+                const checkedCount = document.querySelectorAll('.linha-checkbox-complementar:checked').length;
+                
+                cbTodos.checked = checkedCount === totalCheckboxes;
+                cbTodos.indeterminate = checkedCount > 0 && checkedCount < totalCheckboxes;
+            } 
+            else if (target.id === 'selecionar-todos-complementar') {
+                const isChecked = target.checked;
+                document.querySelectorAll('.linha-checkbox-complementar').forEach(cb => {
+                    cb.checked = isChecked;
+                    const linha = cb.closest('tr');
+                    linha.classList.toggle('table-active', isChecked);
+                });
+                cbTodos.indeterminate = false;
+            }
+            
+            atualizarEstadoAcoesLoteComplementar();
+        });
+    }
+
+    document.getElementById('btn-aprovar-selecionados-complementar')?.addEventListener('click', () => {
+        if(modalAprovarComplementar) {
+            modalAprovarComplementar._element.dataset.acaoEmLote = 'true';
+            modalAprovarComplementar.show();
+        }
+    });
+
+    document.getElementById('btn-recusar-selecionados-complementar')?.addEventListener('click', () => {
+         if(modalRecusarComplementar) {
+            modalRecusarComplementar._element.dataset.acaoEmLote = 'true';
+            recusarComplementar(null);
+        }
     });
 });

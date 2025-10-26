@@ -650,8 +650,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectOS = document.getElementById('osId');
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
-            const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
-
+            
+            // CORREÇÃO: Usar a instância do modal que já existe no escopo, em vez de criar uma nova.
+            // const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
+            
             await carregarDadosParaModal();
             formAdicionar.reset();
             if (editingId) { formAdicionar.dataset.editingId = editingId; }
@@ -823,18 +825,36 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // ==========================================================
+        // >>>>> INÍCIO DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
+        // ==========================================================
         function getProjetosParalisados() {
-            const ultimosLancamentos = new Map();
+            const ultimosLancamentosPorProjeto = new Map();
+
+            // 1. Encontra o lançamento mais recente para cada "projeto" (item da OS)
             todosLancamentos.forEach(l => {
-                if (l.os && l.detalhe && l.detalhe.lpu) {
-                    const chaveProjeto = `${l.os.id}-${l.detalhe.lpu.id}`;
-                    if (!ultimosLancamentos.has(chaveProjeto) || l.id > ultimosLancamentos.get(chaveProjeto).id) {
-                        ultimosLancamentos.set(chaveProjeto, l);
+                if (l.detalhe && l.detalhe.id) { // Usa o ID do detalhe como chave única do projeto
+                    const chaveProjeto = l.detalhe.id;
+                    if (!ultimosLancamentosPorProjeto.has(chaveProjeto) || l.id > ultimosLancamentosPorProjeto.get(chaveProjeto).id) {
+                        ultimosLancamentosPorProjeto.set(chaveProjeto, l);
                     }
                 }
             });
-            return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
+
+            // 2. Filtra para encontrar apenas os projetos cujo último lançamento foi 'Paralisado'
+            const projetosParalisadosIds = new Set();
+            for (const ultimoLancamento of ultimosLancamentosPorProjeto.values()) {
+                if (ultimoLancamento.situacao === 'Paralisado') {
+                    projetosParalisadosIds.add(ultimoLancamento.detalhe.id);
+                }
+            }
+
+            // 3. Retorna TODOS os lançamentos que pertencem a esses projetos paralisados
+            return todosLancamentos.filter(l => l.detalhe && projetosParalisadosIds.has(l.detalhe.id));
         }
+        // ==========================================================
+        // >>>>> FIM DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
+        // ==========================================================
 
         document.getElementById('btnConfirmarExclusaoLancamentoDefinitiva')?.addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;

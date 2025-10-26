@@ -26,8 +26,7 @@
   /* Usa flexbox para centralizar o spinner */
   justify-content: center;
   align-items: center;
-  z-index: 9999;
-  /* Garante que fique acima de todos os outros elementos */
+  z-index: 1040; /* CORREÇÃO: Valor diminuído para ficar abaixo dos modais */
   transition: opacity 0.3s ease;
   /* Efeito suave de transição */
 }
@@ -89,7 +88,7 @@
 
 #lpuChecklistContainerLote .form-check {
   /* Aumentamos o padding, especialmente na esquerda/direita, para o texto respirar */
-  padding: 0.6rem 2rem; 
+  padding: 0.6rem 2rem;
   /* Adicionamos uma pequena margem inferior para separar melhor as linhas */
   margin-bottom: 4px;
   transition: background-color 0.2s ease-in-out;

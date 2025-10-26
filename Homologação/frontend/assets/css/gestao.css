@@ -279,6 +279,6 @@ body {
 /* Esta regra só se aplica a um .overlay-loader que está DENTRO de um .content-loader-container */
 .content-loader-container .overlay-loader {
     position: absolute; /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
-    z-index: 999;     /* Garante que fique por cima das abas */
+    z-index: 1040;     /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
     border-radius: 0.75rem; /* Opcional: arredonda as bordas do loader igual ao card */
 }

@@ -16,7 +16,12 @@
     <link rel="stylesheet" href="../assets/css/index.css" />
     <link rel="stylesheet" href="../assets/css/gestao.css" />
     <link rel="stylesheet" href="../assets/css/registros.css" />
-
+    <style>
+        /* Adicione este estilo para corrigir a posição do contador na aba */
+        .nav-tabs .nav-link.position-relative {
+            overflow: visible;
+        }
+    </style>
 </head>
 
 <body>
@@ -85,8 +90,13 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="complementares-tab" data-bs-toggle="tab" data-bs-target="#complementares-pane" type="button" role="tab">
+                <button class="nav-link position-relative" id="complementares-tab" data-bs-toggle="tab" data-bs-target="#complementares-pane" type="button" role="tab">
                     <i class="bi bi-plus-circle-dotted me-1"></i> Ativ. Complementares
+                </button>
+            </li>
+             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-complementares-tab" data-bs-toggle="tab" data-bs-target="#historico-complementares-pane" type="button" role="tab">
+                    <i class="bi bi-hourglass-split me-1"></i> Histórico de Ativ. Complementares
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -176,6 +186,22 @@
                       </div>
                     </div>
                   </div>
+                </div>
+
+                <div class="tab-pane fade" id="historico-complementares-pane" role="tabpanel" aria-labelledby="historico-complementares-tab" tabindex="0">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3">
+                            <h5 class="mb-0 card-title-modern"><i class="bi bi-hourglass-split me-2"></i>Histórico de Solicitações Complementares</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive custom-scroll">
+                                <table class="table modern-table align-middle">
+                                    <thead id="thead-historico-complementares"></thead>
+                                    <tbody id="tbody-historico-complementares"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab"
@@ -598,7 +624,7 @@
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
         <script src="../assets/js/general/global.js?v=2.0"></script>
         <script src="../assets/js/general/sidebar.js?v=2.0"></script>
-        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js?v=2.0"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js?v=2.1"></script>
 
 </body>
 

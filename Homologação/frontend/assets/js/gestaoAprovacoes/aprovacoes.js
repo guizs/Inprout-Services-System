@@ -11,7 +11,7 @@ const modalRecusarMaterial = document.getElementById('modalRecusarMaterial') ? n
 const modalAprovarComplementar = document.getElementById('modalAprovarComplementar') ? new bootstrap.Modal(document.getElementById('modalAprovarComplementar')) : null;
 const modalRecusarComplementar = document.getElementById('modalRecusarComplementar') ? new bootstrap.Modal(document.getElementById('modalRecusarComplementar')) : null;
 
-
+// Variáveis Globais
 let todosOsLancamentosGlobais = [];
 const tbodyHistoricoMateriais = document.getElementById('tbody-historico-materiais');
 const filtroSegmentoMateriais = document.getElementById('filtro-segmento-materiais');
@@ -27,9 +27,11 @@ const filtroHistoricoStatus = document.getElementById('filtro-historico-status')
 let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
 let todasPendenciasComplementares = [];
+let todoHistoricoComplementares = [];
 
 const API_BASE_URL = 'http://localhost:8080';
 
+// Funções para abrir modais
 function aprovarLancamento(id) {
     if (!modalAprovar) return;
     document.getElementById('aprovarLancamentoId').value = id;
@@ -89,7 +91,6 @@ function recusarComplementar(id) {
     form.reset();
     modalRecusarComplementar.show();
 }
-
 
 function verComentarios(id) {
     if (!modalComentarios) return;
@@ -161,6 +162,9 @@ function recusarPrazoController(id) {
     dataLabel.textContent = 'Definir Novo Prazo (Obrigatório)';
 }
 
+// ==========================================================
+// LÓGICA PRINCIPAL DA PÁGINA
+// ==========================================================
 document.addEventListener('DOMContentLoaded', function () {
 
     const toastElement = document.getElementById('toastMensagem');
@@ -217,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!button) return;
         const spinner = button.querySelector('.spinner-border');
         button.disabled = isLoading;
-        if (spinner) spinner.classList.toggle('d-none', !isLoading);
+        if(spinner) spinner.classList.toggle('d-none', !isLoading);
     }
 
     function aplicarEstiloStatus(cell, statusText) {
@@ -495,16 +499,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         dashboardContainer.innerHTML = cardsHtml;
     }
-
+    
     function renderizarTabelaPendentesComplementares(solicitacoes) {
         const tbody = document.getElementById('tbody-pendentes-complementares');
         if (!tbody) return;
-
+    
         const thead = tbody.previousElementSibling;
         thead.innerHTML = '';
         tbody.innerHTML = '';
-
-        // --- COLUNA "SEGMENTO" ADICIONADA ---
+    
         thead.innerHTML = `
             <tr>
                 <th>Ações</th>
@@ -518,12 +521,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 <th>Status</th>
             </tr>
         `;
-
+    
         if (!solicitacoes || solicitacoes.length === 0) {
             tbody.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Nenhuma pendência de atividade complementar.</td></tr>`;
             return;
         }
-
+    
         solicitacoes.forEach(s => {
             const tr = document.createElement('tr');
             let acoesHtml = '';
@@ -537,11 +540,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
                 statusBadge = `<span class="badge rounded-pill text-bg-warning">${statusFormatado}</span>`;
             } else {
-                acoesHtml = `—`;
-                statusBadge = `<span class="badge rounded-pill text-bg-info">${statusFormatado}</span>`;
+                 acoesHtml = `—`;
+                 statusBadge = `<span class="badge rounded-pill text-bg-info">${statusFormatado}</span>`;
             }
-            
-            // --- CORREÇÃO DA DATA ---
+    
             const dataFormatada = s.dataSolicitacao ? new Date(parseDataBrasileira(s.dataSolicitacao)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short'}) : 'Data inválida';
 
             tr.innerHTML = `
@@ -559,6 +561,62 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function renderizarTabelaHistoricoComplementares(solicitacoes) {
+        const tbody = document.getElementById('tbody-historico-complementares');
+        if (!tbody) return;
+
+        const thead = tbody.previousElementSibling;
+        thead.innerHTML = '';
+        tbody.innerHTML = '';
+
+        thead.innerHTML = `
+            <tr>
+                <th>Status Final</th>
+                <th>Data Solicitação</th>
+                <th>Solicitante</th>
+                <th>OS</th>
+                <th>Segmento</th>
+                <th>LPU</th>
+                <th>Coordenador</th>
+                <th>Data Ação Coord.</th>
+                <th>Controller</th>
+                <th>Data Ação Contr.</th>
+                <th>Motivo Recusa</th>
+            </tr>
+        `;
+
+        if (!solicitacoes || solicitacoes.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted">Nenhum histórico encontrado.</td></tr>`;
+            return;
+        }
+
+        solicitacoes.forEach(s => {
+            const tr = document.createElement('tr');
+
+            const statusBadge = s.status === 'APROVADO'
+                ? `<span class="badge rounded-pill text-bg-success">APROVADO</span>`
+                : `<span class="badge rounded-pill text-bg-danger">REJEITADO</span>`;
+
+            const dataSolicitacaoFmt = s.dataSolicitacao ? new Date(parseDataBrasileira(s.dataSolicitacao)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'N/A';
+            const dataAcaoCoordFmt = s.dataAcaoCoordenador ? new Date(parseDataBrasileira(s.dataAcaoCoordenador)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+            const dataAcaoContrFmt = s.dataAcaoController ? new Date(parseDataBrasileira(s.dataAcaoController)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+
+            tr.innerHTML = `
+                <td data-label="Status">${statusBadge}</td>
+                <td data-label="Data Solicitação">${dataSolicitacaoFmt}</td>
+                <td data-label="Solicitante">${s.solicitanteNome || 'N/A'}</td>
+                <td data-label="OS">${s.os.os}</td>
+                <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
+                <td data-label="LPU">${s.lpu.codigoLpu} - ${s.lpu.nomeLpu}</td>
+                <td data-label="Coordenador">${s.aprovadorCoordenadorNome || '—'}</td>
+                <td data-label="Data Ação Coord.">${dataAcaoCoordFmt}</td>
+                <td data-label="Controller">${s.aprovadorControllerNome || '—'}</td>
+                <td data-label="Data Ação Contr.">${dataAcaoContrFmt}</td>
+                <td data-label="Motivo Recusa" style="white-space: normal;">${s.motivoRecusa || '—'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
 
     async function carregarDadosMateriais() {
         if (!document.getElementById('tbody-pendentes-materiais')) return;
@@ -585,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(error.message, 'error');
         }
     }
-
+    
     async function carregarDadosComplementares() {
         const tabComplementares = document.getElementById('complementares-tab');
         if (!tabComplementares) return;
@@ -596,15 +654,16 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     
             if (!response.ok) {
-                throw new Error('Falha ao carregar solicitações de atividades complementares.');
+                throw new Error('Falha ao carregar pendências de ativ. complementares.');
             }
     
             todasPendenciasComplementares = await response.json();
             renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
     
-            // --- LÓGICA DO CONTADOR (BADGE) ---
             const count = todasPendenciasComplementares.length;
             let badge = tabComplementares.querySelector('.badge');
+
+            tabComplementares.classList.add('position-relative');
             
             if (!badge) {
                 badge = document.createElement('span');
@@ -613,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             if (count > 0) {
-                badge.textContent = count;
+                badge.textContent = count > 9 ? '9+' : count;
                 badge.style.display = '';
             } else {
                 badge.style.display = 'none';
@@ -621,6 +680,22 @@ document.addEventListener('DOMContentLoaded', function () {
     
         } catch (error) {
             console.error("Erro ao carregar dados de atividades complementares:", error);
+            mostrarToast(error.message, 'error');
+        }
+    }
+
+    async function carregarDadosHistoricoComplementares() {
+        if (!document.getElementById('tbody-historico-complementares')) return;
+
+        try {
+            const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/historico/${userId}`);
+            if (!response.ok) throw new Error('Falha ao carregar histórico de atividades complementares.');
+
+            todoHistoricoComplementares = await response.json();
+            renderizarTabelaHistoricoComplementares(todoHistoricoComplementares);
+
+        } catch (error) {
+            console.error("Erro ao carregar histórico de ativ. complementares:", error);
             mostrarToast(error.message, 'error');
         }
     }
@@ -661,18 +736,18 @@ document.addEventListener('DOMContentLoaded', function () {
         tbody.innerHTML = '';
 
         let colunasHtml = `
-    <th>Ações</th>
-    <th>Data Solicitação</th>
-    <th>Solicitante</th>
-    <th>OS</th>
-    <th>Segmento</th>
-    <th>LPU</th>
-    <th>Item Solicitado</th>
-    <th class="text-center">Unidade</th>
-    <th class="text-center">Qtd. Solicitada</th>
-    <th class="text-center">Qtd. em Estoque</th>
-    <th>Justificativa</th>
-`;
+            <th>Ações</th>
+            <th>Data Solicitação</th>
+            <th>Solicitante</th>
+            <th>OS</th>
+            <th>Segmento</th>
+            <th>LPU</th>
+            <th>Item Solicitado</th>
+            <th class="text-center">Unidade</th>
+            <th class="text-center">Qtd. Solicitada</th>
+            <th class="text-center">Qtd. em Estoque</th>
+            <th>Justificativa</th>
+        `;
         if (userRole === 'CONTROLLER') {
             colunasHtml += '<th>Status</th>';
         }
@@ -710,19 +785,19 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             tr.innerHTML = `
-        <td data-label="Ações" class="text-center">${acoesHtml}</td>
-        <td data-label="Data">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
-        <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
-        <td data-label="OS">${s.os.os}</td>
-        <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
-        <td data-label="LPU">${s.lpu.codigoLpu}</td>
-        <td data-label="Item Solicitado">${item.material.descricao}</td>
-        <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
-        <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
-        <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
-        <td data-label="Justificativa">${s.justificativa || ''}</td>
-        ${userRole === 'CONTROLLER' ? `<td data-label="Status">${statusHtml}</td>` : ''}
-    `;
+                <td data-label="Ações" class="text-center">${acoesHtml}</td>
+                <td data-label="Data">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
+                <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
+                <td data-label="OS">${s.os.os}</td>
+                <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
+                <td data-label="LPU">${s.lpu.codigoLpu}</td>
+                <td data-label="Item Solicitado">${item.material.descricao}</td>
+                <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
+                <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
+                <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
+                <td data-label="Justificativa">${s.justificativa || ''}</td>
+                ${userRole === 'CONTROLLER' ? `<td data-label="Status">${statusHtml}</td>` : ''}
+            `;
             tbody.appendChild(tr);
         });
     }
@@ -823,7 +898,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const todosLancamentos = await responseGeral.json();
             const pendenciasParaExibir = await responsePendencias.json();
             const historicoParaExibir = await responseHistorico.json();
-            const pendenciasPorCoordenador = await responsePendenciasCoordenador.json();
+            const pendenciasPorCoordenador = await responsePendenciasCoordenador.json(); 
 
             todosOsLancamentosGlobais = todosLancamentos;
 
@@ -849,7 +924,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderizarTabelaHistorico(dados) {
         if (!tbodyHistorico) return;
+
         let sortConfig = { key: 'dataAtividade', direction: 'desc' };
+
         function sortData(dadosParaOrdenar) {
             dadosParaOrdenar.sort((a, b) => {
                 let valA, valB;
@@ -863,6 +940,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     valA = a.dataAtividade ? new Date(a.dataAtividade.split('/').reverse().join('-')) : new Date(0);
                     valB = b.dataAtividade ? new Date(b.dataAtividade.split('/').reverse().join('-')) : new Date(0);
                 }
+
                 if (typeof valA === 'string') {
                     return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 } else {
@@ -874,8 +952,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         function render() {
             const statusFiltrado = document.getElementById('filtro-historico-status').value;
-            let dadosFiltrados = statusFiltrado === 'todos' ? dados : dados.filter(l => l.situacaoAprovacao === statusFiltrado);
-            dadosFiltrados = sortData(dadosFiltrados);
+            let dadosFiltrados = statusFiltrado === 'todos' ?
+                dados :
+                dados.filter(l => l.situacaoAprovacao === statusFiltrado);
+
+            dadosFiltrados = sortData(dadosFiltrados); 
 
             const colunasHeaders = [
                 { key: 'dataAtividade', label: 'DATA ATIVIDADE' }, { key: 'statusAprovacao', label: 'STATUS' },
@@ -918,10 +999,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 tbodyHistorico.appendChild(tr);
             });
         }
+
         if (theadHistorico) {
             theadHistorico.addEventListener('click', (e) => {
                 const header = e.target.closest('th.sortable');
                 if (!header) return;
+
                 const key = header.dataset.sortKey;
                 if (sortConfig.key === key) {
                     sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
@@ -932,6 +1015,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 render();
             });
         }
+
         render();
     }
 
@@ -961,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 endpoint = primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO'
                     ? `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`
                     : `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
-            } else {
+            } else { 
                 endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
             }
 
@@ -1101,7 +1185,8 @@ document.addEventListener('DOMContentLoaded', function () {
         await Promise.all([
             carregarDadosAtividades(),
             carregarDadosMateriais(),
-            carregarDadosComplementares()
+            carregarDadosComplementares(),
+            carregarDadosHistoricoComplementares()
         ]);
         toggleLoader(false);
     }
@@ -1165,7 +1250,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
+    
     const btnConfirmarAprovacaoComplementar = document.getElementById('btnConfirmarAprovacaoComplementar');
     if (btnConfirmarAprovacaoComplementar) {
         btnConfirmarAprovacaoComplementar.addEventListener('click', async function () {
@@ -1173,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const endpoint = userRole === 'COORDINATOR'
                 ? `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/coordenador/aprovar`
                 : `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/controller/aprovar`;
-
+    
             setButtonLoading(this, true);
             try {
                 const response = await fetchComAuth(endpoint, {
@@ -1182,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({ aprovadorId: userId })
                 });
                 if (!response.ok) throw new Error((await response.json()).message || 'Falha ao aprovar.');
-
+    
                 mostrarToast('Solicitação complementar aprovada!', 'success');
                 modalAprovarComplementar.hide();
                 await carregarTodosOsDados();
@@ -1193,7 +1278,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
+    
     const formRecusarComplementar = document.getElementById('formRecusarComplementar');
     if (formRecusarComplementar) {
         formRecusarComplementar.addEventListener('submit', async function (event) {
@@ -1201,11 +1286,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const solicitacaoId = this.dataset.id;
             const motivo = document.getElementById('motivoRecusaComplementar').value;
             const btn = document.getElementById('btnConfirmarRecusaComplementar');
-
+    
             const endpoint = userRole === 'COORDINATOR'
                 ? `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/coordenador/rejeitar`
                 : `${API_BASE_URL}/solicitacoes-complementares/${solicitacaoId}/controller/rejeitar`;
-
+    
             setButtonLoading(btn, true);
             try {
                 const response = await fetchComAuth(endpoint, {
@@ -1214,7 +1299,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({ aprovadorId: userId, motivo: motivo })
                 });
                 if (!response.ok) throw new Error((await response.json()).message || 'Falha ao recusar.');
-
+    
                 mostrarToast('Solicitação complementar recusada.', 'success');
                 modalRecusarComplementar.hide();
                 await carregarTodosOsDados();
@@ -1289,7 +1374,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         linha.classList.toggle('table-active', isChecked);
                     }
                 });
-
+                
                 const bodySelectAll = accordionItem.querySelector('.selecionar-todos-grupo');
                 if (bodySelectAll) {
                     bodySelectAll.checked = isChecked;

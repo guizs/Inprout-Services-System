@@ -650,10 +650,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectOS = document.getElementById('osId');
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
-            
+
             // CORREÇÃO: Usar a instância do modal que já existe no escopo, em vez de criar uma nova.
             // const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
-            
+
             await carregarDadosParaModal();
             formAdicionar.reset();
             if (editingId) { formAdicionar.dataset.editingId = editingId; }
@@ -841,16 +841,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // 2. Filtra para encontrar apenas os projetos cujo último lançamento foi 'Paralisado'
-            const projetosParalisadosIds = new Set();
+            // 2. Filtra o mapa para retornar apenas os lançamentos cuja situação é 'Paralisado'
+            const lancamentosParalisados = [];
             for (const ultimoLancamento of ultimosLancamentosPorProjeto.values()) {
                 if (ultimoLancamento.situacao === 'Paralisado') {
-                    projetosParalisadosIds.add(ultimoLancamento.detalhe.id);
+                    lancamentosParalisados.push(ultimoLancamento);
                 }
             }
 
-            // 3. Retorna TODOS os lançamentos que pertencem a esses projetos paralisados
-            return todosLancamentos.filter(l => l.detalhe && projetosParalisadosIds.has(l.detalhe.id));
+            return lancamentosParalisados;
         }
         // ==========================================================
         // >>>>> FIM DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<

@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const lpuChecklistContainerLote = document.getElementById('lpuChecklistContainerLote');
     const btnAvancarParaPreenchimentoLote = document.getElementById('btnAvancarParaPreenchimentoLote');
     const formulariosContainerLote = document.getElementById('formulariosContainerLote');
-    const chkAtividadeComplementar = document.getElementById('atividadeComplementarLote');
-    const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
 
     // Botões do rodapé do modal
     const btnSubmitAdicionarLote = document.getElementById('btnSubmitAdicionarLote');
@@ -57,12 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
         lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
-
-        // Garante que o campo de quantidade complementar esteja escondido ao abrir o modal
-        const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
-        if (quantidadeComplementarContainer) {
-            quantidadeComplementarContainer.classList.add('d-none');
-        }
 
         // Inicializa o flatpickr no campo de data principal do lote
         inicializarFlatpickrComFormato('#dataAtividadeLote');
@@ -482,7 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const lancamentosEmLote = [];
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
-            const isComplementar = chkAtividadeComplementar.checked;
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
@@ -505,10 +496,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
-                    osLpuDetalheId: !isComplementar ? osLpuDetalheId : null,
+                    osLpuDetalheId: osLpuDetalheId, // Sempre usa o osLpuDetalheId
                     dataAtividade: formatarDataParaAPI(dataAtividade),
-                    atividadeComplementar: isComplementar,
-                    quantidade: isComplementar ? parseInt(document.getElementById('quantidadeComplementarLote').value, 10) : null,
+                    atividadeComplementar: false, // Hardcoded para false
+                    quantidade: null, // Hardcoded para null
                     situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO'
                 };
 
@@ -526,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.message || 'Erro ao salvar lançamentos em lote.');
             }
 
-            if (typeof mostrarToast === 'function') mostrarToast('Lançamentos(s) salvo(s) com sucesso!', 'success');
+            if (typeof mostrarToast === 'function') mostrarToast('Lançamento(s) salvo(s) com sucesso!', 'success');
             bootstrap.Modal.getInstance(modalAdicionarEmLote).hide();
             await carregarLancamentos(); // Função do index.js
 

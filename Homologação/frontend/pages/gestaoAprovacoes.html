@@ -85,6 +85,11 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="complementares-tab" data-bs-toggle="tab" data-bs-target="#complementares-pane" type="button" role="tab">
+                    <i class="bi bi-plus-circle-dotted me-1"></i> Ativ. Complementares
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="materiais-tab" data-bs-toggle="tab" data-bs-target="#materiais-pane"
                     type="button" role="tab" aria-controls="materiais-pane">
                     <i class="bi bi-box-seam me-1"></i> Aprovações de Materiais
@@ -155,6 +160,22 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <div class="tab-pane fade" id="complementares-pane" role="tabpanel" aria-labelledby="complementares-tab" tabindex="0">
+                  <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                      <h5 class="mb-0 card-title-modern"><i class="bi bi-plus-circle-dotted me-2"></i>Pendências de Atividades Complementares</h5>
+                    </div>
+                    <div class="card-body">
+                      <div class="table-responsive custom-scroll">
+                        <table class="table modern-table align-middle">
+                          <thead id="thead-pendentes-complementares"></thead>
+                          <tbody id="tbody-pendentes-complementares"></tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="tab-pane fade" id="materiais-pane" role="tabpanel" aria-labelledby="materiais-tab"

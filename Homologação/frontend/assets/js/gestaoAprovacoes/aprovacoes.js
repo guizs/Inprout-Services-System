@@ -53,7 +53,7 @@ function toggleLoader(ativo = true) {
             overlay.classList.toggle("d-none", !ativo);
         }
     }
-} 
+}
 
 function aprovarMaterial(id) {
     if (!modalAprovarMaterial) return;
@@ -333,13 +333,22 @@ document.addEventListener('DOMContentLoaded', function () {
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
-            // Verifica se algum lançamento no grupo está vencido
             const isVencido = grupo.linhas.some(lancamento => {
                 const dataPrazo = lancamento.dataPrazo ? new Date(lancamento.dataPrazo.split('/').reverse().join('-')) : null;
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
                 return dataPrazo && dataPrazo < hoje;
             });
+
+            // Verificando se é complementar
+            const primeiroLancamento = grupo.linhas[0];
+            const isComplementar = get(primeiroLancamento, 'detalhe.key', '').includes('_AC_');
+            let tituloOS = grupo.os;
+            if (isComplementar) {
+                const lpu = get(primeiroLancamento, 'detalhe.lpu.nomeLpu', '');
+                tituloOS = `${grupo.os} (Complementar: ${lpu})`;
+            }
+
 
             const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
@@ -370,7 +379,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                         <div class="header-title-wrapper">
                             <span class="header-title-project">${grupo.projeto}</span>
-                            <span class="header-title-os">${grupo.os}</span>
+                            <span class="header-title-os">${tituloOS}</span>
                         </div>
                         ${kpiHTML}
                         <span class="badge bg-primary header-badge">${grupo.linhas.length} itens pendentes</span>
@@ -401,8 +410,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
             }).join('');
 
-            // --- CORREÇÃO APLICADA AQUI ---
-            // O atributo "data-bs-parent" foi removido do div abaixo
             const bodyHTML = `
             <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
                 <div class="accordion-body">

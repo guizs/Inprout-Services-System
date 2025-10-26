@@ -191,7 +191,8 @@
           id="btnSolicitarMaterial"> <i class="bi bi-box-seam me-1"></i> Solicitar material
         </a>
 
-        <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalSolicitarComplementar" id="btnSolicitarComplementar">
+        <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalSolicitarComplementar"
+          id="btnSolicitarComplementar">
           <i class="bi bi-plus-circle-dotted me-1"></i> Solicitar Complementar
         </a>
 
@@ -310,11 +311,13 @@
     </div>
   </div>
 
-  <div class="modal fade" id="modalSolicitarComplementar" tabindex="-1" aria-labelledby="modalSolicitarComplementarLabel" aria-hidden="true">
+  <div class="modal fade" id="modalSolicitarComplementar" tabindex="-1"
+    aria-labelledby="modalSolicitarComplementarLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" id="modalSolicitarComplementarLabel"><i class="bi bi-plus-circle-dotted me-2"></i>Nova Solicitação de Atividade Complementar</h5>
+          <h5 class="modal-title" id="modalSolicitarComplementarLabel"><i class="bi bi-plus-circle-dotted me-2"></i>Nova
+            Solicitação de Atividade Complementar</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
         <div class="modal-body">
@@ -322,10 +325,14 @@
             <h6 class="section-title">Dados da Solicitação</h6>
             <div class="row g-3">
               <div class="col-md-6">
+                <label for="projetoIdComplementar" class="form-label">Projeto</label>
+                <select class="form-select" id="projetoIdComplementar" required></select>
+              </div>
+              <div class="col-md-6">
                 <label for="osIdComplementar" class="form-label">Ordem de Serviço (OS)</label>
                 <select class="form-select" id="osIdComplementar" required></select>
               </div>
-              <div class="col-md-6">
+              <div class="col-md-12">
                 <label for="lpuIdComplementar" class="form-label">Item LPU</label>
                 <select class="form-select" id="lpuIdComplementar" required disabled></select>
               </div>
@@ -334,15 +341,19 @@
                 <input type="number" class="form-control" id="quantidadeComplementar" min="1" value="1" required>
               </div>
               <div class="col-12">
-                <label for="justificativaComplementar" class="form-label">Justificativa <small class="text-muted">(Opcional)</small></label>
-                <textarea class="form-control" id="justificativaComplementar" rows="3" placeholder="Ex: Necessidade de instalar um equipamento adicional não previsto no escopo original..."></textarea>
+                <label for="justificativaComplementar" class="form-label">Justificativa <small
+                    class="text-muted">(Opcional)</small></label>
+                <textarea class="form-control" id="justificativaComplementar" rows="3"
+                  placeholder="Ex: Necessidade de instalar um equipamento adicional não previsto no escopo original..."></textarea>
               </div>
             </div>
           </form>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i> Cancelar</button>
-          <button type="submit" id="btnEnviarSolicitacaoComplementar" form="formSolicitarComplementar" class="btn btn-success">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>
+            Cancelar</button>
+          <button type="submit" id="btnEnviarSolicitacaoComplementar" form="formSolicitarComplementar"
+            class="btn btn-success">
             <i class="bi bi-send me-1"></i> Enviar para Aprovação
           </button>
         </div>
@@ -850,7 +861,7 @@
                 <input type="text" class="form-control" id="regionalLote" readonly>
               </div>
             </div>
-            
+
             <div class="col-12">
               <label class="form-label">Selecione os itens LPUs</label>
 

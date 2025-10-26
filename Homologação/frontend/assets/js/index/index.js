@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
                             buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
-                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
+                            const chaveProjetoAtual = `${os.id}-${lpu.id}`;
                             if (!projetosFinalizados.has(chaveProjetoAtual)) {
                                 buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                             }
@@ -386,9 +386,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let valB = getNestedValue(b, sortConfig.key);
             const isDate = sortConfig.key.toLowerCase().includes('data');
             const isValue = sortConfig.key.toLowerCase().includes('valor');
-            if (isDate) { valA = valA ? parseDataBrasileira(valA) : new Date(0); valB = valB ? parseDataBrasileira(valB) : new Date(0); } 
+            if (isDate) { valA = valA ? parseDataBrasileira(valA) : new Date(0); valB = valB ? parseDataBrasileira(valB) : new Date(0); }
             else if (isValue) { valA = Number(valA) || 0; valB = Number(valB) || 0; }
-            if (typeof valA === 'string') { return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA); } 
+            if (typeof valA === 'string') { return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA); }
             else { return sortConfig.direction === 'asc' ? valA - valB : valB - valA; }
         };
 
@@ -491,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
                     let errorMsg = 'Erro desconhecido no servidor.';
-                    try { const errorData = await response.json(); errorMsg = errorData.message || JSON.stringify(errorData); } 
+                    try { const errorData = await response.json(); errorMsg = errorData.message || JSON.stringify(errorData); }
                     catch (e) { errorMsg = await response.text(); }
                     throw new Error(errorMsg);
                 }
@@ -651,12 +651,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
             const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
-            
+
             await carregarDadosParaModal();
             formAdicionar.reset();
-            if (editingId) { formAdicionar.dataset.editingId = editingId; } 
+            if (editingId) { formAdicionar.dataset.editingId = editingId; }
             else { delete formAdicionar.dataset.editingId; }
-            if (lancamento.detalhe && lancamento.detalhe.id) { formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id; } 
+            if (lancamento.detalhe && lancamento.detalhe.id) { formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id; }
             else { delete formAdicionar.dataset.osLpuDetalheId; }
 
             if (lpuContainer) lpuContainer.classList.add('d-none');
@@ -848,7 +848,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const resposta = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}`, { method: 'DELETE' });
                 if (!resposta.ok) {
                     let errorMsg = 'Erro ao excluir o lançamento.';
-                    try { const errorData = await resposta.json(); errorMsg = errorData.message || errorMsg; } 
+                    try { const errorData = await resposta.json(); errorMsg = errorData.message || errorMsg; }
                     catch (e) { errorMsg = await resposta.text(); }
                     throw new Error(errorMsg);
                 }
@@ -1027,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', () => {
         renderizarTodasAsTabelas();
     });
-    
+
     // ==========================================================
     // SEÇÃO 4: LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL
     // ==========================================================
@@ -1195,6 +1195,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
         const form = document.getElementById('formSolicitarComplementar');
         const selectOS = document.getElementById('osIdComplementar');
+        const selectProjeto = document.getElementById('projetoIdComplementar');
         const selectLPU = document.getElementById('lpuIdComplementar');
         let todasAsOS = []; // Cache para as OSs do usuário
 
@@ -1203,6 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectOS.innerHTML = '<option value="" selected disabled>Carregando OSs...</option>';
+            selectProjeto.innerHTML = '<option value="" selected disabled>Carregando Projetos...</option>';
 
             try {
                 // Se a lista de OSs ainda não foi carregada, busca na API
@@ -1214,18 +1216,56 @@ document.addEventListener('DOMContentLoaded', () => {
                     todasAsOS = await response.json();
                 }
 
+                // Popula o select de Projetos
+                const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
+                selectProjeto.innerHTML = '<option value="" selected disabled>Selecione o projeto...</option>';
+                projetosUnicos.forEach(projeto => {
+                    selectProjeto.add(new Option(projeto, projeto));
+                });
+
+                // Popula o select de OSs (inicialmente com todas)
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 todasAsOS.forEach(os => {
                     selectOS.add(new Option(os.os, os.id));
                 });
 
             } catch (error) {
-                 selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
-                 mostrarToast(error.message, 'error');
+                selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
+                selectProjeto.innerHTML = '<option value="">Erro ao carregar</option>';
+                mostrarToast(error.message, 'error');
             }
         });
 
+        // Evento de mudança no select de Projeto
+        selectProjeto.addEventListener('change', (e) => {
+            const projetoSelecionado = e.target.value;
+            const osDoProjeto = todasAsOS.filter(os => os.projeto === projetoSelecionado);
+
+            selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
+            osDoProjeto.forEach(os => {
+                selectOS.add(new Option(os.os, os.id));
+            });
+
+            // Dispara o 'change' na OS para carregar as LPUs
+            if (osDoProjeto.length > 0) {
+                selectOS.value = osDoProjeto[0].id; // Seleciona a primeira OS por padrão
+                selectOS.dispatchEvent(new Event('change'));
+            } else {
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
+                selectLPU.disabled = true;
+            }
+        });
+
+        // Evento de mudança no select de OS
         selectOS.addEventListener('change', async () => {
+            // Sincroniza o select de Projeto
+            const osId = selectOS.value;
+            const osSelecionada = todasAsOS.find(os => os.id == osId);
+            if (osSelecionada && selectProjeto.value !== osSelecionada.projeto) {
+                selectProjeto.value = osSelecionada.projeto;
+            }
+
+            // Lógica para carregar as LPUs
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
 
@@ -1234,12 +1274,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(`${API_BASE_URL}/contrato`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const contratos = await response.json();
-                
+
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione o item LPU...</option>';
                 contratos.forEach(contrato => {
                     if (contrato.lpus && contrato.lpus.length > 0) {
                         contrato.lpus.forEach(lpu => {
-                            if(lpu.ativo){
+                            if (lpu.ativo) {
                                 const label = `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`;
                                 selectLPU.add(new Option(label, lpu.id));
                             }
@@ -1257,7 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
-            
+
             const payload = {
                 osId: selectOS.value,
                 lpuId: selectLPU.value,
@@ -1270,6 +1310,8 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
 
             try {
+                // Este endpoint não existe no backend, você precisará criá-lo.
+                // Vou manter a chamada, mas saiba que ela vai falhar até o backend ser ajustado.
                 const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1284,7 +1326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 mostrarToast('Solicitação de atividade complementar enviada com sucesso!', 'success');
                 modalSolicitarComplementar.hide();
 
-            } catch(error) {
+            } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
                 btnSubmit.disabled = false;

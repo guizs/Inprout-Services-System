@@ -318,7 +318,6 @@ public class OsServiceImpl implements OsService {
         }
 
         List<Long> osIds = oss.stream().map(OS::getId).collect(Collectors.toList());
-        osLpuDetalheRepository.findAllWithLancamentosByOsIds(osIds);
         return oss;
     }
 

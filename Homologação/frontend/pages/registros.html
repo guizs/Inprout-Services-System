@@ -107,6 +107,40 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalHistoricoLancamentos" tabindex="-1" aria-labelledby="modalHistoricoLancamentosLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalHistoricoLancamentosLabel"><i
+                            class="bi bi-clock-history me-2"></i>Histórico de Lançamentos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Data Atividade</th>
+                                    <th>Status Aprovação</th>
+                                    <th>Situação</th>
+                                    <th>Etapa</th>
+                                    <th>Prestador</th>
+                                    <th>Valor</th>
+                                    <th>Gestor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-historico-lancamentos">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="modalProgressoExportacao" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="modalProgressoLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -343,7 +377,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/general/sidebar.js?v=2.0"></script>
     <script src="../assets/js/general/global.js?v=2.0"></script>
-    <script src="../assets/js/registros.js?v=2.0"></script>
+    <script src="../assets/js/registros.js?v=2.1"></script>
 
 </body>
 

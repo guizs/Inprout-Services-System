@@ -102,24 +102,31 @@ document.addEventListener('DOMContentLoaded', function () {
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
                     detalhesAtivos.forEach(detalhe => {
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Define qual lançamento será usado para exibição na linha
                         let lancamentoParaExibir = detalhe.ultimoLancamento;
 
-                        // SE o backend não retornou um "ultimoLancamento" (caso do legado),
-                        // E SE existe uma lista de lançamentos disponíveis...
+                        // Se o backend não retornou um "ultimoLancamento" (porque filtrou o legado)
+                        // E existe uma lista de lançamentos para analisar...
                         if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
-                            // ...nós encontramos manualmente o lançamento com o maior ID (o mais recente).
-                            lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
-                                return (maisRecente.id > atual.id) ? maisRecente : atual;
-                            });
+
+                            // 1. Tenta encontrar lançamentos operacionais (que não são de legado de CPS)
+                            const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
+
+                            if (lancamentosOperacionais.length > 0) {
+                                // 2. Se encontrou, pega o mais recente deles
+                                lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
+                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                });
+                            } else {
+                                // 3. Se NÃO encontrou (só existem legados), pega o legado mais recente para exibir
+                                lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
+                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                });
+                            }
                         }
-                        // --- FIM DA CORREÇÃO ---
 
                         todasAsLinhas.push({
                             os: os,
                             detalhe: detalhe,
-                            // Usa o lançamento que definimos acima, garantindo que nunca seja nulo se houver dados.
                             ultimoLancamento: lancamentoParaExibir
                         });
                     });
@@ -479,6 +486,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
 
+        const modalHistoricoEl = document.getElementById('modalHistoricoLancamentos');
+        const modalHistorico = modalHistoricoEl ? new bootstrap.Modal(modalHistoricoEl) : null;
+
         // Listener para editar/excluir
         accordionContainer.addEventListener('click', function (e) {
 
@@ -539,6 +549,44 @@ document.addEventListener('DOMContentLoaded', function () {
                     // [CORREÇÃO 5] Ação final: mostra o modal de exclusão (agora que modalConfirmarExclusao é uma instância válida)
                     modalConfirmarExclusao.show();
                 }
+                if (btnHistorico) {
+                    e.preventDefault();
+                    const detalheId = btnHistorico.dataset.detalheId;
+                    const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
+
+                    if (modalHistorico && linhaData && linhaData.detalhe && linhaData.detalhe.lancamentos) {
+                        const modalBody = document.getElementById('tbody-historico-lancamentos');
+                        const modalTitle = document.getElementById('modalHistoricoLancamentosLabel');
+
+                        modalTitle.innerHTML = `<i class="bi bi-clock-history me-2"></i>Histórico da Linha: ${get(linhaData, 'detalhe.key', '')}`;
+
+                        // Ordena os lançamentos do mais recente para o mais antigo pelo ID
+                        const lancamentosOrdenados = [...linhaData.detalhe.lancamentos].sort((a, b) => b.id - a.id);
+
+                        if (lancamentosOrdenados.length === 0) {
+                            modalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum lançamento encontrado para esta linha.</td></tr>';
+                        } else {
+                            modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
+                                const etapa = get(lanc, 'etapa', {});
+                                return `
+                                <tr>
+                                    <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                                    <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
+                                    <td>${get(lanc, 'situacao', '')}</td>
+                                    <td>${etapa.nomeDetalhado || ''}</td>
+                                    <td>${get(lanc, 'prestador.nome', '')}</td>
+                                    <td>${formatarMoeda(get(lanc, 'valor'))}</td>
+                                    <td>${get(lanc, 'manager.nome', '')}</td>
+                                </tr>
+                            `;
+                            }).join('');
+                        }
+                        modalHistorico.show();
+                    } else {
+                        mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
+                    }
+                }
+                // --- FIM DA NOVA LÓGICA ---
             }
         });
 

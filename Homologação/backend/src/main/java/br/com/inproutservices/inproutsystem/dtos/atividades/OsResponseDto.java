@@ -107,14 +107,18 @@ public record OsResponseDto(
                     detalhe.getNumFs(),
                     detalhe.getGate(),
                     detalhe.getGateId(),
-                    // --- CORREÇÃO APLICADA AQUI ---
-                    // Filtra para ignorar o legado de CPS e então pega o mais recente dos que sobraram
+
+                    // --- INÍCIO DA CORREÇÃO COM REGRA DE EXCEÇÃO ---
                     detalhe.getLancamentos().stream()
                             .filter(lancamento -> lancamento.getSituacaoAprovacao() != SituacaoAprovacao.APROVADO_LEGADO)
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                             .map(LancamentoResponseDTO::new)
-                            .orElse(null),
+                            .orElseGet(() -> detalhe.getLancamentos().stream()
+                                    .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
+                                    .map(LancamentoResponseDTO::new)
+                                    .orElse(null)),
                     // --- FIM DA CORREÇÃO ---
+
                     detalhe.getLancamentos().stream()
                             .map(LancamentoResponseDTO::new)
                             .collect(Collectors.toList())

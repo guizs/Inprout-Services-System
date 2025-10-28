@@ -17,7 +17,8 @@ public interface OsRepository extends JpaRepository<OS, Long> {
     @Query("SELECT DISTINCT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
-            "LEFT JOIN FETCH os.segmento")
+            "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH d.lancamentos l")
     List<OS> findAllWithDetails();
 
     @Query("SELECT os FROM OS os " +

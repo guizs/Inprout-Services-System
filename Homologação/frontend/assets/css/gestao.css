@@ -282,3 +282,8 @@ body {
     z-index: 1040;     /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
     border-radius: 0.75rem; /* Opcional: arredonda as bordas do loader igual ao card */
 }
+
+.text-danger-emphasis {
+    color: #dc3545 !important; /* Cor vermelha do Bootstrap */
+    font-weight: 700 !important; /* Deixa o texto em negrito para mais destaque */
+}

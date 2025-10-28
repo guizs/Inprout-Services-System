@@ -247,13 +247,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const accordionContainer = document.getElementById('accordion-pendencias');
         if (!accordionContainer) return;
 
-        accordionContainer.innerHTML = '';
+        accordionContainer.innerHTML = ''; // Limpa o conteúdo anterior
 
         if (!dados || dados.length === 0) {
             accordionContainer.innerHTML = `<div class="text-center p-4 text-muted">Nenhuma pendência encontrada para seu perfil.</div>`;
             return;
         }
 
+        // Agrupa os lançamentos pelo ID da OS
         const agrupadoPorOS = dados.reduce((acc, lancamento) => {
             const osId = lancamento.os.id;
             if (!acc[osId]) {
@@ -261,10 +262,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     id: osId,
                     os: lancamento.os.os,
                     projeto: lancamento.os.projeto,
-                    totalOs: lancamento.totalOs,
-                    valorCps: lancamento.valorCps,
-                    valorPendente: lancamento.valorPendente,
-                    custoTotalMateriais: lancamento.os.custoTotalMateriais,
+                    totalOs: lancamento.totalOs, // Valor total da OS (vem do DTO)
+                    valorCps: lancamento.valorCps, // Valor de CPS aprovado (vem do DTO)
+                    valorPendente: lancamento.valorPendente, // Valor pendente (vem do DTO)
+                    custoTotalMateriais: lancamento.os.custoTotalMateriais, // Custo de material (vem do DTO)
                     linhas: []
                 };
             }
@@ -272,18 +273,20 @@ document.addEventListener('DOMContentLoaded', function () {
             return acc;
         }, {});
 
-        const grupos = Object.values(agrupadoPorOS);
-        const frag = document.createDocumentFragment();
+        const grupos = Object.values(agrupadoPorOS); // Transforma o objeto em um array de grupos
+        const frag = document.createDocumentFragment(); // Para otimizar a inserção no DOM
+
+        // Funções auxiliares de formatação
         const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '-';
         const formatarData = (data) => data ? data.split('-').reverse().join('/') : '-';
-
         const get = (obj, path, defaultValue = '-') => {
             const value = path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj);
             return value !== undefined ? value : defaultValue;
         };
 
+        // Mapeamento das colunas para os dados do lançamento (mantido como estava)
         const dataMapping = {
-            "AÇÕES": (lancamento) => {
+            "AÇÕES": (lancamento) => { /* ... sua lógica de botões ... */
                 let acoesHtml = '';
                 if (userRole === 'COORDINATOR') {
                     acoesHtml = `<div class="d-flex justify-content-center gap-1">
@@ -345,19 +348,21 @@ document.addEventListener('DOMContentLoaded', function () {
             "PRESTADOR": (lancamento) => get(lancamento, 'prestador.nome'), "GESTOR": (lancamento) => get(lancamento, 'manager.nome'),
         };
 
-
+        // Itera sobre cada GRUPO de OS para criar um item do acordeão
         grupos.forEach((grupo, index) => {
-            const uniqueId = `${grupo.id}-${index}`;
+            const uniqueId = `${grupo.id}-${index}`; // ID único para o acordeão
             const item = document.createElement('div');
             item.className = 'accordion-item';
 
+            // Verifica se algum lançamento no grupo tem prazo vencido
             const isVencido = grupo.linhas.some(lancamento => {
-                const dataPrazo = lancamento.dataPrazo ? new Date(lancamento.dataPrazo.split('/').reverse().join('-')) : null;
+                const dataPrazo = lancamento.dataPrazo ? parseDataBrasileira(lancamento.dataPrazo) : null;
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
                 return dataPrazo && dataPrazo < hoje;
             });
 
+            // Lógica para definir o título da OS (incluindo se for complementar)
             const primeiroLancamento = grupo.linhas[0];
             const isComplementar = get(primeiroLancamento, 'detalhe.key', '').includes('_AC_');
             let tituloOS = grupo.os;
@@ -366,9 +371,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 tituloOS = `${grupo.os} (Complementar: ${lpu})`;
             }
 
-
+            // Define a classe do botão do acordeão (vermelho se vencido)
             const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
+            // Cálculos dos KPIs
             const totalOs = grupo.totalOs || 0;
             const totalCpsAprovado = grupo.valorCps || 0;
             const totalMaterial = grupo.custoTotalMateriais || 0;
@@ -377,6 +383,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const percentualAtual = totalOs > 0 ? ((totalCpsAprovado + totalMaterial) / totalOs) * 100 : 0;
             const percentualPrevisto = totalOs > 0 ? ((previsaoCps + totalMaterial) / totalOs) * 100 : 0;
 
+            // --- INÍCIO DA CORREÇÃO DE COR ---
+            // Define a classe CSS com base no valor do percentual previsto
+            const corPercentualPrevisto = percentualPrevisto > 35 ? 'text-danger-emphasis' : 'text-primary';
+            // --- FIM DA CORREÇÃO DE COR ---
+
+            // HTML dos KPIs (indicadores) do cabeçalho
             const kpiHTML = `
             <div class="header-kpi-wrapper">
                 <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(totalOs)}</span></div>
@@ -384,9 +396,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(totalMaterial)}</span></div>
                 <div class="header-kpi"><span class="kpi-label text-primary">Previsão CPS</span><span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">% Atual</span><span class="kpi-value kpi-percentage">${percentualAtual.toFixed(2)}%</span></div>
-                <div class="header-kpi"><span class="kpi-label text-primary">% Previsto</span><span class="kpi-value kpi-percentage text-primary">${percentualPrevisto.toFixed(2)}%</span></div>
+                
+                <!-- CORREÇÃO APLICADA AQUI: Usa a variável 'corPercentualPrevisto' nas classes -->
+                <div class="header-kpi">
+                    <span class="kpi-label ${corPercentualPrevisto}">% Previsto</span>
+                    <span class="kpi-value kpi-percentage ${corPercentualPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
+                </div>
             </div>`;
 
+            // HTML do cabeçalho do acordeão (o botão clicável)
             const headerHTML = `
             <h2 class="accordion-header" id="heading-${uniqueId}">
                 <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
@@ -404,29 +422,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 </button>
             </h2>`;
 
-            let colunasParaRenderizar = [...colunas];
+            // Define as colunas a serem exibidas na tabela interna
+            let colunasParaRenderizar = [...colunas]; // Começa com todas as colunas
             if (userRole === 'CONTROLLER') {
+                // Se for Controller, remove a coluna "PRAZO AÇÃO"
                 colunasParaRenderizar = colunasParaRenderizar.filter(c => c !== "PRAZO AÇÃO");
             }
+
+            // Gera o HTML das linhas da tabela interna
             const bodyRowsHTML = grupo.linhas.map(lancamento => {
                 const cellsHTML = colunasParaRenderizar.map(header => {
-                    const func = dataMapping[header];
-                    const valor = func ? func(lancamento) : '-';
-                    let classes = '';
+                    const func = dataMapping[header]; // Pega a função correspondente à coluna
+                    const valor = func ? func(lancamento) : '-'; // Executa a função ou usa '-'
+                    let classes = ''; // Classes CSS adicionais para a célula
+                    // Aplica estilo de cor para colunas de status (OK/NOK/NA)
                     if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
                         classes += ' status-cell';
                         if (valor === 'OK') classes += ' status-ok';
                         else if (valor === 'NOK') classes += ' status-nok';
                         else if (valor === 'N/A') classes += ' status-na';
                     }
+                    // Adiciona classe para a célula de detalhe diário (para abrir o modal)
                     if (header === "DETALHE DIÁRIO") {
                         classes += ' detalhe-diario-cell';
                     }
-                    return `<td class="${classes}">${valor}</td>`;
+                    return `<td class="${classes}">${valor}</td>`; // Retorna o HTML da célula
                 }).join('');
+                // Retorna o HTML da linha completa (tr)
                 return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
             }).join('');
 
+            // HTML do corpo do acordeão (a tabela interna)
             const bodyHTML = `
             <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
                 <div class="accordion-body">
@@ -434,20 +460,24 @@ document.addEventListener('DOMContentLoaded', function () {
                         <table class="table modern-table table-sm">
                             <thead>
                                 <tr>
-                                    <th></th>
-                                    ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')}
+                                    <th></th> <!-- Coluna para o checkbox -->
+                                    ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')} <!-- Cabeçalhos da tabela interna -->
                                 </tr>
                             </thead>
                             <tbody data-group-id="${uniqueId}">
-                                ${bodyRowsHTML}
+                                ${bodyRowsHTML} <!-- Linhas da tabela interna -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>`;
+
+            // Junta o cabeçalho e o corpo e adiciona ao fragmento
             item.innerHTML = headerHTML + bodyHTML;
             frag.appendChild(item);
         });
+
+        // Adiciona todos os itens do acordeão ao container de uma só vez
         accordionContainer.appendChild(frag);
     }
 

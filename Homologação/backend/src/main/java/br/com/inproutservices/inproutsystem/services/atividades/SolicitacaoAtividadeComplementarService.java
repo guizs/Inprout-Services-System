@@ -72,14 +72,21 @@ public class SolicitacaoAtividadeComplementarService {
     public List<SolicitacaoAtividadeComplementar> listarHistorico(Long usuarioId) {
         Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
         Role role = usuario.getRole();
-        List<StatusSolicitacaoComplementar> statuses = List.of(StatusSolicitacaoComplementar.APROVADO, StatusSolicitacaoComplementar.REJEITADO);
 
+        // Perfis que podem ver o histórico de todos os segmentos.
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return solicitacaoRepository.findByStatusIn(statuses);
+            // Remove o filtro de status, retornando todas as solicitações.
+            return solicitacaoRepository.findAll();
         }
 
+        // Para os demais perfis (Manager, Coordinator), filtra por segmento.
         Set<Segmento> segmentos = usuario.getSegmentos();
-        return solicitacaoRepository.findHistoricoBySegmentoIn(statuses, segmentos);
+        if (segmentos.isEmpty()) {
+            return List.of(); // Se não tiver segmentos, não vê nada.
+        }
+
+        // Utiliza um novo método no repositório para buscar todas por segmento.
+        return solicitacaoRepository.findAllByOsSegmentoIn(segmentos);
     }
 
     @Transactional

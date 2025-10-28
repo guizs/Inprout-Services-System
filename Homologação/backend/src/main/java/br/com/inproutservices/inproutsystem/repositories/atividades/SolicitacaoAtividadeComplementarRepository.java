@@ -23,4 +23,7 @@ public interface SolicitacaoAtividadeComplementarRepository extends JpaRepositor
     // Busca o histórico de um usuário (aprovadas/rejeitadas) dentro de seus segmentos
     @Query("SELECT s FROM SolicitacaoAtividadeComplementar s WHERE s.status IN :statuses AND s.os.segmento IN :segmentos ORDER BY s.dataSolicitacao DESC")
     List<SolicitacaoAtividadeComplementar> findHistoricoBySegmentoIn(@Param("statuses") List<StatusSolicitacaoComplementar> statuses, @Param("segmentos") Set<Segmento> segmentos);
+
+    @Query("SELECT s FROM SolicitacaoAtividadeComplementar s WHERE s.os.segmento IN :segmentos ORDER BY s.dataSolicitacao DESC")
+    List<SolicitacaoAtividadeComplementar> findAllByOsSegmentoIn(@Param("segmentos") Set<Segmento> segmentos);
 }

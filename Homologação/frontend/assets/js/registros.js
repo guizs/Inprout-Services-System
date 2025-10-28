@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
+        if (obj === null || obj === undefined) {
+            return defaultValue;
+        }
         const value = path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj);
         return value !== undefined ? value : defaultValue;
     };
@@ -24,8 +27,14 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     const formatarData = (dataStr) => {
         if (!dataStr) return '-';
-        return dataStr.split(' ')[0];
+        // Trata ambos os formatos (com ou sem hora, com - ou /)
+        let dataLimpa = dataStr.split(' ')[0];
+        if (dataLimpa.includes('-')) {
+            dataLimpa = dataLimpa.split('-').reverse().join('/');
+        }
+        return dataLimpa;
     };
+
 
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
@@ -44,12 +53,12 @@ document.addEventListener('DOMContentLoaded', function () {
         "PO": (linha) => get(linha, 'detalhe.po'), "ITEM": (linha) => get(linha, 'detalhe.item'),
         "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.lpu.nomeLpu'), "UNIDADE": (linha) => get(linha, 'detalhe.unidade'),
         "QUANTIDADE": (linha) => get(linha, 'detalhe.quantidade'), "VALOR TOTAL OS": (linha) => formatarMoeda(get(linha, 'detalhe.valorTotal')),
-        "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'), "DATA PO": (linha) => get(linha, 'detalhe.dataPo'),
-        "VISTORIA": (linha) => get(linha, 'ultimoLancamento.vistoria'), "PLANO VISTORIA": (linha) => get(linha, 'ultimoLancamento.planoVistoria'),
-        "DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.desmobilizacao'), "PLANO DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoDesmobilizacao'),
-        "INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.instalacao'), "PLANO INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoInstalacao'),
-        "ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.ativacao'), "PLANO ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoAtivacao'),
-        "DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.documentacao'), "PLANO DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoDocumentacao'),
+        "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'), "DATA PO": (linha) => formatarData(get(linha, 'detalhe.dataPo')),
+        "VISTORIA": (linha) => get(linha, 'ultimoLancamento.vistoria'), "PLANO VISTORIA": (linha) => formatarData(get(linha, 'ultimoLancamento.planoVistoria')),
+        "DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.desmobilizacao'), "PLANO DESMOBILIZAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoDesmobilizacao')),
+        "INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.instalacao'), "PLANO INSTALAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoInstalacao')),
+        "ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.ativacao'), "PLANO ATIVAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoAtivacao')),
+        "DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.documentacao'), "PLANO DOCUMENTAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoDocumentacao')),
         "ETAPA GERAL": (linha) => {
             const etapa = get(linha, 'ultimoLancamento.etapa', null);
             return etapa ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '-';
@@ -61,11 +70,11 @@ document.addEventListener('DOMContentLoaded', function () {
         "STATUS": (linha) => get(linha, 'ultimoLancamento.status'), "DETALHE DIÁRIO": (linha) => get(linha, 'ultimoLancamento.detalheDiario'),
         "CÓD. PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.codigo'), "PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.nome'),
         "VALOR": (linha) => formatarMoeda(get(linha, 'ultimoLancamento.valor')), "GESTOR": (linha) => get(linha, 'ultimoLancamento.manager.nome'),
-        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao'), "DATA ATIVIDADE": (linha) => get(linha, 'ultimoLancamento.dataAtividade'),
+        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao'), "DATA ATIVIDADE": (linha) => formatarData(get(linha, 'ultimoLancamento.dataAtividade')),
         "FATURAMENTO": (linha) => get(linha, 'detalhe.faturamento'), "SOLICIT ID FAT": (linha) => get(linha, 'detalhe.solitIdFat'),
         "RECEB ID FAT": (linha) => get(linha, 'detalhe.recebIdFat'), "ID FATURAMENTO": (linha) => get(linha, 'detalhe.idFaturamento'),
-        "DATA FAT INPROUT": (linha) => get(linha, 'detalhe.dataFatInprout'), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
-        "DATA FS": (linha) => get(linha, 'detalhe.dataFs'), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
+        "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
+        "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
         "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key')
     };
@@ -104,20 +113,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     detalhesAtivos.forEach(detalhe => {
                         let lancamentoParaExibir = detalhe.ultimoLancamento;
 
-                        // Se o backend não retornou um "ultimoLancamento" (porque filtrou o legado)
-                        // E existe uma lista de lançamentos para analisar...
                         if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
 
-                            // 1. Tenta encontrar lançamentos operacionais (que não são de legado de CPS)
                             const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
 
                             if (lancamentosOperacionais.length > 0) {
-                                // 2. Se encontrou, pega o mais recente deles
                                 lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
                                     return (maisRecente.id > atual.id) ? maisRecente : atual;
                                 });
                             } else {
-                                // 3. Se NÃO encontrou (só existem legados), pega o legado mais recente para exibir
                                 lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
                                     return (maisRecente.id > atual.id) ? maisRecente : atual;
                                 });
@@ -138,15 +142,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const btnSortOS = document.getElementById('btnSortOS');
             if (btnSortOS) {
                 btnSortOS.addEventListener('click', () => {
-                    // Inverte a direção da ordenação
                     osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
-
-                    // Atualiza o ícone do botão
                     const icon = btnSortOS.querySelector('i');
                     icon.classList.toggle('bi-sort-down', osSortDirection === 'asc');
                     icon.classList.toggle('bi-sort-up-alt', osSortDirection === 'desc');
-
-                    // Chama a função que renderiza a tabela para aplicar a nova ordem
                     renderizarTabelaComFiltro();
                 });
             }
@@ -171,8 +170,7 @@ document.addEventListener('DOMContentLoaded', function () {
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
         const valorTotalCPS = grupo.linhas
-            .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-            // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+            .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
             .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
@@ -190,16 +188,36 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>`;
         }
 
-        const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
+        // --- INÍCIO DA ALTERAÇÃO ---
+        // Adiciona a coluna "HISTÓRICO" dinamicamente
+        const headersVisiveis = [...headers];
+        if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
+            headersVisiveis.push("AÇÕES");
+        }
+        headersVisiveis.unshift("HISTÓRICO"); // Adiciona no início
+        // --- FIM DA ALTERAÇÃO ---
+
 
         const bodyRowsHTML = grupo.linhas.map(linhaData => {
-            const cellsHTML = headersComAcoes.map(header => {
+            const cellsHTML = headersVisiveis.map(header => {
+                const detalheId = get(linhaData, 'detalhe.id', '');
+
+                // --- INÍCIO DA ALTERAÇÃO ---
+                if (header === "HISTÓRICO") {
+                    // Adiciona o botão de histórico, passando o ID do detalhe (da linha)
+                    // Desabilita se não houver detalheId ou se houver 1 ou menos lançamentos
+                    const lancamentosCount = get(linhaData, 'detalhe.lancamentos', []).length;
+                    const isDisabled = !detalheId || lancamentosCount <= 1;
+                    return `<td><button class="btn btn-sm btn-outline-info btn-historico" data-detalhe-id="${detalheId}" title="Ver Histórico de Lançamentos" ${isDisabled ? 'disabled' : ''}><i class="bi bi-clock-history"></i></button></td>`;
+                }
+                // --- FIM DA ALTERAÇÃO ---
+
                 if (header === "AÇÕES") {
-                    const detalheId = get(linhaData, 'detalhe.id', '');
                     let btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>` : '';
                     const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
                     return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                 }
+
                 const func = dataMapping[header];
                 const valor = func ? func(linhaData) : '-';
                 let classes = '';
@@ -229,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="accordion-body">
                 <div class="table-responsive">
                     <table class="table modern-table table-sm">
-                        <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                        <thead><tr>${headersVisiveis.map(h => `<th>${h}</th>`).join('')}</tr></thead>
                         <tbody>${bodyRowsHTML}</tbody>
                     </table>
                 </div>
@@ -262,99 +280,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const gruposDaPagina = grupos.slice(inicio, fim);
 
         const frag = document.createDocumentFragment();
-
-        gruposDaPagina.forEach((grupo, index) => {
-            const uniqueId = `${grupo.id}-${index}`;
-            const item = document.createElement('div');
-            item.className = 'accordion-item';
-            item.id = `accordion-item-${uniqueId}`;
-
-            // ===== INÍCIO DA CORREÇÃO E NOVOS CÁLCULOS =====
-            // O valor total da OS é a soma do valor de todos os seus detalhes (linhas da planilha).
-            const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
-                .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-
-            // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
-            const valorTotalCPS = grupo.linhas
-                .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
-                .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
-                .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
-            // Pega o custo de material diretamente do objeto OS (calculado no backend).
-            const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-
-            // O novo percentual considera tanto o CPS quanto o custo de material.
-            const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
-
-            let kpiHTML = '';
-            if (userRole !== 'MANAGER') {
-                kpiHTML = `
-                <div class="header-kpi-wrapper">
-                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
-                </div>`;
-            }
-
-            const headerHTML = `
-            <h2 class="accordion-header" id="heading-${uniqueId}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                    <div class="header-content">
-                        <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
-                        ${kpiHTML}
-                        <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
-                    </div>
-                </button>
-            </h2>`;
-
-            const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
-
-            const bodyRowsHTML = grupo.linhas.map(linhaData => {
-                const cellsHTML = headersComAcoes.map(header => {
-                    if (header === "AÇÕES") {
-                        const detalheId = get(linhaData, 'detalhe.id', '');
-                        const chave = get(linhaData, 'detalhe.key', '-');
-                        const semChave = chave === '-' || chave === '' || chave === null;
-
-                        // [CORREÇÃO 1] Altera a classe do botão de editar para .btn-edit-detalhe
-                        // O botão só será renderizado se houver um detalheId
-                        let btnEditar = '';
-                        if (detalheId) {
-                            btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>`;
-                        }
-
-                        const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
-                        return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
-                    }
-                    const func = dataMapping[header];
-                    const valor = func ? func(linhaData) : '-';
-                    let classes = '';
-                    if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
-                        classes += ' status-cell';
-                        if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
-                    }
-                    if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
-                    return `<td class="${classes}">${valor}</td>`;
-                }).join('');
-                return `<tr>${cellsHTML}</tr>`;
-            }).join('');
-
-            const bodyHTML = `
-            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
-                <div class="accordion-body">
-                    <div class="table-responsive">
-                        <table class="table modern-table table-sm">
-                            <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-                            <tbody>${bodyRowsHTML}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>`;
-
-            item.innerHTML = headerHTML + bodyHTML;
-            frag.appendChild(item);
+        gruposDaPagina.forEach(grupo => {
+            frag.appendChild(document.createRange().createContextualFragment(gerarHtmlParaGrupo(grupo)));
         });
 
         accordionContainer.appendChild(frag);
@@ -366,7 +293,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const selectSegmento = document.getElementById('selectSegmento');
 
         try {
-            // Reutiliza a lógica de busca de segmentos
             const response = await fetchComAuth(`${API_BASE_URL}/segmentos`);
             if (!response.ok) throw new Error('Falha ao carregar segmentos.');
             const segmentos = await response.json();
@@ -376,13 +302,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const option = document.createElement('option');
                 option.value = seg.id;
                 option.textContent = seg.nome;
-                // Compara o ID de forma frouxa para garantir que a seleção funcione
                 if (seg.id == segmentoAtualId) {
                     option.selected = true;
                 }
                 selectSegmento.appendChild(option);
             });
-            // Mantém desabilitado até o toggle ser ativado
             selectSegmento.disabled = true;
 
         } catch (error) {
@@ -414,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     linhas: [],
                     projeto: get(linha, 'os.projeto', 'Sem Projeto'),
                     os: get(linha, 'os.os', 'Sem OS'),
-                    id: get(linha, 'os.id', 'sem-id')
+                    id: get(linha, 'os.id', 'sem-id-' + Math.random()) // ID único para o grupo
                 };
             }
             acc[chaveGrupo].linhas.push(linha);
@@ -434,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         gruposFiltradosCache = agrupado;
-        paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
+        paginaAtual = 1;
         renderizarTabela();
     }
 
@@ -449,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('rowsPerPage').addEventListener('change', (e) => {
             const valor = e.target.value;
             linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
-            paginaAtual = 1; // Volta para a primeira página ao mudar a quantidade de itens
+            paginaAtual = 1;
             renderizarTabela();
         });
         document.getElementById('btnPrimeiraPagina').addEventListener('click', () => {
@@ -478,63 +402,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
-
-        // [CORREÇÃO 2] Instancia ambos os modais UMA ÚNICA vez na função
         const modalEditarDetalheEl = document.getElementById('modalEditarDetalhe');
         const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
-
         const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
 
+        // --- INÍCIO DA ADIÇÃO ---
         const modalHistoricoEl = document.getElementById('modalHistoricoLancamentos');
         const modalHistorico = modalHistoricoEl ? new bootstrap.Modal(modalHistoricoEl) : null;
+        // --- FIM DA ADIÇÃO ---
 
-        // Listener para editar/excluir
         accordionContainer.addEventListener('click', function (e) {
-
-            // [CORREÇÃO 3] Busca pelo nome da classe corrigida (.btn-edit-detalhe)
             const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
+            const btnHistorico = e.target.closest('.btn-historico'); // Captura o clique no novo botão
 
             if (btnEdit) {
                 e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
-
                 if (!detalheId) {
                     mostrarToast("Registro de detalhe não possui ID para edição.", "warning");
                     return;
                 }
-
                 const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
-
                 if (modalEditarDetalhe && linhaData) {
-
                     const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
                     document.getElementById('editDetalheId').value = detalheId;
-
                     document.getElementById('osValue').value = get(linhaData, 'os.os', 'N/A');
-
                     const chaveExistente = get(linhaData, 'detalhe.key', '');
                     document.getElementById('novaKeyValue').value = chaveExistente;
-
                     const segmentoAtualId = get(linhaData, 'os.segmento.id');
                     carregarSegmentosESelecionarAtual(segmentoAtualId);
-
-                    // Armazena valores originais no dataset para comparação
                     formEditarDetalheEl.dataset.originalKey = chaveExistente;
                     formEditarDetalheEl.dataset.originalSegmentoId = segmentoAtualId;
-
-                    // Reseta o estado dos switches e campos
                     document.querySelectorAll('#formEditarDetalhe .toggle-editar').forEach(toggle => {
                         toggle.checked = false;
                         const targetInput = document.querySelector(toggle.dataset.target);
                         if (targetInput) targetInput.disabled = true;
                     });
-
-                    // Desabilita o botão de salvar até que algo seja alterado
                     document.getElementById('btnSalvarDetalhe').disabled = true;
-
-                    // [CORREÇÃO 4] Ação final: mostra o modal de edição
                     modalEditarDetalhe.show();
                 } else {
                     mostrarToast("Não foi possível carregar os dados para edição.", "error");
@@ -544,31 +450,31 @@ document.addEventListener('DOMContentLoaded', function () {
             if (btnDelete) {
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
-
                 if (modalConfirmarExclusao) {
-                    // [CORREÇÃO 5] Ação final: mostra o modal de exclusão (agora que modalConfirmarExclusao é uma instância válida)
                     modalConfirmarExclusao.show();
                 }
-                if (btnHistorico) {
-                    e.preventDefault();
-                    const detalheId = btnHistorico.dataset.detalheId;
-                    const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
+            }
 
-                    if (modalHistorico && linhaData && linhaData.detalhe && linhaData.detalhe.lancamentos) {
-                        const modalBody = document.getElementById('tbody-historico-lancamentos');
-                        const modalTitle = document.getElementById('modalHistoricoLancamentosLabel');
+            // --- INÍCIO DA NOVA LÓGICA ---
+            if (btnHistorico) {
+                e.preventDefault();
+                const detalheId = btnHistorico.dataset.detalheId;
+                const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
 
-                        modalTitle.innerHTML = `<i class="bi bi-clock-history me-2"></i>Histórico da Linha: ${get(linhaData, 'detalhe.key', '')}`;
+                if (modalHistorico && linhaData && linhaData.detalhe && linhaData.detalhe.lancamentos) {
+                    const modalBody = document.getElementById('tbody-historico-lancamentos');
+                    const modalTitle = document.getElementById('modalHistoricoLancamentosLabel');
 
-                        // Ordena os lançamentos do mais recente para o mais antigo pelo ID
-                        const lancamentosOrdenados = [...linhaData.detalhe.lancamentos].sort((a, b) => b.id - a.id);
+                    modalTitle.innerHTML = `<i class="bi bi-clock-history me-2"></i>Histórico da Linha: ${get(linhaData, 'detalhe.key', '')}`;
 
-                        if (lancamentosOrdenados.length === 0) {
-                            modalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum lançamento encontrado para esta linha.</td></tr>';
-                        } else {
-                            modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
-                                const etapa = get(lanc, 'etapa', {});
-                                return `
+                    const lancamentosOrdenados = [...linhaData.detalhe.lancamentos].sort((a, b) => b.id - a.id);
+
+                    if (lancamentosOrdenados.length === 0) {
+                        modalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum lançamento encontrado para esta linha.</td></tr>';
+                    } else {
+                        modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
+                            const etapa = get(lanc, 'etapa', {});
+                            return `
                                 <tr>
                                     <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
                                     <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
@@ -579,66 +485,48 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <td>${get(lanc, 'manager.nome', '')}</td>
                                 </tr>
                             `;
-                            }).join('');
-                        }
-                        modalHistorico.show();
-                    } else {
-                        mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
+                        }).join('');
                     }
+                    modalHistorico.show();
+                } else {
+                    mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
                 }
-                // --- FIM DA NOVA LÓGICA ---
             }
+            // --- FIM DA NOVA LÓGICA ---
         });
 
-        // Adiciona o listener para habilitar/desabilitar o botão salvar
+        // ... (restante dos listeners) ...
         const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
         if (formEditarDetalheEl) {
-
             formEditarDetalheEl.addEventListener('change', (e) => {
                 if (e.target.classList.contains('toggle-editar')) {
                     const toggle = e.target;
                     const targetSelector = toggle.dataset.target;
                     const targetInput = document.querySelector(targetSelector);
-
                     if (targetInput) {
                         targetInput.disabled = !toggle.checked;
-
-                        // Garante que o evento 'input' seja disparado para reavaliar o botão Salvar
                         const event = new Event('input', { bubbles: true });
                         targetInput.dispatchEvent(event);
                     }
                 }
             });
-
-            // Este listener verifica se os toggles estão ativos E se os valores mudaram.
             formEditarDetalheEl.addEventListener('input', () => {
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
-
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
-
-                // Verifica se o toggle está ligado E se o valor atual é diferente do original
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
-
-                // Habilita o botão se qualquer um dos dois for verdadeiro
                 document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged);
             });
-
-            // Lógica para salvar a nova KEY e Segmento
             formEditarDetalheEl.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const detalheId = document.getElementById('editDetalheId').value;
                 const btnSalvar = document.getElementById('btnSalvarDetalhe');
-
-                // Pega os valores para comparação
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
-
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
-
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
 
@@ -646,13 +534,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     mostrarToast('Nenhuma alteração para salvar.', 'warning');
                     return;
                 }
-
                 btnSalvar.disabled = true;
                 btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
-
                 const promises = [];
-
-                // 1. Promessa para atualizar a Key
                 if (keyChanged) {
                     promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
                         method: 'PATCH',
@@ -660,8 +544,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         body: JSON.stringify({ key: currentKey })
                     }));
                 }
-
-                // 2. Promessa para atualizar o Segmento (chama o novo endpoint)
                 if (segmentoChanged) {
                     promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/segmento`, {
                         method: 'PATCH',
@@ -669,38 +551,27 @@ document.addEventListener('DOMContentLoaded', function () {
                         body: JSON.stringify({ novoSegmentoId: parseInt(currentSegmentoId) })
                     }));
                 }
-
                 try {
                     const results = await Promise.all(promises);
-
                     let allSuccessful = true;
                     let errorMessages = [];
-
                     for (let i = 0; i < results.length; i++) {
                         const response = results[i];
                         if (!response.ok) {
                             allSuccessful = false;
                             const errorType = (i === 0 && keyChanged) ? "Chave Externa" : "Segmento";
                             let errorMessage = `${errorType}: Erro desconhecido ou de rede.`;
-                            try {
-                                // Tenta ler a mensagem de erro do backend
-                                const errorData = await response.json();
-                                errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`;
-                            } catch { }
+                            try { const errorData = await response.json(); errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`; } catch { }
                             errorMessages.push(errorMessage);
                         }
                     }
-
                     if (allSuccessful) {
                         mostrarToast('Detalhes atualizados com sucesso!', 'success');
                     } else {
-                        // Lançar um erro para o bloco catch tratar
                         throw new Error(errorMessages.join(' | '));
                     }
-
                     if (modalEditarDetalhe) modalEditarDetalhe.hide();
                     await inicializarPagina();
-
                 } catch (error) {
                     mostrarToast(error.message, 'error');
                 } finally {
@@ -710,40 +581,27 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-
-
-        // Lógica para confirmar a exclusão (mantida)
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
         if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
                 const detalheId = document.getElementById('deleteDetalheId').value;
                 const btnConfirmar = this;
-
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
-
                 try {
                     const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
                         method: 'DELETE'
                     });
-
                     if (!response.ok) {
                         let errorMsg = 'Erro ao excluir o registro.';
-                        try {
-                            const errorData = await response.json();
-                            errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`;
-                        } catch (e) {
-                            const errorText = await response.text();
-                            errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`;
-                        }
+                        try { const errorData = await response.json(); errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`; }
+                        catch (e) { const errorText = await response.text(); errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`; }
                         throw new Error(errorMsg);
                     }
-
                     mostrarToast('Registro excluído com sucesso!', 'success');
                     if (modalInstance) modalInstance.hide();
                     await inicializarPagina();
-
                 } catch (error) {
                     console.error("Erro ao excluir o registro:", error);
                     mostrarToast(error.message, 'error');

@@ -164,8 +164,9 @@ document.addEventListener('DOMContentLoaded', function () {
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
         const valorTotalCPS = grupo.linhas
-            .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+            .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
+            // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+            .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
         const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
@@ -269,7 +270,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
             const valorTotalCPS = grupo.linhas
                 .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+                .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
                 .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
             // Pega o custo de material diretamente do objeto OS (calculado no backend).
@@ -925,10 +927,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
                     const valorTotalCPS = grupo.linhas
-                        .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-                        .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                        .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
+                        // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+                        .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
                     const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;

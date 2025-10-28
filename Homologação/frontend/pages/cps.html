@@ -83,24 +83,32 @@
             <option value="todos" selected>Todos os Segmentos</option>
           </select>
         </div>
-        <div class="col-md-2 d-flex gap-2">
-          <button class="btn btn-primary w-50" id="btn-filter" title="Aplicar Filtros">
-            <i class="bi bi-search"></i> Filtrar
-          </button>
-          <div class="btn-group w-50">
-            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"
-              aria-expanded="false">
-              <i class="bi bi-file-earmark-excel"></i> Exportar
+        <div class="col-md-2 d-flex align-items-end">
+          <div class="btn-group w-100" role="group" aria-label="Ações do Relatório">
+            <button class="btn btn-primary" id="btn-filter" title="Aplicar Filtros">
+              <i class="bi bi-search"></i> Filtrar
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="#" id="export-consolidado">Consolidado por Prestador</a></li>
-              <li><a class="dropdown-item" href="#" id="export-lancamentos">Lançamentos Aprovados</a></li>
-              <li><a class="dropdown-item" href="#" id="export-programacao">Programações por Dia e Gestor</a></li>
-              <li>
-                <hr class="dropdown-divider">
-              </li>
-              <li><a class="dropdown-item" href="#" id="export-nao-faturado">Lançamentos Não Faturados</a></li>
-            </ul>
+            <div class="btn-group" role="group">
+              <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"
+                aria-expanded="false">
+                <i class="bi bi-file-earmark-excel"></i> Exportar
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="#" id="export-consolidado">Consolidado por Prestador</a></li>
+                <li><a class="dropdown-item" href="#" id="export-lancamentos">Lançamentos Aprovados</a></li>
+                <li><a class="dropdown-item" href="#" id="export-programacao">Programações por Dia e Gestor</a></li>
+                <li>
+                  <hr class="dropdown-divider">
+                </li>
+                <li><a class="dropdown-item" href="#" id="export-nao-faturado">Lançamentos Não Faturados</a></li>
+              </ul>
+            </div>
+            <div id="import-container" style="display: none;">
+              <button class="btn btn-info" id="btn-importar-legado" title="Importar Planilha de Legado">
+                <i class="bi bi-upload"></i> Importar
+              </button>
+              <input type="file" id="import-legado-input" accept=".xlsx" hidden>
+            </div>
           </div>
         </div>
       </div>
@@ -145,6 +153,33 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="modalProgressoImportacao" data-bs-backdrop="static" data-bs-keyboard="false"
+    tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-upload me-2"></i>Importando Legado CPS</h5>
+        </div>
+        <div class="modal-body">
+          <p id="textoProgressoImportacao" class="text-center mb-2">Iniciando...</p>
+          <div class="progress" role="progressbar" style="height: 20px;">
+            <div id="barraProgressoImportacao"
+              class="progress-bar progress-bar-striped progress-bar-animated bg-success" style="width: 0%">0%</div>
+          </div>
+          <div id="avisosImportacaoContainer" class="mt-3 d-none">
+            <h6>Avisos durante a importação:</h6>
+            <ul id="listaAvisosImportacao" class="list-group"
+              style="font-size: 0.8rem; max-height: 150px; overflow-y: auto;"></ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnFecharProgresso" data-bs-dismiss="modal"
+            disabled>Fechar</button>
         </div>
       </div>
     </div>

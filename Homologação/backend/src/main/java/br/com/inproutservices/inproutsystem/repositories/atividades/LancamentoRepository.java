@@ -99,10 +99,10 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa e " +
             "LEFT JOIN FETCH l.manager " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
-            "ORDER BY l.id DESC") // <-- A ordenação foi adicionada aqui
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado de '=' para 'IN'
+            "ORDER BY l.id DESC")
     List<Lancamento> findLancamentosAprovadosPorPeriodo(
-            @Param("status") SituacaoAprovacao status,
+            @Param("statuses") List<SituacaoAprovacao> statuses, // Modificado de SituacaoAprovacao para List<SituacaoAprovacao>
             @Param("dataInicio") LocalDate dataInicio,
             @Param("dataFim") LocalDate dataFim
     );

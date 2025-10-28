@@ -4,9 +4,12 @@
 
 /* 1. Libera a barra de rolagem para a PÁGINA INTEIRA, apenas na tela de CPS */
 body {
-    overflow-y: auto !important; /* Libera a rolagem vertical SÓ NESTA PÁGINA */
-    height: auto !important;     /* Permite que o corpo da página cresça com o conteúdo */
-    display: block !important;    /* Retorna ao fluxo normal de exibição */
+    overflow-y: auto !important;
+    /* Libera a rolagem vertical SÓ NESTA PÁGINA */
+    height: auto !important;
+    /* Permite que o corpo da página cresça com o conteúdo */
+    display: block !important;
+    /* Retorna ao fluxo normal de exibição */
 }
 
 /* ===============================================
@@ -81,10 +84,12 @@ body {
     position: relative;
     border: 1px solid #dee2e6;
     border-radius: 6px;
-    overflow: auto; /* Habilita os dois scrolls (vertical e horizontal) */
+    overflow: auto;
+    /* Habilita os dois scrolls (vertical e horizontal) */
     width: 100%;
     /* 3. Define uma altura máxima PADRÃO para a tabela */
-    max-height: 500px; /* Você pode ajustar este valor se achar melhor */
+    max-height: 500px;
+    /* Você pode ajustar este valor se achar melhor */
 }
 
 #table-cps {
@@ -123,6 +128,38 @@ body {
     align-items: center;
     z-index: 9999;
     transition: opacity 0.3s ease;
+}
+
+.card.p-3 .row > div.d-flex.justify-content-end {
+    flex-direction: row; /* Alinha os itens na horizontal */
+}
+
+/* Estilo para os botões de ação (Exportar e Importar) */
+.btn-group .btn,
+#import-container .btn {
+    border-radius: 0.375rem !important; /* Arredondamento padrão do Bootstrap */
+    padding: 0.5rem 0.8rem; /* Ajuste fino no padding */
+}
+
+/* Remove a separação do dropdown-toggle */
+.btn-group .dropdown-toggle::after {
+    display: none;
+}
+
+/* Garante que o botão de importar tenha a mesma aparência */
+#import-container {
+    display: none; /* Mantém oculto por padrão */
+}
+
+/* Cor do botão de importar (opcional, para diferenciar) */
+.btn-info {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: white;
+}
+.btn-info:hover {
+    background-color: #0b9fb9;
+    border-color: #0b9fb9;
 }
 
 /* Responsividade (mantida) */

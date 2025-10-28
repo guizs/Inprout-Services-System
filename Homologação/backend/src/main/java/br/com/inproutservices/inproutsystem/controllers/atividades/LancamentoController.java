@@ -15,18 +15,16 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalhe
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 // Records para requisições em lote, mantidos no topo para clareza
@@ -77,7 +75,7 @@ public class LancamentoController {
                 .collect(Collectors.groupingBy(d -> d.getOs().getId()));
 
         // CORREÇÃO: Usando o novo método do repositório
-        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO);
+        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_LEGADO);
         Map<Long, List<Lancamento>> lancamentosAprovadosPorOsId = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
 
@@ -144,6 +142,27 @@ public class LancamentoController {
     public ResponseEntity<List<PendenciasPorCoordenadorDTO>> getPendenciasPorCoordenador() {
         List<PendenciasPorCoordenadorDTO> pendencias = lancamentoService.getPendenciasPorCoordenador();
         return ResponseEntity.ok(pendencias);
+    }
+
+    @PostMapping("/importar-legado-cps")
+    public ResponseEntity<Map<String, Object>> importarLegadoCps(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Por favor, envie um arquivo."));
+        }
+        try {
+            List<String> warnings = lancamentoService.importarLegadoCps(file);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Importação concluída!");
+            response.put("warnings", warnings);
+            return ResponseEntity.ok(response);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Falha ao processar o arquivo: " + e.getMessage()));
+        } catch (BusinessException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ocorreu um erro inesperado: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/cps/programacao-diaria")

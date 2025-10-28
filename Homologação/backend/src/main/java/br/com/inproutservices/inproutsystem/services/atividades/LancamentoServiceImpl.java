@@ -812,22 +812,18 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
-        // --- CORREÇÃO APLICADA AQUI ---
-        // Agora buscamos ambos os status de aprovação
         List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_LEGADO);
 
-        // 1. A chamada ao repositório agora passa a lista de status
         List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(statuses, dataInicio, dataFim);
 
-        // 2. O restante da lógica permanece o mesmo
         List<CpsResponseDTO.LancamentoCpsDetalheDTO> detalhesDTO = lancamentosAprovados.stream()
                 .map(CpsResponseDTO.LancamentoCpsDetalheDTO::new)
                 .collect(Collectors.toList());
 
-        // As consultas agregadas precisam ser ajustadas para usar a lista de status também.
-        // Embora o impacto seja mínimo aqui, é uma boa prática para consistência.
-        List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(SituacaoAprovacao.APROVADO, dataInicio, dataFim);
-        List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(SituacaoAprovacao.APROVADO, dataInicio, dataFim);
+        // --- CORREÇÃO APLICADA AQUI ---
+        List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(statuses, dataInicio, dataFim);
+        List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(statuses, dataInicio, dataFim);
+        // --- FIM DA CORREÇÃO ---
 
         BigDecimal valorTotalGeral = lancamentosAprovados.stream()
                 .map(Lancamento::getValor)

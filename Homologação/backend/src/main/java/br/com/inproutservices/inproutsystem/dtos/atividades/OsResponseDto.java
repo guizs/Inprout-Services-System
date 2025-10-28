@@ -76,7 +76,7 @@ public record OsResponseDto(
             String gate,
             String gateId,
             LancamentoResponseDTO ultimoLancamento,
-            List<LancamentoResponseDTO> lancamentos // <-- CAMPO ADICIONADO
+            List<LancamentoResponseDTO> lancamentos
     ) {
         public OsLpuDetalheCompletoDto(OsLpuDetalhe detalhe) {
             this(
@@ -107,12 +107,14 @@ public record OsResponseDto(
                     detalhe.getNumFs(),
                     detalhe.getGate(),
                     detalhe.getGateId(),
+                    // --- CORREÇÃO APLICADA AQUI ---
+                    // Filtra para ignorar o legado de CPS e então pega o mais recente dos que sobraram
                     detalhe.getLancamentos().stream()
-                            .filter(lancamento -> lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO || lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO_LEGADO)
+                            .filter(lancamento -> lancamento.getSituacaoAprovacao() != SituacaoAprovacao.APROVADO_LEGADO)
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                             .map(LancamentoResponseDTO::new)
                             .orElse(null),
-                    // LÓGICA PARA POPULAR A LISTA COMPLETA DE LANÇAMENTOS
+                    // --- FIM DA CORREÇÃO ---
                     detalhe.getLancamentos().stream()
                             .map(LancamentoResponseDTO::new)
                             .collect(Collectors.toList())

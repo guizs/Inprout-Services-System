@@ -83,35 +83,31 @@
             <option value="todos" selected>Todos os Segmentos</option>
           </select>
         </div>
-        <div class="col-md-2 d-flex align-items-end">
-          <div class="btn-group w-100" role="group" aria-label="Ações do Relatório">
-            <button class="btn btn-primary" id="btn-filter" title="Aplicar Filtros">
-              <i class="bi bi-search"></i> Filtrar
+        
+        <div class="col-md-2 d-flex justify-content-end align-items-end gap-2">
+            <button class="btn btn-primary w-100" id="btn-filter" title="Aplicar Filtros">
+                <i class="bi bi-search"></i> Filtrar
             </button>
             <div class="btn-group" role="group">
-              <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown"
-                aria-expanded="false">
-                <i class="bi bi-file-earmark-excel"></i> Exportar
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end">
-                <li><a class="dropdown-item" href="#" id="export-consolidado">Consolidado por Prestador</a></li>
-                <li><a class="dropdown-item" href="#" id="export-lancamentos">Lançamentos Aprovados</a></li>
-                <li><a class="dropdown-item" href="#" id="export-programacao">Programações por Dia e Gestor</a></li>
-                <li>
-                  <hr class="dropdown-divider">
-                </li>
-                <li><a class="dropdown-item" href="#" id="export-nao-faturado">Lançamentos Não Faturados</a></li>
-              </ul>
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Exportar Relatórios">
+                    <i class="bi bi-file-earmark-excel"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#" id="export-consolidado">Consolidado por Prestador</a></li>
+                    <li><a class="dropdown-item" href="#" id="export-lancamentos">Lançamentos Aprovados</a></li>
+                    <li><a class="dropdown-item" href="#" id="export-programacao">Programações por Dia e Gestor</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" id="export-nao-faturado">Lançamentos Não Faturados</a></li>
+                </ul>
             </div>
             <div id="import-container" style="display: none;">
-              <button class="btn btn-info" id="btn-importar-legado" title="Importar Planilha de Legado">
-                <i class="bi bi-upload"></i> Importar
-              </button>
-              <input type="file" id="import-legado-input" accept=".xlsx" hidden>
+                <button class="btn btn-info" id="btn-importar-legado" title="Importar Planilha de Legado">
+                    <i class="bi bi-upload"></i>
+                </button>
+                <input type="file" id="import-legado-input" accept=".xlsx" hidden>
             </div>
-          </div>
         </div>
-      </div>
+        </div>
     </div>
 
 
@@ -228,7 +224,6 @@
     </div>
   </div>
 
-  <!-- Modal Minha Conta -->
   <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
     <div class="modal-dialog modal-md modal-dialog-centered">
       <div class="modal-content">
@@ -258,7 +253,8 @@
               <form id="formAlterarEmail">
                 <div class="mb-2">
                   <label class="form-label">Novo E-mail</label>
-                  <input type="email" class="form-control" id="novoEmail" placeholder="Digite seu novo e-mail">
+                  <input type="email" class="form-control" id="novoEmail"
+                    placeholder="Digite seu novo e-mail">
                 </div>
               </form>
             </div>
@@ -272,11 +268,13 @@
               <form id="formAlterarSenha">
                 <div class="mb-2">
                   <label class="form-label">Nova Senha</label>
-                  <input type="password" class="form-control" id="novaSenha" placeholder="Digite sua nova senha">
+                  <input type="password" class="form-control" id="novaSenha"
+                    placeholder="Digite sua nova senha">
                 </div>
                 <div class="mb-2">
                   <label class="form-label">Confirmar Nova Senha</label>
-                  <input type="password" class="form-control" id="confirmarSenha" placeholder="Confirme sua nova senha">
+                  <input type="password" class="form-control" id="confirmarSenha"
+                    placeholder="Confirme sua nova senha">
                 </div>
               </form>
             </div>

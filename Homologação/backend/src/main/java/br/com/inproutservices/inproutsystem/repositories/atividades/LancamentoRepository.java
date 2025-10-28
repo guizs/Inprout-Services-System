@@ -110,15 +110,15 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     // ================== CORREÇÃO 5 ==================
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
             "FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o JOIN o.segmento s " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado aqui
             "GROUP BY s.nome ORDER BY s.nome")
-    List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+    List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO(p.codigoPrestador, p.prestador, SUM(l.valor), COUNT(l.id)) " +
             "FROM Lancamento l JOIN l.prestador p " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado aqui
             "GROUP BY p.codigoPrestador, p.prestador ORDER BY SUM(l.valor) DESC")
-    List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+    List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     boolean existsByOsLpuDetalheIdAndSituacao(Long osLpuDetalheId, SituacaoOperacional situacao);
 

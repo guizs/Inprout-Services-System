@@ -1,5 +1,5 @@
 /* =================================================================== */
-/* CSS ESPECÍFICO PARA A PÁGINA DE GESTÃO DE APROVAÇÕES
+/* CSS ESPECÍFICO PARA A PÁGNIA DE GESTÃO DE APROVAÇÕES
 /* Contém apenas estilos que adicionam ou modificam o global.css
 /* =================================================================== */
 
@@ -67,20 +67,6 @@ body {
     color: #343a40;
     display: flex;
     align-items: center;
-}
-
-.overlay-loader {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(255, 255, 255, 0.7);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.3s ease; /* Adiciona uma transição suave */
 }
 
 /* ======================================== */
@@ -281,4 +267,23 @@ body {
 }
 .accordion-button-vencido::after {
     filter: invert(1) brightness(0.5);
+}
+
+/* 1. Define o container como o "limite" para o loader */
+.content-loader-container {
+    position: relative; /* Essencial para conter o loader */
+    min-height: 300px;  /* Altura mínima para o loader ser visível em conteúdo vazio */
+}
+
+/* 2. Regra específica que SOBRESCREVE qualquer outra definição global */
+/* Esta regra só se aplica a um .overlay-loader que está DENTRO de um .content-loader-container */
+.content-loader-container .overlay-loader {
+    position: absolute; /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
+    z-index: 1040;     /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
+    border-radius: 0.75rem; /* Opcional: arredonda as bordas do loader igual ao card */
+}
+
+.text-danger-emphasis {
+    color: #dc3545 !important; /* Cor vermelha do Bootstrap */
+    font-weight: 700 !important; /* Deixa o texto em negrito para mais destaque */
 }

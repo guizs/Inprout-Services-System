@@ -26,7 +26,7 @@ public class Lancamento {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "os_id")
+    @JoinColumn(name = "os_id", nullable = false) // Garante que a coluna não pode ser nula
     private OS os;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -4,7 +4,7 @@ import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 
-import java.util.ArrayList;
+        import java.util.ArrayList;
 import java.util.List;
 
 @Entity

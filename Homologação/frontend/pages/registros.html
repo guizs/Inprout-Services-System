@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="../assets/css/registros.css" />
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
+
 </head>
 
 <body>
@@ -23,7 +23,10 @@
             <button class="btn toggle-sidebar" id="menu-toggle">
                 <i class="bi bi-grid fs-5"></i>
             </button>
-            <img src="../assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+            <link rel="icon" href="../assets/imgs/login/logo.png" type="image/png">
+            <a href="../index.html">
+                <img src="../assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+            </a>
 
             <div class="dropdown ms-auto">
                 <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
@@ -47,10 +50,17 @@
                         <div class="input-group search-box flex-grow-1">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
                             <input type="text" id="searchInput" class="form-control"
-                                placeholder="Buscar por OS, Site, Contrato...">
+                                placeholder="Buscar por OS, Site, Contrato, KEY...">
                         </div>
+                        <button class="btn btn-outline-secondary btn-sm" id="btnSortOS" title="Ordenar por OS">
+                            OS <i class="bi bi-sort-down"></i>
+                        </button>
                     </div>
-                    <div class="d-flex flex-wrap gap-2" id="botoes-acao">
+                    <div class="d-flex flex-wrap align-items-center gap-2" id="botoes-acao">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="importLegado" />
+                            <label class="form-check-label" for="importLegado">Importar Legado</label>
+                        </div>
                         <button class="btn btn-success" id="btnDownloadTemplate">
                             <i class="bi bi-download me-1"></i> Modelo
                         </button>
@@ -96,6 +106,44 @@
             </div>
         </div>
     </div>
+
+    <!-- === INÍCIO: NOVO MODAL DE HISTÓRICO DE LANÇAMENTOS === -->
+    <div class="modal fade" id="modalHistoricoLancamentos" tabindex="-1" aria-labelledby="modalHistoricoLancamentosLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalHistoricoLancamentosLabel"><i
+                            class="bi bi-clock-history me-2"></i>Histórico de Lançamentos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover modern-table">
+                            <thead>
+                                <tr>
+                                    <th>Data Atividade</th>
+                                    <th>Status Aprovação</th>
+                                    <th>Situação</th>
+                                    <th>Etapa</th>
+                                    <th>Prestador</th>
+                                    <th>Valor</th>
+                                    <th>Gestor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-historico-lancamentos">
+                                <!-- As linhas do histórico serão inseridas aqui via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- === FIM: NOVO MODAL DE HISTÓRICO DE LANÇAMENTOS === -->
 
     <div class="modal fade" id="modalProgressoExportacao" data-bs-backdrop="static" data-bs-keyboard="false"
         tabindex="-1" aria-labelledby="modalProgressoLabel" aria-hidden="true">
@@ -184,28 +232,61 @@
         </div>
     </div>
 
-    <div class="modal fade" id="modalEditarKey" tabindex="-1" aria-labelledby="modalEditarKeyLabel" aria-hidden="true">
+    <div class="modal fade" id="modalEditarDetalhe" tabindex="-1" aria-labelledby="modalEditarDetalheLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="modalEditarKeyLabel"><i class="bi bi-key-fill me-2"></i>Atualizar Chave
-                        Externa</h5>
+                    <h5 class="modal-title" id="modalEditarDetalheLabel"><i class="bi bi-pencil-square me-2"></i>Editar
+                        Detalhe de Registro</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="formEditarKey">
-                        <input type="hidden" id="editKeyDetalheId">
+                    <form id="formEditarDetalhe">
+                        <input type="hidden" id="editDetalheId">
+
+                        <h6 class="section-title">Dados da OS</h6>
                         <div class="mb-3">
-                            <label for="novaKeyValue" class="form-label">Nova Chave (KEY)</label>
-                            <input type="text" class="form-control" id="novaKeyValue" required
+                            <label for="osValue" class="form-label">Ordem de Serviço (OS)</label>
+                            <input type="text" class="form-control" id="osValue" readonly>
+                        </div>
+
+                        <h6 class="section-title">Alteração de Campos</h6>
+
+                        <div class="mb-3">
+                            <label for="selectSegmento"
+                                class="form-label d-flex justify-content-between align-items-center">
+                                <span>Segmento</span>
+                                <div class="form-check form-switch m-0">
+                                    <input type="checkbox" class="form-check-input toggle-editar"
+                                        data-target="#selectSegmento">
+                                </div>
+                            </label>
+                            <select class="form-select" id="selectSegmento" name="novoSegmentoId" disabled required>
+                                <option value="">Carregando...</option>
+                            </select>
+                            <small class="form-text text-muted">A alteração do segmento afeta toda a OS.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="novaKeyValue"
+                                class="form-label d-flex justify-content-between align-items-center">
+                                <span>Chave Externa (KEY)</span>
+                                <div class="form-check form-switch m-0">
+                                    <input type="checkbox" class="form-check-input toggle-editar"
+                                        data-target="#novaKeyValue">
+                                </div>
+                            </label>
+                            <input type="text" class="form-control" id="novaKeyValue" name="novaChave" disabled required
                                 placeholder="Insira a nova chave única">
                         </div>
+
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success" form="formEditarKey" id="btnSalvarNovaKey">Salvar
-                        Chave</button>
+                    <button type="submit" class="btn btn-success" form="formEditarDetalhe" id="btnSalvarDetalhe"
+                        disabled>Salvar Alterações</button>
                 </div>
             </div>
         </div>
@@ -222,7 +303,8 @@
                 </div>
                 <div class="modal-body">
                     <p>Você tem certeza que deseja excluir este registro?</p>
-                    <p class="small text-muted">Esta ação excluirá o registro. Não poderá ser desfeita, tem certeza que deseja continuar?</p>
+                    <p class="small text-muted">Esta ação excluirá o registro. Não poderá ser desfeita, tem certeza que
+                        deseja continuar?</p>
                     <input type="hidden" id="deleteDetalheId">
                 </div>
                 <div class="modal-footer">
@@ -297,9 +379,9 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/general/sidebar.js?v=1.7"></script>
-    <script src="../assets/js/general/global.js?v=1.7"></script>
-    <script src="../assets/js/registros.js?v=1.7"></script>
+    <script src="../assets/js/general/sidebar.js?v=2.1"></script>
+    <script src="../assets/js/general/global.js?v=2.1"></script>
+    <script src="../assets/js/registros.js?v=2.1"></script>
 
 </body>
 

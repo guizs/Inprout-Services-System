@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://3.128.248.3:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -9,9 +9,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let paginaAtual = 1;
     let linhasPorPagina = 10; // Valor inicial
     let gruposFiltradosCache = []; // Cache para os GRUPOS filtrados
+    let osSortDirection = 'asc';
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
+        if (obj === null || obj === undefined) {
+            return defaultValue;
+        }
         const value = path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj);
         return value !== undefined ? value : defaultValue;
     };
@@ -23,8 +27,14 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     const formatarData = (dataStr) => {
         if (!dataStr) return '-';
-        return dataStr.split(' ')[0];
+        // Trata ambos os formatos (com ou sem hora, com - ou /)
+        let dataLimpa = dataStr.split(' ')[0];
+        if (dataLimpa.includes('-')) {
+            dataLimpa = dataLimpa.split('-').reverse().join('/');
+        }
+        return dataLimpa;
     };
+
 
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
@@ -43,12 +53,12 @@ document.addEventListener('DOMContentLoaded', function () {
         "PO": (linha) => get(linha, 'detalhe.po'), "ITEM": (linha) => get(linha, 'detalhe.item'),
         "OBJETO CONTRATADO": (linha) => get(linha, 'detalhe.lpu.nomeLpu'), "UNIDADE": (linha) => get(linha, 'detalhe.unidade'),
         "QUANTIDADE": (linha) => get(linha, 'detalhe.quantidade'), "VALOR TOTAL OS": (linha) => formatarMoeda(get(linha, 'detalhe.valorTotal')),
-        "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'), "DATA PO": (linha) => get(linha, 'detalhe.dataPo'),
-        "VISTORIA": (linha) => get(linha, 'ultimoLancamento.vistoria'), "PLANO VISTORIA": (linha) => get(linha, 'ultimoLancamento.planoVistoria'),
-        "DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.desmobilizacao'), "PLANO DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoDesmobilizacao'),
-        "INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.instalacao'), "PLANO INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoInstalacao'),
-        "ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.ativacao'), "PLANO ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoAtivacao'),
-        "DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.documentacao'), "PLANO DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.planoDocumentacao'),
+        "OBSERVAÇÕES": (linha) => get(linha, 'detalhe.observacoes'), "DATA PO": (linha) => formatarData(get(linha, 'detalhe.dataPo')),
+        "VISTORIA": (linha) => get(linha, 'ultimoLancamento.vistoria'), "PLANO VISTORIA": (linha) => formatarData(get(linha, 'ultimoLancamento.planoVistoria')),
+        "DESMOBILIZAÇÃO": (linha) => get(linha, 'ultimoLancamento.desmobilizacao'), "PLANO DESMOBILIZAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoDesmobilizacao')),
+        "INSTALAÇÃO": (linha) => get(linha, 'ultimoLancamento.instalacao'), "PLANO INSTALAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoInstalacao')),
+        "ATIVAÇÃO": (linha) => get(linha, 'ultimoLancamento.ativacao'), "PLANO ATIVAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoAtivacao')),
+        "DOCUMENTAÇÃO": (linha) => get(linha, 'ultimoLancamento.documentacao'), "PLANO DOCUMENTAÇÃO": (linha) => formatarData(get(linha, 'ultimoLancamento.planoDocumentacao')),
         "ETAPA GERAL": (linha) => {
             const etapa = get(linha, 'ultimoLancamento.etapa', null);
             return etapa ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '-';
@@ -60,11 +70,11 @@ document.addEventListener('DOMContentLoaded', function () {
         "STATUS": (linha) => get(linha, 'ultimoLancamento.status'), "DETALHE DIÁRIO": (linha) => get(linha, 'ultimoLancamento.detalheDiario'),
         "CÓD. PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.codigo'), "PRESTADOR": (linha) => get(linha, 'ultimoLancamento.prestador.nome'),
         "VALOR": (linha) => formatarMoeda(get(linha, 'ultimoLancamento.valor')), "GESTOR": (linha) => get(linha, 'ultimoLancamento.manager.nome'),
-        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao'), "DATA ATIVIDADE": (linha) => get(linha, 'ultimoLancamento.dataAtividade'),
+        "SITUAÇÃO": (linha) => get(linha, 'ultimoLancamento.situacao'), "DATA ATIVIDADE": (linha) => formatarData(get(linha, 'ultimoLancamento.dataAtividade')),
         "FATURAMENTO": (linha) => get(linha, 'detalhe.faturamento'), "SOLICIT ID FAT": (linha) => get(linha, 'detalhe.solitIdFat'),
         "RECEB ID FAT": (linha) => get(linha, 'detalhe.recebIdFat'), "ID FATURAMENTO": (linha) => get(linha, 'detalhe.idFaturamento'),
-        "DATA FAT INPROUT": (linha) => get(linha, 'detalhe.dataFatInprout'), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
-        "DATA FS": (linha) => get(linha, 'detalhe.dataFs'), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
+        "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
+        "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
         "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key')
     };
@@ -97,23 +107,48 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
-                const osInfo = { ...os, detalhes: undefined };
                 if (os.detalhes && os.detalhes.length > 0) {
-
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
                     detalhesAtivos.forEach(detalhe => {
+                        let lancamentoParaExibir = detalhe.ultimoLancamento;
+
+                        if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
+
+                            const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
+
+                            if (lancamentosOperacionais.length > 0) {
+                                lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
+                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                });
+                            } else {
+                                lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
+                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                });
+                            }
+                        }
+
                         todasAsLinhas.push({
                             os: os,
                             detalhe: detalhe,
-                            ultimoLancamento: detalhe.ultimoLancamento
+                            ultimoLancamento: lancamentoParaExibir
                         });
                     });
-
                 } else {
                     todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
                 }
             });
+
+            const btnSortOS = document.getElementById('btnSortOS');
+            if (btnSortOS) {
+                btnSortOS.addEventListener('click', () => {
+                    osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
+                    const icon = btnSortOS.querySelector('i');
+                    icon.classList.toggle('bi-sort-down', osSortDirection === 'asc');
+                    icon.classList.toggle('bi-sort-up-alt', osSortDirection === 'desc');
+                    renderizarTabelaComFiltro();
+                });
+            }
 
             renderizarTabelaComFiltro();
 
@@ -121,6 +156,105 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Falha ao carregar os registros:', error);
             accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados. Verifique o console.</div>`;
         }
+    }
+
+    /**
+     * Gera o HTML completo para um único grupo de OS no acordeão.
+     * @param {object} grupo - O objeto do grupo da OS contendo seus dados e linhas.
+     * @returns {string} - A string HTML do elemento do acordeão.
+     */
+    function gerarHtmlParaGrupo(grupo) {
+        const uniqueId = grupo.id;
+
+        const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
+            .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
+
+        const valorTotalCPS = grupo.linhas
+            .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
+            .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
+            .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+
+        const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
+        const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+
+        let kpiHTML = '';
+        if (userRole !== 'MANAGER') {
+            kpiHTML = `
+            <div class="header-kpi-wrapper">
+                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
+            </div>`;
+        }
+
+        // --- INÍCIO DA ALTERAÇÃO ---
+        // Adiciona a coluna "HISTÓRICO" dinamicamente
+        const headersVisiveis = [...headers];
+        if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
+            headersVisiveis.push("AÇÕES");
+        }
+        headersVisiveis.unshift("HISTÓRICO"); // Adiciona no início
+        // --- FIM DA ALTERAÇÃO ---
+
+
+        const bodyRowsHTML = grupo.linhas.map(linhaData => {
+            const cellsHTML = headersVisiveis.map(header => {
+                const detalheId = get(linhaData, 'detalhe.id', '');
+
+                // --- INÍCIO DA ALTERAÇÃO ---
+                if (header === "HISTÓRICO") {
+                    // Adiciona o botão de histórico, passando o ID do detalhe (da linha)
+                    // Desabilita se não houver detalheId ou se houver 1 ou menos lançamentos
+                    const lancamentosCount = get(linhaData, 'detalhe.lancamentos', []).length;
+                    const isDisabled = !detalheId || lancamentosCount <= 1;
+                    return `<td><button class="btn btn-sm btn-outline-info btn-historico" data-detalhe-id="${detalheId}" title="Ver Histórico de Lançamentos" ${isDisabled ? 'disabled' : ''}><i class="bi bi-clock-history"></i></button></td>`;
+                }
+                // --- FIM DA ALTERAÇÃO ---
+
+                if (header === "AÇÕES") {
+                    let btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>` : '';
+                    const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
+                    return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
+                }
+
+                const func = dataMapping[header];
+                const valor = func ? func(linhaData) : '-';
+                let classes = '';
+                if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
+                    classes += ' status-cell';
+                    if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
+                }
+                if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
+                return `<td class="${classes}">${valor}</td>`;
+            }).join('');
+            return `<tr>${cellsHTML}</tr>`;
+        }).join('');
+
+        const headerHTML = `
+        <h2 class="accordion-header" id="heading-${uniqueId}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                <div class="header-content">
+                    <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
+                    ${kpiHTML}
+                    <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                </div>
+            </button>
+        </h2>`;
+
+        const bodyHTML = `
+        <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
+            <div class="accordion-body">
+                <div class="table-responsive">
+                    <table class="table modern-table table-sm">
+                        <thead><tr>${headersVisiveis.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+                        <tbody>${bodyRowsHTML}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+
+        return `<div class="accordion-item" id="accordion-item-${uniqueId}">${headerHTML}${bodyHTML}</div>`;
     }
 
     function renderizarTabela() {
@@ -146,90 +280,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const gruposDaPagina = grupos.slice(inicio, fim);
 
         const frag = document.createDocumentFragment();
-
-        gruposDaPagina.forEach((grupo, index) => {
-            const uniqueId = `${grupo.id}-${index}`;
-            const item = document.createElement('div');
-            item.className = 'accordion-item';
-
-            // ===== INÍCIO DA CORREÇÃO E NOVOS CÁLCULOS =====
-            // O valor total da OS é a soma do valor de todos os seus detalhes (linhas da planilha).
-            const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
-                .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-
-            // O Total CPS agora busca a lista completa de lançamentos que adicionamos no DTO
-            const valorTotalCPS = grupo.linhas
-                .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
-                .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
-            // Pega o custo de material diretamente do objeto OS (calculado no backend).
-            const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-
-            // O novo percentual considera tanto o CPS quanto o custo de material.
-            const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
-
-            let kpiHTML = '';
-            if (userRole !== 'MANAGER') {
-                kpiHTML = `
-                <div class="header-kpi-wrapper">
-                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
-                </div>`;
-            }
-
-            const headerHTML = `
-            <h2 class="accordion-header" id="heading-${uniqueId}">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                    <div class="header-content">
-                        <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
-                        ${kpiHTML}
-                        <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
-                    </div>
-                </button>
-            </h2>`;
-
-            const headersComAcoes = (userRole === 'ADMIN' || userRole === 'ASSISTANT') ? [...headers, "AÇÕES"] : headers;
-
-            const bodyRowsHTML = grupo.linhas.map(linhaData => {
-                const cellsHTML = headersComAcoes.map(header => {
-                    if (header === "AÇÕES") {
-                        const detalheId = get(linhaData, 'detalhe.id', '');
-                        const chave = get(linhaData, 'detalhe.key', '-');
-                        const semChave = chave === '-' || chave === '' || chave === null;
-                        const btnEditar = `<button class="btn btn-sm btn-outline-primary btn-edit-key" data-id="${detalheId}" title="Editar Chave Externa"><i class="bi bi-pencil-fill"></i></button>`;
-                        const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
-                        return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
-                    }
-                    const func = dataMapping[header];
-                    const valor = func ? func(linhaData) : '-';
-                    let classes = '';
-                    if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
-                        classes += ' status-cell';
-                        if (valor === 'OK') classes += ' status-ok'; else if (valor === 'NOK') classes += ' status-nok'; else if (valor === 'N/A') classes += ' status-na';
-                    }
-                    if (header === "DETALHE DIÁRIO") classes += ' detalhe-diario-cell';
-                    return `<td class="${classes}">${valor}</td>`;
-                }).join('');
-                return `<tr>${cellsHTML}</tr>`;
-            }).join('');
-
-            const bodyHTML = `
-            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
-                <div class="accordion-body">
-                    <div class="table-responsive">
-                        <table class="table modern-table table-sm">
-                            <thead><tr>${headersComAcoes.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-                            <tbody>${bodyRowsHTML}</tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>`;
-
-            item.innerHTML = headerHTML + bodyHTML;
-            frag.appendChild(item);
+        gruposDaPagina.forEach(grupo => {
+            frag.appendChild(document.createRange().createContextualFragment(gerarHtmlParaGrupo(grupo)));
         });
 
         accordionContainer.appendChild(frag);
@@ -237,14 +289,43 @@ document.addEventListener('DOMContentLoaded', function () {
         atualizarBotoesPaginacao(totalPaginas);
     }
 
+    async function carregarSegmentosESelecionarAtual(segmentoAtualId) {
+        const selectSegmento = document.getElementById('selectSegmento');
+
+        try {
+            const response = await fetchComAuth(`${API_BASE_URL}/segmentos`);
+            if (!response.ok) throw new Error('Falha ao carregar segmentos.');
+            const segmentos = await response.json();
+
+            selectSegmento.innerHTML = '<option value="" disabled>Selecione o segmento...</option>';
+            segmentos.forEach(seg => {
+                const option = document.createElement('option');
+                option.value = seg.id;
+                option.textContent = seg.nome;
+                if (seg.id == segmentoAtualId) {
+                    option.selected = true;
+                }
+                selectSegmento.appendChild(option);
+            });
+            selectSegmento.disabled = true;
+
+        } catch (error) {
+            selectSegmento.innerHTML = '<option value="" disabled>Erro ao carregar</option>';
+        }
+    }
+
     function renderizarTabelaComFiltro() {
         const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
         const linhasFiltradas = termoBusca
             ? todasAsLinhas.filter(linhaData => {
                 const textoPesquisavel = [
-                    get(linhaData, 'os.os', ''), get(linhaData, 'detalhe.site', ''),
-                    get(linhaData, 'detalhe.contrato', ''), get(linhaData, 'os.projeto', ''),
-                    get(linhaData, 'detalhe.lpu.nomeLpu', ''), get(linhaData, 'detalhe.lpu.codigoLpu', '')
+                    get(linhaData, 'os.os', ''),
+                    get(linhaData, 'detalhe.site', ''),
+                    get(linhaData, 'detalhe.contrato', ''),
+                    get(linhaData, 'os.projeto', ''),
+                    get(linhaData, 'detalhe.lpu.nomeLpu', ''),
+                    get(linhaData, 'detalhe.lpu.codigoLpu', ''),
+                    get(linhaData, 'detalhe.key', '')
                 ].join(' ').toLowerCase();
                 return textoPesquisavel.includes(termoBusca);
             })
@@ -257,15 +338,27 @@ document.addEventListener('DOMContentLoaded', function () {
                     linhas: [],
                     projeto: get(linha, 'os.projeto', 'Sem Projeto'),
                     os: get(linha, 'os.os', 'Sem OS'),
-                    id: get(linha, 'os.id', 'sem-id')
+                    id: get(linha, 'os.id', 'sem-id-' + Math.random()) // ID único para o grupo
                 };
             }
             acc[chaveGrupo].linhas.push(linha);
             return acc;
         }, {}));
 
+        agrupado.sort((a, b) => {
+            const osA = a.os.toLowerCase();
+            const osB = b.os.toLowerCase();
+            if (osA < osB) {
+                return osSortDirection === 'asc' ? -1 : 1;
+            }
+            if (osA > osB) {
+                return osSortDirection === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+
         gruposFiltradosCache = agrupado;
-        paginaAtual = 1; // Reseta para a primeira página a cada novo filtro
+        paginaAtual = 1;
         renderizarTabela();
     }
 
@@ -280,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('rowsPerPage').addEventListener('change', (e) => {
             const valor = e.target.value;
             linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
-            paginaAtual = 1; // Volta para a primeira página ao mudar a quantidade de itens
+            paginaAtual = 1;
             renderizarTabela();
         });
         document.getElementById('btnPrimeiraPagina').addEventListener('click', () => {
@@ -309,90 +402,215 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
-        const modalEditarKey = new bootstrap.Modal(document.getElementById('modalEditarKey'));
-        const modalConfirmarExclusao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
+        const modalEditarDetalheEl = document.getElementById('modalEditarDetalhe');
+        const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
+        const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
+        const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
+
+        // --- INÍCIO DA ADIÇÃO ---
+        const modalHistoricoEl = document.getElementById('modalHistoricoLancamentos');
+        const modalHistorico = modalHistoricoEl ? new bootstrap.Modal(modalHistoricoEl) : null;
+        // --- FIM DA ADIÇÃO ---
 
         accordionContainer.addEventListener('click', function (e) {
-            const btnEdit = e.target.closest('.btn-edit-key');
+            const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
+            const btnHistorico = e.target.closest('.btn-historico'); // Captura o clique no novo botão
 
             if (btnEdit) {
+                e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
-                document.getElementById('editKeyDetalheId').value = detalheId;
-                document.getElementById('novaKeyValue').value = '';
-                modalEditarKey.show();
+                if (!detalheId) {
+                    mostrarToast("Registro de detalhe não possui ID para edição.", "warning");
+                    return;
+                }
+                const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
+                if (modalEditarDetalhe && linhaData) {
+                    const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
+                    document.getElementById('editDetalheId').value = detalheId;
+                    document.getElementById('osValue').value = get(linhaData, 'os.os', 'N/A');
+                    const chaveExistente = get(linhaData, 'detalhe.key', '');
+                    document.getElementById('novaKeyValue').value = chaveExistente;
+                    const segmentoAtualId = get(linhaData, 'os.segmento.id');
+                    carregarSegmentosESelecionarAtual(segmentoAtualId);
+                    formEditarDetalheEl.dataset.originalKey = chaveExistente;
+                    formEditarDetalheEl.dataset.originalSegmentoId = segmentoAtualId;
+                    document.querySelectorAll('#formEditarDetalhe .toggle-editar').forEach(toggle => {
+                        toggle.checked = false;
+                        const targetInput = document.querySelector(toggle.dataset.target);
+                        if (targetInput) targetInput.disabled = true;
+                    });
+                    document.getElementById('btnSalvarDetalhe').disabled = true;
+                    modalEditarDetalhe.show();
+                } else {
+                    mostrarToast("Não foi possível carregar os dados para edição.", "error");
+                }
             }
 
             if (btnDelete) {
                 const detalheId = btnDelete.dataset.id;
                 document.getElementById('deleteDetalheId').value = detalheId;
-                modalConfirmarExclusao.show();
-            }
-        });
-
-        // Lógica para salvar a nova KEY
-        document.getElementById('formEditarKey').addEventListener('submit', async function (e) {
-            e.preventDefault();
-            const detalheId = document.getElementById('editKeyDetalheId').value;
-            const novaChave = document.getElementById('novaKeyValue').value;
-            const btnSalvar = document.getElementById('btnSalvarNovaKey');
-
-            btnSalvar.disabled = true;
-            btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
-
-            try {
-                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: novaChave })
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Erro ao salvar a chave.');
+                if (modalConfirmarExclusao) {
+                    modalConfirmarExclusao.show();
                 }
-
-                mostrarToast('Chave atualizada com sucesso!', 'success');
-                modalEditarKey.hide();
-                await inicializarPagina(); // Recarrega os dados
-
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-            } finally {
-                btnSalvar.disabled = false;
-                btnSalvar.innerHTML = 'Salvar Chave';
             }
-        });
 
-        // Lógica para confirmar a exclusão
-        document.getElementById('btnConfirmarExclusaoDefinitiva').addEventListener('click', async function () {
-            const detalheId = document.getElementById('deleteDetalheId').value;
-            const btnConfirmar = this;
+            // --- INÍCIO DA NOVA LÓGICA ---
+            if (btnHistorico) {
+                e.preventDefault();
+                const detalheId = btnHistorico.dataset.detalheId;
+                const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
 
-            btnConfirmar.disabled = true;
-            btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+                if (modalHistorico && linhaData && linhaData.detalhe && linhaData.detalhe.lancamentos) {
+                    const modalBody = document.getElementById('tbody-historico-lancamentos');
+                    const modalTitle = document.getElementById('modalHistoricoLancamentosLabel');
 
-            try {
-                const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
-                    method: 'DELETE'
-                });
+                    modalTitle.innerHTML = `<i class="bi bi-clock-history me-2"></i>Histórico da Linha: ${get(linhaData, 'detalhe.key', '')}`;
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Erro ao excluir o registro.');
+                    const lancamentosOrdenados = [...linhaData.detalhe.lancamentos].sort((a, b) => b.id - a.id);
+
+                    if (lancamentosOrdenados.length === 0) {
+                        modalBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Nenhum lançamento encontrado para esta linha.</td></tr>';
+                    } else {
+                        modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
+                            const etapa = get(lanc, 'etapa', {});
+                            return `
+                                <tr>
+                                    <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                                    <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
+                                    <td>${get(lanc, 'situacao', '')}</td>
+                                    <td>${etapa.nomeDetalhado || ''}</td>
+                                    <td>${get(lanc, 'prestador.nome', '')}</td>
+                                    <td>${formatarMoeda(get(lanc, 'valor'))}</td>
+                                    <td>${get(lanc, 'manager.nome', '')}</td>
+                                </tr>
+                            `;
+                        }).join('');
+                    }
+                    modalHistorico.show();
+                } else {
+                    mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
                 }
-
-                mostrarToast('Registro excluído com sucesso!', 'success');
-                modalConfirmarExclusao.hide();
-                await inicializarPagina(); // Recarrega os dados
-
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-            } finally {
-                btnConfirmar.disabled = false;
-                btnConfirmar.innerHTML = 'Sim, Excluir';
             }
+            // --- FIM DA NOVA LÓGICA ---
         });
+
+        // ... (restante dos listeners) ...
+        const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
+        if (formEditarDetalheEl) {
+            formEditarDetalheEl.addEventListener('change', (e) => {
+                if (e.target.classList.contains('toggle-editar')) {
+                    const toggle = e.target;
+                    const targetSelector = toggle.dataset.target;
+                    const targetInput = document.querySelector(targetSelector);
+                    if (targetInput) {
+                        targetInput.disabled = !toggle.checked;
+                        const event = new Event('input', { bubbles: true });
+                        targetInput.dispatchEvent(event);
+                    }
+                }
+            });
+            formEditarDetalheEl.addEventListener('input', () => {
+                const originalKey = formEditarDetalheEl.dataset.originalKey || '';
+                const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+                const currentKey = document.getElementById('novaKeyValue').value;
+                const currentSegmentoId = document.getElementById('selectSegmento').value;
+                const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
+                const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
+                document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged);
+            });
+            formEditarDetalheEl.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const detalheId = document.getElementById('editDetalheId').value;
+                const btnSalvar = document.getElementById('btnSalvarDetalhe');
+                const originalKey = formEditarDetalheEl.dataset.originalKey || '';
+                const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+                const currentKey = document.getElementById('novaKeyValue').value;
+                const currentSegmentoId = document.getElementById('selectSegmento').value;
+                const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
+                const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
+
+                if (!(keyChanged || segmentoChanged)) {
+                    mostrarToast('Nenhuma alteração para salvar.', 'warning');
+                    return;
+                }
+                btnSalvar.disabled = true;
+                btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
+                const promises = [];
+                if (keyChanged) {
+                    promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: currentKey })
+                    }));
+                }
+                if (segmentoChanged) {
+                    promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/segmento`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ novoSegmentoId: parseInt(currentSegmentoId) })
+                    }));
+                }
+                try {
+                    const results = await Promise.all(promises);
+                    let allSuccessful = true;
+                    let errorMessages = [];
+                    for (let i = 0; i < results.length; i++) {
+                        const response = results[i];
+                        if (!response.ok) {
+                            allSuccessful = false;
+                            const errorType = (i === 0 && keyChanged) ? "Chave Externa" : "Segmento";
+                            let errorMessage = `${errorType}: Erro desconhecido ou de rede.`;
+                            try { const errorData = await response.json(); errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`; } catch { }
+                            errorMessages.push(errorMessage);
+                        }
+                    }
+                    if (allSuccessful) {
+                        mostrarToast('Detalhes atualizados com sucesso!', 'success');
+                    } else {
+                        throw new Error(errorMessages.join(' | '));
+                    }
+                    if (modalEditarDetalhe) modalEditarDetalhe.hide();
+                    await inicializarPagina();
+                } catch (error) {
+                    mostrarToast(error.message, 'error');
+                } finally {
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = 'Salvar Alterações';
+                }
+            });
+        }
+
+        const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
+        if (btnConfirmarExclusaoDefinitivaEl) {
+            btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
+                const detalheId = document.getElementById('deleteDetalheId').value;
+                const btnConfirmar = this;
+                btnConfirmar.disabled = true;
+                btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+                const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
+                try {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
+                        method: 'DELETE'
+                    });
+                    if (!response.ok) {
+                        let errorMsg = 'Erro ao excluir o registro.';
+                        try { const errorData = await response.json(); errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`; }
+                        catch (e) { const errorText = await response.text(); errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`; }
+                        throw new Error(errorMsg);
+                    }
+                    mostrarToast('Registro excluído com sucesso!', 'success');
+                    if (modalInstance) modalInstance.hide();
+                    await inicializarPagina();
+                } catch (error) {
+                    console.error("Erro ao excluir o registro:", error);
+                    mostrarToast(error.message, 'error');
+                } finally {
+                    btnConfirmar.disabled = false;
+                    btnConfirmar.innerHTML = 'Sim, Excluir';
+                }
+            });
+        }
     }
 
     const btnDownloadTemplate = document.getElementById('btnDownloadTemplate');
@@ -420,6 +638,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const listaErros = document.getElementById('listaErrosImportacao');
         const btnFecharProgresso = document.getElementById('btnFecharProgressoImportacao');
         const btnCancelarImportacao = document.getElementById('btnCancelarImportacao');
+        const importLegadoCheckbox = document.getElementById('importLegado');
+
 
         btnCancelarImportacao.addEventListener('click', () => {
             isImportCancelled = true;
@@ -434,8 +654,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const file = event.target.files[0];
             if (!file) return;
 
+            const isLegado = importLegadoCheckbox.checked;
+            const formData = new FormData();
+            formData.append('file', file);
+
             isImportCancelled = false;
-            textoProgresso.textContent = 'Lendo arquivo...';
+            textoProgresso.textContent = 'Iniciando importação...';
             barraProgresso.style.width = '0%';
             barraProgresso.textContent = '0%';
             errosContainer.classList.add('d-none');
@@ -444,63 +668,101 @@ document.addEventListener('DOMContentLoaded', function () {
             btnCancelarImportacao.classList.remove('d-none');
             modalProgresso.show();
 
+            // --- INÍCIO DA CORREÇÃO ---
+            // Damos um pequeno tempo para o modal aparecer e então iniciamos a animação da barra
+            setTimeout(() => {
+                textoProgresso.textContent = 'Enviando arquivo...';
+                barraProgresso.style.width = '40%'; // Avança a barra para um valor intermediário
+                barraProgresso.textContent = '40%';
+            }, 200); // 200ms de delay
+            // --- FIM DA CORREÇÃO ---
+
             try {
-                const data = await file.arrayBuffer();
-                const workbook = XLSX.read(data);
-                const sheetName = workbook.SheetNames[0];
-                const sheet = workbook.Sheets[sheetName];
-                const rows = XLSX.utils.sheet_to_json(sheet);
+                const response = await fetchComAuth(`${API_BASE_URL}/os/importar?legado=${isLegado}`, {
+                    method: 'POST',
+                    body: formData
+                });
 
-                if (rows.length === 0) throw new Error("A planilha está vazia.");
-
-                let linhasProcessadas = 0;
-                let errosGerais = [];
-                const TAMANHO_LOTE = 100;
-
-                for (let i = 0; i < rows.length; i += TAMANHO_LOTE) {
-                    if (isImportCancelled) {
-                        textoProgresso.textContent = 'Importação cancelada pelo usuário.';
-                        break;
+                if (!response.ok) {
+                    let errorMsg = `Erro no servidor: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.message || JSON.stringify(errorData);
+                    } catch (e) {
+                        errorMsg = await response.text();
                     }
+                    throw new Error(errorMsg);
+                }
 
-                    const lote = rows.slice(i, i + TAMANHO_LOTE);
+                const importResult = await response.json();
+                const updatedOsList = importResult.oses;
+                const warnings = importResult.warnings;
 
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/importar-lote`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(lote)
+                if (warnings && warnings.length > 0) {
+                    errosContainer.classList.remove('d-none');
+                    errosContainer.querySelector('h6').textContent = 'Avisos da Importação:';
+                    listaErros.innerHTML = warnings.map(warn => `<li class="list-group-item list-group-item-warning">${warn}</li>`).join('');
+                }
+
+                barraProgresso.style.width = '100%';
+                barraProgresso.textContent = '100%';
+                textoProgresso.textContent = 'Processando atualizações...';
+
+                if (updatedOsList && updatedOsList.length > 0) {
+                    // ... (o restante da lógica para atualizar a tabela continua igual)
+                    const updatedOsIds = updatedOsList.map(os => os.id);
+
+                    updatedOsIds.forEach(id => {
+                        const elementoExistente = document.getElementById(`accordion-item-${id}`);
+                        if (elementoExistente) {
+                            elementoExistente.innerHTML = `<div class="p-4 text-center text-muted"><div class="spinner-border spinner-border-sm text-primary" role="status"></div> Atualizando...</div>`;
+                        }
                     });
 
-                    if (response.status === 207) {
-                        const errosDoLote = await response.json();
-                        errosGerais.push(...errosDoLote.map(e => `Linha (aprox.) ${i + 1}: ${e}`));
-                    } else if (!response.ok) {
-                        throw new Error(`Erro no servidor ao processar o lote a partir da linha ${i + 1}.`);
-                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
 
-                    linhasProcessadas += lote.length;
-                    const porcentagem = Math.round((linhasProcessadas / rows.length) * 100);
-                    barraProgresso.style.width = `${porcentagem}%`;
-                    barraProgresso.textContent = `${porcentagem}%`;
-                    textoProgresso.textContent = `Processando... ${linhasProcessadas} de ${rows.length} linhas concluídas.`;
+                    todasAsLinhas = todasAsLinhas.filter(linha => !updatedOsIds.includes(linha.os.id));
+                    updatedOsList.forEach(os => {
+                        (os.detalhes || []).forEach(detalhe => {
+                            todasAsLinhas.push({
+                                os: os,
+                                detalhe: detalhe,
+                                ultimoLancamento: detalhe.ultimoLancamento
+                            });
+                        });
+                    });
+
+                    const accordionContainer = document.getElementById('accordion-registros');
+                    updatedOsList.forEach(os => {
+                        const grupo = {
+                            id: os.id,
+                            os: os.os,
+                            projeto: os.projeto,
+                            linhas: (os.detalhes || []).map(detalhe => ({
+                                os: os,
+                                detalhe: detalhe,
+                                ultimoLancamento: detalhe.ultimoLancamento
+                            }))
+                        };
+                        const novoHtml = gerarHtmlParaGrupo(grupo);
+                        const placeholderElement = document.getElementById(`accordion-item-${os.id}`);
+
+                        if (placeholderElement) {
+                            placeholderElement.outerHTML = novoHtml;
+                        } else {
+                            accordionContainer.insertAdjacentHTML('afterbegin', novoHtml);
+                        }
+                    });
                 }
 
-                if (!isImportCancelled) {
-                    if (errosGerais.length > 0) {
-                        textoProgresso.textContent = `Importação concluída com ${errosGerais.length} erro(s).`;
-                        errosContainer.classList.remove('d-none');
-                        listaErros.innerHTML = errosGerais.map(e => `<li class="list-group-item list-group-item-danger">${e}</li>`).join('');
-                    } else {
-                        textoProgresso.textContent = 'Importação concluída com sucesso!';
-                    }
-                }
-
-                await inicializarPagina();
+                renderizarTabelaComFiltro();
+                textoProgresso.textContent = 'Importação concluída com sucesso!';
 
             } catch (error) {
                 console.error('Erro na importação:', error);
                 textoProgresso.textContent = 'Erro Crítico na Importação!';
                 errosContainer.classList.remove('d-none');
+                errosContainer.querySelector('h6').textContent = 'Ocorreu um erro:';
                 listaErros.innerHTML = `<li class="list-group-item list-group-item-danger">${error.message}</li>`;
             } finally {
                 btnFecharProgresso.disabled = false;
@@ -571,10 +833,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
                     const valorTotalCPS = grupo.linhas
-                        .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-                        .filter(lanc => lanc.situacaoAprovacao === 'APROVADO')
+                        .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
+                        // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+                        .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
                     const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;

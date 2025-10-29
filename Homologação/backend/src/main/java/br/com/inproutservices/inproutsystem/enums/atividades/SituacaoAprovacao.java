@@ -8,5 +8,6 @@ public enum SituacaoAprovacao {
     APROVADO,                 // Fluxo finalizado com sucesso.
     RECUSADO_COORDENADOR,
     RECUSADO_CONTROLLER,
-    PRAZO_VENCIDO
+    PRAZO_VENCIDO,
+    APROVADO_LEGADO           // Status para importações legadas que não entram no CPS.
 }

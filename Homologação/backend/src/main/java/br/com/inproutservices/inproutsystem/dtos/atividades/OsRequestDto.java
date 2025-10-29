@@ -42,6 +42,26 @@ public class OsRequestDto {
     private String gate;
     private String gateId;
 
+    // --- NOVOS CAMPOS PARA IMPORTAÇÃO LEGADO ---
+    private String vistoria;
+    private LocalDate planoVistoria;
+    private String desmobilizacao;
+    private LocalDate planoDesmobilizacao;
+    private String instalacao;
+    private LocalDate planoInstalacao;
+    private String ativacao;
+    private LocalDate planoAtivacao;
+    private String documentacao;
+    private LocalDate planoDocumentacao;
+    private LocalDate dataAtividadeLancamento;
+    private String codigoPrestador;
+    private String nomeEtapaDetalhada;
+    private String statusLancamento;
+    private String situacaoLancamento;
+    private String detalheDiario;
+    private BigDecimal valorLancamento;
+
+
     // --- Getters e Setters para todos os campos ---
 
     public String getOs() { return os; }
@@ -102,4 +122,83 @@ public class OsRequestDto {
     public void setGate(String gate) { this.gate = gate; }
     public String getGateId() { return gateId; }
     public void setGateId(String gateId) { this.gateId = gateId; }
+
+    // --- Getters e Setters para os novos campos ---
+
+    public String getVistoria() { return vistoria; }
+    public void setVistoria(String vistoria) { this.vistoria = vistoria; }
+    public LocalDate getPlanoVistoria() { return planoVistoria; }
+    public void setPlanoVistoria(LocalDate planoVistoria) { this.planoVistoria = planoVistoria; }
+    public String getDesmobilizacao() { return desmobilizacao; }
+    public void setDesmobilizacao(String desmobilizacao) { this.desmobilizacao = desmobilizacao; }
+    public LocalDate getPlanoDesmobilizacao() { return planoDesmobilizacao; }
+    public void setPlanoDesmobilizacao(LocalDate planoDesmobilizacao) { this.planoDesmobilizacao = planoDesmobilizacao; }
+    public String getInstalacao() { return instalacao; }
+    public void setInstalacao(String instalacao) { this.instalacao = instalacao; }
+    public LocalDate getPlanoInstalacao() { return planoInstalacao; }
+    public void setPlanoInstalacao(LocalDate planoInstalacao) { this.planoInstalacao = planoInstalacao; }
+    public String getAtivacao() { return ativacao; }
+    public void setAtivacao(String ativacao) { this.ativacao = ativacao; }
+    public LocalDate getPlanoAtivacao() { return planoAtivacao; }
+    public void setPlanoAtivacao(LocalDate planoAtivacao) { this.planoAtivacao = planoAtivacao; }
+    public String getDocumentacao() { return documentacao; }
+    public void setDocumentacao(String documentacao) { this.documentacao = documentacao; }
+    public LocalDate getPlanoDocumentacao() { return planoDocumentacao; }
+    public void setPlanoDocumentacao(LocalDate planoDocumentacao) { this.planoDocumentacao = planoDocumentacao; }
+
+    public LocalDate getDataAtividadeLancamento() {
+        return dataAtividadeLancamento;
+    }
+
+    public void setDataAtividadeLancamento(LocalDate dataAtividadeLancamento) {
+        this.dataAtividadeLancamento = dataAtividadeLancamento;
+    }
+
+    public String getCodigoPrestador() {
+        return codigoPrestador;
+    }
+
+    public void setCodigoPrestador(String codigoPrestador) {
+        this.codigoPrestador = codigoPrestador;
+    }
+
+    public String getNomeEtapaDetalhada() {
+        return nomeEtapaDetalhada;
+    }
+
+    public void setNomeEtapaDetalhada(String nomeEtapaDetalhada) {
+        this.nomeEtapaDetalhada = nomeEtapaDetalhada;
+    }
+
+    public String getStatusLancamento() {
+        return statusLancamento;
+    }
+
+    public void setStatusLancamento(String statusLancamento) {
+        this.statusLancamento = statusLancamento;
+    }
+
+    public String getSituacaoLancamento() {
+        return situacaoLancamento;
+    }
+
+    public void setSituacaoLancamento(String situacaoLancamento) {
+        this.situacaoLancamento = situacaoLancamento;
+    }
+
+    public String getDetalheDiario() {
+        return detalheDiario;
+    }
+
+    public void setDetalheDiario(String detalheDiario) {
+        this.detalheDiario = detalheDiario;
+    }
+
+    public BigDecimal getValorLancamento() {
+        return valorLancamento;
+    }
+
+    public void setValorLancamento(BigDecimal valorLancamento) {
+        this.valorLancamento = valorLancamento;
+    }
 }

@@ -1,7 +1,7 @@
 // guizs/inprout-services-system/Inprout-Services-System-Correcao_bo/Homologação/frontend/assets/js/cps/export.js
 
 // --- VARIÁVEL QUE FALTAVA ---
-const API_URL = 'http://3.128.248.3:8080';
+const API_URL = 'https://www.inproutservices.com.br/api';
 
 // Função central para criar e baixar o arquivo .xlsx
 function exportToExcel(rows, headers, fileName) {
@@ -17,19 +17,33 @@ function exportToExcel(rows, headers, fileName) {
     XLSX.writeFile(wb, `${fileName}.xlsx`);
 }
 
-// Função para formatar data para o Excel
+// ==================================================================
+// >>>>> INÍCIO DA CORREÇÃO DEFINITIVA <<<<<
+// ==================================================================
+// Função para formatar data para o Excel, agora tratando o fuso horário (UTC)
 const formatarDataParaExcel = (dataStr) => {
     if (!dataStr) return null;
 
-    if (dataStr.includes('/')) { // Formato dd/mm/yyyy
-        const [dia, mes, ano] = dataStr.split('/');
-        return new Date(ano, mes - 1, dia);
-    } else if (dataStr.includes('-')) { // Formato yyyy-mm-dd
-        const [ano, mes, dia] = dataStr.split('T')[0].split('-'); // Pega só a parte da data
-        return new Date(ano, mes - 1, dia);
+    try {
+        if (dataStr.includes('/')) { // Formato dd/mm/yyyy
+            const [dia, mes, ano] = dataStr.split('/');
+            // Cria a data diretamente em UTC para evitar o deslocamento de fuso horário
+            return new Date(Date.UTC(ano, mes - 1, dia));
+        } else if (dataStr.includes('-')) { // Formato yyyy-mm-dd
+            const [ano, mes, dia] = dataStr.split('T')[0].split('-');
+            // Cria a data em UTC
+            return new Date(Date.UTC(ano, mes - 1, dia));
+        }
+        return null; // Retorna nulo se o formato não for reconhecido
+    } catch (e) {
+        console.error(`Erro ao formatar data: ${dataStr}`, e);
+        return null; // Retorna nulo em caso de erro
     }
-    return null;
 };
+// ==================================================================
+// >>>>> FIM DA CORREÇÃO DEFINITIVA <<<<<
+// ==================================================================
+
 
 // Converte 'dd/mm/yyyy' para 'yyyy-mm-dd'
 function formatDateToISO(dateStr) {

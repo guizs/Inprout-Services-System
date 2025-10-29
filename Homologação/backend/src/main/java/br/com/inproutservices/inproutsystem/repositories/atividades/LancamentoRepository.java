@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.repositories.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.ProgramacaoDiariaDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
@@ -13,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -97,10 +99,10 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN FETCH l.etapaDetalhada ed " +
             "LEFT JOIN FETCH ed.etapa e " +
             "LEFT JOIN FETCH l.manager " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
-            "ORDER BY l.id DESC") // <-- A ordenação foi adicionada aqui
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado de '=' para 'IN'
+            "ORDER BY l.id DESC")
     List<Lancamento> findLancamentosAprovadosPorPeriodo(
-            @Param("status") SituacaoAprovacao status,
+            @Param("statuses") List<SituacaoAprovacao> statuses, // Modificado de SituacaoAprovacao para List<SituacaoAprovacao>
             @Param("dataInicio") LocalDate dataInicio,
             @Param("dataFim") LocalDate dataFim
     );
@@ -108,15 +110,15 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     // ================== CORREÇÃO 5 ==================
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
             "FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o JOIN o.segmento s " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado aqui
             "GROUP BY s.nome ORDER BY s.nome")
-    List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+    List<ValoresPorSegmentoDTO> sumValorBySegmento(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ConsolidadoPorPrestadorDTO(p.codigoPrestador, p.prestador, SUM(l.valor), COUNT(l.id)) " +
             "FROM Lancamento l JOIN l.prestador p " +
-            "WHERE l.situacaoAprovacao = :status AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " +
+            "WHERE l.situacaoAprovacao IN :statuses AND l.dataAtividade BETWEEN :dataInicio AND :dataFim " + // Modificado aqui
             "GROUP BY p.codigoPrestador, p.prestador ORDER BY SUM(l.valor) DESC")
-    List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("status") SituacaoAprovacao status, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
+    List<ConsolidadoPorPrestadorDTO> sumValorByPrestador(@Param("statuses") List<SituacaoAprovacao> statuses, @Param("dataInicio") LocalDate dataInicio, @Param("dataFim") LocalDate dataFim);
 
     boolean existsByOsLpuDetalheIdAndSituacao(Long osLpuDetalheId, SituacaoOperacional situacao);
 
@@ -140,4 +142,16 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataInicio") LocalDate dataInicio,
             @Param("dataFim") LocalDate dataFim
     );
+
+    @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.PendenciasPorCoordenadorDTO(u.id, u.nome, COUNT(l.id)) " +
+            "FROM Usuario u " +
+            "LEFT JOIN u.segmentos s " +
+            "LEFT JOIN OS o ON o.segmento = s " +
+            "LEFT JOIN OsLpuDetalhe d ON d.os = o " +
+            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d AND l.situacaoAprovacao = :situacao AND l.dataSubmissao < :dataLimite " +
+            "WHERE u.role = :role " +
+            "AND (UPPER(u.nome) LIKE '%PAULO%' OR UPPER(u.nome) LIKE '%GUSTAVO%') " +
+            "GROUP BY u.id, u.nome " +
+            "ORDER BY u.nome")
+    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role, @Param("dataLimite") LocalDateTime dataLimite);
 }

@@ -2,7 +2,9 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -66,4 +68,8 @@ public interface LancamentoService {
     Lancamento registrarAdiantamento(Long lancamentoId, BigDecimal valorAdiantamento);
 
     List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim);
+
+    void deletarLancamento(Long id);
+    List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador();
+    List<String> importarLegadoCps(MultipartFile file) throws IOException;
 }

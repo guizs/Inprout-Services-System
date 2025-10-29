@@ -18,7 +18,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js" defer></script>
-
+  <link rel="icon" href="" type="image/png">
 
 </head>
 
@@ -28,7 +28,11 @@
       <button class="btn toggle-sidebar" id="menu-toggle">
         <i class="bi bi-grid fs-5"></i>
       </button>
-      <img src="assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+
+
+      <a href="index.html">
+        <img src="assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+      </a>
 
       <div class="dropdown ms-auto">
         <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
@@ -187,10 +191,19 @@
           id="btnSolicitarMaterial"> <i class="bi bi-box-seam me-1"></i> Solicitar material
         </a>
 
+        <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalSolicitarComplementar"
+          id="btnSolicitarComplementar">
+          <i class="bi bi-plus-circle-dotted me-1"></i> Solicitar Complementar
+        </a>
+
         <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalAdicionarEmLote"
           id="btnNovoLancamento">
           <i class="bi bi-plus-circle me-1"></i> Novo lançamento
         </a>
+
+        <button class="btn btn-dropdown" id="btnExportar" style="display: none;">
+          <i class="bi bi-file-earmark-excel me-1"></i> Exportar
+        </button>
 
       </div>
 
@@ -203,7 +216,7 @@
           data-bs-target="#minhasPendencias-pane" type="button" role="tab" aria-controls="minhasPendencias-pane"
           aria-selected="false">
 
-          Pendências dos Gestores
+          Lançamentos pendentes
 
           <span id="notificacao-pendencias"
             class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
@@ -241,64 +254,112 @@
       </li>
     </ul>
 
-    <div class="tab-content" id="lancamentosTabContent">
+    <div class="content-loader-container">
+      <div class="tab-content" id="lancamentosTabContent">
+        <div class="tab-pane fade" id="minhasPendencias-pane" role="tabpanel" aria-labelledby="minhasPendencias-tab"
+          tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-minhas-pendencias"> </tbody>
+            </table>
+          </div>
+        </div>
 
+        <div class="tab-pane fade show active" id="lancamentos-pane" role="tabpanel" aria-labelledby="lancamentos-tab"
+          tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-lancamentos">
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-      <div class="tab-pane fade" id="minhasPendencias-pane" role="tabpanel" aria-labelledby="minhasPendencias-tab"
-        tabindex="0">
-        <div class="table-responsive custom-scroll">
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-minhas-pendencias"> </tbody>
-          </table>
+        <div class="tab-pane fade" id="pendentes-pane" role="tabpanel" aria-labelledby="pendentes-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-pendentes">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="paralisados-pane" role="tabpanel" aria-labelledby="paralisados-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-paralisados"> </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="historico-pane" role="tabpanel" aria-labelledby="historico-tab" tabindex="0">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-historico">
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="tab-pane fade show active" id="lancamentos-pane" role="tabpanel" aria-labelledby="lancamentos-tab"
-        tabindex="0">
-
-        <div class="table-responsive custom-scroll">
-
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-lancamentos">
-            </tbody>
-
-          </table>
-        </div>
-
-      </div>
-
-      <div class="tab-pane fade" id="pendentes-pane" role="tabpanel" aria-labelledby="pendentes-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
-
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-pendentes">
-            </tbody>
-
-          </table>
+      <div id="overlay-loader" class="overlay-loader d-none">
+        <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+          <span class="visually-hidden">Carregando...</span>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="tab-pane fade" id="paralisados-pane" role="tabpanel" aria-labelledby="paralisados-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-paralisados"> </tbody>
-          </table>
+  <div class="modal fade" id="modalSolicitarComplementar" tabindex="-1"
+    aria-labelledby="modalSolicitarComplementarLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalSolicitarComplementarLabel"><i class="bi bi-plus-circle-dotted me-2"></i>Nova
+            Solicitação de Atividade Complementar</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
-      </div>
-
-      <div class="tab-pane fade" id="historico-pane" role="tabpanel" aria-labelledby="historico-tab" tabindex="0">
-        <div class="table-responsive custom-scroll">
-
-          <table class="table modern-table align-middle">
-            <thead> </thead>
-            <tbody id="tbody-historico">
-            </tbody>
-
-          </table>
+        <div class="modal-body">
+          <form id="formSolicitarComplementar">
+            <h6 class="section-title">Dados da Solicitação</h6>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label for="projetoIdComplementar" class="form-label">Projeto</label>
+                <select class="form-select" id="projetoIdComplementar" required></select>
+              </div>
+              <div class="col-md-6">
+                <label for="osIdComplementar" class="form-label">Ordem de Serviço (OS)</label>
+                <select class="form-select" id="osIdComplementar" required></select>
+              </div>
+              <div class="col-md-12">
+                <label for="lpuIdComplementar" class="form-label">Item LPU</label>
+                <select class="form-select" id="lpuIdComplementar" required disabled></select>
+              </div>
+              <div class="col-md-12">
+                <label for="quantidadeComplementar" class="form-label">Quantidade</label>
+                <input type="number" class="form-control" id="quantidadeComplementar" min="1" value="1" required>
+              </div>
+              <div class="col-12">
+                <label for="justificativaComplementar" class="form-label">Justificativa <small
+                    class="text-muted">(Opcional)</small></label>
+                <textarea class="form-control" id="justificativaComplementar" rows="3"
+                  placeholder="Ex: Necessidade de instalar um equipamento adicional não previsto no escopo original..."></textarea>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle me-1"></i>
+            Cancelar</button>
+          <button type="submit" id="btnEnviarSolicitacaoComplementar" form="formSolicitarComplementar"
+            class="btn btn-success">
+            <i class="bi bi-send me-1"></i> Enviar para Aprovação
+          </button>
         </div>
       </div>
     </div>
@@ -484,9 +545,31 @@
     </div>
   </div>
 
-  <div id="overlay-loader" class="overlay-loader d-none">
-    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
-      <span class="visually-hidden">Carregando...</span>
+  <div class="modal fade" id="modalConfirmarExclusaoLancamento" tabindex="-1"
+    aria-labelledby="modalConfirmarExclusaoLancamentoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title text-danger" id="modalConfirmarExclusaoLancamentoLabel">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> Confirmar Exclusão
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p>Você tem certeza que deseja **EXCLUIR** este lançamento?</p>
+          <p class="small text-danger">Esta ação é irreversível. O lançamento será removido permanentemente do sistema.
+          </p>
+          <input type="hidden" id="deleteLancamentoId">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="bi bi-x-circle"></i> Cancelar
+          </button>
+          <button type="button" class="btn btn-danger" id="btnConfirmarExclusaoLancamentoDefinitiva">
+            <i class="bi bi-trash"></i> Sim, Excluir
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -525,16 +608,6 @@
             </div>
 
             <div class="row g-3 mb-3 align-items-end">
-              <div class="col-md-auto">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="atividadeComplementar" />
-                  <label class="form-check-label" for="atividadeComplementar">Atividade Complementar</label>
-                </div>
-              </div>
-              <div class="col-md-3 d-none" id="quantidadeContainer">
-                <label for="quantidade" class="form-label">Quantidade</label>
-                <input type="number" class="form-control" id="quantidade" min="1" value="1" />
-              </div>
               <div class="col-md d-none" id="lpuContainer">
                 <label for="lpuId" class="form-label">Lista de Preços Unitários (LPU)</label>
                 <select class="form-select" id="lpuId" required>
@@ -641,10 +714,8 @@
 
               <div class="col-md-4">
                 <label class="form-label">STATUS</label>
-                <select class="form-select" id="status">
-                  <option>Aguardando documentação</option>
-                  <option>Paralisado</option>
-                  <option>Em andamento</option>
+                <select class="form-select" id="status" required disabled>
+                  <option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>
                 </select>
               </div>
             </div>
@@ -654,13 +725,17 @@
               <textarea class="form-control" id="detalheDiario" rows="2" required></textarea>
             </div>
 
-            <label class="form-label">SITUAÇÃO</label>
-            <select class="form-select" id="situacao">
-              <option>Aguardando documentação</option>
-              <option>Paralisado</option>
-              <option selected>Em andamento</option>
-              <option>Finalizado</option>
-            </select>
+            <div class="mb-3">
+              <label class="form-label">SITUAÇÃO</label>
+              <select class="form-select" id="situacao" required>
+                <option value="" disabled>Selecione...</option>
+                <option value="Não iniciado">Não iniciado</option>
+                <option value="Aguardando documentação">Aguardando documentação</option>
+                <option value="Paralisado">Paralisado</option>
+                <option value="Em andamento" selected>Em andamento</option>
+                <option value="Finalizado">Finalizado</option>
+              </select>
+            </div>
 
             <h6 class="section-title">Financeiro</h6>
             <div class="row g-3 mb-3">
@@ -676,6 +751,11 @@
                   <span class="input-group-text">R$</span>
                   <input type="text" class="form-control" id="valor" inputmode="numeric" />
                 </div>
+              </div>
+            </div>
+            <div id="modal-overlay-loader" class="overlay-loader d-none">
+              <div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Salvando...</span>
               </div>
             </div>
           </form>
@@ -785,18 +865,6 @@
                 <input type="text" class="form-control" id="regionalLote" readonly>
               </div>
             </div>
-            <div class="row g-3 mb-3 align-items-end">
-              <div class="col-md-auto">
-                <div class="form-check form-switch">
-                  <input class="form-check-input" type="checkbox" id="atividadeComplementarLote" />
-                  <label class="form-check-label" for="atividadeComplementarLote">Atividade Complementar</label>
-                </div>
-              </div>
-              <div class="col-md-3 d-none" id="quantidadeComplementarContainerLote">
-                <label for="quantidadeComplementarLote" class="form-label">Quantidade</label>
-                <input type="number" class="form-control" id="quantidadeComplementarLote" min="1" value="1" />
-              </div>
-            </div>
 
             <div class="col-12">
               <label class="form-label">Selecione os itens LPUs</label>
@@ -885,16 +953,17 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/js/general/global.js?v=1.7"></script>
+  <script src="assets/js/general/global.js?v=2.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-  <script src="assets/js/index/calendary.js?v=1.7" type="module"></script>
-  <script src="assets/js/index/editionfields.js?v=1.7"></script>
-  <script src="assets/js/general/sidebar.js?v=1.7"></script>
-  <script src="assets/js/index/auth-filter.js?v=1.7"></script>
-  <script src="assets/js/index/index.js?v=1.7"></script>
-  <script src="assets/js/index/lancamento-lote.js?v=1.7"></script>
+  <script src="assets/js/index/calendary.js?v=2.1" type="module"></script>
+  <script src="assets/js/index/editionfields.js?v=2.1"></script>
+  <script src="assets/js/general/sidebar.js?v=2.1"></script>
+  <script src="assets/js/index/auth-filter.js?v=2.1"></script>
+  <script src="assets/js/index/index.js?v=2.1"></script>
+  <script src="assets/js/index/lancamento-lote.js?v=2.1"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
 
     document.addEventListener('DOMContentLoaded', function () {

@@ -4,9 +4,7 @@ import br.com.inproutservices.inproutsystem.dtos.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
-import br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada;
-import br.com.inproutservices.inproutsystem.entities.index.Lpu;
-import br.com.inproutservices.inproutsystem.entities.index.Prestador;
+import br.com.inproutservices.inproutsystem.entities.index.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
@@ -17,28 +15,31 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRe
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.EtapaDetalhadaRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.LpuRepository;
-import br.com.inproutservices.inproutsystem.repositories.index.PrestadorRepository;
+import br.com.inproutservices.inproutsystem.repositories.index.*;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import br.com.inproutservices.inproutsystem.services.config.PrazoService;
 import jakarta.persistence.EntityNotFoundException;
+import org.apache.poi.ss.usermodel.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import br.com.inproutservices.inproutsystem.entities.index.Segmento;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 import java.util.stream.Collectors;
+
+import static br.com.inproutservices.inproutsystem.services.atividades.OsServiceImpl.isRowEmpty;
 
 @Service
 public class LancamentoServiceImpl implements LancamentoService {
@@ -53,12 +54,14 @@ public class LancamentoServiceImpl implements LancamentoService {
     private final LpuRepository lpuRepository;
     private final OsLpuDetalheRepository osLpuDetalheRepository;
     private final OsService osService;
+    private final ContratoRepository contratoRepository;
+    private final SegmentoRepository segmentoRepository;
 
     public LancamentoServiceImpl(LancamentoRepository lancamentoRepository, OsRepository osRepository,
                                  UsuarioRepository usuarioRepository, PrazoService prazoService,
                                  ComentarioRepository comentarioRepository, PrestadorRepository prestadorRepository,
                                  EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository,
-                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService,ContratoRepository contratoRepository, SegmentoRepository segmentoRepository) {
         this.lancamentoRepository = lancamentoRepository;
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
@@ -69,6 +72,8 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.lpuRepository = lpuRepository;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
         this.osService = osService;
+        this.contratoRepository = contratoRepository;
+        this.segmentoRepository = segmentoRepository;
     }
 
     // ... (todos os outros métodos do service permanecem iguais)
@@ -148,7 +153,10 @@ public class LancamentoServiceImpl implements LancamentoService {
         OsLpuDetalhe osLpuDetalhe;
 
         if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+            // Para atividade complementar, precisamos do ID da OS, que está no osLpuDetalhe "pai"
+            OsLpuDetalhe detalhePai = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                    .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS base não encontrado para atividade complementar."));
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(detalhePai.getOs().getId(), dto.lpuId(), dto.quantidade());
         } else {
             // Lógica existente para atividades não complementares
             if (dto.osLpuDetalheId() == null) {
@@ -182,11 +190,9 @@ public class LancamentoServiceImpl implements LancamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
-        OS os = osRepository.findById(dto.osId())
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
 
         Lancamento lancamento = new Lancamento();
-        lancamento.setOs(os);
+        lancamento.setOs(osLpuDetalhe.getOs()); // Define a OS a partir do detalhe
         lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setManager(manager);
         lancamento.setPrestador(prestador);
@@ -405,11 +411,9 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional
     public Lancamento atualizarLancamento(Long id, LancamentoRequestDTO dto) {
-        // 1. Busca o lançamento existente no banco
         Lancamento lancamento = lancamentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
 
-        // 2. Valida se o lançamento está em um status que permite edição
         SituacaoAprovacao statusAtual = lancamento.getSituacaoAprovacao();
         boolean isReenvio = statusAtual == SituacaoAprovacao.RECUSADO_COORDENADOR || statusAtual == SituacaoAprovacao.RECUSADO_CONTROLLER;
 
@@ -417,18 +421,10 @@ public class LancamentoServiceImpl implements LancamentoService {
             throw new BusinessException("Este lançamento não pode ser editado. Status atual: " + statusAtual);
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-
-        // 3. Busca todas as entidades relacionadas a partir dos IDs do DTO
-        OS os = osRepository.findById(dto.osId())
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
-
         OsLpuDetalhe osLpuDetalhe;
-        // Lógica para atividade complementar (caso seja editada como uma)
         if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+            osLpuDetalhe = osService.criarOsLpuDetalheComplementar(lancamento.getOs().getId(), dto.lpuId(), dto.quantidade());
         } else {
-            // Lógica para atividade normal
             if (dto.osLpuDetalheId() == null) {
                 throw new BusinessException("O ID do detalhe (osLpuDetalheId) é obrigatório.");
             }
@@ -441,9 +437,8 @@ public class LancamentoServiceImpl implements LancamentoService {
         EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                 .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
-        // 4. Atualiza os campos do lançamento com os dados do DTO
-        lancamento.setOs(os); // Estava faltando
-        lancamento.setOsLpuDetalhe(osLpuDetalhe); // Estava faltando
+        lancamento.setOs(osLpuDetalhe.getOs());
+        lancamento.setOsLpuDetalhe(osLpuDetalhe);
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
@@ -463,7 +458,6 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
 
-        // 5. Lógica para definir o status de aprovação (reenvio ou salvamento de rascunho)
         if (isReenvio) {
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
             lancamento.setDataSubmissao(LocalDateTime.now());
@@ -488,14 +482,35 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setUltUpdate(LocalDateTime.now());
 
         return lancamentoRepository.save(lancamento);
-
-        // --- FIM DA CORREÇÃO ---
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim) {
         return lancamentoRepository.countLancamentosPorDiaEGestor(dataInicio, dataFim);
+    }
+
+    @Override
+    @Transactional
+    public void deletarLancamento(Long id) {
+        Lancamento lancamento = lancamentoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
+
+        // Regra de Negócio: Permite exclusão apenas se for RASCUNHO ou RECUSADO
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RASCUNHO &&
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR &&
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_CONTROLLER) {
+            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS, RECUSADOS POR COORDENADOR ou RECUSADOS POR CONTROLLER. Status atual: " + lancamento.getSituacaoAprovacao());
+        }
+
+        lancamentoRepository.delete(lancamento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador() {
+        LocalDateTime dataLimite = LocalDateTime.now().minusDays(2);
+        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR, dataLimite);
     }
 
     @Override
@@ -595,7 +610,12 @@ public class LancamentoServiceImpl implements LancamentoService {
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
 
         Role role = usuario.getRole();
-        List<SituacaoAprovacao> statusHistorico = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.RECUSADO_COORDENADOR, SituacaoAprovacao.RECUSADO_CONTROLLER);
+        List<SituacaoAprovacao> statusHistorico = List.of(
+                SituacaoAprovacao.APROVADO,
+                SituacaoAprovacao.APROVADO_LEGADO,
+                SituacaoAprovacao.RECUSADO_COORDENADOR,
+                SituacaoAprovacao.RECUSADO_CONTROLLER
+        );
 
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             return lancamentoRepository.findBySituacaoAprovacaoIn(statusHistorico);
@@ -792,26 +812,24 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
-        SituacaoAprovacao status = SituacaoAprovacao.APROVADO;
+        List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_LEGADO);
 
-        // 1. Busca os lançamentos já com todos os dados necessários
-        List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(status, dataInicio, dataFim);
+        List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(statuses, dataInicio, dataFim);
 
-        // 2. Converte para o novo DTO detalhado
         List<CpsResponseDTO.LancamentoCpsDetalheDTO> detalhesDTO = lancamentosAprovados.stream()
                 .map(CpsResponseDTO.LancamentoCpsDetalheDTO::new)
                 .collect(Collectors.toList());
 
-        // 3. As consultas agregadas continuam as mesmas
-        List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(status, dataInicio, dataFim);
-        List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(status, dataInicio, dataFim);
+        // --- CORREÇÃO APLICADA AQUI ---
+        List<ValoresPorSegmentoDTO> valoresPorSegmento = lancamentoRepository.sumValorBySegmento(statuses, dataInicio, dataFim);
+        List<ConsolidadoPorPrestadorDTO> consolidadoPorPrestador = lancamentoRepository.sumValorByPrestador(statuses, dataInicio, dataFim);
+        // --- FIM DA CORREÇÃO ---
 
-        // 4. O cálculo do total geral também continua igual
-        BigDecimal valorTotalGeral = valoresPorSegmento.stream()
-                .map(ValoresPorSegmentoDTO::valorTotal)
+        BigDecimal valorTotalGeral = lancamentosAprovados.stream()
+                .map(Lancamento::getValor)
+                .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 5. Monta o DTO de resposta final
         CpsResponseDTO relatorio = new CpsResponseDTO();
         relatorio.setValorTotalGeral(valorTotalGeral);
         relatorio.setValoresPorSegmento(valoresPorSegmento);
@@ -855,6 +873,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         return lancamento;
     }
 
+    @Override
     @Transactional
     public List<Lancamento> criarLancamentosEmLote(List<LancamentoRequestDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) {
@@ -882,21 +901,21 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             OsLpuDetalhe osLpuDetalhe;
             if (dto.atividadeComplementar() != null && dto.atividadeComplementar()) {
-                osLpuDetalhe = osService.criarOsLpuDetalheComplementar(dto.osId(), dto.lpuId(), dto.quantidade());
+                OsLpuDetalhe detalhePai = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
+                        .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS base não encontrado para atividade complementar."));
+                osLpuDetalhe = osService.criarOsLpuDetalheComplementar(detalhePai.getOs().getId(), dto.lpuId(), dto.quantidade());
             } else {
                 osLpuDetalhe = osLpuDetalheRepository.findById(dto.osLpuDetalheId())
                         .orElseThrow(() -> new EntityNotFoundException("Linha de detalhe (OsLpuDetalhe) não encontrada com o ID: " + dto.osLpuDetalheId()));
             }
 
-            OS os = osRepository.findById(dto.osId())
-                    .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + dto.osId()));
             Prestador prestador = prestadorRepository.findById(dto.prestadorId())
                     .orElseThrow(() -> new EntityNotFoundException("Prestador não encontrado com o ID: " + dto.prestadorId()));
             EtapaDetalhada etapaDetalhada = etapaDetalhadaRepository.findById(dto.etapaDetalhadaId())
                     .orElseThrow(() -> new EntityNotFoundException("Etapa Detalhada não encontrada com o ID: " + dto.etapaDetalhadaId()));
 
             Lancamento lancamento = new Lancamento();
-            lancamento.setOs(os);
+            lancamento.setOs(osLpuDetalhe.getOs());
             lancamento.setManager(manager);
             lancamento.setOsLpuDetalhe(osLpuDetalhe);
             lancamento.setDataAtividade(dto.dataAtividade());
@@ -921,18 +940,207 @@ public class LancamentoServiceImpl implements LancamentoService {
             SituacaoAprovacao situacao = dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO;
             lancamento.setSituacaoAprovacao(situacao);
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Se o lançamento já está sendo criado como pendente, define o prazo imediatamente.
             if (situacao == SituacaoAprovacao.PENDENTE_COORDENADOR) {
                 lancamento.setDataSubmissao(LocalDateTime.now());
                 lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
             }
-            // --- FIM DA CORREÇÃO ---
 
             novosLancamentos.add(lancamento);
         }
 
         return lancamentoRepository.saveAll(novosLancamentos);
+    }
+
+    @Override
+    @Transactional
+    public List<String> importarLegadoCps(MultipartFile file) throws IOException {
+        List<String> warnings = new ArrayList<>();
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+
+            if (rows.hasNext()) {
+                rows.next(); // Pula o cabeçalho
+            }
+
+            int rowCounter = 1;
+            while (rows.hasNext()) {
+                Row currentRow = rows.next();
+                rowCounter++;
+
+                final int currentRowNum = rowCounter;
+
+                if (isRowEmpty(currentRow)) {
+                    continue;
+                }
+
+                try {
+                    // Leitura dos dados da planilha, incluindo a coluna KEY
+                    String osStr = getStringCellValue(currentRow, 0);
+                    String contratoStr = getStringCellValue(currentRow, 1);
+                    String segmentoStr = getStringCellValue(currentRow, 2);
+                    String projetoStr = getStringCellValue(currentRow, 3);
+                    String lpuStr = getStringCellValue(currentRow, 4);
+                    LocalDate dataAtividade = getLocalDateCellValue(currentRow, 5);
+                    String codPrestadorStr = getStringCellValue(currentRow, 6);
+                    BigDecimal valor = getBigDecimalCellValue(currentRow, 7);
+                    String keyStr = getStringCellValue(currentRow, 8);
+
+                    // Validação de campos obrigatórios
+                    if (osStr == null || contratoStr == null || segmentoStr == null || projetoStr == null || lpuStr == null || dataAtividade == null || codPrestadorStr == null || valor == null) {
+                        warnings.add("Linha " + currentRowNum + ": Ignorada. Um ou mais campos obrigatórios estão em branco.");
+                        continue;
+                    }
+
+                    // Busca as entidades relacionadas para validação e/ou criação
+                    Contrato contrato = contratoRepository.findByNome(contratoStr)
+                            .orElseThrow(() -> new BusinessException("Contrato '" + contratoStr + "' não encontrado."));
+                    Segmento segmento = segmentoRepository.findByNome(segmentoStr)
+                            .orElseThrow(() -> new BusinessException("Segmento '" + segmentoStr + "' não encontrado."));
+                    Lpu lpu = lpuRepository.findByCodigoLpuAndContratoId(lpuStr, contrato.getId())
+                            .orElseThrow(() -> new BusinessException("LPU com código '" + lpuStr + "' não encontrada para o contrato '" + contratoStr + "'."));
+                    Prestador prestador = prestadorRepository.findByCodigoPrestador(codPrestadorStr)
+                            .orElseThrow(() -> new BusinessException("Prestador com código '" + codPrestadorStr + "' não encontrado."));
+
+                    OsLpuDetalhe detalhe;
+
+                    if (keyStr != null && !keyStr.isBlank()) {
+                        Optional<OsLpuDetalhe> detalheOpt = osLpuDetalheRepository.findByKey(keyStr);
+
+                        if (detalheOpt.isPresent()) {
+                            detalhe = detalheOpt.get();
+                            // Validação de consistência dos dados
+                            String erroMsg = "Linha " + currentRowNum + ": Ignorada. Inconsistência de dados para a KEY '" + keyStr + "'. ";
+                            if (!detalhe.getOs().getOs().equalsIgnoreCase(osStr)) {
+                                warnings.add(erroMsg + "Campo OS na planilha ('" + osStr + "') diferente do sistema ('" + detalhe.getOs().getOs() + "').");
+                                continue;
+                            }
+                            if (!detalhe.getContrato().equalsIgnoreCase(contratoStr)) {
+                                warnings.add(erroMsg + "Campo CONTRATO na planilha ('" + contratoStr + "') diferente do sistema ('" + detalhe.getContrato() + "').");
+                                continue;
+                            }
+                            if (!detalhe.getOs().getSegmento().getNome().equalsIgnoreCase(segmentoStr)) {
+                                warnings.add(erroMsg + "Campo SEGMENTO na planilha ('" + segmentoStr + "') diferente do sistema ('" + detalhe.getOs().getSegmento().getNome() + "').");
+                                continue;
+                            }
+                            if (!detalhe.getOs().getProjeto().equalsIgnoreCase(projetoStr)) {
+                                warnings.add(erroMsg + "Campo PROJETO na planilha ('" + projetoStr + "') diferente do sistema ('" + detalhe.getOs().getProjeto() + "').");
+                                continue;
+                            }
+                            if (!detalhe.getLpu().getCodigoLpu().equalsIgnoreCase(lpuStr)) {
+                                warnings.add(erroMsg + "Campo LPU na planilha ('" + lpuStr + "') diferente do sistema ('" + detalhe.getLpu().getCodigoLpu() + "').");
+                                continue;
+                            }
+                        } else {
+                            // Se a KEY foi informada mas não existe, cria um novo detalhe com ela
+                            OS os = osRepository.findByOs(osStr).orElseGet(() -> {
+                                OS newOs = new OS();
+                                newOs.setOs(osStr);
+                                newOs.setProjeto(projetoStr);
+                                newOs.setSegmento(segmento);
+                                return osRepository.save(newOs);
+                            });
+                            OsLpuDetalhe newDetalhe = new OsLpuDetalhe();
+                            newDetalhe.setOs(os);
+                            newDetalhe.setLpu(lpu);
+                            newDetalhe.setKey(keyStr);
+                            newDetalhe.setContrato(contrato.getNome());
+                            detalhe = osLpuDetalheRepository.save(newDetalhe);
+                        }
+                    } else {
+                        // Se a KEY não foi fornecida, cria uma chave automática
+                        OS os = osRepository.findByOs(osStr).orElseGet(() -> {
+                            OS newOs = new OS();
+                            newOs.setOs(osStr);
+                            newOs.setProjeto(projetoStr);
+                            newOs.setSegmento(segmento);
+                            return osRepository.save(newOs);
+                        });
+                        detalhe = os.getDetalhes().stream()
+                                .filter(d -> d.getLpu().getId().equals(lpu.getId()))
+                                .findFirst()
+                                .orElseGet(() -> {
+                                    OsLpuDetalhe newDetalhe = new OsLpuDetalhe();
+                                    newDetalhe.setOs(os);
+                                    newDetalhe.setLpu(lpu);
+                                    newDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_LEGADO_" + currentRowNum);
+                                    newDetalhe.setContrato(contrato.getNome());
+                                    return osLpuDetalheRepository.save(newDetalhe);
+                                });
+                    }
+
+                    Lancamento lancamento = new Lancamento();
+                    lancamento.setOs(detalhe.getOs());
+                    lancamento.setOsLpuDetalhe(detalhe);
+                    lancamento.setDataAtividade(dataAtividade);
+                    lancamento.setPrestador(prestador);
+                    lancamento.setValor(valor);
+                    lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_LEGADO);
+                    lancamento.setManager(usuarioRepository.findById(1L).orElseThrow(() -> new EntityNotFoundException("Usuário 'Sistema' (ID 1) não encontrado.")));
+
+                    lancamentoRepository.save(lancamento);
+
+                } catch (BusinessException | EntityNotFoundException e) {
+                    warnings.add("Linha " + currentRowNum + ": Erro - " + e.getMessage());
+                } catch (Exception e) {
+                    warnings.add("Linha " + currentRowNum + ": Erro inesperado - " + e.getMessage());
+                    e.printStackTrace();
+                }
+            }
+        }
+        return warnings;
+    }
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        for (int cellNum = row.getFirstCellNum(); cellNum < row.getLastCellNum(); cellNum++) {
+            Cell cell = row.getCell(cellNum, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell != null) return false;
+        }
+        return true;
+    }
+
+    private String getStringCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) return null;
+        DataFormatter formatter = new DataFormatter();
+        return formatter.formatCellValue(cell).trim();
+    }
+
+    private BigDecimal getBigDecimalCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) return null;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            return BigDecimal.valueOf(cell.getNumericCellValue());
+        }
+        if (cell.getCellType() == CellType.STRING) {
+            try {
+                return new BigDecimal(cell.getStringCellValue().trim().replace(",", "."));
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private LocalDate getLocalDateCellValue(Row row, int cellIndex) {
+        Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        if (cell == null) return null;
+        if (cell.getCellType() == CellType.NUMERIC) {
+            if (DateUtil.isCellDateFormatted(cell)) {
+                return cell.getDateCellValue().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+            }
+        }
+        if (cell.getCellType() == CellType.STRING) {
+            try {
+                return LocalDate.parse(cell.getStringCellValue().trim(), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            } catch (DateTimeParseException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     @Override

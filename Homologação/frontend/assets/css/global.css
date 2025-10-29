@@ -59,7 +59,7 @@ body {
   background-color: #f5fdf7;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
-  z-index: 999;
+  z-index: 10000;
   border-radius: 0 12px 12px 0;
   padding: 1rem;
 }
@@ -272,21 +272,22 @@ tr.selected {
 }
 
 .overlay-loader {
-  position: fixed;
-  /* Garante que ele flutue sobre a página */
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(255, 255, 255, 0.8);
-  /* Fundo branco semitransparente */
-  z-index: 9999;
-  /* Z-index altíssimo para ficar na frente de tudo */
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 999; 
   display: flex;
   align-items: center;
   justify-content: center;
   transition: opacity 0.3s ease;
-  /* Transição suave */
+}
+
+.content-loader-container {
+    position: relative;
+    min-height: 200px; /* Garante uma altura mínima para o loader ser visível */
 }
 
 /* Define a altura máxima e a barra de rolagem para a lista de opções */

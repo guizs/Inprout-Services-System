@@ -4,14 +4,11 @@
 
 async function fetchComAuth(url, options = {}) {
     const token = localStorage.getItem('token');
-
-    // Clona as opções para não modificar o objeto original
     const newOptions = { ...options };
 
-    // Define os cabeçalhos, garantindo que o 'headers' original seja mantido se existir
+    // Define os cabeçalhos, garantindo que o 'headers' original seja mantido
     newOptions.headers = {
         ...newOptions.headers,
-        'Content-Type': 'application/json', // Padrão para nossas requisições
     };
 
     // Adiciona o cabeçalho de autorização APENAS se o token existir
@@ -19,10 +16,15 @@ async function fetchComAuth(url, options = {}) {
         newOptions.headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // *** INÍCIO DA CORREÇÃO ***
+    // Apenas define o Content-Type se o corpo NÃO for FormData
+    if (!(newOptions.body instanceof FormData)) {
+        newOptions.headers['Content-Type'] = 'application/json';
+    }
+    // *** FIM DA CORREÇÃO ***
+
     const response = await fetch(url, newOptions);
 
-    // Se a resposta for 403 (Proibido), significa que o token é inválido ou expirou.
-    // A melhor ação é deslogar o usuário.
     if (response.status === 403) {
         redirectToLogin();
     }
@@ -106,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return mostrarToast('O novo e-mail é igual ao atual.', 'error');
                 }
                 try {
-                    const response = await fetch(`http://3.128.248.3:8080/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
+                    const response = await fetch(`https://www.inproutservices.com.br/api/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
                     if (!response.ok) {
                         const resultado = await response.text();
                         throw new Error(resultado);
@@ -127,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!novaSenha) return mostrarToast('Preencha ambos os campos de senha.', 'error');
 
                 try {
-                    const responseSenha = await fetchComAuth(`http://3.128.248.3:8080/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
+                    const responseSenha = await fetchComAuth(`https://www.inproutservices.com.br/api/usuarios/senha?email=${encodeURIComponent(localStorage.getItem('email'))}&novaSenha=${encodeURIComponent(novaSenha)}`, { method: 'PUT' });
                     if (!responseSenha.ok) {
                         const resultadoSenha = await responseSenha.text();
                         throw new Error(resultadoSenha);
@@ -169,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     try {
                         // Busca a lista completa de segmentos na API
-                        const response = await fetchComAuth('http://3.128.248.3:8080/segmentos');
+                        const response = await fetchComAuth('https://www.inproutservices.com.br/api/segmentos');
                         if (!response.ok) throw new Error('Falha ao buscar segmentos.');
                         const todosSegmentos = await response.json();
 

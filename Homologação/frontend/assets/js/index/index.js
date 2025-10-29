@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
@@ -9,6 +10,43 @@ document.addEventListener('DOMContentLoaded', () => {
         key: 'dataAtividade', // Coluna padrão para ordenação
         direction: 'desc' // Direção padrão (descendente)
     };
+
+    const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
+    const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
+
+    // INÍCIO DA CORREÇÃO: Definição do dataMapping que estava faltando
+    const dataMapping = {
+        "STATUS APROVAÇÃO": (lancamento) => (lancamento.situacaoAprovacao || '').replace(/_/g, ' '),
+        "DATA ATIVIDADE": (lancamento) => lancamento.dataAtividade || '',
+        "OS": (lancamento) => getNestedValue(lancamento, 'os.os'),
+        "SITE": (lancamento) => getNestedValue(lancamento, 'detalhe.site'),
+        "SEGMENTO": (lancamento) => getNestedValue(lancamento, 'os.segmento.nome'),
+        "PROJETO": (lancamento) => getNestedValue(lancamento, 'os.projeto'),
+        "LPU": (lancamento) => labelLpu(getNestedValue(lancamento, 'detalhe.lpu')),
+        "GESTOR TIM": (lancamento) => getNestedValue(lancamento, 'os.gestorTim'),
+        "REGIONAL": (lancamento) => getNestedValue(lancamento, 'detalhe.regional'),
+        "VISTORIA": (lancamento) => lancamento.vistoria || 'N/A',
+        "PLANO DE VISTORIA": (lancamento) => formatarData(lancamento.planoVistoria),
+        "DESMOBILIZAÇÃO": (lancamento) => lancamento.desmobilizacao || 'N/A',
+        "PLANO DE DESMOBILIZAÇÃO": (lancamento) => formatarData(lancamento.planoDesmobilizacao),
+        "INSTALAÇÃO": (lancamento) => lancamento.instalacao || 'N/A',
+        "PLANO DE INSTALAÇÃO": (lancamento) => formatarData(lancamento.planoInstalacao),
+        "ATIVAÇÃO": (lancamento) => lancamento.ativacao || 'N/A',
+        "PLANO DE ATIVAÇÃO": (lancamento) => formatarData(lancamento.planoAtivacao),
+        "DOCUMENTAÇÃO": (lancamento) => lancamento.documentacao || 'N/A',
+        "PLANO DE DOCUMENTAÇÃO": (lancamento) => formatarData(lancamento.planoDocumentacao),
+        "ETAPA GERAL": (lancamento) => (getNestedValue(lancamento, 'etapa.codigoGeral') && getNestedValue(lancamento, 'etapa.nomeGeral')) ? `${getNestedValue(lancamento, 'etapa.codigoGeral')} - ${getNestedValue(lancamento, 'etapa.nomeGeral')}` : '',
+        "ETAPA DETALHADA": (lancamento) => (getNestedValue(lancamento, 'etapa.indiceDetalhado') && getNestedValue(lancamento, 'etapa.nomeDetalhado')) ? `${getNestedValue(lancamento, 'etapa.indiceDetalhado')} - ${getNestedValue(lancamento, 'etapa.nomeDetalhado')}` : '',
+        "STATUS": (lancamento) => lancamento.status || '',
+        "SITUAÇÃO": (lancamento) => lancamento.situacao || '',
+        "DETALHE DIÁRIO": (lancamento) => lancamento.detalheDiario || '',
+        "CÓD. PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.codigo'),
+        "PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.nome'),
+        "VALOR": (lancamento) => formatarMoeda(lancamento.valor),
+        "GESTOR": (lancamento) => getNestedValue(lancamento, 'manager.nome'),
+        "AÇÃO": () => '' // Coluna de ação não exporta dados
+    };
+    // FIM DA CORREÇÃO
 
     function converterDataParaDDMMYYYY(isoDate) {
         if (!isoDate || !isoDate.includes('-')) {
@@ -78,13 +116,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function toggleLoader(ativo = true) {
-        const overlay = document.getElementById("overlay-loader");
-        if (overlay) {
-            if (ativo) {
-                overlay.classList.remove("d-none");
-            } else {
-                overlay.classList.add("d-none");
+        const container = document.querySelector('.content-loader-container');
+        if (container) {
+            const overlay = container.querySelector("#overlay-loader");
+            if (overlay) {
+                overlay.classList.toggle("d-none", !ativo);
             }
+        }
+    }
+
+    function toggleModalLoader(ativo = true) {
+        const modalLoader = document.getElementById('modal-overlay-loader');
+        if (modalLoader) {
+            modalLoader.classList.toggle('d-none', !ativo);
         }
     }
 
@@ -99,46 +143,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
+        const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar');
+        const btnExportar = document.getElementById('btnExportar'); // Botão de exportar
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Todos os itens da navegação são visíveis por padrão para todos os perfis.
+        // Todos os itens da navegação são visíveis por padrão
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'block';
         });
-        // --- FIM DA CORREÇÃO ---
 
         // Oculta botões de ação específicos por padrão
-        [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+        [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
             if (el) el.style.display = 'none';
         });
 
         // Aplica regras de visibilidade para cada cargo
         switch (userRole) {
             case 'MANAGER':
-                // Manager pode criar lançamento e solicitar material
-                [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+                [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
 
             case 'COORDINATOR':
-                // Coordenador não vê a aba "Lançamentos" (rascunhos)
                 if (navLancamentos) navLancamentos.style.display = 'none';
                 break;
 
             case 'ADMIN':
-                // Admin pode criar lançamento e solicitar material
-                [btnNovoLancamento, btnSolicitarMaterial].forEach(el => {
+            case 'CONTROLLER':
+            case 'ASSISTANT':
+                [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
 
-            // Outros perfis como CONTROLLER e ASSISTANT mantêm a visibilidade padrão (todas as abas)
             default:
                 break;
         }
 
-        // Lógica para definir a aba ativa padrão (não precisa de alteração)
         const tabAtiva = document.querySelector('#lancamentosTab .nav-link.active');
         if (!tabAtiva || tabAtiva.parentElement.style.display === 'none') {
             const primeiraAbaVisivel = document.querySelector('#lancamentosTab .nav-item[style*="block"] .nav-link');
@@ -148,9 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==========================================================
-    // SEÇÃO 1: LÓGICA DO PAINEL "VISÃO GERAL" (RECOLHÍVEL)
-    // ==========================================================
     const collapseElement = document.getElementById('collapseDashboardCards');
     const collapseIcon = document.querySelector('a[href="#collapseDashboardCards"] i');
     if (collapseElement && collapseIcon) {
@@ -158,9 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
         collapseElement.addEventListener('hide.bs.collapse', () => collapseIcon.classList.replace('bi-chevron-up', 'bi-chevron-down'));
     }
 
-    // ==========================================================
-    // SEÇÃO 2: LÓGICA DAS TABELAS PRINCIPAIS (LISTAGEM)
-    // ==========================================================
     const tbodyLancamentos = document.getElementById('tbody-lancamentos');
     const tbodyPendentes = document.getElementById('tbody-pendentes');
     const tbodyHistorico = document.getElementById('tbody-historico');
@@ -168,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbodyParalisados = document.getElementById('tbody-paralisados');
     const notificacaoPendencias = document.getElementById('notificacao-pendencias');
     let filtrosAtivos = { periodo: null, status: null, osId: null };
-    let todosLancamentos = []; // Armazena todos os lançamentos para fácil acesso
+    let todosLancamentos = [];
 
     const colunasPrincipais = ["STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "SEGMENTO", "PROJETO", "LPU", "GESTOR TIM", "REGIONAL", "VISTORIA", "PLANO DE VISTORIA", "DESMOBILIZAÇÃO", "PLANO DE DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO DE INSTALAÇÃO", "ATIVAÇÃO", "PLANO DE ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DE DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "SITUAÇÃO", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR"];
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
@@ -185,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const iconClass = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
                 headerHTML += `<th class="sortable" data-sort-key="${sortKey}">${textoColuna} <i class="bi ${iconClass}"></i></th>`;
             } else {
-                headerHTML += `<th>${textoColuna}</th>`; // Colunas não ordenáveis como "AÇÃO"
+                headerHTML += `<th>${textoColuna}</th>`;
             }
         });
         headerHTML += '</tr>';
@@ -193,48 +228,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderizarCardsDashboard(lancamentos) {
-        // --- LÓGICA GERAL ---
-        const hoje = new Date().toLocaleDateString('pt-BR'); // Formato "dd/MM/yyyy"
+        const hoje = new Date().toLocaleDateString('pt-BR');
         const statusPendenteAprovacao = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRecusado = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
 
-        // --- CÁLCULO DOS CARDS ---
-
-        // 1. Lançamentos para Hoje: Rascunhos cuja data da atividade é hoje.
-        const totalLancamentosHoje = lancamentos.filter(l =>
-            l.situacaoAprovacao === 'RASCUNHO' && l.dataAtividade === hoje
-        ).length;
-
-        // 2. Aguardando Aprovação
-        const totalPendentesAprovacao = lancamentos.filter(l =>
-            statusPendenteAprovacao.includes(l.situacaoAprovacao)
-        ).length;
-
-        // 3. Recusados para Correção
-        const totalRecusados = lancamentos.filter(l =>
-            statusRecusado.includes(l.situacaoAprovacao)
-        ).length;
-
-        // 4. Projetos em Andamento: Contagem de projetos únicos (OS+LPU) cujo último status NÃO é Paralisado ou Finalizado.
+        const totalLancamentosHoje = lancamentos.filter(l => l.situacaoAprovacao === 'RASCUNHO' && l.dataAtividade === hoje).length;
+        const totalPendentesAprovacao = lancamentos.filter(l => statusPendenteAprovacao.includes(l.situacaoAprovacao)).length;
+        const totalRecusados = lancamentos.filter(l => statusRecusado.includes(l.situacaoAprovacao)).length;
         const projetosAtivos = new Set();
         lancamentos.forEach(l => {
-            if (l.situacao !== 'Paralisado' && l.situacao !== 'Finalizado' && l.os && l.lpu) {
-                const chaveProjeto = `${l.os.id}-${l.lpu.id}`;
+            if (l.situacao !== 'Paralisado' && l.situacao !== 'Finalizado' && l.os && l.detalhe && l.detalhe.lpu) {
+                const chaveProjeto = `${l.os.id}-${l.detalhe.lpu.id}`;
                 projetosAtivos.add(chaveProjeto);
             }
         });
         const totalEmAndamento = projetosAtivos.size;
-
-        // 5. Projetos Paralisados: Reutiliza a função que já existe.
         const totalParalisadas = getProjetosParalisados().length;
+        const totalFinalizadasHoje = lancamentos.filter(l => l.situacao === 'Finalizado' && l.dataAtividade === hoje).length;
 
-        // 6. Finalizados Hoje: Lançamentos com situação "Finalizado" e data da atividade de hoje.
-        const totalFinalizadasHoje = lancamentos.filter(l =>
-            l.situacao === 'Finalizado' && l.dataAtividade === hoje
-        ).length;
-
-
-        // --- ATUALIZAÇÃO DO HTML ---
         document.getElementById('card-lancamentos-hoje').textContent = totalLancamentosHoje;
         document.getElementById('card-pendentes-aprovacao').textContent = totalPendentesAprovacao;
         document.getElementById('card-recusados').textContent = totalRecusados;
@@ -292,32 +303,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const manager = lancamento.manager || {};
 
             const mapaDeCelulas = {
-                "DATA ATIVIDADE": lancamento.dataAtividade || '',
-                "OS": os.os || '',
-                "SITE": detalhe.site || '',
-                "SEGMENTO": os.segmento ? os.segmento.nome : '',
-                "PROJETO": os.projeto || '',
-                "LPU": labelLpu(lpu),
-                "GESTOR TIM": os.gestorTim || '',
-                "REGIONAL": detalhe.regional || '',
-                "VISTORIA": lancamento.vistoria || 'N/A',
-                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria),
-                "DESMOBILIZAÇÃO": lancamento.desmobilizacao || 'N/A',
-                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao),
-                "INSTALAÇÃO": lancamento.instalacao || 'N/A',
-                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao),
-                "ATIVAÇÃO": lancamento.ativacao || 'N/A',
-                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao),
-                "DOCUMENTAÇÃO": lancamento.documentacao || 'N/A',
+                "DATA ATIVIDADE": lancamento.dataAtividade || '', "OS": os.os || '', "SITE": detalhe.site || '',
+                "SEGMENTO": os.segmento ? os.segmento.nome : '', "PROJETO": os.projeto || '', "LPU": labelLpu(lpu),
+                "GESTOR TIM": os.gestorTim || '', "REGIONAL": detalhe.regional || '', "VISTORIA": lancamento.vistoria || 'N/A',
+                "PLANO DE VISTORIA": formatarData(lancamento.planoVistoria), "DESMOBILIZAÇÃO": lancamento.desmobilizacao || 'N/A',
+                "PLANO DE DESMOBILIZAÇÃO": formatarData(lancamento.planoDesmobilizacao), "INSTALAÇÃO": lancamento.instalacao || 'N/A',
+                "PLANO DE INSTALAÇÃO": formatarData(lancamento.planoInstalacao), "ATIVAÇÃO": lancamento.ativacao || 'N/A',
+                "PLANO DE ATIVAÇÃO": formatarData(lancamento.planoAtivacao), "DOCUMENTAÇÃO": lancamento.documentacao || 'N/A',
                 "PLANO DE DOCUMENTAÇÃO": formatarData(lancamento.planoDocumentacao),
                 "ETAPA GERAL": (etapa.codigoGeral && etapa.nomeGeral) ? `${etapa.codigoGeral} - ${etapa.nomeGeral}` : '',
                 "ETAPA DETALHADA": (etapa.indiceDetalhado && etapa.nomeDetalhado) ? `${etapa.indiceDetalhado} - ${etapa.nomeDetalhado}` : '',
-                "STATUS": lancamento.status || '',
-                "SITUAÇÃO": lancamento.situacao || '',
-                "DETALHE DIÁRIO": lancamento.detalheDiario || '',
-                "CÓD. PRESTADOR": prestador.codigo || '',
-                "PRESTADOR": prestador.nome || '',
-                "VALOR": formatarMoeda(lancamento.valor),
+                "STATUS": lancamento.status || '', "SITUAÇÃO": lancamento.situacao || '', "DETALHE DIÁRIO": lancamento.detalheDiario || '',
+                "CÓD. PRESTADOR": prestador.codigo || '', "PRESTADOR": prestador.nome || '', "VALOR": formatarMoeda(lancamento.valor),
                 "GESTOR": manager.nome || '',
                 "STATUS APROVAÇÃO": `<span class="badge rounded-pill text-bg-secondary">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`
             };
@@ -331,8 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
+                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
+                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
                             if (!projetosFinalizados.has(chaveProjetoAtual)) {
@@ -365,58 +364,36 @@ document.addEventListener('DOMContentLoaded', () => {
         if (termoBusca) {
             dadosFiltrados = dadosFiltrados.filter(l => {
                 const textoPesquisavel = [
-                    l.os?.os,
-                    l.detalhe?.site,
-                    l.os?.segmento?.nome,
-                    l.os?.projeto,
-                    l.detalhe?.lpu?.nomeLpu,
-                    l.detalhe?.lpu?.codigoLpu,
-                    l.prestador?.nome
+                    l.os?.os, l.detalhe?.site, l.os?.segmento?.nome, l.os?.projeto,
+                    l.detalhe?.lpu?.nomeLpu, l.detalhe?.lpu?.codigoLpu, l.prestador?.nome
                 ].join(' ').toLowerCase();
                 return textoPesquisavel.includes(termoBusca);
             });
         }
 
-        // 1. Filtro por PERÍODO
         if (filtrosAtivos.periodo) {
             const hoje = new Date();
             hoje.setHours(0, 0, 0, 0);
-
             dadosFiltrados = dadosFiltrados.filter(l => {
                 const partesData = l.dataAtividade.split('/');
                 const dataAtividade = new Date(partesData[2], partesData[1] - 1, partesData[0]);
-
                 if (filtrosAtivos.periodo.start && filtrosAtivos.periodo.end) {
                     return dataAtividade >= filtrosAtivos.periodo.start && dataAtividade <= filtrosAtivos.periodo.end;
                 }
-
                 switch (filtrosAtivos.periodo) {
-                    case 'hoje':
-                        return dataAtividade.getTime() === hoje.getTime();
-                    case 'ontem':
-                        const ontem = new Date(hoje);
-                        ontem.setDate(hoje.getDate() - 1);
-                        return dataAtividade.getTime() === ontem.getTime();
-                    case 'semana':
-                        const umaSemanaAtras = new Date(hoje);
-                        umaSemanaAtras.setDate(hoje.getDate() - 6);
-                        return dataAtividade >= umaSemanaAtras;
-                    case 'mes':
-                        const umMesAtras = new Date(hoje);
-                        umMesAtras.setMonth(hoje.getMonth() - 1);
-                        return dataAtividade >= umMesAtras;
-                    default:
-                        return true;
+                    case 'hoje': return dataAtividade.getTime() === hoje.getTime();
+                    case 'ontem': const ontem = new Date(hoje); ontem.setDate(hoje.getDate() - 1); return dataAtividade.getTime() === ontem.getTime();
+                    case 'semana': const umaSemanaAtras = new Date(hoje); umaSemanaAtras.setDate(hoje.getDate() - 6); return dataAtividade >= umaSemanaAtras;
+                    case 'mes': const umMesAtras = new Date(hoje); umMesAtras.setMonth(hoje.getMonth() - 1); return dataAtividade >= umMesAtras;
+                    default: return true;
                 }
             });
         }
 
-        // 2. Filtro por STATUS DE APROVAÇÃO
         if (filtrosAtivos.status) {
             dadosFiltrados = dadosFiltrados.filter(l => l.situacaoAprovacao === filtrosAtivos.status);
         }
 
-        // 3. Filtro por OS
         if (filtrosAtivos.osId) {
             dadosFiltrados = dadosFiltrados.filter(l => l.os.id == filtrosAtivos.osId);
         }
@@ -427,16 +404,13 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos');
+            const response = await fetchComAuth('https://www.inproutservices.com.br/api/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
-
             const lancamentosDaApi = await response.json();
             todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
-
             renderizarCardsDashboard(todosLancamentos);
             popularFiltroOS();
             renderizarTodasAsTabelas();
-
         } catch (error) {
             console.error('Falha ao buscar lançamentos:', error);
             mostrarToast('Falha ao carregar dados do servidor.', 'error');
@@ -447,32 +421,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderizarTodasAsTabelas() {
         const dadosParaExibir = getDadosFiltrados();
-
-        // Função de comparação para ordenação
         const comparer = (a, b) => {
             let valA = getNestedValue(a, sortConfig.key);
             let valB = getNestedValue(b, sortConfig.key);
-
-            // Tratamento especial para diferentes tipos de dados
             const isDate = sortConfig.key.toLowerCase().includes('data');
             const isValue = sortConfig.key.toLowerCase().includes('valor');
-
-            if (isDate) {
-                valA = valA ? parseDataBrasileira(valA) : new Date(0);
-                valB = valB ? parseDataBrasileira(valB) : new Date(0);
-            } else if (isValue) {
-                valA = Number(valA) || 0;
-                valB = Number(valB) || 0;
-            }
-
-            if (typeof valA === 'string') {
-                return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-            } else {
-                return sortConfig.direction === 'asc' ? valA - valB : valB - valA;
-            }
+            if (isDate) { valA = valA ? parseDataBrasileira(valA) : new Date(0); valB = valB ? parseDataBrasileira(valB) : new Date(0); }
+            else if (isValue) { valA = Number(valA) || 0; valB = Number(valB) || 0; }
+            if (typeof valA === 'string') { return sortConfig.direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA); }
+            else { return sortConfig.direction === 'asc' ? valA - valB : valB - valA; }
         };
 
-        // Filtra os dados para cada aba
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
@@ -481,10 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
         const paralisados = getProjetosParalisados().sort(comparer);
 
-        // Renderiza os cabeçalhos (que agora mostrarão os ícones de ordenação)
         inicializarCabecalhos();
-
-        // Renderiza as tabelas com os dados já ordenados
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
         renderizarTabela(minhasPendencias, tbodyMinhasPendencias, colunasMinhasPendencias);
@@ -503,24 +459,18 @@ document.addEventListener('DOMContentLoaded', () => {
             thead.addEventListener('click', (e) => {
                 const header = e.target.closest('th.sortable');
                 if (!header) return;
-
                 const key = header.dataset.sortKey;
-                // Se clicou na mesma coluna, inverte a direção. Senão, define uma nova coluna e direção padrão.
                 if (sortConfig.key === key) {
                     sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
                 } else {
                     sortConfig.key = key;
-                    sortConfig.direction = 'desc'; // Padrão é sempre começar do maior/mais recente
+                    sortConfig.direction = 'desc';
                 }
-                // Chama a função principal para re-filtrar, re-ordenar e re-renderizar tudo
                 renderizarTodasAsTabelas();
             });
         });
     }
 
-    // ==========================================================
-    // SEÇÃO 3: LÓGICA DO MODAL
-    // ==========================================================
     const modalAdicionarEl = document.getElementById('modalAdicionar');
     const modalAdicionar = modalAdicionarEl ? new bootstrap.Modal(modalAdicionarEl) : null;
 
@@ -535,31 +485,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
         const selectStatus = document.getElementById('status');
-
-        const chkAtividadeComplementar = document.getElementById('atividadeComplementar');
-        const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
         const lpuContainer = document.getElementById('lpuContainer');
 
         let todasAsOS = [];
         let todasAsEtapas = [];
-        let todosOsPrestadores = []; // Cache para prestadores
-
-        // ==========================================================
-        // ===== INÍCIO DA CORREÇÃO: LÓGICA DE SUBMISSÃO DO FORM =====
-        // ==========================================================
+        let todosOsPrestadores = [];
 
         formAdicionar.addEventListener('submit', async (e) => {
             e.preventDefault();
             const submitter = e.submitter || document.activeElement;
             const acao = submitter.dataset.acao;
-            const isComplementar = chkAtividadeComplementar.checked;
             const editingId = formAdicionar.dataset.editingId;
 
-            // --- LÓGICA CORRIGIDA PARA PEGAR O ID DO DETALHE ---
-            // Se estiver editando ou retomando (ou seja, formAdicionar.dataset.osLpuDetalheId existe), use-o.
-            // Senão, pegue o valor do dropdown de LPU.
-            const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId ||
-                (!isComplementar ? document.getElementById('lpuId').value : null);
+            const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId || document.getElementById('lpuId').value;
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
@@ -567,7 +505,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 prestadorId: selectPrestador.value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
                 dataAtividade: converterDataParaDDMMYYYY(document.getElementById('dataAtividade').value),
-                equipe: document.getElementById('equipe')?.value,
                 vistoria: document.getElementById('vistoria').value,
                 planoVistoria: converterDataParaDDMMYYYY(document.getElementById('planoVistoria').value) || null,
                 desmobilizacao: document.getElementById('desmobilizacao').value,
@@ -582,56 +519,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 situacao: document.getElementById('situacao').value,
                 detalheDiario: document.getElementById('detalheDiario').value,
                 valor: parseFloat(document.getElementById('valor').value.replace(/\./g, '').replace(',', '.')) || 0,
-                atividadeComplementar: isComplementar,
-                quantidade: isComplementar ? parseInt(document.getElementById('quantidade').value, 10) : null,
                 situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO',
-                lpuId: isComplementar ? document.getElementById('lpuId').value : null,
                 osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            const url = editingId ? `http://3.128.248.3:8080/lancamentos/${editingId}` : 'http://3.128.248.3:8080/lancamentos';
+            const url = editingId ? `https://www.inproutservices.com.br/api/lancamentos/${editingId}` : 'https://www.inproutservices.com.br/api/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
-                toggleLoader(true);
-                const response = await fetchComAuth(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+                toggleModalLoader(true);
+                const response = await fetchComAuth(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
-                    // --- TRATAMENTO DE ERRO MELHORADO ---
                     let errorMsg = 'Erro desconhecido no servidor.';
-                    try {
-                        // Tenta ler como JSON primeiro, que é o esperado
-                        const errorData = await response.json();
-                        errorMsg = errorData.message || JSON.stringify(errorData);
-                    } catch (e) {
-                        // Se falhar, lê como texto (plano B)
-                        errorMsg = await response.text();
-                    }
+                    try { const errorData = await response.json(); errorMsg = errorData.message || JSON.stringify(errorData); }
+                    catch (e) { errorMsg = await response.text(); }
                     throw new Error(errorMsg);
                 }
-
                 mostrarToast('Lançamento salvo com sucesso!', 'success');
                 modalAdicionar.hide();
                 await carregarLancamentos();
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                toggleLoader(false);
+                toggleModalLoader(false);
             }
         });
 
-        // ==========================================================
-        // ===== FIM DA CORREÇÃO =====
-        // ==========================================================
-
-        async function carregarEPopularLPU(osId, isComplementar = false) {
+        async function carregarEPopularLPU(osId) {
             const selectLPU = document.getElementById('lpuId');
-
-            if (!osId && !isComplementar) {
+            if (!osId) {
                 lpuContainer.classList.add('d-none');
                 selectLPU.innerHTML = '';
                 return;
@@ -643,46 +559,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}`);
+                if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
+                const osData = await response.json();
+                const lpusParaExibir = osData.detalhes;
 
-                if (isComplementar) {
-                    // --- INÍCIO DA CORREÇÃO ---
-                    // Busca todos os contratos ativos, que já contêm suas LPUs
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/contrato`);
-                    if (!response.ok) throw new Error('Falha ao buscar a lista de contratos e LPUs.');
-                    const contratos = await response.json();
-
-                    // Itera sobre cada contrato e depois sobre suas LPUs
-                    contratos.forEach(contrato => {
-                        if (contrato.lpus && contrato.lpus.length > 0) {
-                            contrato.lpus.forEach(lpu => {
-                                // Cria o novo formato de texto, incluindo o nome do contrato
-                                const label = `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`;
-                                const value = lpu.id;
-                                selectLPU.add(new Option(label, value));
-                            });
-                        }
+                if (lpusParaExibir && lpusParaExibir.length > 0) {
+                    lpusParaExibir.forEach(item => {
+                        const lpu = item.lpu || item;
+                        const quantidade = item.quantidade || 'N/A';
+                        const key = item.key || 'N/A';
+                        const codigo = lpu.codigoLpu || lpu.codigo || '';
+                        const nome = lpu.nomeLpu || lpu.nome || '';
+                        const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
+                        const value = item.id;
+                        selectLPU.add(new Option(label, value));
                     });
-                    // --- FIM DA CORREÇÃO ---
-                } else {
-                    // Lógica original para atividades normais (não complementares)
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
-                    if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
-                    const osData = await response.json();
-                    const lpusParaExibir = osData.detalhes;
-
-                    if (lpusParaExibir && lpusParaExibir.length > 0) {
-                        lpusParaExibir.forEach(item => {
-                            const lpu = item.lpu || item;
-                            const quantidade = item.quantidade || 'N/A';
-                            const key = item.key || 'N/A';
-                            const codigo = lpu.codigoLpu || lpu.codigo || '';
-                            const nome = lpu.nomeLpu || lpu.nome || '';
-
-                            const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
-                            const value = item.id;
-                            selectLPU.add(new Option(label, value));
-                        });
-                    }
                 }
 
                 if (selectLPU.options.length <= 1) {
@@ -690,52 +582,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     selectLPU.disabled = false;
                 }
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 lpuContainer.classList.add('d-none');
             }
         }
 
-        chkAtividadeComplementar.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            quantidadeContainer.classList.toggle('d-none', !isChecked);
-            const osId = selectOS.value;
-            if (osId) {
-                carregarEPopularLPU(osId, isChecked);
-            }
-        });
-
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
             const os = todasAsOS.find(os => os.id == osId);
-
-            // --- INÍCIO DA CORREÇÃO ---
-            // Atualiza o select de Projeto para corresponder à OS selecionada
             if (os && selectProjeto.value !== os.projeto) {
                 selectProjeto.value = os.projeto;
             }
-            // --- FIM DA CORREÇÃO ---
-
             preencherCamposOS(osId);
-            await carregarEPopularLPU(osId, chkAtividadeComplementar.checked);
+            await carregarEPopularLPU(osId);
         });
 
-        // Substitua este bloco de código também
         selectProjeto.addEventListener('change', async (e) => {
             const projeto = e.target.value;
-
-            // Encontra a primeira OS que corresponde ao projeto selecionado
             const primeiraOSDoProjeto = todasAsOS.find(os => os.projeto === projeto);
-
             if (primeiraOSDoProjeto) {
-                // Apenas define o valor da OS, sem filtrar a lista
                 selectOS.value = primeiraOSDoProjeto.id;
-                // Dispara o evento 'change' na OS para carregar seus dados
                 selectOS.dispatchEvent(new Event('change'));
             }
         });
-
 
         async function popularSelect(selectElement, url, valueField, textFieldFormatter) {
             try {
@@ -744,36 +614,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
 
                 if (selectElement.id.includes('prestadorId') && typeof Choices !== 'undefined') {
-                    // --- INÍCIO DA CORREÇÃO ---
-                    if (selectElement.choices) {
-                        selectElement.choices.destroy();
-                    }
+                    if (selectElement.choices) selectElement.choices.destroy();
                     selectElement.innerHTML = '';
-
-                    // 1. Criamos a nova instância da biblioteca
-                    const choices = new Choices(selectElement, {
-                        searchEnabled: true,
-                        placeholder: true,
-                        placeholderValue: 'Digite para buscar o prestador...',
-                        removeItemButton: true,
-                        itemSelectText: 'Pressione Enter para selecionar',
-                        noResultsText: 'Nenhum resultado encontrado',
-                        noChoicesText: 'Nenhuma opção para escolher',
-                    });
-
-                    // 2. Mapeamos os dados para o formato que a biblioteca entende
-                    const choicesData = data.map(item => ({
-                        value: item[valueField],
-                        label: textFieldFormatter(item)
-                    }));
-
-                    // 3. Populamos o select com as opções
+                    const choices = new Choices(selectElement, { searchEnabled: true, placeholder: true, placeholderValue: 'Busque pelo nome ou código...', itemSelectText: '', noResultsText: 'Nenhum resultado' });
+                    const choicesData = data.map(item => ({ value: item[valueField], label: textFieldFormatter(item) }));
                     choices.setChoices(choicesData, 'value', 'label', false);
-
-                    // 4. PONTO CRÍTICO: Guardamos a instância da biblioteca no próprio elemento do select
                     selectElement.choices = choices;
-                    // --- FIM DA CORREÇÃO ---
-
                 } else {
                     selectElement.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     data.forEach(item => {
@@ -808,75 +654,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
-
                     todasAsOS = await response.json();
-
                     const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
-
                     selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     projetosUnicos.forEach(projeto => {
                         selectProjeto.add(new Option(projeto, projeto));
                     });
-
                     selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
                     todasAsOS.forEach(item => {
                         selectOS.add(new Option(item.os, item.id));
                     });
-
                 } catch (error) {
                     console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://3.128.248.3:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'https://www.inproutservices.com.br/api/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://3.128.248.3:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'https://www.inproutservices.com.br/api/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            // 1. Carrega os dados básicos (OS e Etapas), mas não mais os prestadores.
-            await carregarDadosParaModal();
-
-            // 2. Limpa e define o ID de edição no formulário
-            if (editingId) {
-                formAdicionar.dataset.editingId = editingId;
-            } else {
-                delete formAdicionar.dataset.editingId;
-            }
-            delete formAdicionar.dataset.osLpuDetalheId;
-            if (lancamento.detalhe) {
-                formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
-            }
-
-            // 3. Referências aos elementos do modal
+            const formAdicionar = document.getElementById('formAdicionar');
             const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
             const dataAtividadeInput = document.getElementById('dataAtividade');
-            const chkAtividadeEl = document.getElementById('atividadeComplementar');
-            const chkAtividadeComplementarContainer = chkAtividadeEl ? chkAtividadeEl.parentElement : null;
-            const quantidadeContainer = document.getElementById('quantidadeComplementarContainer');
             const lpuContainer = document.getElementById('lpuContainer');
             const selectProjeto = document.getElementById('projetoId');
             const selectOS = document.getElementById('osId');
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
-            // 4. Reseta a UI do modal para o modo de edição
-            if (chkAtividadeComplementarContainer) chkAtividadeComplementarContainer.style.display = 'none';
-            if (quantidadeContainer) quantidadeContainer.classList.add('d-none');
-            if (selectProjeto) selectProjeto.disabled = true;
+            // CORREÇÃO: Usar a instância do modal que já existe no escopo, em vez de criar uma nova.
+            // const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
 
+            await carregarDadosParaModal();
+            formAdicionar.reset();
+            if (editingId) { formAdicionar.dataset.editingId = editingId; }
+            else { delete formAdicionar.dataset.editingId; }
+            if (lancamento.detalhe && lancamento.detalhe.id) { formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id; }
+            else { delete formAdicionar.dataset.osLpuDetalheId; }
+
+            if (lpuContainer) lpuContainer.classList.add('d-none');
+            if (selectProjeto) selectProjeto.disabled = true;
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
 
-            // 5. Configura títulos e botões com base no status do lançamento
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -899,11 +729,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
-            // 6. Preenche os campos do formulário com os dados do lançamento
             if (lancamento.os && lancamento.os.projeto && selectProjeto) {
                 selectProjeto.value = lancamento.os.projeto;
             }
-
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
@@ -915,7 +743,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.getElementById(k);
                 if (el && lancamento[k]) el.value = lancamento[k].split('/').reverse().join('-');
             });
-
             if (lancamento.os && lancamento.os.id && selectOS) {
                 selectOS.value = lancamento.os.id;
                 preencherCamposOS(lancamento.os.id);
@@ -930,49 +757,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
-
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // 7. Lógica corrigida para carregar e selecionar o Prestador
             const selectPrestadorEl = document.getElementById('prestadorId');
             if (selectPrestadorEl) {
-                // Destrói a instância anterior do Choices.js para evitar bugs
                 if (selectPrestadorEl.choices) {
                     selectPrestadorEl.choices.destroy();
                 }
-
-                // Busca a lista de prestadores sempre que o modal de edição abrir
-                const prestadores = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
-
-                // Cria uma nova instância do Choices.js
-                const choices = new Choices(selectPrestadorEl, {
-                    searchEnabled: true,
-                    placeholder: true,
-                    placeholderValue: 'Digite para buscar o prestador...',
-                    itemSelectText: '',
-                    noResultsText: 'Nenhum resultado',
-                });
-
-                // Formata os dados e popula o select
-                const choicesData = prestadores.map(item => ({
-                    value: item.id,
-                    label: `${item.codigoPrestador} - ${item.prestador}`
-                }));
+                const prestadores = await fetchComAuth('https://www.inproutservices.com.br/api/index/prestadores/ativos').then(res => res.json());
+                const choices = new Choices(selectPrestadorEl, { searchEnabled: true, placeholder: true, placeholderValue: 'Digite para buscar o prestador...', itemSelectText: '', noResultsText: 'Nenhum resultado', });
+                const choicesData = prestadores.map(item => ({ value: item.id, label: `${item.codigoPrestador} - ${item.prestador}` }));
                 choices.setChoices(choicesData, 'value', 'label', false);
                 selectPrestadorEl.choices = choices;
 
-                // Espera um instante para o Choices.js renderizar e então define o valor selecionado
-                await new Promise(resolve => setTimeout(resolve, 0));
                 if (lancamento.prestador?.id) {
-                    selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id));
+                    setTimeout(() => { selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id)); }, 100);
                 }
             }
-            // --- FIM DA CORREÇÃO ---
 
-
-            // 8. Preenche os selects de Etapa
             if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
                 const etapaGeralPai = todasAsEtapas.find(eg => eg.codigo === lancamento.etapa.codigoGeral);
                 if (etapaGeralPai) {
@@ -984,20 +787,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
 
-            // 9. Abre o modal
             modalAdicionar.show();
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
             if (!formAdicionar.dataset.editingId) {
-                // --- INÍCIO DA CORREÇÃO ---
-                // Garante que o campo de quantidade esteja escondido ao abrir o modal para um novo lançamento
-                const quantidadeContainer = document.getElementById('quantidadeContainer');
-                if (quantidadeContainer) {
-                    quantidadeContainer.classList.add('d-none');
-                }
-                // --- FIM DA CORREÇÃO ---
-
                 await carregarDadosParaModal();
                 modalTitle.innerHTML = '<i class="bi bi-plus-circle"></i> Adicionar Nova Atividade';
                 document.getElementById('btnSubmitAdicionar').style.display = 'none';
@@ -1008,13 +802,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectOS.disabled = false;
                 selectProjeto.disabled = false;
                 document.getElementById('dataAtividade').disabled = false;
-                chkAtividadeComplementar.parentElement.style.display = 'block';
             }
         });
 
         modalAdicionarEl.addEventListener('hidden.bs.modal', () => {
             formAdicionar.reset();
             delete formAdicionar.dataset.editingId;
+            delete formAdicionar.dataset.osLpuDetalheId;
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa geral</option>';
             selectEtapaDetalhada.disabled = true;
             selectStatus.innerHTML = '<option value="" selected disabled>Primeiro, selecione a etapa detalhada</option>';
@@ -1023,13 +817,13 @@ document.addEventListener('DOMContentLoaded', () => {
             selectProjeto.disabled = false;
             lpuContainer.classList.add('d-none');
             document.getElementById('lpuId').innerHTML = '';
-            chkAtividadeComplementar.parentElement.style.display = 'block';
         });
 
         document.body.addEventListener('click', async (e) => {
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
+            const addComplementarBtn = e.target.closest('.btn-add-complementar');
 
             if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
@@ -1062,33 +856,85 @@ document.addEventListener('DOMContentLoaded', () => {
                 const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
                 modalConfirmacao.show();
             }
+            else if (e.target.closest('.btn-excluir-lancamento')) {
+                const btnExcluir = e.target.closest('.btn-excluir-lancamento');
+                const lancamentoId = btnExcluir.dataset.id;
+                document.getElementById('deleteLancamentoId').value = lancamentoId;
+                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento'));
+                modalConfirmacao.show();
+            }
         });
 
+        // ==========================================================
+        // >>>>> INÍCIO DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
+        // ==========================================================
         function getProjetosParalisados() {
-            const ultimosLancamentos = new Map();
+            const ultimosLancamentosPorProjeto = new Map();
+
+            // 1. Encontra o lançamento mais recente para cada "projeto" (item da OS)
             todosLancamentos.forEach(l => {
-                if (l.os && l.detalhe && l.detalhe.lpu) {
-                    const chaveProjeto = `${l.os.id}-${l.detalhe.lpu.id}`;
-                    if (!ultimosLancamentos.has(chaveProjeto) || l.id > ultimosLancamentos.get(chaveProjeto).id) {
-                        ultimosLancamentos.set(chaveProjeto, l);
+                if (l.detalhe && l.detalhe.id) { // Usa o ID do detalhe como chave única do projeto
+                    const chaveProjeto = l.detalhe.id;
+                    if (!ultimosLancamentosPorProjeto.has(chaveProjeto) || l.id > ultimosLancamentosPorProjeto.get(chaveProjeto).id) {
+                        ultimosLancamentosPorProjeto.set(chaveProjeto, l);
                     }
                 }
             });
-            return Array.from(ultimosLancamentos.values()).filter(l => l.situacao === 'Paralisado' && l.situacaoAprovacao !== 'RASCUNHO');
+
+            // 2. Filtra o mapa para retornar apenas os lançamentos cuja situação é 'Paralisado'
+            const lancamentosParalisados = [];
+            for (const ultimoLancamento of ultimosLancamentosPorProjeto.values()) {
+                if (ultimoLancamento.situacao === 'Paralisado') {
+                    lancamentosParalisados.push(ultimoLancamento);
+                }
+            }
+
+            return lancamentosParalisados;
         }
+        // ==========================================================
+        // >>>>> FIM DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
+        // ==========================================================
+
+        document.getElementById('btnConfirmarExclusaoLancamentoDefinitiva')?.addEventListener('click', async function (e) {
+            const confirmButton = e.currentTarget;
+            const id = document.getElementById('deleteLancamentoId').value;
+            if (!id) return;
+            const originalContent = confirmButton.innerHTML;
+            const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusaoLancamento'));
+            try {
+                confirmButton.disabled = true;
+                confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
+                const resposta = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}`, { method: 'DELETE' });
+                if (!resposta.ok) {
+                    let errorMsg = 'Erro ao excluir o lançamento.';
+                    try { const errorData = await resposta.json(); errorMsg = errorData.message || errorMsg; }
+                    catch (e) { errorMsg = await resposta.text(); }
+                    throw new Error(errorMsg);
+                }
+                mostrarToast('Lançamento excluído com sucesso!', 'success');
+                await carregarLancamentos();
+            } catch (error) {
+                console.error('Erro na exclusão do lançamento:', error);
+                mostrarToast(error.message, 'error');
+            } finally {
+                confirmButton.disabled = false;
+                confirmButton.innerHTML = originalContent;
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+        });
 
         document.getElementById('btnConfirmarSubmissao').addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;
             const id = confirmButton.dataset.lancamentoId;
             if (!id) return;
-
             const originalContent = confirmButton.innerHTML;
             const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarSubmissao'));
-
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://3.128.248.3:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuth(`https://www.inproutservices.com.br/api/lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1108,6 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         async function popularDropdownsDependentes(etapaGeralId, etapaDetalhadaIdSelecionada = null, statusSelecionado = null) {
+            const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
+            const selectStatus = document.getElementById('status');
             const etapaSelecionada = todasAsEtapas.find(etapa => etapa.id == etapaGeralId);
 
             selectEtapaDetalhada.innerHTML = '<option value="" selected disabled>Selecione...</option>';
@@ -1115,16 +963,19 @@ document.addEventListener('DOMContentLoaded', () => {
             selectEtapaDetalhada.disabled = true;
             selectStatus.disabled = true;
 
-            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas.length > 0) {
+            if (etapaSelecionada && etapaSelecionada.etapasDetalhadas && etapaSelecionada.etapasDetalhadas.length > 0) {
                 etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
                     selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
                 });
                 selectEtapaDetalhada.disabled = false;
+
                 if (etapaDetalhadaIdSelecionada) {
                     selectEtapaDetalhada.value = etapaDetalhadaIdSelecionada;
                     const etapaDetalhada = etapaSelecionada.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaIdSelecionada);
-                    if (etapaDetalhada && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
+                    if (etapaDetalhada && etapaDetalhada.status && etapaDetalhada.status.length > 0) {
+                        etapaDetalhada.status.forEach(statusValue => {
+                            selectStatus.add(new Option(statusValue, statusValue));
+                        });
                         selectStatus.disabled = false;
                         if (statusSelecionado) {
                             selectStatus.value = statusSelecionado;
@@ -1144,7 +995,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function exibirComentarios(lancamento) {
         const modalBody = document.getElementById('modalComentariosBody');
         const modalTitle = document.getElementById('modalComentariosLabel');
-
         modalTitle.textContent = `Comentários do Lançamento`;
         modalBody.innerHTML = '';
 
@@ -1237,6 +1087,9 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTodasAsTabelas();
     });
 
+    // ==========================================================
+    // SEÇÃO 4: LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL
+    // ==========================================================
     const modalSolicitarMaterialEl = document.getElementById('modalSolicitarMaterial');
     if (modalSolicitarMaterialEl) {
         const modalSolicitarMaterial = new bootstrap.Modal(modalSolicitarMaterialEl);
@@ -1250,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://3.128.248.3:8080/materiais')
+                fetchComAuth('https://www.inproutservices.com.br/api/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1290,7 +1143,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1315,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1371,17 +1224,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 justificativa: document.getElementById('justificativaSolicitacao').value,
                 itens: itens
             };
-            console.log('Enviando para o backend:', JSON.stringify(payload, null, 2));
 
             try {
-                const response = await fetchComAuth('http://3.128.248.3:8080/solicitacoes', {
+                const response = await fetchComAuth('https://www.inproutservices.com.br/api/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error("Erro recebido do backend:", errorText);
                     throw new Error('Falha ao criar solicitação. Verifique o console para detalhes.');
                 }
                 mostrarToast('Solicitação enviada com sucesso!', 'success');
@@ -1394,6 +1245,208 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ==========================================================
+    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
+    // ==========================================================
+    const modalSolicitarComplementarEl = document.getElementById('modalSolicitarComplementar');
+    if (modalSolicitarComplementarEl) {
+        const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
+        const form = document.getElementById('formSolicitarComplementar');
+        const selectOS = document.getElementById('osIdComplementar');
+        const selectProjeto = document.getElementById('projetoIdComplementar');
+        const selectLPU = document.getElementById('lpuIdComplementar');
+        let todasAsOS = []; // Cache para as OSs do usuário
+
+        modalSolicitarComplementarEl.addEventListener('show.bs.modal', async () => {
+            form.reset();
+            selectLPU.disabled = true;
+            selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
+            selectOS.innerHTML = '<option value="" selected disabled>Carregando OSs...</option>';
+            selectProjeto.innerHTML = '<option value="" selected disabled>Carregando Projetos...</option>';
+
+            try {
+                // Se a lista de OSs ainda não foi carregada, busca na API
+                if (todasAsOS.length === 0) {
+                    const usuarioId = localStorage.getItem('usuarioId');
+                    if (!usuarioId) throw new Error('ID do usuário não encontrado.');
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
+                    if (!response.ok) throw new Error('Falha ao carregar OSs do usuário.');
+                    todasAsOS = await response.json();
+                }
+
+                // Popula o select de Projetos
+                const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
+                selectProjeto.innerHTML = '<option value="" selected disabled>Selecione o projeto...</option>';
+                projetosUnicos.forEach(projeto => {
+                    selectProjeto.add(new Option(projeto, projeto));
+                });
+
+                // Popula o select de OSs (inicialmente com todas)
+                selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
+                todasAsOS.forEach(os => {
+                    selectOS.add(new Option(os.os, os.id));
+                });
+
+            } catch (error) {
+                selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
+                selectProjeto.innerHTML = '<option value="">Erro ao carregar</option>';
+                mostrarToast(error.message, 'error');
+            }
+        });
+
+        // Evento de mudança no select de Projeto
+        selectProjeto.addEventListener('change', (e) => {
+            const projetoSelecionado = e.target.value;
+            const osDoProjeto = todasAsOS.filter(os => os.projeto === projetoSelecionado);
+
+            selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
+            osDoProjeto.forEach(os => {
+                selectOS.add(new Option(os.os, os.id));
+            });
+
+            // Dispara o 'change' na OS para carregar as LPUs
+            if (osDoProjeto.length > 0) {
+                selectOS.value = osDoProjeto[0].id; // Seleciona a primeira OS por padrão
+                selectOS.dispatchEvent(new Event('change'));
+            } else {
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
+                selectLPU.disabled = true;
+            }
+        });
+
+        // Evento de mudança no select de OS
+        selectOS.addEventListener('change', async () => {
+            // Sincroniza o select de Projeto
+            const osId = selectOS.value;
+            const osSelecionada = todasAsOS.find(os => os.id == osId);
+            if (osSelecionada && selectProjeto.value !== osSelecionada.projeto) {
+                selectProjeto.value = osSelecionada.projeto;
+            }
+
+            // Lógica para carregar as LPUs
+            selectLPU.disabled = true;
+            selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
+
+            try {
+                // Busca todos os contratos e suas LPUs ativas
+                const response = await fetchComAuth(`${API_BASE_URL}/contrato`);
+                if (!response.ok) throw new Error('Falha ao buscar LPUs.');
+                const contratos = await response.json();
+
+                selectLPU.innerHTML = '<option value="" selected disabled>Selecione o item LPU...</option>';
+                contratos.forEach(contrato => {
+                    if (contrato.lpus && contrato.lpus.length > 0) {
+                        contrato.lpus.forEach(lpu => {
+                            if (lpu.ativo) {
+                                const label = `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`;
+                                selectLPU.add(new Option(label, lpu.id));
+                            }
+                        });
+                    }
+                });
+                selectLPU.disabled = false;
+
+            } catch (error) {
+                mostrarToast('Erro ao carregar a lista de LPUs.', 'error');
+                selectLPU.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
+
+            const payload = {
+                osId: selectOS.value,
+                lpuId: selectLPU.value,
+                quantidade: document.getElementById('quantidadeComplementar').value,
+                justificativa: document.getElementById('justificativaComplementar').value,
+                solicitanteId: localStorage.getItem('usuarioId')
+            };
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
+
+            try {
+                // Este endpoint não existe no backend, você precisará criá-lo.
+                // Vou manter a chamada, mas saiba que ela vai falhar até o backend ser ajustado.
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Erro ao enviar solicitação.');
+                }
+
+                mostrarToast('Solicitação de atividade complementar enviada com sucesso!', 'success');
+                modalSolicitarComplementar.hide();
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar para Aprovação';
+            }
+        });
+    }
+
+    const btnExportar = document.getElementById('btnExportar');
+    if (btnExportar) {
+        btnExportar.addEventListener('click', () => {
+            const dadosParaExportar = {
+                "Pendências": {
+                    dados: getDadosFiltrados().filter(l => ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasMinhasPendencias
+                },
+                "Lançamentos": {
+                    dados: getDadosFiltrados().filter(l => l.situacaoAprovacao === 'RASCUNHO'),
+                    colunas: colunasLancamentos
+                },
+                "Pendente Aprovação": {
+                    dados: getDadosFiltrados().filter(l => ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasPrincipais
+                },
+                "Paralisados": {
+                    dados: getProjetosParalisados(),
+                    colunas: colunasMinhasPendencias
+                },
+                "Histórico": {
+                    dados: getDadosFiltrados().filter(l => !['RASCUNHO', 'PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER', 'RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'].includes(l.situacaoAprovacao)),
+                    colunas: colunasHistorico
+                }
+            };
+
+            const wb = XLSX.utils.book_new();
+
+            for (const aba in dadosParaExportar) {
+                const { dados, colunas } = dadosParaExportar[aba];
+                const rows = dados.map(lancamento => {
+                    return colunas.map(coluna => {
+                        const func = dataMapping[coluna];
+                        if (func) {
+                            return func(lancamento);
+                        }
+                        return "";
+                    });
+                });
+
+                const ws = XLSX.utils.aoa_to_sheet([colunas, ...rows]);
+
+                // Ajuste de largura das colunas
+                const colWidths = colunas.map(col => ({ wch: Math.max(15, col.length + 2) }));
+                ws['!cols'] = colWidths;
+
+                XLSX.utils.book_append_sheet(wb, ws, aba);
+            }
+
+            XLSX.writeFile(wb, "lancamentos.xlsx");
+        });
+    }
+
 
     function inicializarCabecalhos() {
         renderizarCabecalho(colunasLancamentos, document.querySelector('#lancamentos-pane thead'));

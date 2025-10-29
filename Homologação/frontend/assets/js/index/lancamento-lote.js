@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const lpuChecklistContainerLote = document.getElementById('lpuChecklistContainerLote');
     const btnAvancarParaPreenchimentoLote = document.getElementById('btnAvancarParaPreenchimentoLote');
     const formulariosContainerLote = document.getElementById('formulariosContainerLote');
-    const chkAtividadeComplementar = document.getElementById('atividadeComplementarLote');
-    const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
 
     // Botões do rodapé do modal
     const btnSubmitAdicionarLote = document.getElementById('btnSubmitAdicionarLote');
@@ -58,12 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
         formulariosContainerLote.innerHTML = '';
         btnAvancarParaPreenchimentoLote.disabled = true;
 
-        // Garante que o campo de quantidade complementar esteja escondido ao abrir o modal
-        const quantidadeComplementarContainer = document.getElementById('quantidadeComplementarContainerLote');
-        if (quantidadeComplementarContainer) {
-            quantidadeComplementarContainer.classList.add('d-none');
-        }
-
         // Inicializa o flatpickr no campo de data principal do lote
         inicializarFlatpickrComFormato('#dataAtividadeLote');
 
@@ -77,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -320,7 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ==========================================
 
         try {
-            const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
+            const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -384,10 +376,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetchComAuth('http://3.128.248.3:8080/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetchComAuth('https://www.inproutservices.com.br/api/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetchComAuth('http://3.128.248.3:8080/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetchComAuth('https://www.inproutservices.com.br/api/index/prestadores/ativos').then(res => res.json());
             }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
@@ -482,7 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const lancamentosEmLote = [];
             const osId = selectOSLote.value;
             const dataAtividade = document.getElementById('dataAtividadeLote').value;
-            const isComplementar = chkAtividadeComplementar.checked;
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
 
             if (!dataAtividade) throw new Error('A Data da Atividade é obrigatória.');
@@ -505,17 +496,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     managerId: localStorage.getItem('usuarioId'),
                     osId: osId,
                     lpuId: lpuId,
-                    osLpuDetalheId: !isComplementar ? osLpuDetalheId : null,
+                    osLpuDetalheId: osLpuDetalheId, // Sempre usa o osLpuDetalheId
                     dataAtividade: formatarDataParaAPI(dataAtividade),
-                    atividadeComplementar: isComplementar,
-                    quantidade: isComplementar ? parseInt(document.getElementById('quantidadeComplementarLote').value, 10) : null,
+                    atividadeComplementar: false, // Hardcoded para false
+                    quantidade: null, // Hardcoded para null
                     situacaoAprovacao: acao === 'enviar' ? 'PENDENTE_COORDENADOR' : 'RASCUNHO'
                 };
 
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetchComAuth('http://3.128.248.3:8080/lancamentos/lote', {
+            const response = await fetchComAuth('https://www.inproutservices.com.br/api/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)
@@ -526,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.message || 'Erro ao salvar lançamentos em lote.');
             }
 
-            if (typeof mostrarToast === 'function') mostrarToast('Lançamentos(s) salvo(s) com sucesso!', 'success');
+            if (typeof mostrarToast === 'function') mostrarToast('Lançamento(s) salvo(s) com sucesso!', 'success');
             bootstrap.Modal.getInstance(modalAdicionarEmLote).hide();
             await carregarLancamentos(); // Função do index.js
 
@@ -555,97 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFormSubmitLote('enviar', e.currentTarget);
         });
     }
-
-    chkAtividadeComplementar.addEventListener('change', async (e) => {
-        const isChecked = e.target.checked;
-        quantidadeComplementarContainer.classList.toggle('d-none', !isChecked);
-        const osId = selectOSLote.value;
-
-        lpuChecklistContainerLote.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Carregando...</span></div>';
-
-        try {
-            if (isChecked) {
-                // --- INÍCIO DA CORREÇÃO ---
-                // Atividade Complementar: Busca todos os contratos com suas LPUs
-                const response = await fetchComAuth(`http://3.128.248.3:8080/contrato`);
-                if (!response.ok) throw new Error('Falha ao buscar a lista de contratos e LPUs.');
-                const contratos = await response.json();
-
-                let lpusParaExibir = [];
-                contratos.forEach(contrato => {
-                    if (contrato.lpus && contrato.lpus.length > 0) {
-                        contrato.lpus.forEach(lpu => {
-                            lpusParaExibir.push({ ...lpu, nomeContrato: contrato.nome });
-                        });
-                    }
-                });
-
-                if (lpusParaExibir.length === 0) {
-                    lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada.</p>';
-                } else {
-                    lpuChecklistContainerLote.innerHTML = lpusParaExibir.map(lpu => {
-                        // Cria o novo formato de texto com o nome do contrato
-                        const label = `Contrato: ${lpu.nomeContrato} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`;
-                        return `
-                        <div class="form-check">
-                            <input class="form-check-input lpu-checkbox" type="checkbox" value="${lpu.id}" id="lpu-lote-${lpu.id}" data-nome="${label}">
-                            <label class="form-check-label" for="lpu-lote-${lpu.id}">${label}</label>
-                        </div>`;
-                    }).join('');
-                }
-                // --- FIM DA CORREÇÃO ---
-
-            } else {
-                // Atividade Normal: Lógica original que depende da OS selecionada
-                if (!osId) {
-                    lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
-                    return;
-                }
-
-                const response = await fetchComAuth(`http://3.128.248.3:8080/os/${osId}`);
-                if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
-                const osData = await response.json();
-
-                const lpusParaExibir = osData.detalhes || [];
-
-                if (lpusParaExibir.length === 0) {
-                    lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Nenhuma LPU encontrada para esta OS.</p>';
-                } else {
-                    lpuChecklistContainerLote.innerHTML = lpusParaExibir.map(item => {
-                        const lpu = item.lpu;
-                        if (!lpu) return '';
-
-                        const quantidade = item.quantidade || 'N/A';
-                        const key = item.key || 'N/A';
-                        const codigo = lpu.codigoLpu || '';
-                        const nome = lpu.nomeLpu || '';
-                        const label = `(${quantidade}) ${key} - ${codigo} - ${nome}`;
-
-                        return `
-                        <div class="form-check">
-                            <input class="form-check-input lpu-checkbox" type="checkbox"
-                                value="${lpu.id}"
-                                data-os-lpu-detalhe-id="${item.id}"
-                                id="lpu-lote-${lpu.id}" data-nome="${label}">
-                            <label class="form-check-label" for="lpu-lote-${lpu.id}">
-                                <div class="lpu-label-container">
-                                    <span class="lpu-label-main">${codigo} - ${nome}</span>
-                                    <span class="lpu-label-details">
-                                        <span>Quantidade: ${quantidade}</span>
-                                        <span>Key: ${key}</span>
-                                    </span>
-                                </div>
-                            </label>
-                        </div>
-                    `;
-                    }).join('');
-                }
-            }
-        } catch (error) {
-            console.error("Erro ao carregar LPUs:", error);
-            lpuChecklistContainerLote.innerHTML = `<p class="text-danger">${error.message}</p>`;
-        }
-    });
 
     const lpuSearchInputLote = document.getElementById('lpuSearchInputLote');
     if (lpuSearchInputLote) {

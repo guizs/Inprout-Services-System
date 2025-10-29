@@ -1,6 +1,8 @@
+// Local: frontend/assets/js/cps/cps.js
+
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'http://3.128.248.3:8080';
+    const API_URL = 'https://www.inproutservices.com.br/api';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');
@@ -14,36 +16,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalAlterarValor = new bootstrap.Modal(modalAlterarValorEl);
     const tableBody = document.getElementById('table-body');
     const segmentSelectFilter = document.getElementById('segment-select-filter');
-    const modalAdiantamentoEl = document.getElementById('modalAdiantamento'); // <<< Adicione esta linha
+    const modalAdiantamentoEl = document.getElementById('modalAdiantamento');
     const modalAdiantamento = new bootstrap.Modal(modalAdiantamentoEl);
+    
+    // Elementos da nova funcionalidade de importação
+    const importContainer = document.getElementById('import-container');
+    const btnImportarLegado = document.getElementById('btn-importar-legado');
+    const importLegadoInput = document.getElementById('import-legado-input');
+    const modalProgressoEl = document.getElementById('modalProgressoImportacao');
+    const modalProgresso = new bootstrap.Modal(modalProgressoEl);
+    const textoProgresso = document.getElementById('textoProgressoImportacao');
+    const barraProgresso = document.getElementById('barraProgressoImportacao');
+    const avisosContainer = document.getElementById('avisosImportacaoContainer');
+    const listaAvisos = document.getElementById('listaAvisosImportacao');
+    const btnFecharProgresso = document.getElementById('btnFecharProgresso');
+
 
     window.fullData = {};
     let currentTableView = 'prestadores';
 
     // --- FUNÇÕES DE RENDERIZAÇÃO ---
-
     function formatDateToISO(dateStr) {
         const [dia, mes, ano] = dateStr.split('/');
         return `${ano}-${mes}-${dia}`;
     }
 
     flatpickr("#startDate", {
-        dateFormat: "d/m/Y", // "d/m/Y" resulta em "dd/mm/aaaa"
+        dateFormat: "d/m/Y",
         locale: "pt"
     });
     flatpickr("#endDate", {
-        dateFormat: "d/m/Y", // "d/m/Y" resulta em "dd/mm/aaaa"
+        dateFormat: "d/m/Y",
         locale: "pt"
     });
 
     function toggleLoader(ativo = true) {
         const overlay = document.getElementById("overlay-loader");
         if (overlay) {
-            if (ativo) {
-                overlay.classList.remove("d-none");
-            } else {
-                overlay.classList.add("d-none");
-            }
+            overlay.classList.toggle("d-none", !ativo);
         }
     }
 
@@ -67,11 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
             segmentGridContainer.innerHTML = '<p class="text-muted w-100 text-center">Nenhum valor por segmento no período.</p>';
         }
     }
-
+    
     function renderSegmentFilter(segmentos) {
         segmentSelectFilter.innerHTML = '<option value="todos" selected>Todos os Segmentos</option>';
         if (segmentos) {
-            // Usando o nome do segmento do objeto OS para consistência
             const nomesSegmentos = new Set(segmentos.map(s => s.segmentoNome));
             nomesSegmentos.forEach(nome => {
                 segmentSelectFilter.innerHTML += `<option value="${nome}">${nome}</option>`;
@@ -83,7 +92,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const headerTable = tableHead.closest('table');
         const bodyTable = tableBody.closest('table');
 
-        // Garante que a tabela do corpo tenha pelo menos uma linha de dados
         if (tableBody.rows.length === 0) {
             return;
         }
@@ -91,7 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const headerCells = headerTable.querySelector('tr').cells;
         const bodyCells = tableBody.rows[0].cells;
 
-        // Define a largura de cada célula do cabeçalho para corresponder à célula do corpo
         for (let i = 0; i < headerCells.length; i++) {
             if (bodyCells[i]) {
                 const bodyCellWidth = bodyCells[i].offsetWidth;
@@ -100,9 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ==================================================================
-    // >>>>> FUNÇÃO ATUALIZADA PARA EXIBIR COLUNAS DETALHADAS <<<<<
-    // ==================================================================
     function renderTable(segmentoFiltro = 'todos') {
         const dataToRender = filterDataBySegment(fullData, segmentoFiltro);
 
@@ -137,12 +141,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 tableBody.innerHTML = `<tr><td colspan="4" class="text-center text-muted p-4">Nenhum prestador encontrado.</td></tr>`;
             }
-            // --- INÍCIO DA CORREÇÃO ---
         } else if (currentTableView === 'lancamentos') {
-            // Se a aba ativa for de "Lançamentos", chama a função correta
             renderLancamentosTable(dataToRender.lancamentosDetalhados || []);
         }
-        // --- FIM DA CORREÇÃO ---
 
         syncColumnWidths();
     }
@@ -150,17 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderLancamentosTable(lancamentos) {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
         const mostrarAcoes = userRole !== 'COORDINATOR';
-
-        // Objeto para guardar o estado da ordenação
         let sortConfig = { key: 'dataAtividade', direction: 'desc' };
 
-        // Função auxiliar para ordenar os dados
         function sortData() {
             lancamentos.sort((a, b) => {
                 let valA = a[sortConfig.key];
                 let valB = b[sortConfig.key];
-
-                // Tratamento especial para datas e valores
                 if (sortConfig.key === 'dataAtividade' || sortConfig.key.toLowerCase().includes('data')) {
                     valA = valA ? new Date(valA.split('/').reverse().join('-')) : new Date(0);
                     valB = valB ? new Date(valB.split('/').reverse().join('-')) : new Date(0);
@@ -168,56 +164,45 @@ document.addEventListener('DOMContentLoaded', () => {
                     valA = a[sortConfig.key] || 0;
                     valB = b[sortConfig.key] || 0;
                 }
-
-                if (valA < valB) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (valA > valB) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
+                if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
                 return 0;
             });
         }
 
-        // Função para renderizar a tabela
         function render() {
-            sortData(); // Ordena os dados antes de renderizar
-
+            sortData();
             const headers = [
                 { key: 'dataAtividade', label: 'DATA ATIVIDADE' }, { key: 'os', label: 'OS' },
                 { key: 'site', label: 'SITE' }, { key: 'contrato', label: 'CONTRATO' },
                 { key: 'segmento', label: 'SEGMENTO' }, { key: 'valorTotal', label: 'VALOR TOTAL' },
                 { key: 'prestador', label: 'PRESTADOR' }, { key: 'valor', label: 'VALOR PAGO' },
                 { key: 'valorAdiantamento', label: 'ADIANTAMENTO' }
-                // Adicione outras colunas que desejar ordenar aqui
             ];
 
-            // Gera o cabeçalho com ícones e atributos para ordenação
             tableHead.innerHTML = `<tr>
-            ${headers.map(h => {
+                ${headers.map(h => {
                 const isSorted = sortConfig.key === h.key;
                 const icon = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
                 return `<th class="sortable" data-sort-key="${h.key}">${h.label} <i class="bi ${icon}"></i></th>`;
             }).join('')}
-            ${mostrarAcoes ? '<th>AÇÕES</th>' : ''}
-        </tr>`;
+                ${mostrarAcoes ? '<th>AÇÕES</th>' : ''}
+            </tr>`;
 
-            // Gera o corpo da tabela
             tableBody.innerHTML = '';
             if (lancamentos && lancamentos.length > 0) {
                 lancamentos.forEach(lanc => {
                     const acoesCell = mostrarAcoes ? `<td>
-                    <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
-                    <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
-                </td>` : '';
-
+                        <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
+                        <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
+                    </td>` : '';
                     tableBody.innerHTML += `<tr>
-                    <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
-                    <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td>
-                    <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.prestador || 'N/A'}</td>
-                    <td>${formatCurrency(lanc.valor)}</td> <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
-                    ${acoesCell}
-                </tr>`;
+                        <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
+                        <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td>
+                        <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.prestador || 'N/A'}</td>
+                        <td>${formatCurrency(lanc.valor)}</td> <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
+                        ${acoesCell}
+                    </tr>`;
                 });
             } else {
                 const colspan = headers.length + (mostrarAcoes ? 1 : 0);
@@ -225,11 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Adiciona o listener de clique no cabeçalho
         tableHead.addEventListener('click', (e) => {
             const header = e.target.closest('th.sortable');
             if (!header) return;
-
             const key = header.dataset.sortKey;
             if (sortConfig.key === key) {
                 sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
@@ -237,49 +220,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 sortConfig.key = key;
                 sortConfig.direction = 'desc';
             }
-            render(); // Re-renderiza a tabela com a nova ordenação
+            render();
         });
-
-        render(); // Renderiza a tabela pela primeira vez
+        render();
     }
 
-    // ADICIONE ESTA NOVA FUNÇÃO ABAIXO DA fetchComAuthData
     async function alterarValorLancamento(lancamentoId, novoValor) {
-        if (typeof toggleLoader === 'function') toggleLoader(true);
+        toggleLoader(true);
         try {
             const response = await fetchComAuth(`${API_URL}/lancamentos/${lancamentoId}/valor`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${TOKEN}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}` },
                 body: JSON.stringify({ valor: novoValor })
             });
-
             if (!response.ok) {
                 const erroData = await response.json();
                 throw new Error(erroData.message || 'Falha ao atualizar o valor.');
             }
-
             mostrarToast('Valor alterado com sucesso!', 'success');
-            await fetchComAuthData(); // Recarrega TODOS os dados para atualizar os totais
-
+            await fetchComAuthData();
         } catch (error) {
             mostrarToast(error.message, 'error');
         } finally {
-            if (typeof toggleLoader === 'function') toggleLoader(false);
+            toggleLoader(false);
         }
     }
 
-    // --- LÓGICA DE DADOS ---
     async function fetchComAuthData() {
-        // ▼▼▼ CORREÇÃO PRINCIPAL AQUI ▼▼▼
-        // Pega os valores de texto ATUAIS dos inputs de data toda vez que a função é chamada
         let startDate = startDateInput.value;
         let endDate = endDateInput.value;
-        // ▲▲▲ FIM DA CORREÇÃO ▲▲▲
-
-        // se tiver no formato brasileiro (com "/"), converte pra ISO
         if (startDate.includes('/')) startDate = formatDateToISO(startDate);
         if (endDate.includes('/')) endDate = formatDateToISO(endDate);
 
@@ -289,20 +258,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const segmentoSelecionadoAnteriormente = segmentSelectFilter.value;
-
-        if (typeof toggleLoader === 'function') toggleLoader(true);
+        toggleLoader(true);
         try {
             const response = await fetchComAuth(`${API_URL}/lancamentos/cps/relatorio?dataInicio=${startDate}&dataFim=${endDate}`, { headers: { 'Authorization': `Bearer ${TOKEN}` } });
             if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
-
             window.fullData = await response.json();
 
-            // LÓGICA DE CÁLCULO DOS TOTAIS
             const totalBruto = fullData.valorTotalGeral || 0;
             const totalAdiantado = (fullData.lancamentosDetalhados || []).reduce((acc, lanc) => acc + (lanc.valorAdiantamento || 0), 0);
             const totalLiquido = totalBruto - totalAdiantado;
 
-            // Atualiza os KPIs
             const kpiTotalBrutoEl = document.getElementById('kpi-total-bruto');
             const kpiTotalAdiantadoEl = document.getElementById('kpi-total-adiantado');
             const kpiTotalLiquidoEl = document.getElementById('kpi-total-liquido');
@@ -313,116 +278,143 @@ document.addEventListener('DOMContentLoaded', () => {
 
             renderSegmentCards(fullData.valoresPorSegmento);
             renderSegmentFilter(fullData.valoresPorSegmento || []);
-
             segmentSelectFilter.value = segmentoSelecionadoAnteriormente;
             renderTable(segmentSelectFilter.value);
-
         } catch (error) {
             console.error("Falha ao buscar dados do CPS:", error);
             mostrarToast('Não foi possível carregar os dados. Tente novamente mais tarde.', 'error');
-            const kpiTotalBrutoEl = document.getElementById('kpi-total-bruto');
-            const kpiTotalAdiantadoEl = document.getElementById('kpi-total-adiantado');
-            const kpiTotalLiquidoEl = document.getElementById('kpi-total-liquido');
-            if (kpiTotalBrutoEl) kpiTotalBrutoEl.textContent = formatCurrency(0);
-            if (kpiTotalAdiantadoEl) kpiTotalAdiantadoEl.textContent = formatCurrency(0);
-            if (kpiTotalLiquidoEl) kpiTotalLiquidoEl.textContent = formatCurrency(0);
-
-            segmentGridContainer.innerHTML = '<p class="text-muted w-100 text-center">Não foi possível carregar os dados.</p>';
-            tableBody.innerHTML = `<tr><td colspan="9" class="text-center text-danger p-4">Erro ao carregar dados.</td></tr>`;
         } finally {
-            if (typeof toggleLoader === 'function') toggleLoader(false);
+            toggleLoader(false);
         }
     }
 
     async function fetchComAuthDetalhesPorPrestador(codPrestador) {
-        // Mostra o loader
-        if (typeof toggleLoader === 'function') toggleLoader(true);
-
+        toggleLoader(true);
         try {
-            // PASSO 1: Filtra a lista de lançamentos que já está na memória (fullData),
-            // em vez de fazer uma nova chamada para a API.
             const lancamentosDoPrestador = fullData.lancamentosDetalhados.filter(
                 lanc => lanc.codPrestador === codPrestador
             );
-
-            // PASSO 2: Altera a visualização para a aba de lançamentos, como antes.
             currentTableView = 'lancamentos';
             tableTabs.querySelector('.active').classList.remove('active');
             tableTabs.querySelector('[data-table-view="lancamentos"]').classList.add('active');
-
-            // PASSO 3: Renderiza a tabela apenas com os dados filtrados.
             renderLancamentosTable(lancamentosDoPrestador);
             syncColumnWidths();
-
         } catch (error) {
-            // Este erro seria improvável, mas é mantido por segurança.
-            console.error("Falha ao filtrar detalhes do prestador localmente:", error);
+            console.error("Falha ao filtrar detalhes do prestador:", error);
             mostrarToast('Ocorreu um erro ao exibir os detalhes.', 'error');
         } finally {
-            // Esconde o loader
-            if (typeof toggleLoader === 'function') toggleLoader(false);
+            toggleLoader(false);
         }
     }
 
     window.filterDataBySegment = function (data, segmento) {
-        // Se o filtro for 'todos' ou não houver dados detalhados, retorna os dados originais
         if (!segmento || segmento === 'todos' || !data.lancamentosDetalhados) {
             return data;
         }
-
-        // Filtra os lançamentos detalhados pelo segmento selecionado
         const filteredLancamentos = data.lancamentosDetalhados.filter(l => l.segmento === segmento);
-
-        // Cria um novo mapa para agrupar os valores por prestador
         const prestadorMap = new Map();
-
-        // Itera sobre os lançamentos já filtrados por segmento
         filteredLancamentos.forEach(l => {
-            // Usa o 'codPrestador' como a chave única para o agrupamento
             const key = l.codPrestador;
-            if (!key) return; // Pula lançamentos que não tenham um código de prestador
-
-            // Busca o prestador no mapa. Se não existir, cria um novo objeto para ele.
+            if (!key) return;
             const prestadorData = prestadorMap.get(key) || {
-                codPrestador: l.codPrestador, // Garante que o código seja mantido
-                prestadorNome: l.prestador || 'Não identificado', // Pega o nome do prestador corretamente
+                codPrestador: l.codPrestador,
+                prestadorNome: l.prestador || 'Não identificado',
                 valorTotal: 0
             };
-
-            // Soma o valor do lançamento atual ao total do prestador
             prestadorData.valorTotal += l.valor;
-
-            // Atualiza o mapa com os dados do prestador
             prestadorMap.set(key, prestadorData);
         });
-
-        // Retorna um novo objeto de dados
         return {
-            ...data, // Mantém os dados gerais originais (valorTotalGeral, etc.)
-            lancamentosDetalhados: filteredLancamentos, // A lista de lançamentos filtrada por segmento
-            consolidadoPorPrestador: Array.from(prestadorMap.values()) // A nova lista de prestadores, consolidada e correta
+            ...data,
+            lancamentosDetalhados: filteredLancamentos,
+            consolidadoPorPrestador: Array.from(prestadorMap.values())
         };
     }
 
-    // --- INICIALIZAÇÃO E EVENTOS ---
+    // --- NOVA LÓGICA DE IMPORTAÇÃO ---
+    function setupRoleBasedUI() {
+        const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+        if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
+            if(importContainer) importContainer.style.display = 'block';
+        }
+    }
+
+    async function handleLegacyImport(file) {
+        if (!file) return;
+        textoProgresso.textContent = 'Enviando arquivo...';
+        barraProgresso.style.width = '25%';
+        barraProgresso.textContent = '25%';
+        avisosContainer.classList.add('d-none');
+        listaAvisos.innerHTML = '';
+        btnFecharProgresso.disabled = true;
+        modalProgresso.show();
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            await new Promise(res => setTimeout(res, 500));
+            barraProgresso.style.width = '50%';
+            barraProgresso.textContent = '50%';
+            textoProgresso.textContent = 'Processando no servidor...';
+
+            const response = await fetchComAuth(`${API_URL}/lancamentos/importar-legado-cps`, {
+                method: 'POST',
+                body: formData
+            });
+
+            barraProgresso.style.width = '100%';
+            barraProgresso.textContent = '100%';
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.message || 'Erro desconhecido no servidor.');
+            }
+
+            textoProgresso.textContent = 'Importação concluída!';
+            if (result.warnings && result.warnings.length > 0) {
+                avisosContainer.classList.remove('d-none');
+                listaAvisos.innerHTML = result.warnings.map(warn => `<li class="list-group-item">${warn}</li>`).join('');
+            }
+            await fetchComAuthData();
+        } catch (error) {
+            textoProgresso.textContent = 'Erro na importação!';
+            avisosContainer.classList.remove('d-none');
+            listaAvisos.innerHTML = `<li class="list-group-item list-group-item-danger">${error.message}</li>`;
+            console.error("Erro na importação de legado:", error);
+        } finally {
+            btnFecharProgresso.disabled = false;
+            importLegadoInput.value = '';
+        }
+    }
 
     function init() {
         const today = new Date();
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
         const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-        // Função para formatar a data como dd/mm/yyyy
         const formatDate = (date) => {
             const day = String(date.getDate()).padStart(2, '0');
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const year = date.getFullYear();
             return `${day}/${month}/${year}`;
         };
-
         startDateInput.value = formatDate(firstDay);
         endDateInput.value = formatDate(lastDay);
 
         filterBtn.addEventListener('click', fetchComAuthData);
+        setupRoleBasedUI();
+
+        if (btnImportarLegado) {
+            btnImportarLegado.addEventListener('click', () => {
+                importLegadoInput.click();
+            });
+        }
+
+        if (importLegadoInput) {
+            importLegadoInput.addEventListener('change', (e) => {
+                handleLegacyImport(e.target.files[0]);
+            });
+        }
 
         tableTabs.addEventListener('click', (e) => {
             e.preventDefault();
@@ -437,40 +429,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tableBody.addEventListener('click', (e) => {
             const btnAlterar = e.target.closest('.btn-alterar-valor');
-            const btnAdiantamento = e.target.closest('.btn-adiantamento');
-
             if (btnAlterar) {
                 const lancamentoId = btnAlterar.dataset.id;
-                const linha = btnAlterar.closest('tr');
-                const nomePrestador = linha.cells[36].textContent;
-                const valorAtual = linha.cells[37].textContent;
-
-                document.getElementById('lancamentoIdAlterar').value = lancamentoId;
-                document.getElementById('prestadorInfo').value = nomePrestador;
-                document.getElementById('valorAtual').value = valorAtual;
-                document.getElementById('novoValor').value = '';
-
-                modalAlterarValor.show();
+                const lancamento = window.fullData.lancamentosDetalhados.find(l => l.id == lancamentoId);
+                if (lancamento) {
+                    document.getElementById('lancamentoIdAlterar').value = lancamentoId;
+                    document.getElementById('prestadorInfo').value = lancamento.prestador || 'N/A';
+                    document.getElementById('valorAtual').value = formatCurrency(lancamento.valor);
+                    document.getElementById('novoValor').value = '';
+                    modalAlterarValor.show();
+                } else {
+                    mostrarToast('Não foi possível encontrar os detalhes para este lançamento.', 'error');
+                }
                 return;
             }
 
+            const btnAdiantamento = e.target.closest('.btn-adiantamento');
             if (btnAdiantamento) {
                 const lancamentoId = btnAdiantamento.dataset.id;
-                const linha = btnAdiantamento.closest('tr');
-                const nomePrestador = linha.cells[36].textContent;
-
-                document.getElementById('lancamentoIdAdiantamento').value = lancamentoId;
-                document.getElementById('prestadorInfoAdiantamento').value = nomePrestador;
-                document.getElementById('valorAdiantamento').value = '';
-
-                modalAdiantamento.show();
+                const lancamento = window.fullData.lancamentosDetalhados.find(l => l.id == lancamentoId);
+                if (lancamento) {
+                    document.getElementById('lancamentoIdAdiantamento').value = lancamentoId;
+                    document.getElementById('prestadorInfoAdiantamento').value = lancamento.prestador || 'N/A';
+                    document.getElementById('valorAdiantamento').value = '';
+                    modalAdiantamento.show();
+                } else {
+                    mostrarToast('Não foi possível encontrar os detalhes para este lançamento.', 'error');
+                }
                 return;
             }
 
             const linhaPrestador = e.target.closest('tr[data-cod-prestador]');
             if (linhaPrestador && currentTableView === 'prestadores') {
-                const codPrestador = linhaPrestador.dataset.codPrestador;
-                fetchComAuthDetalhesPorPrestador(codPrestador);
+                fetchComAuthDetalhesPorPrestador(linhaPrestador.dataset.codPrestador);
             }
         });
 
@@ -478,7 +469,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const lancamentoId = document.getElementById('lancamentoIdAdiantamento').value;
             const valorStr = document.getElementById('valorAdiantamento').value;
-
             if (valorStr) {
                 const valor = parseFloat(valorStr.replace('.', '').replace(',', '.'));
                 if (!isNaN(valor) && valor >= 0) {
@@ -490,9 +480,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             body: JSON.stringify({ valor: valor })
                         });
                         if (!response.ok) throw new Error('Falha ao registrar adiantamento.');
-
                         mostrarToast('Adiantamento registrado com sucesso!', 'success');
-                        await fetchComAuthData(); // Recarrega todos os dados para atualizar a tela
+                        await fetchComAuthData();
                     } catch (error) {
                         mostrarToast(error.message, 'error');
                     } finally {
@@ -506,27 +495,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.getElementById('formAlterarValor').addEventListener('submit', (e) => {
-            e.preventDefault(); // Impede o recarregamento da página
-
+            e.preventDefault();
             const lancamentoId = document.getElementById('lancamentoIdAlterar').value;
             const novoValorStr = document.getElementById('novoValor').value;
-
             if (novoValorStr) {
                 const novoValor = parseFloat(novoValorStr.replace('.', '').replace(',', '.'));
                 if (!isNaN(novoValor) && novoValor >= 0) {
                     alterarValorLancamento(lancamentoId, novoValor);
-                    modalAlterarValor.hide(); // Fecha o modal após o envio
+                    modalAlterarValor.hide();
                 } else {
-                    // Você pode usar seu `mostrarToast` aqui também se preferir
                     alert("Valor inválido. Por favor, insira um número válido.");
                 }
             }
+        });
+        
+        segmentSelectFilter.addEventListener('change', () => {
+            renderTable(segmentSelectFilter.value);
         });
 
         fetchComAuthData();
     }
 
-    // --- FUNÇÕES UTILITÁRIAS ---
     const formatCurrency = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
 
     init();

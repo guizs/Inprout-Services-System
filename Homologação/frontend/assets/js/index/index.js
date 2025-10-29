@@ -590,11 +590,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const os = todasAsOS.find(os => os.id == osId);
+            const os = todasAsOS.find(os => os.id == osId); // Busca o objeto completo na lista
             if (os && selectProjeto.value !== os.projeto) {
                 selectProjeto.value = os.projeto;
             }
-            preencherCamposOS(osId);
+            preencherCamposOS(os); // Passa o objeto OS completo
             await carregarEPopularLPU(osId);
         });
 
@@ -637,8 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        function preencherCamposOS(osId) {
-            const osSelecionada = todasAsOS.find(os => os.id == osId);
+        function preencherCamposOS(osSelecionada) {
             if (osSelecionada) {
                 document.getElementById('site').value = osSelecionada.detalhes?.[0]?.site || '';
                 document.getElementById('segmento').value = osSelecionada.segmento?.nome || '';
@@ -646,6 +645,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('contrato').value = osSelecionada.detalhes?.[0]?.contrato || '';
                 document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
                 document.getElementById('regional').value = osSelecionada.detalhes?.[0]?.regional || '';
+            } else {
+                // Limpa os campos se nenhum objeto for passado
+                document.getElementById('site').value = '';
+                document.getElementById('segmento').value = '';
+                document.getElementById('projeto').value = '';
+                document.getElementById('contrato').value = '';
+                document.getElementById('gestorTim').value = '';
+                document.getElementById('regional').value = '';
             }
         }
 
@@ -691,9 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectLPU = document.getElementById('lpuId');
             const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
-            // CORREÇÃO: Usar a instância do modal que já existe no escopo, em vez de criar uma nova.
-            // const modalAdicionar = new bootstrap.Modal(document.getElementById('modalAdicionar'));
-
             await carregarDadosParaModal();
             formAdicionar.reset();
             if (editingId) { formAdicionar.dataset.editingId = editingId; }
@@ -702,11 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
             else { delete formAdicionar.dataset.osLpuDetalheId; }
 
             if (lpuContainer) lpuContainer.classList.add('d-none');
-            if (selectProjeto) selectProjeto.disabled = true;
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
 
+            // Lógica para definir títulos e botões (sem alterações)
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -729,8 +733,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
-            if (lancamento.os && lancamento.os.projeto && selectProjeto) {
-                selectProjeto.value = lancamento.os.projeto;
+            // --- INÍCIO DA CORREÇÃO ---
+            // Preenche os selects primeiro
+            if (lancamento.os) {
+                if (lancamento.os.projeto && selectProjeto) {
+                    selectProjeto.value = lancamento.os.projeto;
+                }
+                if (lancamento.os.id && selectOS) {
+                    selectOS.value = lancamento.os.id;
+
+                    // Busca os dados completos da OS para garantir o preenchimento
+                    try {
+                        const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${lancamento.os.id}`);
+                        if (!response.ok) throw new Error('Falha ao recarregar dados da OS para edição.');
+                        const osDataCompleta = await response.json();
+
+                        // Chama a função para preencher os campos com os dados completos
+                        preencherCamposOS(osDataCompleta);
+
+                    } catch (error) {
+                        console.error(error);
+                        mostrarToast('Erro ao carregar dados da OS.', 'error');
+                        preencherCamposOS(null); // Limpa os campos em caso de erro
+                    }
+                }
             }
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -757,8 +783,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
+
+            // Desabilita os campos APÓS o preenchimento
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
+            if (selectProjeto) selectProjeto.disabled = true;
 
             const selectPrestadorEl = document.getElementById('prestadorId');
             if (selectPrestadorEl) {

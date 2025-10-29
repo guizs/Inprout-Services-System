@@ -98,7 +98,13 @@ public class SolicitacaoAtividadeComplementarService {
             throw new BusinessException("Esta solicitação não está pendente para o Coordenador.");
         }
 
-        solicitacao.setStatus(StatusSolicitacaoComplementar.PENDENTE_CONTROLLER);
+        osService.criarOsLpuDetalheComplementar(
+                solicitacao.getOs().getId(),
+                solicitacao.getLpu().getId(),
+                solicitacao.getQuantidade()
+        );
+
+        solicitacao.setStatus(StatusSolicitacaoComplementar.APROVADO);
         solicitacao.setAprovadorCoordenador(aprovador);
         solicitacao.setDataAcaoCoordenador(LocalDateTime.now());
         return solicitacaoRepository.save(solicitacao);

@@ -29,7 +29,7 @@ let todosHistoricoMateriais = [];
 let todasPendenciasComplementares = [];
 let todoHistoricoComplementares = [];
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
 
 // Funções para abrir modais
 function aprovarLancamento(id) {
@@ -383,10 +383,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const percentualAtual = totalOs > 0 ? ((totalCpsAprovado + totalMaterial) / totalOs) * 100 : 0;
             const percentualPrevisto = totalOs > 0 ? ((previsaoCps + totalMaterial) / totalOs) * 100 : 0;
 
-            // --- INÍCIO DA CORREÇÃO DE COR ---
-            // Define a classe CSS com base no valor do percentual previsto
-            const corPercentualPrevisto = percentualPrevisto > 35 ? 'text-danger-emphasis' : 'text-primary';
-            // --- FIM DA CORREÇÃO DE COR ---
+            let corPercentualPrevisto = 'text-primary'; // Cor padrão (azul)
+            if (percentualPrevisto >= 35) {
+                corPercentualPrevisto = 'text-danger-emphasis'; // Vermelho
+            } else if (percentualPrevisto >= 20) {
+                corPercentualPrevisto = 'text-warning-emphasis'; // Amarelo
+            }
 
             // HTML dos KPIs (indicadores) do cabeçalho
             const kpiHTML = `

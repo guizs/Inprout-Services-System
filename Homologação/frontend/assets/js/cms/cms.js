@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkUnitMT = document.getElementById('materiais_checkUnitMT');
     
     let todosOsMateriais = [];
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)

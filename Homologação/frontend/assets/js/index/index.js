@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function carregarLancamentos() {
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://localhost:8080/lancamentos');
+            const response = await fetchComAuth('https://www.inproutservices.com.br/api//lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
             const lancamentosDaApi = await response.json();
             todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
@@ -531,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
+            const url = editingId ? `https://www.inproutservices.com.br/api//lancamentos/${editingId}` : 'https://www.inproutservices.com.br/api//lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-                const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api//os/${osId}`);
                 if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                 const osData = await response.json();
                 const lpusParaExibir = osData.detalhes;
@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api//os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
                     todasAsOS = await response.json();
                     const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
@@ -686,10 +686,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(selectPrestador, 'https://www.inproutservices.com.br/api//index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'https://www.inproutservices.com.br/api//index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
@@ -764,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Busca os dados completos da OS para preencher os campos de baixo (esta parte está correta)
                 try {
-                    const response = await fetchComAuth(`http://localhost:8080/os/${lancamento.os.id}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api//os/${lancamento.os.id}`);
                     if (!response.ok) throw new Error('Falha ao recarregar dados da OS para edição.');
                     const osDataCompleta = await response.json();
                     preencherCamposOS(osDataCompleta);
@@ -806,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectPrestadorEl.choices) {
                     selectPrestadorEl.choices.destroy();
                 }
-                const prestadores = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+                const prestadores = await fetchComAuth('https://www.inproutservices.com.br/api//index/prestadores/ativos').then(res => res.json());
                 const choices = new Choices(selectPrestadorEl, { searchEnabled: true, placeholder: true, placeholderValue: 'Digite para buscar o prestador...', itemSelectText: '', noResultsText: 'Nenhum resultado', });
                 const choicesData = prestadores.map(item => ({ value: item.id, label: `${item.codigoPrestador} - ${item.prestador}` }));
                 choices.setChoices(choicesData, 'value', 'label', false);
@@ -975,7 +975,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
+                const resposta = await fetchComAuth(`https://www.inproutservices.com.br/api//lancamentos/${id}/submeter`, { method: 'POST' });
                 if (!resposta.ok) {
                     const erroData = await resposta.json();
                     throw new Error(erroData.message || 'Erro ao submeter.');
@@ -1144,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularSelectMateriais = (selectElement) => {
             selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://localhost:8080/materiais')
+                fetchComAuth('https://www.inproutservices.com.br/api//materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
@@ -1184,7 +1184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!usuarioId) {
                     throw new Error('ID do usuário não encontrado para filtrar as OSs.');
                 }
-                const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api//os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
@@ -1209,7 +1209,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api//os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
@@ -1267,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             try {
-                const response = await fetchComAuth('http://localhost:8080/solicitacoes', {
+                const response = await fetchComAuth('https://www.inproutservices.com.br/api//solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -1298,99 +1298,97 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
         const form = document.getElementById('formSolicitarComplementar');
 
-        // Declaração correta das variáveis do modal complementar
         const selectOSComplementar = document.getElementById('osIdComplementar');
         const selectProjetoComplementar = document.getElementById('projetoIdComplementar');
         const selectLPUComplementar = document.getElementById('lpuIdComplementar');
-        let todasAsOSComplementar = []; // Cache específico para este modal
+        let todasAsOSComplementar = [];
 
-        // Variáveis para guardar as instâncias do Choices.js
-        let choicesProjeto, choicesOS, choicesLPU;
+        // AGORA SÓ A LPU USA O CHOICES.JS
+        let choicesLPU;
 
+        // --- LÓGICA DE ABERTURA DO MODAL ---
         modalSolicitarComplementarEl.addEventListener('show.bs.modal', async () => {
             form.reset();
 
-            if (!choicesProjeto) {
-                choicesProjeto = new Choices(selectProjetoComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhum projeto encontrado', placeholder: true, placeholderValue: 'Busque ou selecione um projeto' });
-            }
-            if (!choicesOS) {
-                choicesOS = new Choices(selectOSComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma OS encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma OS' });
-            }
+            // Inicializa o Choices.js APENAS para a LPU
             if (!choicesLPU) {
-                choicesLPU = new Choices(selectLPUComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma LPU encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma LPU' });
+                choicesLPU = new Choices(selectLPUComplementar, {
+                    searchEnabled: true,
+                    itemSelectText: '',
+                    noResultsText: 'Nenhuma LPU encontrada',
+                    placeholder: true,
+                    placeholderValue: 'Busque ou selecione uma LPU'
+                });
             }
 
-            // Limpa seleções anteriores, mas não os dados em si
-            choicesProjeto.clearStore();
-            choicesOS.clearStore();
+            // Limpa os selects e desabilita a LPU
+            selectProjetoComplementar.innerHTML = '<option value="">Carregando...</option>';
+            selectOSComplementar.innerHTML = '<option value="">Carregando...</option>';
             choicesLPU.clearStore();
             choicesLPU.disable();
 
             try {
-                // Carrega os dados da API apenas se o cache estiver vazio
+                // Carrega os dados da API (se ainda não tiver em cache)
                 if (todasAsOSComplementar.length === 0) {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar OSs do usuário.');
                     todasAsOSComplementar = await response.json();
                 }
 
-                // Popula o select de Projetos
+                // Popula o select de PROJETOS (SELECT NORMAL)
                 const projetosUnicos = [...new Set(todasAsOSComplementar.map(os => os.projeto))];
-                choicesProjeto.setChoices(
-                    [{ value: '', label: 'Selecione o projeto...', selected: true, disabled: true }].concat(
-                        projetosUnicos.map(projeto => ({ value: projeto, label: projeto }))
-                    ),
-                    'value', 'label', false
-                );
+                selectProjetoComplementar.innerHTML = '<option value="" selected disabled>Selecione o projeto...</option>';
+                projetosUnicos.forEach(projeto => {
+                    selectProjetoComplementar.add(new Option(projeto, projeto));
+                });
 
-                // Popula o select de OSs
-                choicesOS.setChoices(
-                    [{ value: '', label: 'Selecione a OS...', selected: true, disabled: true }].concat(
-                        todasAsOSComplementar.map(os => ({
-                            value: os.os,
-                            label: os.os,
-                            customProperties: { id: os.id, projeto: os.projeto }
-                        }))
-                    ),
-                    'value', 'label', false
-                );
+                // Popula o select de OS (SELECT NORMAL)
+                selectOSComplementar.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
+                todasAsOSComplementar.forEach(os => {
+                    const option = new Option(os.os, os.os);
+                    // Armazena dados extras no próprio elemento da opção para consulta futura
+                    option.dataset.id = os.id;
+                    option.dataset.projeto = os.projeto;
+                    selectOSComplementar.add(option);
+                });
 
             } catch (error) {
                 mostrarToast(error.message, 'error');
+                selectProjetoComplementar.innerHTML = '<option value="">Erro ao carregar</option>';
+                selectOSComplementar.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         });
 
-        // Listener para quando o usuário MUDA o valor do PROJETO
+        // --- LISTENER DE MUDANÇA NO PROJETO (SELECT NORMAL) ---
         selectProjetoComplementar.addEventListener('change', () => {
-            const projetoSelecionado = choicesProjeto.getValue(true);
+            const projetoSelecionado = selectProjetoComplementar.value;
             if (!projetoSelecionado) return;
 
             const osCorrespondente = todasAsOSComplementar.find(os => os.projeto === projetoSelecionado);
-            if (osCorrespondente) {
-                // Apenas define o valor no select da OS, sem recriar a lista de opções
-                choicesOS.setValue([osCorrespondente.os]);
+            if (osCorrespondente && selectOSComplementar.value !== osCorrespondente.os) {
+                // Define o valor do select de OS
+                selectOSComplementar.value = osCorrespondente.os;
+                // Dispara o evento de 'change' na OS para carregar as LPUs
+                selectOSComplementar.dispatchEvent(new Event('change'));
             }
         });
 
-        // Listener para quando o usuário MUDA o valor da OS
+        // --- LISTENER DE MUDANÇA NA OS (SELECT NORMAL) ---
         selectOSComplementar.addEventListener('change', async () => {
-            const osCodigo = choicesOS.getValue(true);
+            const osCodigo = selectOSComplementar.value;
             if (!osCodigo) return;
 
-            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigo);
-            if (osSelecionada) {
-                // Atualiza o valor do projeto correspondente, sem recriar a lista
-                const projetoAtual = choicesProjeto.getValue(true);
-                if (projetoAtual !== osSelecionada.projeto) {
-                    choicesProjeto.setValue([osSelecionada.projeto]);
-                }
+            // Atualiza o select de Projeto se necessário
+            const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
+            const projetoDaOS = selectedOption.dataset.projeto;
+            if (projetoDaOS && selectProjetoComplementar.value !== projetoDaOS) {
+                selectProjetoComplementar.value = projetoDaOS;
             }
 
-            // A lógica para carregar as LPUs a partir da OS selecionada continua aqui
+            // Carrega as LPUs
             choicesLPU.clearStore();
-            choicesLPU.clearInput();
             choicesLPU.disable();
             choicesLPU.setChoices([{ value: '', label: 'Carregando LPUs...', disabled: true }]);
 
@@ -1412,26 +1410,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                 });
-
-                choicesLPU.clearStore();
                 choicesLPU.setChoices(lpuChoices, 'value', 'label', false);
                 choicesLPU.enable();
 
             } catch (error) {
                 mostrarToast('Erro ao carregar a lista de LPUs.', 'error');
-                choicesLPU.clearStore();
                 choicesLPU.setChoices([{ value: '', label: 'Erro ao carregar', disabled: true }]);
             }
         });
 
-        // Listener para o envio do formulário (submit)
+        // --- LÓGICA DE SUBMISSÃO DO FORMULÁRIO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
 
-            const osCodigoSelecionado = choicesOS.getValue(true);
-            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigoSelecionado);
-            const osIdParaApi = osSelecionada?.id || null;
+            // Pega o ID da OS a partir do 'data-id' da opção selecionada
+            const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
+            const osIdParaApi = selectedOption ? selectedOption.dataset.id : null;
 
             const payload = {
                 osId: osIdParaApi,

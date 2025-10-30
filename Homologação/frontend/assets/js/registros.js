@@ -482,16 +482,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
                             const etapa = get(lanc, 'etapa', {});
                             return `
-                                <tr>
-                                    <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
-                                    <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
-                                    <td>${get(lanc, 'situacao', '')}</td>
-                                    <td>${etapa.nomeDetalhado || ''}</td>
-                                    <td>${get(lanc, 'prestador.nome', '')}</td>
-                                    <td>${formatarMoeda(get(lanc, 'valor'))}</td>
-                                    <td>${get(lanc, 'manager.nome', '')}</td>
-                                </tr>
-                            `;
+                            <tr>
+                                <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                                <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
+                                <td>${get(lanc, 'situacao', '')}</td>
+                                <td>${etapa.nomeDetalhado || ''}</td>
+                                <td>${get(lanc, 'prestador.nome', '')}</td>
+                                <td>${formatarMoeda(get(lanc, 'valor'))}</td>
+                                <td>${get(lanc, 'manager.nome', '')}</td>
+                            </tr>
+                        `;
                         }).join('');
                     }
                     modalHistorico.show();

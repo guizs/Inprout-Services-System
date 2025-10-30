@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (el) el.style.display = 'none';
         });
 
+        // --- INÍCIO DA CORREÇÃO ---
         // Aplica regras de visibilidade para cada cargo
         switch (userRole) {
             case 'MANAGER':
@@ -168,8 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (navLancamentos) navLancamentos.style.display = 'none';
                 break;
 
-            case 'ADMIN':
+            // NOVO CASO: Controller agora só vê o botão de exportar.
             case 'CONTROLLER':
+                if (btnExportar) btnExportar.style.display = 'block';
+                break;
+
+            // CASO SEPARADO: Admin e Assistant continuam vendo todos os botões de ação.
+            case 'ADMIN':
             case 'ASSISTANT':
                 [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
                     if (el) el.style.display = 'block';
@@ -177,8 +183,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
 
             default:
+                // Nenhum botão de ação visível por padrão para outras roles.
                 break;
         }
+        // --- FIM DA CORREÇÃO ---
 
         const tabAtiva = document.querySelector('#lancamentosTab .nav-link.active');
         if (!tabAtiva || tabAtiva.parentElement.style.display === 'none') {
@@ -1329,57 +1337,78 @@ document.addEventListener('DOMContentLoaded', () => {
                     'value', 'label', false
                 );
 
+                // --- INÍCIO DA CORREÇÃO ---
+                // O 'value' da OS agora é o seu código (string), não o ID numérico.
+                // O ID fica guardado em 'customProperties' para uso interno.
                 choicesOS.setChoices(
                     [{ value: '', label: 'Selecione a OS...', selected: true, disabled: true }].concat(
-                        todasAsOS.map(os => ({ value: os.id, label: os.os }))
+                        todasAsOS.map(os => ({
+                            value: os.os,
+                            label: os.os,
+                            customProperties: { id: os.id }
+                        }))
                     ),
                     'value', 'label', false
                 );
+                // --- FIM DA CORREÇÃO ---
 
             } catch (error) {
                 mostrarToast(error.message, 'error');
             }
         });
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Evento de mudança no select de Projeto
-        selectProjeto.addEventListener('change', (e) => {
-            const projetoSelecionado = e.target.value;
+        const onProjetoChange = (event) => {
+            const projetoSelecionado = event.target.value;
             const osDoProjeto = todasAsOS.filter(os => os.projeto === projetoSelecionado);
 
-            // Filtra as opções de OS
             choicesOS.clearStore();
+            // --- INÍCIO DA CORREÇÃO ---
+            // A mesma lógica é aplicada aqui: 'value' e 'label' usam o código da OS.
             choicesOS.setChoices(
                 [{ value: '', label: 'Selecione a OS...', selected: true, disabled: true }].concat(
-                    osDoProjeto.map(os => ({ value: os.id, label: os.os }))
+                    osDoProjeto.map(os => ({
+                        value: os.os,
+                        label: os.os,
+                        customProperties: { id: os.id }
+                    }))
                 ),
                 'value', 'label', false
             );
 
-            // Seleciona a primeira OS do projeto automaticamente
             if (osDoProjeto.length > 0) {
-                const primeiraOSId = osDoProjeto[0].id;
-                // Usa setValue para definir o valor no Choices.js
-                choicesOS.setValue([primeiraOSId]);
-                // Dispara o evento 'change' na OS para carregar as LPUs
+                // Seleciona a primeira OS pelo seu CÓDIGO.
+                const primeiraOSCodigo = osDoProjeto[0].os;
+                choicesOS.setValue([primeiraOSCodigo]);
                 selectOS.dispatchEvent(new Event('change'));
             } else {
                 choicesLPU.clearStore();
                 choicesLPU.disable();
             }
-        });
-
-        // Evento de mudança no select de OS
-        selectOS.addEventListener('change', async () => {
-            const osId = selectOS.value;
-            const osSelecionada = todasAsOS.find(os => os.id == osId);
-
-            // Sincroniza o select de Projeto
-            if (osSelecionada && choicesProjeto.getValue(true) !== osSelecionada.projeto) {
-                // Usa setValue para definir o valor no Choices.js
-                choicesProjeto.setValue([osSelecionada.projeto]);
-            }
             // --- FIM DA CORREÇÃO ---
+        };
+
+        selectProjeto.addEventListener('change', onProjetoChange);
+
+        selectOS.addEventListener('change', async () => {
+            // --- INÍCIO DA CORREÇÃO ---
+            // O valor agora é o código da OS, não o ID.
+            const osCodigo = selectOS.value;
+            if (!osCodigo) return;
+
+            // A busca no array 'todasAsOS' é feita pelo código da OS.
+            const osSelecionada = todasAsOS.find(os => os.os === osCodigo);
+            // --- FIM DA CORREÇÃO ---
+
+            if (osSelecionada) {
+                const projetoAtual = choicesProjeto.getValue(true);
+                if (projetoAtual !== osSelecionada.projeto) {
+                    selectProjeto.removeEventListener('change', onProjetoChange);
+                    choicesProjeto.setValue([osSelecionada.projeto]);
+                    setTimeout(() => {
+                        selectProjeto.addEventListener('change', onProjetoChange);
+                    }, 100);
+                }
+            }
 
             choicesLPU.clearStore();
             choicesLPU.clearInput();
@@ -1420,8 +1449,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
 
+            // --- INÍCIO DA CORREÇÃO ---
+            // Para enviar para a API, buscamos o ID correto que foi guardado
+            // nas 'customProperties' da opção selecionada.
+            const osSelecionada = choicesOS.store.getChoice(choicesOS.getValue(true));
+            const osIdParaApi = osSelecionada?.customProperties?.id || null;
+            // --- FIM DA CORREÇÃO ---
+
             const payload = {
-                osId: selectOS.value,
+                osId: osIdParaApi, // Envia o ID numérico correto
                 lpuId: selectLPU.value,
                 quantidade: document.getElementById('quantidadeComplementar').value,
                 justificativa: document.getElementById('justificativaComplementar').value,

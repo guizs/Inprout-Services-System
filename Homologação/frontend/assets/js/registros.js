@@ -107,40 +107,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
+                // A lógica agora só processa OSs que têm detalhes.
                 if (os.detalhes && os.detalhes.length > 0) {
+                    // Filtra para manter apenas os detalhes que estão com o status "ATIVO".
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
-                    detalhesAtivos.forEach(detalhe => {
-                        let lancamentoParaExibir = detalhe.ultimoLancamento;
+                    // Adicionada uma verificação para garantir que, mesmo após o filtro, ainda existam detalhes a serem exibidos.
+                    if (detalhesAtivos.length > 0) {
+                        detalhesAtivos.forEach(detalhe => {
+                            let lancamentoParaExibir = detalhe.ultimoLancamento;
 
-                        // --- INÍCIO DA CORREÇÃO ---
-                        // Se a API não retornou um 'ultimoLancamento' ou se a lista local de lançamentos existe,
-                        // aplicamos a lógica de seleção para garantir que o lançamento correto seja exibido.
-                        if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
+                            // Se a API não retornou um 'ultimoLancamento' ou se a lista local de lançamentos existe,
+                            // aplicamos a lógica de seleção para garantir que o lançamento correto seja exibido.
+                            if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
 
-                            // 1. Tenta encontrar o lançamento operacional mais recente
-                            const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
+                                // 1. Tenta encontrar o lançamento operacional mais recente
+                                const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
 
-                            if (lancamentosOperacionais.length > 0) {
-                                lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
-                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                });
-                            } else {
-                                // 2. Se não houver operacionais, pega o legado mais recente como fallback
-                                lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
-                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                });
+                                if (lancamentosOperacionais.length > 0) {
+                                    lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
+                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                    });
+                                } else {
+                                    // 2. Se não houver operacionais, pega o legado mais recente como fallback
+                                    lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
+                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                    });
+                                }
                             }
-                        }
-                        
-                        todasAsLinhas.push({
-                            os: os,
-                            detalhe: detalhe,
-                            ultimoLancamento: lancamentoParaExibir
+
+                            todasAsLinhas.push({
+                                os: os,
+                                detalhe: detalhe,
+                                ultimoLancamento: lancamentoParaExibir
+                            });
                         });
-                    });
-                } else {
-                    todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
+                    }
                 }
             });
 

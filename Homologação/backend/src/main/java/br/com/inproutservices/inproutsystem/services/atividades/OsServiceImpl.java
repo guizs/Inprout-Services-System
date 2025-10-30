@@ -123,8 +123,28 @@ public class OsServiceImpl implements OsService {
                 detalheCriado.setPo(osDto.getPo());
                 detalheCriado.setItem(osDto.getItem());
                 detalheCriado.setUnidade(osDto.getUnidade());
-                detalheCriado.setQuantidade(osDto.getQuantidade());
-                detalheCriado.setValorTotal(osDto.getValorTotal());
+
+                // --- INÍCIO DA CORREÇÃO ---
+                Integer quantidade = osDto.getQuantidade();
+                detalheCriado.setQuantidade(quantidade);
+                BigDecimal valorTotalPlanilha = osDto.getValorTotal();
+
+                // Se o valor total não foi informado na planilha, o sistema calcula.
+                if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
+                    if (quantidade != null && quantidade > 0 && lpu.getValorSemImposto() != null) {
+                        // Cálculo: valor da LPU * quantidade
+                        BigDecimal valorCalculado = lpu.getValorSemImposto().multiply(new BigDecimal(quantidade));
+                        detalheCriado.setValorTotal(valorCalculado);
+                    } else {
+                        // Se não for possível calcular, o valor fica como zero.
+                        detalheCriado.setValorTotal(BigDecimal.ZERO);
+                    }
+                } else {
+                    // Se o valor foi informado na planilha, ele é utilizado.
+                    detalheCriado.setValorTotal(valorTotalPlanilha);
+                }
+                // --- FIM DA CORREÇÃO ---
+
                 detalheCriado.setObservacoes(osDto.getObservacoes());
                 detalheCriado.setDataPo(osDto.getDataPo());
                 detalheCriado.setFaturamento(osDto.getFaturamento());
@@ -453,39 +473,54 @@ public class OsServiceImpl implements OsService {
                 try {
                     OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
 
-                    // --- INÍCIO DA NOVA LÓGICA DE PROJETO ÚNICO ---
-
-                    // Cenário 1: A linha da planilha tem OS e/ou KEY, ou o projeto não foi informado.
-                    // A lógica antiga de busca por KEY ou OS continua valendo.
+                    // Cenário 1: A linha da planilha tem KEY ou OS, ou não tem Projeto. Lógica padrão.
                     if ((dto.getKey() != null && !dto.getKey().isBlank()) || (dto.getOs() != null && !dto.getOs().isBlank()) || (dto.getProjeto() == null || dto.getProjeto().isBlank())) {
 
-                        // (A lógica que estava aqui antes para tratar KEY e OS permanece a mesma)
-                        // ... implementação original ...
+                        Optional<OsLpuDetalhe> detalheExistenteOpt = (dto.getKey() != null && !dto.getKey().isBlank())
+                                ? osLpuDetalheRepository.findByKey(dto.getKey())
+                                : Optional.empty();
 
+                        if (detalheExistenteOpt.isPresent()) {
+                            OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
+                            atualizarDetalheExistente(detalheExistente, dto, isLegado);
+                            affectedOsIds.add(detalheExistente.getOs().getId());
+                        } else {
+                            if (dto.getOs() == null && (dto.getKey() != null && !dto.getKey().isBlank())) {
+                                throw new IllegalArgumentException("Para criar um novo registro com uma KEY específica, a coluna OS é obrigatória.");
+                            }
+                            OsLpuDetalhe novoDetalhe = createOs(dto);
+                            if (novoDetalhe != null) {
+                                if (isLegado) {
+                                    criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
+                                }
+                                affectedOsIds.add(novoDetalhe.getOs().getId());
+                            }
+                        }
                     }
-                    // Cenário 2: A linha NÃO tem OS nem KEY, MAS TEM um projeto.
-                    // Esta é a nossa nova regra de negócio!
+                    // Cenário 2: A linha NÃO tem OS nem KEY, MAS TEM um projeto. Criação/Reutilização automática de OS.
                     else {
                         OS osParaEstaLinha;
+                        String projetoUpper = dto.getProjeto().toUpperCase();
 
-                        // Primeiro, verifica no nosso cache da importação atual
-                        if (osPorProjetoCache.containsKey(dto.getProjeto().toUpperCase())) {
-                            osParaEstaLinha = osPorProjetoCache.get(dto.getProjeto().toUpperCase());
+                        if (osPorProjetoCache.containsKey(projetoUpper)) {
+                            osParaEstaLinha = osPorProjetoCache.get(projetoUpper);
                             warnings.add("Linha " + numeroLinha + ": O projeto '" + dto.getProjeto() + "' já foi processado nesta importação. A linha foi adicionada à OS '" + osParaEstaLinha.getOs() + "'.");
-                        }
-                        // Se não está no cache, busca no banco de dados
-                        else {
+                        } else {
                             Optional<OS> osExistenteOpt = osRepository.findByProjeto(dto.getProjeto());
                             if (osExistenteOpt.isPresent()) {
                                 osParaEstaLinha = osExistenteOpt.get();
-                                warnings.add("Linha " + numeroLinha + ": Já existe uma OS para o projeto '" + dto.getProjeto() + "'. A linha foi adicionada à OS '" + osParaEstaLinha.getOs() + "'.");
-                            }
-                            // Se não existe em lugar nenhum, cria uma nova OS
-                            else {
+                                // --- INÍCIO DA CORREÇÃO ---
+                                // Verifica se a OS encontrada tem um número. Se não tiver, gera um novo.
+                                if (osParaEstaLinha.getOs() == null || osParaEstaLinha.getOs().isBlank()) {
+                                    osParaEstaLinha.setOs(gerarNovaOsSequencial());
+                                    warnings.add("Linha " + numeroLinha + ": Encontrada OS existente para o projeto '" + dto.getProjeto() + "' sem número. Atribuído novo número de OS: '" + osParaEstaLinha.getOs() + "'.");
+                                } else {
+                                    warnings.add("Linha " + numeroLinha + ": Já existe uma OS para o projeto '" + dto.getProjeto() + "'. A linha foi adicionada à OS '" + osParaEstaLinha.getOs() + "'.");
+                                }
+                            } else {
                                 osParaEstaLinha = new OS();
                                 osParaEstaLinha.setProjeto(dto.getProjeto());
                                 osParaEstaLinha.setOs(gerarNovaOsSequencial());
-                                // Preenche outros campos necessários para criar a OS
                                 if (dto.getSegmentoId() != null) {
                                     Segmento segmento = segmentoMap.get(getStringCellValue(currentRow, 3).toUpperCase());
                                     osParaEstaLinha.setSegmento(segmento);
@@ -495,13 +530,11 @@ public class OsServiceImpl implements OsService {
                                 osParaEstaLinha.setUsuarioCriacao("sistema-import");
                                 osParaEstaLinha.setStatusRegistro("ATIVO");
                             }
-                            // Salva a OS (seja nova ou existente) e adiciona ao cache
-                            osRepository.save(osParaEstaLinha);
-                            osPorProjetoCache.put(dto.getProjeto().toUpperCase(), osParaEstaLinha);
+                            osRepository.save(osParaEstaLinha); // Salva a OS (seja ela nova, existente ou corrigida)
+                            osPorProjetoCache.put(projetoUpper, osParaEstaLinha);
                         }
 
-                        // Agora que temos a OS correta, criamos o detalhe (a linha) dentro dela
-                        dto.setOs(osParaEstaLinha.getOs());
+                        dto.setOs(osParaEstaLinha.getOs()); // Garante que o DTO tenha o número da OS correto
                         OsLpuDetalhe novoDetalhe = createOs(dto);
                         if (novoDetalhe != null) {
                             if (isLegado) {
@@ -510,7 +543,6 @@ public class OsServiceImpl implements OsService {
                             affectedOsIds.add(novoDetalhe.getOs().getId());
                         }
                     }
-                    // --- FIM DA NOVA LÓGICA ---
 
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("Erro na linha " + numeroLinha + ": " + e.getMessage());
@@ -531,6 +563,24 @@ public class OsServiceImpl implements OsService {
     }
 
     private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado) {
+        // 1. ATUALIZA A ENTIDADE 'PAI' (OS) com os dados da planilha
+        OS os = detalheExistente.getOs();
+        if (dto.getProjeto() != null) {
+            os.setProjeto(dto.getProjeto());
+        }
+        if (dto.getGestorTim() != null) {
+            os.setGestorTim(dto.getGestorTim());
+        }
+        if (dto.getSegmentoId() != null) {
+            Segmento novoSegmento = segmentoRepository.findById(dto.getSegmentoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Segmento não encontrado com o ID: " + dto.getSegmentoId()));
+            os.setSegmento(novoSegmento);
+        }
+        os.setDataAtualizacao(LocalDateTime.now());
+        os.setUsuarioAtualizacao("sistema-import-update");
+        osRepository.save(os); // Salva as alterações na OS principal
+
+        // 2. ATUALIZA A ENTIDADE 'FILHA' (OsLpuDetalhe) com os dados da planilha
         detalheExistente.setSite(dto.getSite());
         detalheExistente.setRegional(dto.getRegional());
         detalheExistente.setLote(dto.getLote());
@@ -540,7 +590,22 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setObjetoContratado(dto.getObjetoContratado());
         detalheExistente.setUnidade(dto.getUnidade());
         detalheExistente.setQuantidade(dto.getQuantidade());
-        detalheExistente.setValorTotal(dto.getValorTotal());
+
+        Integer quantidade = dto.getQuantidade();
+        BigDecimal valorTotalPlanilha = dto.getValorTotal();
+        Lpu lpuDoDetalhe = detalheExistente.getLpu();
+
+        if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
+            if (lpuDoDetalhe != null && lpuDoDetalhe.getValorSemImposto() != null && quantidade != null && quantidade > 0) {
+                BigDecimal valorCalculado = lpuDoDetalhe.getValorSemImposto().multiply(new BigDecimal(quantidade));
+                detalheExistente.setValorTotal(valorCalculado);
+            } else {
+                detalheExistente.setValorTotal(BigDecimal.ZERO);
+            }
+        } else {
+            detalheExistente.setValorTotal(valorTotalPlanilha);
+        }
+
         detalheExistente.setObservacoes(dto.getObservacoes());
         detalheExistente.setDataPo(dto.getDataPo());
         detalheExistente.setFaturamento(dto.getFaturamento());
@@ -553,8 +618,10 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setNumFs(dto.getNumFs());
         detalheExistente.setGate(dto.getGate());
         detalheExistente.setGateId(dto.getGateId());
-        osLpuDetalheRepository.save(detalheExistente);
 
+        osLpuDetalheRepository.save(detalheExistente); // Salva as alterações no detalhe
+
+        // 3. Se for legado, cria ou atualiza o lançamento
         if (isLegado) {
             criarOuAtualizarLancamentoLegado(detalheExistente, dto);
         }
@@ -616,6 +683,8 @@ public class OsServiceImpl implements OsService {
         lancamento.setDetalheDiario(dto.getDetalheDiario());
         lancamento.setValor(dto.getValorLancamento());
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_LEGADO);
+
+        osLpuDetalheRepository.save(detalhe);
     }
 
 
@@ -956,12 +1025,10 @@ public class OsServiceImpl implements OsService {
 
     @Transactional
     public void desativarDetalhe(Long detalheId) {
+        // 1. Busca o registro de detalhe que o usuário deseja excluir.
         OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
 
-        if (detalhe.getLancamentos() != null && !detalhe.getLancamentos().isEmpty()) {
-            throw new BusinessException("Não é possível excluir um registro que já possui lançamentos de atividade.");
-        }
         osLpuDetalheRepository.delete(detalhe);
     }
 

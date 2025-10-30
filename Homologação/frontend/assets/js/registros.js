@@ -413,16 +413,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
         const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
-
-        // --- INÍCIO DA ADIÇÃO ---
         const modalHistoricoEl = document.getElementById('modalHistoricoLancamentos');
         const modalHistorico = modalHistoricoEl ? new bootstrap.Modal(modalHistoricoEl) : null;
-        // --- FIM DA ADIÇÃO ---
 
         accordionContainer.addEventListener('click', function (e) {
             const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
-            const btnHistorico = e.target.closest('.btn-historico'); // Captura o clique no novo botão
+            const btnHistorico = e.target.closest('.btn-historico');
 
             if (btnEdit) {
                 e.preventDefault();
@@ -455,14 +452,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (btnDelete) {
-                const detalheId = btnDelete.dataset.id;
-                document.getElementById('deleteDetalheId').value = detalheId;
+                const osId = btnDelete.dataset.osId;
+                const deleteInput = document.getElementById('deleteOsId');
+                if (deleteInput) {
+                    deleteInput.value = osId;
+                } else {
+                    console.error("Input com id 'deleteOsId' não encontrado no modal.");
+                    mostrarToast("Erro de configuração: não foi possível encontrar o campo para exclusão.", "error");
+                    return;
+                }
                 if (modalConfirmarExclusao) {
                     modalConfirmarExclusao.show();
                 }
             }
 
-            // --- INÍCIO DA NOVA LÓGICA ---
             if (btnHistorico) {
                 e.preventDefault();
                 const detalheId = btnHistorico.dataset.detalheId;
@@ -499,10 +502,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
                 }
             }
-            // --- FIM DA NOVA LÓGICA ---
         });
 
-        // ... (restante dos listeners) ...
         const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
         if (formEditarDetalheEl) {
             formEditarDetalheEl.addEventListener('change', (e) => {
@@ -591,13 +592,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
         if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
-                const detalheId = document.getElementById('deleteDetalheId').value;
+                const osId = document.getElementById('deleteOsId').value;
                 const btnConfirmar = this;
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
                 try {
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/${osId}`, {
                         method: 'DELETE'
                     });
                     if (!response.ok) {

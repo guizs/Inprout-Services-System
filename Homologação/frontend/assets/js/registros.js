@@ -113,8 +113,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     detalhesAtivos.forEach(detalhe => {
                         let lancamentoParaExibir = detalhe.ultimoLancamento;
 
+                        // --- INÍCIO DA CORREÇÃO ---
+                        // Se a API não retornou um 'ultimoLancamento' ou se a lista local de lançamentos existe,
+                        // aplicamos a lógica de seleção para garantir que o lançamento correto seja exibido.
                         if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
 
+                            // 1. Tenta encontrar o lançamento operacional mais recente
                             const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
 
                             if (lancamentosOperacionais.length > 0) {
@@ -122,12 +126,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                     return (maisRecente.id > atual.id) ? maisRecente : atual;
                                 });
                             } else {
+                                // 2. Se não houver operacionais, pega o legado mais recente como fallback
                                 lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
                                     return (maisRecente.id > atual.id) ? maisRecente : atual;
                                 });
                             }
                         }
-
+                        
                         todasAsLinhas.push({
                             os: os,
                             detalhe: detalhe,

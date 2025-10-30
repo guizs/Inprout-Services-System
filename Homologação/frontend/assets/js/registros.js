@@ -38,8 +38,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
+    const colunasGestor = ["HISTÓRICO", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "QUANTIDADE", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "KEY"];
+
     const colunasPorRole = {
-        'MANAGER': colunasCompletas,
+        'MANAGER': colunasGestor,
         'DEFAULT': colunasCompletas
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
@@ -452,20 +454,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             if (btnDelete) {
-                const osId = btnDelete.dataset.osId;
+                const detalheId = btnDelete.dataset.id;
                 const deleteInput = document.getElementById('deleteOsId');
                 if (deleteInput) {
-                    deleteInput.value = osId;
-                } else {
-                    console.error("Input com id 'deleteOsId' não encontrado no modal.");
-                    mostrarToast("Erro de configuração: não foi possível encontrar o campo para exclusão.", "error");
-                    return;
+                    // Armazena o ID correto no campo oculto do modal.
+                    deleteInput.value = detalheId;
                 }
                 if (modalConfirmarExclusao) {
                     modalConfirmarExclusao.show();
                 }
             }
-
             if (btnHistorico) {
                 e.preventDefault();
                 const detalheId = btnHistorico.dataset.detalheId;
@@ -592,27 +590,58 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
         if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
-                const osId = document.getElementById('deleteOsId').value;
+                // Pega o ID do detalhe do registro a ser excluído
+                const detalheId = document.getElementById('deleteOsId').value;
                 const btnConfirmar = this;
+
+                if (!detalheId || detalheId === 'undefined') {
+                    mostrarToast("Não foi possível identificar o registro para exclusão.", "error");
+                    return;
+                }
+
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
+
                 try {
-                    const response = await fetchComAuth(`${API_BASE_URL}/os/${osId}`, {
+                    // Chama a API para excluir o registro de detalhe específico
+                    const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
                         method: 'DELETE'
                     });
+
                     if (!response.ok) {
                         let errorMsg = 'Erro ao excluir o registro.';
-                        try { const errorData = await response.json(); errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`; }
-                        catch (e) { const errorText = await response.text(); errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`; }
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`;
+                        } catch (e) {
+                            const errorText = await response.text();
+                            errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`;
+                        }
                         throw new Error(errorMsg);
                     }
+
                     mostrarToast('Registro excluído com sucesso!', 'success');
                     if (modalInstance) modalInstance.hide();
-                    await inicializarPagina();
+
+                    // --- INÍCIO DA NOVA LÓGICA DE ATUALIZAÇÃO ---
+
+                    // 1. Remove o item excluído da lista global 'todasAsLinhas' em memória
+                    const indexParaRemover = todasAsLinhas.findIndex(linha => get(linha, 'detalhe.id') == detalheId);
+                    if (indexParaRemover > -1) {
+                        todasAsLinhas.splice(indexParaRemover, 1);
+                    }
+
+                    // 2. Chama a função que re-renderiza a tabela com base nos dados locais atualizados.
+                    //    Isso é muito mais rápido pois não faz uma nova chamada à API.
+                    renderizarTabelaComFiltro();
+
+                    // --- FIM DA NOVA LÓGICA DE ATUALIZAÇÃO ---
+
                 } catch (error) {
                     console.error("Erro ao excluir o registro:", error);
                     mostrarToast(error.message, 'error');
+                    if (modalInstance) modalInstance.hide();
                 } finally {
                     btnConfirmar.disabled = false;
                     btnConfirmar.innerHTML = 'Sim, Excluir';

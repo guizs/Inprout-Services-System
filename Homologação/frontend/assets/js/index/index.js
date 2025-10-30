@@ -1290,14 +1290,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================================
     // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
     // ==========================================================
+    // ==========================================================
+    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
+    // ==========================================================
     const modalSolicitarComplementarEl = document.getElementById('modalSolicitarComplementar');
     if (modalSolicitarComplementarEl) {
         const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
         const form = document.getElementById('formSolicitarComplementar');
-        const selectOS = document.getElementById('osIdComplementar');
-        const selectProjeto = document.getElementById('projetoIdComplementar');
-        const selectLPU = document.getElementById('lpuIdComplementar');
-        let todasAsOS = []; // Cache para as OSs do usuário
+
+        // Declaração correta das variáveis do modal complementar
+        const selectOSComplementar = document.getElementById('osIdComplementar');
+        const selectProjetoComplementar = document.getElementById('projetoIdComplementar');
+        const selectLPUComplementar = document.getElementById('lpuIdComplementar');
+        let todasAsOSComplementar = []; // Cache específico para este modal
 
         // Variáveis para guardar as instâncias do Choices.js
         let choicesProjeto, choicesOS, choicesLPU;
@@ -1306,30 +1311,33 @@ document.addEventListener('DOMContentLoaded', () => {
             form.reset();
 
             if (!choicesProjeto) {
-                choicesProjeto = new Choices(selectProjeto, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhum projeto encontrado', placeholder: true, placeholderValue: 'Busque ou selecione um projeto' });
+                choicesProjeto = new Choices(selectProjetoComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhum projeto encontrado', placeholder: true, placeholderValue: 'Busque ou selecione um projeto' });
             }
             if (!choicesOS) {
-                choicesOS = new Choices(selectOS, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma OS encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma OS' });
+                choicesOS = new Choices(selectOSComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma OS encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma OS' });
             }
             if (!choicesLPU) {
-                choicesLPU = new Choices(selectLPU, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma LPU encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma LPU' });
+                choicesLPU = new Choices(selectLPUComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma LPU encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma LPU' });
             }
 
+            // Limpa seleções anteriores, mas não os dados em si
             choicesProjeto.clearStore();
             choicesOS.clearStore();
             choicesLPU.clearStore();
             choicesLPU.disable();
 
             try {
-                if (todasAsOS.length === 0) {
+                // Carrega os dados da API apenas se o cache estiver vazio
+                if (todasAsOSComplementar.length === 0) {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
                     const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar OSs do usuário.');
-                    todasAsOS = await response.json();
+                    todasAsOSComplementar = await response.json();
                 }
 
-                const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
+                // Popula o select de Projetos
+                const projetosUnicos = [...new Set(todasAsOSComplementar.map(os => os.projeto))];
                 choicesProjeto.setChoices(
                     [{ value: '', label: 'Selecione o projeto...', selected: true, disabled: true }].concat(
                         projetosUnicos.map(projeto => ({ value: projeto, label: projeto }))
@@ -1337,79 +1345,50 @@ document.addEventListener('DOMContentLoaded', () => {
                     'value', 'label', false
                 );
 
-                // --- INÍCIO DA CORREÇÃO ---
-                // O 'value' da OS agora é o seu código (string), não o ID numérico.
-                // O ID fica guardado em 'customProperties' para uso interno.
+                // Popula o select de OSs
                 choicesOS.setChoices(
                     [{ value: '', label: 'Selecione a OS...', selected: true, disabled: true }].concat(
-                        todasAsOS.map(os => ({
+                        todasAsOSComplementar.map(os => ({
                             value: os.os,
                             label: os.os,
-                            customProperties: { id: os.id }
+                            customProperties: { id: os.id, projeto: os.projeto }
                         }))
                     ),
                     'value', 'label', false
                 );
-                // --- FIM DA CORREÇÃO ---
 
             } catch (error) {
                 mostrarToast(error.message, 'error');
             }
         });
 
-        const onProjetoChange = (event) => {
-            const projetoSelecionado = event.target.value;
-            const osDoProjeto = todasAsOS.filter(os => os.projeto === projetoSelecionado);
+        // Listener para quando o usuário MUDA o valor do PROJETO
+        selectProjetoComplementar.addEventListener('change', () => {
+            const projetoSelecionado = choicesProjeto.getValue(true);
+            if (!projetoSelecionado) return;
 
-            choicesOS.clearStore();
-            // --- INÍCIO DA CORREÇÃO ---
-            // A mesma lógica é aplicada aqui: 'value' e 'label' usam o código da OS.
-            choicesOS.setChoices(
-                [{ value: '', label: 'Selecione a OS...', selected: true, disabled: true }].concat(
-                    osDoProjeto.map(os => ({
-                        value: os.os,
-                        label: os.os,
-                        customProperties: { id: os.id }
-                    }))
-                ),
-                'value', 'label', false
-            );
-
-            if (osDoProjeto.length > 0) {
-                // Seleciona a primeira OS pelo seu CÓDIGO.
-                const primeiraOSCodigo = osDoProjeto[0].os;
-                choicesOS.setValue([primeiraOSCodigo]);
-                selectOS.dispatchEvent(new Event('change'));
-            } else {
-                choicesLPU.clearStore();
-                choicesLPU.disable();
+            const osCorrespondente = todasAsOSComplementar.find(os => os.projeto === projetoSelecionado);
+            if (osCorrespondente) {
+                // Apenas define o valor no select da OS, sem recriar a lista de opções
+                choicesOS.setValue([osCorrespondente.os]);
             }
-            // --- FIM DA CORREÇÃO ---
-        };
+        });
 
-        selectProjeto.addEventListener('change', onProjetoChange);
-
-        selectOS.addEventListener('change', async () => {
-            // --- INÍCIO DA CORREÇÃO ---
-            // O valor agora é o código da OS, não o ID.
-            const osCodigo = selectOS.value;
+        // Listener para quando o usuário MUDA o valor da OS
+        selectOSComplementar.addEventListener('change', async () => {
+            const osCodigo = choicesOS.getValue(true);
             if (!osCodigo) return;
 
-            // A busca no array 'todasAsOS' é feita pelo código da OS.
-            const osSelecionada = todasAsOS.find(os => os.os === osCodigo);
-            // --- FIM DA CORREÇÃO ---
-
+            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigo);
             if (osSelecionada) {
+                // Atualiza o valor do projeto correspondente, sem recriar a lista
                 const projetoAtual = choicesProjeto.getValue(true);
                 if (projetoAtual !== osSelecionada.projeto) {
-                    selectProjeto.removeEventListener('change', onProjetoChange);
                     choicesProjeto.setValue([osSelecionada.projeto]);
-                    setTimeout(() => {
-                        selectProjeto.addEventListener('change', onProjetoChange);
-                    }, 100);
                 }
             }
 
+            // A lógica para carregar as LPUs a partir da OS selecionada continua aqui
             choicesLPU.clearStore();
             choicesLPU.clearInput();
             choicesLPU.disable();
@@ -1445,20 +1424,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Listener para o envio do formulário (submit)
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Para enviar para a API, buscamos o ID correto que foi guardado
-            // nas 'customProperties' da opção selecionada.
-            const osSelecionada = choicesOS.store.getChoice(choicesOS.getValue(true));
-            const osIdParaApi = osSelecionada?.customProperties?.id || null;
-            // --- FIM DA CORREÇÃO ---
+            const osCodigoSelecionado = choicesOS.getValue(true);
+            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigoSelecionado);
+            const osIdParaApi = osSelecionada?.id || null;
 
             const payload = {
-                osId: osIdParaApi, // Envia o ID numérico correto
-                lpuId: selectLPU.value,
+                osId: osIdParaApi,
+                lpuId: selectLPUComplementar.value,
                 quantidade: document.getElementById('quantidadeComplementar').value,
                 justificativa: document.getElementById('justificativaComplementar').value,
                 solicitanteId: localStorage.getItem('usuarioId')

@@ -36,4 +36,6 @@ public interface OsLpuDetalheRepository extends JpaRepository<OsLpuDetalhe, Long
      * Usado para gerar a sequência de atividades normais.
      */
     long countByOsAndLpuAndKeyNotContaining(OS os, Lpu lpu, String infix);
+
+    long countByOs(OS os);
 }

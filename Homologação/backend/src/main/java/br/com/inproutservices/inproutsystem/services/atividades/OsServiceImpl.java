@@ -298,10 +298,23 @@ public class OsServiceImpl implements OsService {
     @Override
     @Transactional
     public void deleteOs(Long id) {
-        if (!osRepository.existsById(id)) {
-            throw new EntityNotFoundException("OS não encontrada com o ID: " + id);
+        // Busca o detalhe que será excluído
+        OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Registro de detalhe da OS não encontrado com o ID: " + id));
+
+        OS osPai = detalhe.getOs(); // Pega a OS "pai" antes de excluir o filho
+
+        // Exclui permanentemente o registro (detalhe) do banco de dados
+        osLpuDetalheRepository.delete(detalhe);
+
+        // Força o Hibernate a executar a exclusão no banco de dados imediatamente
+        osLpuDetalheRepository.flush();
+
+        // Verifica se a OS "pai" ainda tem algum outro detalhe associado a ela
+        if (osLpuDetalheRepository.countByOs(osPai) == 0) {
+            // Se não houver mais nenhum detalhe, exclui a OS "pai" também
+            osRepository.delete(osPai);
         }
-        osRepository.deleteById(id);
     }
 
     @Override
@@ -1023,13 +1036,25 @@ public class OsServiceImpl implements OsService {
         return osLpuDetalheRepository.save(novoDetalhe);
     }
 
+    @Override
     @Transactional
     public void desativarDetalhe(Long detalheId) {
         // 1. Busca o registro de detalhe que o usuário deseja excluir.
         OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
 
+        OS osPai = detalhe.getOs(); // Pega a referência da OS "pai" antes de excluir o "filho"
+
+        // 2. Exclui permanentemente o registro (o detalhe) do banco de dados.
         osLpuDetalheRepository.delete(detalhe);
+        osLpuDetalheRepository.flush(); // Garante que a exclusão seja executada no banco neste momento
+
+        // 3. Verifica se a OS "pai" ficou sem nenhum outro detalhe.
+        //    Agora, o método countByOs existe e funcionará.
+        if (osLpuDetalheRepository.countByOs(osPai) == 0) {
+            // 4. Se não houver mais nenhum detalhe, exclui a OS "pai" também.
+            osRepository.delete(osPai);
+        }
     }
 
     @Override

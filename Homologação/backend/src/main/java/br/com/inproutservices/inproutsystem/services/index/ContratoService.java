@@ -44,11 +44,13 @@ public class ContratoService {
      */
     @Transactional(readOnly = true)
     public List<ContratoResponseDTO> listarContratosAtivos() {
-        // A busca no repositório continua a mesma
-        List<Contrato> contratos = contratoRepository.findAllByOrderByNomeAsc();
+        // --- INÍCIO DA CORREÇÃO ---
+        // Agora utiliza o novo método que garante o carregamento das LPUs
+        List<Contrato> todosContratos = contratoRepository.findAllWithLpus();
+        // --- FIM DA CORREÇÃO ---
 
-        // A conversão para DTO é feita aqui
-        return contratos.stream()
+        return todosContratos.stream()
+                .filter(Contrato::isAtivo)
                 .map(ContratoResponseDTO::new)
                 .collect(Collectors.toList());
     }

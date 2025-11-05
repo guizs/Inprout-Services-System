@@ -75,7 +75,7 @@ public class LancamentoController {
                 .collect(Collectors.groupingBy(d -> d.getOs().getId()));
 
         // CORREÇÃO: Usando o novo método do repositório
-        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_LEGADO);
+        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO);
         Map<Long, List<Lancamento>> lancamentosAprovadosPorOsId = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
 

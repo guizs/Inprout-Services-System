@@ -812,7 +812,7 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
-        List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_LEGADO);
+        List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO);
 
         List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(statuses, dataInicio, dataFim);
 
@@ -1107,6 +1107,14 @@ public class LancamentoServiceImpl implements LancamentoService {
         if (cell == null) return null;
         DataFormatter formatter = new DataFormatter();
         return formatter.formatCellValue(cell).trim();
+    }
+
+    private String getStringCellValue(Row row, int cellIndex, boolean preencherVazioComHifen) {
+        String valor = getStringCellValue(row, cellIndex);
+        if (preencherVazioComHifen && (valor == null || valor.isBlank())) {
+            return "-";
+        }
+        return valor;
     }
 
     private BigDecimal getBigDecimalCellValue(Row row, int cellIndex) {

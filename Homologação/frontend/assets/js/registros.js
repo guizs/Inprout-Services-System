@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'htpp://localhost:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -26,12 +26,13 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     };
     const formatarData = (dataStr) => {
-        if (!dataStr) return '-';
-        // Trata ambos os formatos (com ou sem hora, com - ou /)
+        if (!dataStr || dataStr === '-') return '-'; // <-- CORREÇÃO AQUI
         let dataLimpa = dataStr.split(' ')[0];
         if (dataLimpa.includes('-')) {
             dataLimpa = dataLimpa.split('-').reverse().join('/');
         }
+        // Trata datas inválidas ou vazias que o JS pode gerar
+        if (dataLimpa === '//' || dataLimpa === 'Invalid Date') return '-'; // <-- CORREÇÃO AQUI
         return dataLimpa;
     };
 
@@ -180,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
+            .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
         const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
@@ -872,7 +873,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const valorTotalCPS = grupo.linhas
                         .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
                         // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
-                        .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
+                        .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 

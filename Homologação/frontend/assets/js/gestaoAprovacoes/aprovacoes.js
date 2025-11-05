@@ -28,8 +28,9 @@ let todasPendenciasMateriais = [];
 let todosHistoricoMateriais = [];
 let todasPendenciasComplementares = [];
 let todoHistoricoComplementares = [];
+let todasPendenciasAtividades = [];
 
-const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
+const API_BASE_URL = 'https://www.inproutservices.com.br/api';
 
 // Funções para abrir modais
 function aprovarLancamento(id) {
@@ -483,7 +484,7 @@ document.addEventListener('DOMContentLoaded', function () {
         accordionContainer.appendChild(frag);
     }
 
-    function renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador) {
+    function renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador, pendenciasMateriaisCount, pendenciasComplementaresCount) {
         const dashboardContainer = document.getElementById('dashboard-container');
         const coordenadoresContainer = document.getElementById('dashboard-coordenadores-container');
         const coordenadoresCards = document.getElementById('coordenadores-cards');
@@ -497,10 +498,26 @@ document.addEventListener('DOMContentLoaded', function () {
         coordenadoresCards.innerHTML = '';
         coordenadoresContainer.style.display = 'none';
 
+        // --- INÍCIO DA MODIFICAÇÃO: Adiciona os novos cards ---
+        // Adiciona cards de Materiais e Complementares para TODOS os perfis (exceto Manager)
+        if (userRole !== 'MANAGER') {
+            cardsHtml += `
+                <div class="card card-stat card-perigo">
+                    <div class="card-body"><h5>Pendências de Materiais</h5><p>${pendenciasMateriaisCount}</p></div>
+                </div>
+                <div class="card card-stat card-perigo">
+                    <div class="card-body"><h5>Ativ. Complementares</h5><p>${pendenciasComplementaresCount}</p></div>
+                </div>
+            `;
+        }
+        // --- FIM DA MODIFICAÇÃO ---
+
         if (userRole === 'COORDINATOR') {
-            // Lógica para Coordenador...
+            // Lógica para Coordenador... (código existente)
+
         } else if (userRole === 'CONTROLLER') {
             const pendenciasGerais = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_CONTROLLER').length;
+            // ... (código existente para 'solicitacoesPrazo', 'prazosVencidos', 'aprovadosHoje') ...
             const solicitacoesPrazo = todosLancamentos.filter(l => l.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO').length;
             const prazosVencidos = todosLancamentos.filter(l => l.situacaoAprovacao === 'PRAZO_VENCIDO').length;
             const aprovadosHoje = todosLancamentos.filter(l => {
@@ -508,7 +525,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 return l.situacaoAprovacao === 'APROVADO' && dataAcao === hojeString;
             }).length;
 
-            cardsHtml = `
+
+            cardsHtml += `
             <div class="card card-stat card-info">
                 <div class="card-body"><h5>Pendências para Ação</h5><p>${pendenciasGerais}</p></div>
             </div>
@@ -539,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 coordenadoresCards.innerHTML = coordenadoresHtml;
             }
         }
-        dashboardContainer.innerHTML = cardsHtml;
+        dashboardContainer.innerHTML = cardsHtml; // Insere TODOS os cards (novos + antigos)
     }
 
     function renderizarTabelaPendentesComplementares(solicitacoes) {
@@ -687,23 +705,22 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleLoader(true, '#historico-materiais-pane');
 
         try {
-            const [pendentesResponse, historicoResponse] = await Promise.all([
-                fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
+            // Se 'todasPendenciasMateriais' já foi carregado pelo dashboard, pula o fetch
+            if (todasPendenciasMateriais.length === 0) {
+                const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
                     headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
-                }),
-                fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`)
-            ]);
-
-
-            if (!pendentesResponse.ok || !historicoResponse.ok) {
-                throw new Error('Falha ao carregar solicitações de materiais.');
+                });
+                if (!pendentesResponse.ok) throw new Error('Falha ao carregar pendências de materiais.');
+                todasPendenciasMateriais = await pendentesResponse.json();
             }
 
-            todasPendenciasMateriais = await pendentesResponse.json();
+            // O histórico é sempre carregado ao clicar na aba
+            const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
+            if (!historicoResponse.ok) throw new Error('Falha ao carregar histórico de materiais.');
             todosHistoricoMateriais = await historicoResponse.json();
 
             popularFiltroSegmento();
-            renderizarTabelaPendentesMateriais();
+            renderizarTabelaPendentesMateriais(); // Renderiza com os dados (novos ou cacheados)
             renderizarTabelaHistoricoMateriais();
 
         } catch (error) {
@@ -721,34 +738,19 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleLoader(true, '#complementares-pane');
 
         try {
-            const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
-                headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
-            });
-
-            if (!response.ok) {
-                throw new Error('Falha ao carregar pendências de ativ. complementares.');
+            // Se 'todasPendenciasComplementares' já foi carregado, pula o fetch
+            if (todasPendenciasComplementares.length === 0) {
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
+                    headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
+                });
+                if (!response.ok) throw new Error('Falha ao carregar pendências de ativ. complementares.');
+                todasPendenciasComplementares = await response.json();
             }
 
-            todasPendenciasComplementares = await response.json();
             renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
 
-            const count = todasPendenciasComplementares.length;
-            let badge = tabComplementares.querySelector('.badge');
-
-            tabComplementares.classList.add('position-relative');
-
-            if (!badge) {
-                badge = document.createElement('span');
-                badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
-                tabComplementares.appendChild(badge);
-            }
-
-            if (count > 0) {
-                badge.textContent = count > 9 ? '9+' : count;
-                badge.style.display = '';
-            } else {
-                badge.style.display = 'none';
-            }
+            // A lógica do badge foi movida para 'carregarDashboardEBadges'
+            // para carregar junto com o dashboard
 
         } catch (error) {
             console.error("Erro ao carregar dados de atividades complementares:", error);
@@ -952,37 +954,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarDadosAtividades() {
+        // Esta função agora SÓ renderiza a tabela de atividades
+        // Os dados já foram buscados pelo 'carregarDashboardEBadges'
         toggleLoader(true, '#atividades-pane');
         toggleLoader(true, '#historico-atividades-pane');
         try {
-            const userId = localStorage.getItem('usuarioId');
+            // Se os dados históricos ainda não foram carregados, busca
+            if (todosOsLancamentosGlobais.length === 0) {
+                const [responseGeral, responseHistorico] = await Promise.all([
+                    fetchComAuth(`${API_BASE_URL}/lancamentos`),
+                    fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`)
+                ]);
 
-            const [
-                responseGeral,
-                responsePendencias,
-                responseHistorico,
-                responsePendenciasCoordenador
-            ] = await Promise.all([
-                fetchComAuth(`${API_BASE_URL}/lancamentos`),
-                fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`),
-                fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
-                fetchComAuth(`${API_BASE_URL}/lancamentos/pendencias-por-coordenador`)
-            ]);
-
-            if (!responseGeral.ok || !responsePendencias.ok || !responseHistorico.ok || !responsePendenciasCoordenador.ok) {
-                throw new Error('Falha ao carregar um ou mais conjuntos de dados de atividades.');
+                if (!responseGeral.ok || !responseHistorico.ok) {
+                    throw new Error('Falha ao carregar dados de atividades.');
+                }
+                todosOsLancamentosGlobais = await responseGeral.json();
+                const historicoParaExibir = await responseHistorico.json();
+                renderizarTabelaHistorico(historicoParaExibir);
             }
 
-            const todosLancamentos = await responseGeral.json();
-            const pendenciasParaExibir = await responsePendencias.json();
-            const historicoParaExibir = await responseHistorico.json();
-            const pendenciasPorCoordenador = await responsePendenciasCoordenador.json();
-
-            todosOsLancamentosGlobais = todosLancamentos;
-
-            renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador);
-            renderizarAcordeonPendencias(pendenciasParaExibir);
-            renderizarTabelaHistorico(historicoParaExibir);
+            // Renderiza as pendências com os dados globais já carregados
+            renderizarAcordeonPendencias(todasPendenciasAtividades);
 
             if (userRole === 'COORDINATOR') {
                 document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-clock-history me-2"></i> Pendências';
@@ -998,6 +991,86 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             toggleLoader(false, '#atividades-pane');
             toggleLoader(false, '#historico-atividades-pane');
+        }
+    }
+
+    async function carregarDashboardEBadges() {
+        // Mostra o loader no container do dashboard
+        toggleLoader(true, '.overview-card');
+
+        try {
+            const userId = localStorage.getItem('usuarioId');
+
+            // 1. Busca todos os contadores de pendência em paralelo
+            const [
+                responseGeral,
+                responsePendenciasAtiv,
+                responsePendenciasCoord,
+                responsePendenciasMat,
+                responsePendenciasCompl
+            ] = await Promise.all([
+                fetchComAuth(`${API_BASE_URL}/lancamentos`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/pendencias-por-coordenador`),
+                fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, { headers: { 'X-User-Role': userRole, 'X-User-ID': userId } }),
+                fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, { headers: { 'X-User-Role': userRole, 'X-User-ID': userId } })
+            ]);
+
+            // 2. Processa as respostas
+            if (!responseGeral.ok || !responsePendenciasAtiv.ok || !responsePendenciasCoord.ok || !responsePendenciasMat.ok || !responsePendenciasCompl.ok) {
+                throw new Error('Falha ao carregar um ou mais dados do dashboard.');
+            }
+
+            // 3. Armazena os dados globalmente para as tabelas usarem
+            todosOsLancamentosGlobais = await responseGeral.json();
+            todasPendenciasAtividades = await responsePendenciasAtiv.json();
+            const pendenciasPorCoordenador = await responsePendenciasCoord.json();
+            todasPendenciasMateriais = await responsePendenciasMat.json();
+            todasPendenciasComplementares = await responsePendenciasCompl.json();
+
+            // 4. Renderiza o Dashboard com TODOS os contadores
+            renderizarCardsDashboard(
+                todosOsLancamentosGlobais,
+                pendenciasPorCoordenador,
+                todasPendenciasMateriais.length,
+                todasPendenciasComplementares.length
+            );
+
+            // 5. Renderiza o Badge da aba de Materiais
+            const tabMateriais = document.getElementById('materiais-tab');
+            if (tabMateriais) {
+                let badgeMat = tabMateriais.querySelector('.badge');
+                if (!badgeMat) {
+                    badgeMat = document.createElement('span');
+                    badgeMat.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                    tabMateriais.appendChild(badgeMat);
+                }
+                const countMat = todasPendenciasMateriais.length;
+                badgeMat.textContent = countMat > 9 ? '9+' : countMat;
+                badgeMat.style.display = countMat > 0 ? '' : 'none';
+            }
+
+            // 6. Renderiza o Badge da aba de Ativ. Complementares
+            const tabComplementares = document.getElementById('complementares-tab');
+            if (tabComplementares) {
+                let badgeCompl = tabComplementares.querySelector('.badge');
+                if (!badgeCompl) {
+                    badgeCompl = document.createElement('span');
+                    badgeCompl.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+                    tabComplementares.appendChild(badgeCompl);
+                }
+                const countCompl = todasPendenciasComplementares.length;
+                badgeCompl.textContent = countCompl > 9 ? '9+' : countCompl;
+                badgeCompl.style.display = countCompl > 0 ? '' : 'none';
+            }
+
+        } catch (error) {
+            console.error('Falha ao carregar dashboard e badges:', error);
+            mostrarToast('Falha ao carregar o dashboard.', 'error');
+            const dashboardContainer = document.getElementById('dashboard-container');
+            if (dashboardContainer) dashboardContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dashboard.</div>`;
+        } finally {
+            toggleLoader(false, '.overview-card');
         }
     }
 
@@ -1516,26 +1589,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (targetPane) {
             targetPane.dataset.loading = 'true';
 
-            if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
-                carregarDadosAtividades().finally(() => {
-                    targetPane.dataset.loading = 'false';
-                });
-            } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
-                carregarDadosMateriais().finally(() => {
-                    targetPane.dataset.loading = 'false';
-                });
-            } else if (targetPaneId === '#complementares-pane') {
-                carregarDadosComplementares().finally(() => {
-                    targetPane.dataset.loading = 'false';
-                });
-            } else if (targetPaneId === '#historico-complementares-pane') {
-                carregarDadosHistoricoComplementares().finally(() => {
-                    targetPane.dataset.loading = 'false';
-                });
-            }
+            // CHAMA A NOVA FUNÇÃO DE DASHBOARD
+            carregarDashboardEBadges().finally(() => {
+                // Depois que o dashboard carregar, carrega o conteúdo da primeira aba
+                if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
+                    carregarDadosAtividades().finally(() => { targetPane.dataset.loading = 'false'; });
+                } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
+                    carregarDadosMateriais().finally(() => { targetPane.dataset.loading = 'false'; });
+                } else if (targetPaneId === '#complementares-pane') {
+                    carregarDadosComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
+                } else if (targetPaneId === '#historico-complementares-pane') {
+                    carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
+                }
+            });
         }
     }
-
 
     const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');
     tabElements.forEach(tabEl => {
@@ -1543,29 +1611,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const targetPaneId = event.target.getAttribute('data-bs-target');
             const targetPane = document.querySelector(targetPaneId);
 
-            if (targetPane && !targetPane.dataset.loaded && targetPane.dataset.loading !== 'true') {
+            if (targetPane && targetPane.dataset.loading !== 'true') {
                 targetPane.dataset.loading = 'true';
 
+                // As funções agora vão usar dados globais se existirem, ou buscar se necessário
                 if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
-                    carregarDadosAtividades().finally(() => {
-                        targetPane.dataset.loaded = 'true';
-                        targetPane.dataset.loading = 'false';
-                    });
+                    carregarDadosAtividades().finally(() => { targetPane.dataset.loading = 'false'; });
                 } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
-                    carregarDadosMateriais().finally(() => {
-                        targetPane.dataset.loaded = 'true';
-                        targetPane.dataset.loading = 'false';
-                    });
+                    carregarDadosMateriais().finally(() => { targetPane.dataset.loading = 'false'; });
                 } else if (targetPaneId === '#complementares-pane') {
-                    carregarDadosComplementares().finally(() => {
-                        targetPane.dataset.loaded = 'true';
-                        targetPane.dataset.loading = 'false';
-                    });
+                    carregarDadosComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
                 } else if (targetPaneId === '#historico-complementares-pane') {
-                    carregarDadosHistoricoComplementares().finally(() => {
-                        targetPane.dataset.loaded = 'true';
-                        targetPane.dataset.loading = 'false';
-                    });
+                    carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
                 }
             }
         });

@@ -4,13 +4,18 @@ import br.com.inproutservices.inproutsystem.dtos.materiais.EntradaMaterialDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialRequestDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.materiais.Material;
+import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.materiais.MaterialService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -58,4 +63,21 @@ public class MaterialController {
         materialService.deletarMaterial(id);
         return ResponseEntity.noContent().build();
     }
+
+    // --- INÍCIO DO NOVO ENDPOINT DE IMPORTAÇÃO ---
+    @PostMapping("/importar-legado")
+    public ResponseEntity<Map<String, Object>> importarLegadoCMA(@RequestParam("file") MultipartFile file) throws IOException {
+        if (file.isEmpty()) {
+            throw new BusinessException("O arquivo está vazio.");
+        }
+
+        List<String> log = materialService.importarLegadoCMA(file);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Importação de legado CMA concluída.");
+        response.put("log", log);
+
+        return ResponseEntity.ok(response);
+    }
+
 }

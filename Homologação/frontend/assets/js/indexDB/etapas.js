@@ -109,7 +109,7 @@ function declareVariaveisGlobais() {
     window.inputIndice = document.getElementById("indiceEtapaDetalhada");
     window.listaEditar = document.getElementById("listaEtapasDetalhadasEditar");
     window.btnSalvarEdicoes = document.getElementById("btnSalvarEdicoesEtapasDetalhadas");
-    window.urlEtapas = "https://www.inproutservices.com.br/api//index/etapas";
+    window.urlEtapas = "https://www.inproutservices.com.br/api/index/etapas";
     window.etapasDisponiveis = [];
 }
 

@@ -812,7 +812,10 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim) {
-        List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO);
+        // --- INÍCIO DA MODIFICAÇÃO ---
+        // Agora, somamos APENAS APROVADO e o novo APROVADO_CPS_LEGADO
+        List<SituacaoAprovacao> statuses = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
+        // --- FIM DA MODIFICAÇÃO ---
 
         List<Lancamento> lancamentosAprovados = lancamentoRepository.findLancamentosAprovadosPorPeriodo(statuses, dataInicio, dataFim);
 
@@ -965,6 +968,10 @@ public class LancamentoServiceImpl implements LancamentoService {
                 rows.next(); // Pula o cabeçalho
             }
 
+            // Busca o usuário "Sistema" para ser o autor
+            Usuario managerSistema = usuarioRepository.findById(1L)
+                    .orElseThrow(() -> new EntityNotFoundException("Usuário 'Sistema' (ID 1) não encontrado."));
+
             int rowCounter = 1;
             while (rows.hasNext()) {
                 Row currentRow = rows.next();
@@ -977,98 +984,79 @@ public class LancamentoServiceImpl implements LancamentoService {
                 }
 
                 try {
-                    // Leitura dos dados da planilha, incluindo a coluna KEY
+                    // --- INÍCIO DA NOVA LÓGICA DE IMPORTAÇÃO ---
+
+                    // 1. Leitura dos dados da planilha
+                    String keyStr = getStringCellValue(currentRow, 8); // Tenta ler a KEY
                     String osStr = getStringCellValue(currentRow, 0);
                     String contratoStr = getStringCellValue(currentRow, 1);
-                    String segmentoStr = getStringCellValue(currentRow, 2);
-                    String projetoStr = getStringCellValue(currentRow, 3);
+                    String segmentoStr = getStringCellValue(currentRow, 2); // Segmento é usado apenas para criar a OS se ela não existir
+                    String projetoStr = getStringCellValue(currentRow, 3);  // Projeto é usado apenas para criar a OS se ela não existir
                     String lpuStr = getStringCellValue(currentRow, 4);
                     LocalDate dataAtividade = getLocalDateCellValue(currentRow, 5);
                     String codPrestadorStr = getStringCellValue(currentRow, 6);
                     BigDecimal valor = getBigDecimalCellValue(currentRow, 7);
-                    String keyStr = getStringCellValue(currentRow, 8);
 
-                    // Validação de campos obrigatórios
-                    if (osStr == null || contratoStr == null || segmentoStr == null || projetoStr == null || lpuStr == null || dataAtividade == null || codPrestadorStr == null || valor == null) {
-                        warnings.add("Linha " + currentRowNum + ": Ignorada. Um ou mais campos obrigatórios estão em branco.");
+                    // 2. Validação de campos obrigatórios (a lógica de identificação principal)
+                    if (osStr == null || contratoStr == null || lpuStr == null || dataAtividade == null || codPrestadorStr == null || valor == null) {
+                        warnings.add("Linha " + currentRowNum + ": ERRO. Campos obrigatórios (OS, Contrato, LPU, Data, Cód. Prestador, Valor) não podem estar em branco.");
                         continue;
                     }
 
-                    // Busca as entidades relacionadas para validação e/ou criação
-                    Contrato contrato = contratoRepository.findByNome(contratoStr)
-                            .orElseThrow(() -> new BusinessException("Contrato '" + contratoStr + "' não encontrado."));
-                    Segmento segmento = segmentoRepository.findByNome(segmentoStr)
-                            .orElseThrow(() -> new BusinessException("Segmento '" + segmentoStr + "' não encontrado."));
-                    Lpu lpu = lpuRepository.findByCodigoLpuAndContratoId(lpuStr, contrato.getId())
-                            .orElseThrow(() -> new BusinessException("LPU com código '" + lpuStr + "' não encontrada para o contrato '" + contratoStr + "'."));
-                    Prestador prestador = prestadorRepository.findByCodigoPrestador(codPrestadorStr)
-                            .orElseThrow(() -> new BusinessException("Prestador com código '" + codPrestadorStr + "' não encontrado."));
-
                     OsLpuDetalhe detalhe;
 
+                    // 3. Estratégia de Identificação Híbrida
                     if (keyStr != null && !keyStr.isBlank()) {
+                        // 3.1. Tenta pela KEY (prioridade)
                         Optional<OsLpuDetalhe> detalheOpt = osLpuDetalheRepository.findByKey(keyStr);
+                        if (detalheOpt.isPresent()) {
+                            detalhe = detalheOpt.get();
+                        } else {
+                            warnings.add("Linha " + currentRowNum + ": ERRO - KEY '" + keyStr + "' fornecida, mas não encontrada no sistema.");
+                            continue;
+                        }
+                    } else {
+                        // 3.2. Fallback: Tenta por OS + Contrato + LPU
+                        Contrato contrato = contratoRepository.findByNome(contratoStr)
+                                .orElse(null);
+                        if (contrato == null) {
+                            warnings.add("Linha " + currentRowNum + ": ERRO - Contrato '" + contratoStr + "' não encontrado.");
+                            continue;
+                        }
+
+                        Lpu lpu = lpuRepository.findByCodigoLpuAndContratoId(lpuStr, contrato.getId())
+                                .orElse(null);
+                        if (lpu == null) {
+                            warnings.add("Linha " + currentRowNum + ": ERRO - LPU '" + lpuStr + "' não encontrada no contrato '" + contratoStr + "'.");
+                            continue;
+                        }
+
+                        OS os = osRepository.findByOs(osStr)
+                                .orElse(null);
+                        if (os == null) {
+                            warnings.add("Linha " + currentRowNum + ": ERRO - OS '" + osStr + "' não encontrada.");
+                            continue;
+                        }
+
+                        // Encontra o "detalhe" que liga a OS e a LPU
+                        Optional<OsLpuDetalhe> detalheOpt = os.getDetalhes().stream()
+                                .filter(d -> d.getLpu().getId().equals(lpu.getId()))
+                                .findFirst();
 
                         if (detalheOpt.isPresent()) {
                             detalhe = detalheOpt.get();
-                            // Validação de consistência dos dados
-                            String erroMsg = "Linha " + currentRowNum + ": Ignorada. Inconsistência de dados para a KEY '" + keyStr + "'. ";
-                            if (!detalhe.getOs().getOs().equalsIgnoreCase(osStr)) {
-                                warnings.add(erroMsg + "Campo OS na planilha ('" + osStr + "') diferente do sistema ('" + detalhe.getOs().getOs() + "').");
-                                continue;
-                            }
-                            if (!detalhe.getContrato().equalsIgnoreCase(contratoStr)) {
-                                warnings.add(erroMsg + "Campo CONTRATO na planilha ('" + contratoStr + "') diferente do sistema ('" + detalhe.getContrato() + "').");
-                                continue;
-                            }
-                            if (!detalhe.getOs().getSegmento().getNome().equalsIgnoreCase(segmentoStr)) {
-                                warnings.add(erroMsg + "Campo SEGMENTO na planilha ('" + segmentoStr + "') diferente do sistema ('" + detalhe.getOs().getSegmento().getNome() + "').");
-                                continue;
-                            }
-                            if (!detalhe.getOs().getProjeto().equalsIgnoreCase(projetoStr)) {
-                                warnings.add(erroMsg + "Campo PROJETO na planilha ('" + projetoStr + "') diferente do sistema ('" + detalhe.getOs().getProjeto() + "').");
-                                continue;
-                            }
-                            if (!detalhe.getLpu().getCodigoLpu().equalsIgnoreCase(lpuStr)) {
-                                warnings.add(erroMsg + "Campo LPU na planilha ('" + lpuStr + "') diferente do sistema ('" + detalhe.getLpu().getCodigoLpu() + "').");
-                                continue;
-                            }
                         } else {
-                            // Se a KEY foi informada mas não existe, cria um novo detalhe com ela
-                            OS os = osRepository.findByOs(osStr).orElseGet(() -> {
-                                OS newOs = new OS();
-                                newOs.setOs(osStr);
-                                newOs.setProjeto(projetoStr);
-                                newOs.setSegmento(segmento);
-                                return osRepository.save(newOs);
-                            });
-                            OsLpuDetalhe newDetalhe = new OsLpuDetalhe();
-                            newDetalhe.setOs(os);
-                            newDetalhe.setLpu(lpu);
-                            newDetalhe.setKey(keyStr);
-                            newDetalhe.setContrato(contrato.getNome());
-                            detalhe = osLpuDetalheRepository.save(newDetalhe);
+                            warnings.add("Linha " + currentRowNum + ": ERRO - A LPU '" + lpuStr + "' não está associada à OS '" + osStr + "' no sistema.");
+                            continue;
                         }
-                    } else {
-                        // Se a KEY não foi fornecida, cria uma chave automática
-                        OS os = osRepository.findByOs(osStr).orElseGet(() -> {
-                            OS newOs = new OS();
-                            newOs.setOs(osStr);
-                            newOs.setProjeto(projetoStr);
-                            newOs.setSegmento(segmento);
-                            return osRepository.save(newOs);
-                        });
-                        detalhe = os.getDetalhes().stream()
-                                .filter(d -> d.getLpu().getId().equals(lpu.getId()))
-                                .findFirst()
-                                .orElseGet(() -> {
-                                    OsLpuDetalhe newDetalhe = new OsLpuDetalhe();
-                                    newDetalhe.setOs(os);
-                                    newDetalhe.setLpu(lpu);
-                                    newDetalhe.setKey(os.getOs() + "_" + lpu.getId() + "_LEGADO_" + currentRowNum);
-                                    newDetalhe.setContrato(contrato.getNome());
-                                    return osLpuDetalheRepository.save(newDetalhe);
-                                });
+                    }
+
+                    // 4. Se chegamos aqui, `detalhe` foi encontrado. Vamos criar o lançamento.
+                    Prestador prestador = prestadorRepository.findByCodigoPrestador(codPrestadorStr)
+                            .orElse(null);
+                    if (prestador == null) {
+                        warnings.add("Linha " + currentRowNum + ": ERRO - Prestador com código '" + codPrestadorStr + "' não encontrado.");
+                        continue;
                     }
 
                     Lancamento lancamento = new Lancamento();
@@ -1077,15 +1065,21 @@ public class LancamentoServiceImpl implements LancamentoService {
                     lancamento.setDataAtividade(dataAtividade);
                     lancamento.setPrestador(prestador);
                     lancamento.setValor(valor);
-                    lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_LEGADO);
-                    lancamento.setManager(usuarioRepository.findById(1L).orElseThrow(() -> new EntityNotFoundException("Usuário 'Sistema' (ID 1) não encontrado.")));
+                    lancamento.setManager(managerSistema); // Usa o usuário "Sistema"
+
+                    // --- MUDANÇA PRINCIPAL ---
+                    lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_CPS_LEGADO);
+                    // --- FIM DA MUDANÇA ---
 
                     lancamentoRepository.save(lancamento);
+                    warnings.add("Linha " + currentRowNum + ": SUCESSO - Valor (R$ " + valor + ") contabilizado no item " + detalhe.getKey());
+
+                    // --- FIM DA NOVA LÓGICA DE IMPORTAÇÃO ---
 
                 } catch (BusinessException | EntityNotFoundException e) {
-                    warnings.add("Linha " + currentRowNum + ": Erro - " + e.getMessage());
+                    warnings.add("Linha " + currentRowNum + ": ERRO - " + e.getMessage());
                 } catch (Exception e) {
-                    warnings.add("Linha " + currentRowNum + ": Erro inesperado - " + e.getMessage());
+                    warnings.add("Linha " + currentRowNum + ": ERRO INESPERADO - " + e.getMessage());
                     e.printStackTrace();
                 }
             }

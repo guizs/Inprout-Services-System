@@ -1,3 +1,4 @@
+// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/frontend/assets/js/cms/cms.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores de Elementos ---
     const tbodyMateriais = document.getElementById('tbody-cms');
@@ -34,16 +35,50 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLimparFiltro = document.getElementById('materiais_btnLimparFiltro');
     const checkUnitPC = document.getElementById('materiais_checkUnitPC');
     const checkUnitMT = document.getElementById('materiais_checkUnitMT');
+
+    // --- INÍCIO: NOVOS ELEMENTOS DE IMPORTAÇÃO ---
+    const importContainer = document.getElementById('importar-materiais-container');
+    const btnBaixarTemplate = document.getElementById('btnBaixarTemplateMaterial');
+    const btnImportarLegado = document.getElementById('btnImportarLegadoMaterial');
+    const importLegadoInput = document.getElementById('import-legado-material-input');
+
+    // Modal de Progresso
+    const modalProgressoEl = document.getElementById('modalProgressoImportacao');
+    const modalProgresso = modalProgressoEl ? new bootstrap.Modal(modalProgressoEl) : null;
+    const textoProgresso = document.getElementById('textoProgressoImportacao');
+    const barraProgresso = document.getElementById('barraProgressoImportacao');
+    const avisosContainer = document.getElementById('avisosImportacaoContainer');
+    const listaAvisos = document.getElementById('listaAvisosImportacao');
+    const btnFecharProgresso = document.getElementById('btnFecharProgresso');
+    // --- FIM: NOVOS ELEMENTOS DE IMPORTAÇÃO ---
     
     let todosOsMateriais = [];
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)
     // ==========================================================
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
     const rolesComAcessoTotal = ['ADMIN', 'CONTROLLER'];
+    const rolesComAcessoImportar = ['ADMIN', 'CONTROLLER']; // Roles que podem importar
     const temAcessoTotal = rolesComAcessoTotal.includes(userRole);
+
+    // --- INÍCIO: NOVA FUNÇÃO DE VISIBILIDADE ---
+    /**
+     * Configura a visibilidade dos botões de importação com base no perfil do usuário.
+     */
+    function setupRoleBasedUI_CMA() {
+        if (!importContainer) return;
+
+        const podeImportar = rolesComAcessoImportar.includes(userRole);
+        
+        if (podeImportar) {
+            importContainer.style.display = 'flex'; // Mostra o container
+        } else {
+            importContainer.style.display = 'none !important'; // Garante que esteja oculto
+        }
+    }
+    // --- FIM: NOVA FUNÇÃO DE VISIBILIDADE ---
 
 
     const formatarMoeda = (valor) => {
@@ -131,12 +166,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.style.cursor = 'pointer';
 
             tr.innerHTML = `
-                <td>${material.codigo}</td>
-                <td>${material.descricao}</td>
-                <td class="text-center">${material.unidadeMedida}</td>
-                <td class="text-center">${new Intl.NumberFormat('pt-BR').format(material.saldoFisico)}</td>
-                <td class="text-center">${formatarMoeda(material.custoMedioPonderado)}</td>
-                <td class="text-center">${formatarMoeda(material.custoTotal)}</td>
+                <td data-label="Código">${material.codigo}</td>
+                <td data-label="Descrição">${material.descricao}</td>
+                <td data-label="Unidade" class="text-center">${material.unidadeMedida}</td>
+                <td data-label="Qtd. Estoque" class="text-center">${new Intl.NumberFormat('pt-BR').format(material.saldoFisico)}</td>
+                <td data-label="Custo Médio" class="text-center">${formatarMoeda(material.custoMedioPonderado)}</td>
+                <td data-label="Custo Total" class="text-center">${formatarMoeda(material.custoTotal)}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -334,9 +369,117 @@ document.addEventListener('DOMContentLoaded', () => {
         aplicarFiltrosErenderizar();
     });
 
+    // --- INÍCIO: NOVOS EVENT LISTENERS PARA IMPORTAÇÃO ---
+    if (btnBaixarTemplate) {
+        btnBaixarTemplate.addEventListener('click', () => {
+            // Define os cabeçalhos conforme sua solicitação
+            const headers = ["ESTOQUE", "CÓDIGO", "DESCRIÇÃO", "UNIDADE", "SALDO FISICO", "CUSTO UNITÁRIO"];
+            // Adiciona uma linha de exemplo
+            const exampleData = [
+                { ESTOQUE: 'CLIENTE', CÓDIGO: '100.200', DESCRIÇÃO: 'CABO DE REDE CAT6', UNIDADE: 'MT', "SALDO FISICO": 150.50, "CUSTO UNITÁRIO": 5.75 },
+                { ESTOQUE: 'INPROUT', CÓDIGO: 'A-001', DESCRIÇÃO: 'CONECTOR RJ45', UNIDADE: 'PÇ', "SALDO FISICO": 500, "CUSTO UNITÁRIO": 1.20 }
+            ];
+            
+            // Cria a planilha
+            const ws = XLSX.utils.json_to_sheet(exampleData, { header: headers });
+            
+            // Ajusta a largura das colunas
+            ws['!cols'] = [
+                { wch: 15 }, // ESTOQUE
+                { wch: 15 }, // CÓDIGO
+                { wch: 40 }, // DESCRIÇÃO
+                { wch: 10 }, // UNIDADE
+                { wch: 15 }, // SALDO FISICO
+                { wch: 15 }  // CUSTO UNITÁRIO
+            ];
+            
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Modelo Legado CMA");
+            
+            // Força o download
+            XLSX.writeFile(wb, "modelo_importacao_cma.xlsx");
+        });
+    }
+
+    if (btnImportarLegado) {
+        btnImportarLegado.addEventListener('click', () => {
+            importLegadoInput.click();
+        });
+    }
+
+    if (importLegadoInput) {
+        importLegadoInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (!modalProgresso) return;
+
+            // Prepara o modal de progresso
+            textoProgresso.textContent = 'Enviando arquivo...';
+            barraProgresso.style.width = '25%';
+            barraProgresso.textContent = '25%';
+            avisosContainer.classList.add('d-none');
+            listaAvisos.innerHTML = '';
+            btnFecharProgresso.disabled = true;
+            modalProgresso.show();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // Simula o processamento no servidor
+                await new Promise(res => setTimeout(res, 500)); 
+                barraProgresso.style.width = '50%';
+                barraProgresso.textContent = '50%';
+                textoProgresso.textContent = 'Processando no servidor...';
+
+                // Envia o arquivo para o novo endpoint
+                const response = await fetchComAuth(`${API_BASE_URL}/materiais/importar-legado`, {
+                    method: 'POST',
+                    body: formData
+                    // Não defina 'Content-Type', o FormData faz isso
+                });
+
+                barraProgresso.style.width = '100%';
+                barraProgresso.textContent = '100%';
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.message || 'Erro desconhecido no servidor.');
+                }
+
+                // Exibe o log retornado pelo backend
+                textoProgresso.textContent = 'Importação concluída!';
+                if (result.log && result.log.length > 0) {
+                    avisosContainer.classList.remove('d-none');
+                    listaAvisos.innerHTML = result.log.map(item => {
+                        let itemClass = 'list-group-item-success'; // Sucesso
+                        if (item.startsWith('IGNORADO')) itemClass = 'list-group-item-warning';
+                        if (item.startsWith('ERRO')) itemClass = 'list-group-item-danger';
+                        return `<li class="list-group-item ${itemClass}">${item}</li>`;
+                    }).join('');
+                }
+                
+                // Recarrega a tabela de materiais
+                await carregarMateriais();
+
+            } catch (error) {
+                textoProgresso.textContent = 'Erro na importação!';
+                avisosContainer.classList.remove('d-none');
+                listaAvisos.innerHTML = `<li class="list-group-item list-group-item-danger">${error.message}</li>`;
+                console.error("Erro na importação de legado CMA:", error);
+            } finally {
+                btnFecharProgresso.disabled = false;
+                importLegadoInput.value = ''; // Limpa o input de arquivo
+            }
+        });
+    }
+    // --- FIM: NOVOS EVENT LISTENERS PARA IMPORTAÇÃO ---
+
+
     // --- Inicialização ---
     if (!temAcessoTotal) {
         btnNovoMaterial.style.display = 'none';
     }
+    setupRoleBasedUI_CMA(); // Chama a nova função de visibilidade
     carregarMateriais();
 });

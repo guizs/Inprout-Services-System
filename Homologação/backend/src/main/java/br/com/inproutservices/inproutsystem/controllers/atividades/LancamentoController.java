@@ -145,24 +145,16 @@ public class LancamentoController {
     }
 
     @PostMapping("/importar-legado-cps")
-    public ResponseEntity<Map<String, Object>> importarLegadoCps(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<Map<String, Object>> importarLegadoCps(@RequestParam("file") MultipartFile file) throws IOException { // <-- ADICIONE "throws IOException"
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Por favor, envie um arquivo."));
         }
-        try {
-            List<String> warnings = lancamentoService.importarLegadoCps(file);
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Importação concluída!");
-            response.put("warnings", warnings);
-            return ResponseEntity.ok(response);
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Falha ao processar o arquivo: " + e.getMessage()));
-        } catch (BusinessException e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", "Ocorreu um erro inesperado: " + e.getMessage()));
-        }
+
+        List<String> warnings = lancamentoService.importarLegadoCps(file);
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Importação concluída!");
+        response.put("warnings", warnings);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/cps/programacao-diaria")

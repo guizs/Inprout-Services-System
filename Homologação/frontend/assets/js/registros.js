@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api/';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -168,21 +168,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /**
-     * Gera o HTML completo para um único grupo de OS no acordeão.
-     * @param {object} grupo - O objeto do grupo da OS contendo seus dados e linhas.
-     * @returns {string} - A string HTML do elemento do acordeão.
-     */
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
 
         const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
+        // --- INÍCIO DA MODIFICAÇÃO ---
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
+            // CORRIGIDO: Agora soma APENAS APROVADO e APROVADO_CPS_LEGADO
+            .filter(lanc => ['APROVADO', 'APROVADO_CPS_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+        // --- FIM DA MODIFICAÇÃO ---
 
         const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
         const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;

@@ -110,11 +110,15 @@ public record OsResponseDto(
 
                     // --- INÍCIO DA CORREÇÃO COM REGRA DE EXCEÇÃO ---
                     detalhe.getLancamentos().stream()
-                            // 1. Tenta encontrar o lançamento operacional mais recente
-                            .filter(lancamento -> lancamento.getSituacaoAprovacao() != SituacaoAprovacao.APROVADO_LEGADO)
+                            // --- INÍCIO DA MODIFICAÇÃO ---
+                            // Filtra todos os lançamentos que NÃO são legados (nem de estrutura, nem de CPS)
+                            .filter(lancamento ->
+                                    lancamento.getSituacaoAprovacao() != SituacaoAprovacao.APROVADO_LEGADO &&
+                                            lancamento.getSituacaoAprovacao() != SituacaoAprovacao.APROVADO_CPS_LEGADO
+                            )
+                            // --- FIM DA MODIFICAÇÃO ---
                             .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                             .map(LancamentoResponseDTO::new)
-                            // 2. Se não encontrar, busca pelo lançamento legado mais recente como alternativa
                             .orElseGet(() -> detalhe.getLancamentos().stream()
                                     .max(Comparator.comparing(br.com.inproutservices.inproutsystem.entities.atividades.Lancamento::getId))
                                     .map(LancamentoResponseDTO::new)

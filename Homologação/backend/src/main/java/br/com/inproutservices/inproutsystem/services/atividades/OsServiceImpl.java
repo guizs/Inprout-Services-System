@@ -1,3 +1,5 @@
+// Em: backend/src/main/java/br/com/inproutservices/inproutsystem/services/atividades/OsServiceImpl.java
+
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
@@ -123,8 +125,28 @@ public class OsServiceImpl implements OsService {
                 detalheCriado.setPo(osDto.getPo());
                 detalheCriado.setItem(osDto.getItem());
                 detalheCriado.setUnidade(osDto.getUnidade());
-                detalheCriado.setQuantidade(osDto.getQuantidade());
-                detalheCriado.setValorTotal(osDto.getValorTotal());
+
+                // --- INÍCIO DA CORREÇÃO ---
+                Integer quantidade = osDto.getQuantidade();
+                detalheCriado.setQuantidade(quantidade);
+                BigDecimal valorTotalPlanilha = osDto.getValorTotal();
+
+                // Se o valor total não foi informado na planilha, o sistema calcula.
+                if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
+                    if (quantidade != null && quantidade > 0 && lpu.getValorSemImposto() != null) {
+                        // Cálculo: valor da LPU * quantidade
+                        BigDecimal valorCalculado = lpu.getValorSemImposto().multiply(new BigDecimal(quantidade));
+                        detalheCriado.setValorTotal(valorCalculado);
+                    } else {
+                        // Se não for possível calcular, o valor fica como zero.
+                        detalheCriado.setValorTotal(BigDecimal.ZERO);
+                    }
+                } else {
+                    // Se o valor foi informado na planilha, ele é utilizado.
+                    detalheCriado.setValorTotal(valorTotalPlanilha);
+                }
+                // --- FIM DA CORREÇÃO ---
+
                 detalheCriado.setObservacoes(osDto.getObservacoes());
                 detalheCriado.setDataPo(osDto.getDataPo());
                 detalheCriado.setFaturamento(osDto.getFaturamento());
@@ -278,10 +300,23 @@ public class OsServiceImpl implements OsService {
     @Override
     @Transactional
     public void deleteOs(Long id) {
-        if (!osRepository.existsById(id)) {
-            throw new EntityNotFoundException("OS não encontrada com o ID: " + id);
+        // Busca o detalhe que será excluído
+        OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Registro de detalhe da OS não encontrado com o ID: " + id));
+
+        OS osPai = detalhe.getOs(); // Pega a OS "pai" antes de excluir o filho
+
+        // Exclui permanentemente o registro (detalhe) do banco de dados
+        osLpuDetalheRepository.delete(detalhe);
+
+        // Força o Hibernate a executar a exclusão no banco de dados imediatamente
+        osLpuDetalheRepository.flush();
+
+        // Verifica se a OS "pai" ainda tem algum outro detalhe associado a ela
+        if (osLpuDetalheRepository.countByOs(osPai) == 0) {
+            // Se não houver mais nenhum detalhe, exclui a OS "pai" também
+            osRepository.delete(osPai);
         }
-        osRepository.deleteById(id);
     }
 
     @Override
@@ -337,12 +372,38 @@ public class OsServiceImpl implements OsService {
         return true;
     }
 
+    // =================================================================================
+    // INÍCIO DAS FUNÇÕES DE IMPORTAÇÃO CORRIGIDAS
+    // =================================================================================
+
+    /**
+     * Adiciona uma nova função helper para preencher com "-"
+     */
+    private String getStringCellValue(Row row, int cellIndex, boolean preencherVazioComHifen) {
+        String valor = getStringCellValue(row, cellIndex); // Usa o método que já existe
+        if (preencherVazioComHifen && (valor == null || valor.isBlank())) {
+            return "-";
+        }
+        return valor;
+    }
+
+    /**
+     * MÉTODO ATUALIZADO (O que você pediu)
+     * Método corrigido para criar o DTO da linha da planilha, aplicando as regras de negócio.
+     * Regra 1 (Campos Chave): OS, KEY, Projeto, Segmento, LPU, Cod. Prestador, Gestor
+     * não são preenchidos com '-'.
+     * Regra 2 (Campos de Texto): Todos os outros campos de texto são preenchidos
+     * com '-' se estiverem vazios.
+     * Regra 3 (Legado): Lê o nomeGestorLancamento (coluna 35) se isLegado for true.
+     */
     private OsRequestDto criarDtoDaLinha(Row row, Map<String, Segmento> segmentoMap, Map<String, Lpu> lpuMap, boolean isLegado) {
         OsRequestDto dto = new OsRequestDto();
+        String valor; // Variável auxiliar para aplicar a regra do hífen
 
-        String contratoDaLinha = getStringCellValue(row, 2);
-        if(contratoDaLinha != null && !contratoDaLinha.isBlank()){
-            String codigoLpuDaLinha = getStringCellValue(row, 7);
+        // --- Lógica de LPU (Campos de Busca - não usam '-') ---
+        String contratoDaLinha = getStringCellValue(row, 2, false); // Coluna 2: CONTRATO
+        if (contratoDaLinha != null && !contratoDaLinha.isBlank()) {
+            String codigoLpuDaLinha = getStringCellValue(row, 7, false); // Coluna 7: LPU
             if (codigoLpuDaLinha != null && !codigoLpuDaLinha.isBlank()) {
                 String chaveLpuComposta = (contratoDaLinha + "::" + codigoLpuDaLinha).toUpperCase();
                 Lpu lpu = lpuMap.get(chaveLpuComposta);
@@ -351,63 +412,125 @@ public class OsServiceImpl implements OsService {
                 }
             }
         }
+        dto.setContrato(contratoDaLinha); // Salva o contrato (nulo ou com valor)
 
-        dto.setOs(getStringCellValue(row, 0));
-        dto.setSite(getStringCellValue(row, 1));
-        dto.setContrato(getStringCellValue(row, 2));
+        // --- Campos de Lógica (não usam '-') ---
+        dto.setOs(getStringCellValue(row, 0, false)); // Coluna 0: OS
+        dto.setProjeto(getStringCellValue(row, 4, false)); // Coluna 4: PROJETO
+        dto.setKey(getStringCellValue(row, 49, false)); // Coluna 49: KEY
 
-        String nomeSegmento = getStringCellValue(row, 3);
-        if(nomeSegmento != null && !nomeSegmento.isBlank()){
+        // Coluna 3: SEGMENTO (Busca)
+        String nomeSegmento = getStringCellValue(row, 3, false);
+        if (nomeSegmento != null && !nomeSegmento.isBlank()) {
             Segmento segmento = segmentoMap.get(nomeSegmento.toUpperCase());
             if (segmento != null) {
                 dto.setSegmentoId(segmento.getId());
             }
         }
 
-        dto.setProjeto(getStringCellValue(row, 4));
-        dto.setGestorTim(getStringCellValue(row, 5));
-        dto.setRegional(getStringCellValue(row, 6));
-        dto.setLote(getStringCellValue(row, 8));
-        dto.setBoq(getStringCellValue(row, 9));
-        dto.setPo(getStringCellValue(row, 10));
-        dto.setItem(getStringCellValue(row, 11));
-        dto.setObjetoContratado(getStringCellValue(row, 12));
-        dto.setUnidade(getStringCellValue(row, 13));
-        dto.setQuantidade(getIntegerCellValue(row, 14));
-        dto.setValorTotal(getBigDecimalCellValue(row, 15));
-        dto.setObservacoes(getStringCellValue(row, 16));
-        dto.setDataPo(getLocalDateCellValue(row, 17));
-        dto.setFaturamento(getStringCellValue(row, 38));
-        dto.setSolitIdFat(getStringCellValue(row, 39));
-        dto.setRecebIdFat(getStringCellValue(row, 40));
-        dto.setIdFaturamento(getStringCellValue(row, 41));
-        dto.setDataFatInprout(getLocalDateCellValue(row, 42));
-        dto.setSolitFsPortal(getStringCellValue(row, 43));
-        dto.setDataFs(getLocalDateCellValue(row, 44));
-        dto.setNumFs(getStringCellValue(row, 45));
-        dto.setGate(getStringCellValue(row, 46));
-        dto.setGateId(getStringCellValue(row, 47));
-        dto.setKey(getStringCellValue(row, 49));
+        // --- Campos Cadastrais (usar '-' se vazio) ---
+        valor = getStringCellValue(row, 1); // Coluna 1: SITE
+        dto.setSite((valor == null || valor.isBlank()) ? "-" : valor);
 
+        valor = getStringCellValue(row, 5); // Coluna 5: GESTOR TIM
+        dto.setGestorTim((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 6); // Coluna 6: REGIONAL
+        dto.setRegional((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 8); // Coluna 8: LOTE
+        dto.setLote((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 9); // Coluna 9: BOQ
+        dto.setBoq((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 10); // Coluna 10: PO
+        dto.setPo((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 11); // Coluna 11: ITEM
+        dto.setItem((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 12); // Coluna 12: OBJETO CONTRATADO
+        dto.setObjetoContratado((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 13); // Coluna 13: UNIDADE
+        dto.setUnidade((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 16); // Coluna 16: OBSERVAÇÕES
+        dto.setObservacoes((valor == null || valor.isBlank()) ? "-" : valor);
+
+        // --- Campos Numéricos e de Data (tratam nulo por padrão) ---
+        dto.setQuantidade(getIntegerCellValue(row, 14)); // Coluna 14: QUANTIDADE
+        dto.setValorTotal(getBigDecimalCellValue(row, 15)); // Coluna 15: VALOR TOTAL OS
+        dto.setDataPo(getLocalDateCellValue(row, 17)); // Coluna 17: DATA PO
+
+        // --- Campos de Faturamento (usar '-' se vazio) ---
+        valor = getStringCellValue(row, 38); // Coluna 38: FATURAMENTO
+        dto.setFaturamento((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 39); // Coluna 39: SOLICIT ID FAT
+        dto.setSolitIdFat((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 40); // Coluna 40: RECEB ID FAT
+        dto.setRecebIdFat((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 41); // Coluna 41: ID FATURAMENTO
+        dto.setIdFaturamento((valor == null || valor.isBlank()) ? "-" : valor);
+
+        dto.setDataFatInprout(getLocalDateCellValue(row, 42)); // Coluna 42: DATA FAT INPROUT
+
+        valor = getStringCellValue(row, 43); // Coluna 43: SOLICIT FS PORTAL
+        dto.setSolitFsPortal((valor == null || valor.isBlank()) ? "-" : valor);
+
+        dto.setDataFs(getLocalDateCellValue(row, 44)); // Coluna 44: DATA FS
+
+        valor = getStringCellValue(row, 45); // Coluna 45: NUM FS
+        dto.setNumFs((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 46); // Coluna 46: GATE
+        dto.setGate((valor == null || valor.isBlank()) ? "-" : valor);
+
+        valor = getStringCellValue(row, 47); // Coluna 47: GATE ID
+        dto.setGateId((valor == null || valor.isBlank()) ? "-" : valor);
+
+        // --- Campos de Legado (só preenche se a flag for true) ---
         if (isLegado) {
-            dto.setVistoria(getStringCellValue(row, 18));
-            dto.setPlanoVistoria(getLocalDateCellValue(row, 19));
-            dto.setDesmobilizacao(getStringCellValue(row, 20));
-            dto.setPlanoDesmobilizacao(getLocalDateCellValue(row, 21));
-            dto.setInstalacao(getStringCellValue(row, 22));
-            dto.setPlanoInstalacao(getLocalDateCellValue(row, 23));
-            dto.setAtivacao(getStringCellValue(row, 24));
-            dto.setPlanoAtivacao(getLocalDateCellValue(row, 25));
-            dto.setDocumentacao(getStringCellValue(row, 26));
-            dto.setPlanoDocumentacao(getLocalDateCellValue(row, 27));
-            dto.setNomeEtapaDetalhada(getStringCellValue(row, 29));
-            dto.setStatusLancamento(getStringCellValue(row, 30));
-            dto.setDetalheDiario(getStringCellValue(row, 31));
-            dto.setCodigoPrestador(getStringCellValue(row, 32));
-            dto.setValorLancamento(getBigDecimalCellValue(row, 34));
-            dto.setSituacaoLancamento(getStringCellValue(row, 36));
-            dto.setDataAtividadeLancamento(getLocalDateCellValue(row, 37));
+            valor = getStringCellValue(row, 18); // Coluna 18: VISTORIA
+            dto.setVistoria((valor == null || valor.isBlank()) ? "-" : valor);
+            dto.setPlanoVistoria(getLocalDateCellValue(row, 19)); // Coluna 19: PLANO VISTORIA
+
+            valor = getStringCellValue(row, 20); // Coluna 20: DESMOBILIZAÇÃO
+            dto.setDesmobilizacao((valor == null || valor.isBlank()) ? "-" : valor);
+            dto.setPlanoDesmobilizacao(getLocalDateCellValue(row, 21)); // Coluna 21: PLANO DESMOBILIZAÇÃO
+
+            valor = getStringCellValue(row, 22); // Coluna 22: INSTALAÇÃO
+            dto.setInstalacao((valor == null || valor.isBlank()) ? "-" : valor);
+            dto.setPlanoInstalacao(getLocalDateCellValue(row, 23)); // Coluna 23: PLANO INSTALAÇÃO
+
+            valor = getStringCellValue(row, 24); // Coluna 24: ATIVAÇÃO
+            dto.setAtivacao((valor == null || valor.isBlank()) ? "-" : valor);
+            dto.setPlanoAtivacao(getLocalDateCellValue(row, 25)); // Coluna 25: PLANO ATIVAÇÃO
+
+            valor = getStringCellValue(row, 26); // Coluna 26: DOCUMENTAÇÃO
+            dto.setDocumentacao((valor == null || valor.isBlank()) ? "-" : valor);
+            dto.setPlanoDocumentacao(getLocalDateCellValue(row, 27)); // Coluna 27: PLANO DOCUMENTAÇÃO
+
+            // --- Campos de Lançamento (Busca/Lógica - não usam '-') ---
+            dto.setNomeEtapaDetalhada(getStringCellValue(row, 29, false)); // Coluna 29: ETAPA DETALHADA
+            dto.setStatusLancamento(getStringCellValue(row, 30, false)); // Coluna 30: STATUS
+            dto.setCodigoPrestador(getStringCellValue(row, 32, false)); // Coluna 32: CÓD. PRESTADOR
+            dto.setNomeGestorLancamento(getStringCellValue(row, 35, false)); // Coluna 35: GESTOR
+            dto.setSituacaoLancamento(getStringCellValue(row, 36, false)); // Coluna 36: SITUAÇÃO
+
+            // --- Campos de Lançamento (Texto Livre - usam '-') ---
+            valor = getStringCellValue(row, 31); // Coluna 31: DETALHE DIÁRIO
+            dto.setDetalheDiario((valor == null || valor.isBlank()) ? "-" : valor);
+
+            // --- Campos de Lançamento (Numérico/Data - não usam '-') ---
+            dto.setValorLancamento(getBigDecimalCellValue(row, 34)); // Coluna 34: VALOR
+            dto.setDataAtividadeLancamento(getLocalDateCellValue(row, 37)); // Coluna 37: DATA ATIVIDADE
         }
+
         return dto;
     }
 
@@ -417,11 +540,13 @@ public class OsServiceImpl implements OsService {
         return importarOsDePlanilha(file, isLegado, new ArrayList<>());
     }
 
+    /**
+     * MÉTODO ATUALIZADO (Correção do Erro Lambda)
+     */
     @Override
     @Transactional
     public List<OS> importarOsDePlanilha(MultipartFile file, boolean isLegado, List<String> warnings) throws IOException {
         Set<Long> affectedOsIds = new HashSet<>();
-        // Mapa para rastrear a primeira OS criada para cada projeto na planilha
         Map<String, OS> osPorProjetoCache = new HashMap<>();
 
         try (InputStream inputStream = file.getInputStream();
@@ -450,73 +575,135 @@ public class OsServiceImpl implements OsService {
                 Row currentRow = rows.next();
                 if (isRowEmpty(currentRow)) continue;
 
+                // ===================================================================
+                // INÍCIO DA CORREÇÃO (Erro Lambda)
+                // ===================================================================
+                // Cria uma cópia final da variável para ser usada dentro de lambdas
+                final int currentRowNum = numeroLinha;
+                // ===================================================================
+                // FIM DA CORREÇÃO (Erro Lambda)
+                // ===================================================================
+
                 try {
                     OsRequestDto dto = criarDtoDaLinha(currentRow, segmentoMap, lpuMap, isLegado);
+                    String osPlanilha = dto.getOs();
+                    String keyPlanilha = dto.getKey();
+                    String projetoPlanilha = dto.getProjeto();
 
-                    // --- INÍCIO DA NOVA LÓGICA DE PROJETO ÚNICO ---
+                    // ===================================================================
+                    // INÍCIO DA LÓGICA REFEITA BASEADA NOS 3 CENÁRIOS
+                    // ===================================================================
 
-                    // Cenário 1: A linha da planilha tem OS e/ou KEY, ou o projeto não foi informado.
-                    // A lógica antiga de busca por KEY ou OS continua valendo.
-                    if ((dto.getKey() != null && !dto.getKey().isBlank()) || (dto.getOs() != null && !dto.getOs().isBlank()) || (dto.getProjeto() == null || dto.getProjeto().isBlank())) {
-
-                        // (A lógica que estava aqui antes para tratar KEY e OS permanece a mesma)
-                        // ... implementação original ...
-
-                    }
-                    // Cenário 2: A linha NÃO tem OS nem KEY, MAS TEM um projeto.
-                    // Esta é a nossa nova regra de negócio!
-                    else {
-                        OS osParaEstaLinha;
-
-                        // Primeiro, verifica no nosso cache da importação atual
-                        if (osPorProjetoCache.containsKey(dto.getProjeto().toUpperCase())) {
-                            osParaEstaLinha = osPorProjetoCache.get(dto.getProjeto().toUpperCase());
-                            warnings.add("Linha " + numeroLinha + ": O projeto '" + dto.getProjeto() + "' já foi processado nesta importação. A linha foi adicionada à OS '" + osParaEstaLinha.getOs() + "'.");
+                    if (isLegado) {
+                        // *** CENÁRIO 3: SUBIDA DE LEGADO (Flag está ON) ***
+                        if (osPlanilha == null || osPlanilha.isBlank()) {
+                            warnings.add("Linha " + currentRowNum + ": IGNORADA. A flag 'Importar Legado' está ativa, mas a coluna 'OS' está em branco.");
+                            continue;
                         }
-                        // Se não está no cache, busca no banco de dados
-                        else {
+
+                        // Encontra ou Cria a OS "Pai"
+                        OS osPai = osRepository.findByOs(osPlanilha)
+                                .orElseGet(() -> {
+                                    warnings.add("Linha " + currentRowNum + ": OS '" + osPlanilha + "' não encontrada. Criando nova OS.");
+                                    OS novaOs = new OS();
+                                    novaOs.setOs(osPlanilha);
+                                    novaOs.setProjeto(dto.getProjeto());
+                                    novaOs.setGestorTim(dto.getGestorTim());
+                                    if (dto.getSegmentoId() != null) {
+                                        novaOs.setSegmento(segmentoRepository.findById(dto.getSegmentoId()).orElse(null));
+                                    }
+                                    novaOs.setDataCriacao(LocalDateTime.now());
+                                    novaOs.setUsuarioCriacao("sistema-import-legado");
+                                    novaOs.setStatusRegistro("ATIVO");
+                                    return osRepository.save(novaOs);
+                                });
+
+                        // Cria o *novo item* (OsLpuDetalhe) e o Lançamento Legado
+                        OsLpuDetalhe novoDetalheLegado = criarNovoDetalheParaOS(osPai, dto, currentRowNum, warnings); // Passa 'currentRowNum'
+                        criarOuAtualizarLancamentoLegado(novoDetalheLegado, dto, isLegado, warnings, currentRowNum); // Passa 'currentRowNum'
+
+                        affectedOsIds.add(osPai.getId());
+
+                    } else if (keyPlanilha != null && !keyPlanilha.isBlank()) {
+                        // *** CENÁRIO 2: ATUALIZAÇÃO CADASTRAL (Flag está OFF, KEY existe) ***
+
+                        Optional<OsLpuDetalhe> detalheExistenteOpt = osLpuDetalheRepository.findByKey(keyPlanilha);
+
+                        if (detalheExistenteOpt.isPresent()) {
+                            // Encontrou a KEY, vamos ATUALIZAR
+                            OsLpuDetalhe detalheExistente = detalheExistenteOpt.get();
+                            // Passa 'isLegado' como 'false' para não tocar no lançamento
+                            atualizarDetalheExistente(detalheExistente, dto, false, warnings, currentRowNum); // Passa 'currentRowNum'
+                            affectedOsIds.add(detalheExistente.getOs().getId());
+                        } else {
+                            // KEY não encontrada, mas foi fornecida.
+                            warnings.add("Linha " + currentRowNum + ": IGNORADA. A KEY '" + keyPlanilha + "' foi fornecida, mas não foi encontrada no sistema para atualização. (A flag 'Importar Legado' está desmarcada).");
+                        }
+
+                    } else if (osPlanilha == null || osPlanilha.isBlank()) {
+                        // *** CENÁRIO 1: CRIAÇÃO AUTOMÁTICA DE OS (Flag OFF, OS e KEY em branco) ***
+
+                        if (projetoPlanilha == null || projetoPlanilha.isBlank()) {
+                            warnings.add("Linha " + currentRowNum + ": IGNORADA. Para geração automática de OS, a coluna 'PROJETO' não pode estar em branco.");
+                            continue;
+                        }
+
+                        OS osPai;
+                        String projetoUpper = projetoPlanilha.toUpperCase();
+
+                        if (osPorProjetoCache.containsKey(projetoUpper)) {
+                            // Reutiliza a OS recém-criada para este projeto
+                            osPai = osPorProjetoCache.get(projetoUpper);
+                            warnings.add("Linha " + currentRowNum + ": Adicionando item à OS '" + osPai.getOs() + "' (criada automaticamente para o projeto '" + projetoPlanilha + "').");
+                        } else {
+                            // É a primeira linha deste projeto, precisa criar uma nova OS
+
+                            // --- INÍCIO DA CORREÇÃO Cenário 1 (Busca por Projeto) ---
+                            // Verifica se já existe uma OS para esse projeto
                             Optional<OS> osExistenteOpt = osRepository.findByProjeto(dto.getProjeto());
                             if (osExistenteOpt.isPresent()) {
-                                osParaEstaLinha = osExistenteOpt.get();
-                                warnings.add("Linha " + numeroLinha + ": Já existe uma OS para o projeto '" + dto.getProjeto() + "'. A linha foi adicionada à OS '" + osParaEstaLinha.getOs() + "'.");
-                            }
-                            // Se não existe em lugar nenhum, cria uma nova OS
-                            else {
-                                osParaEstaLinha = new OS();
-                                osParaEstaLinha.setProjeto(dto.getProjeto());
-                                osParaEstaLinha.setOs(gerarNovaOsSequencial());
-                                // Preenche outros campos necessários para criar a OS
-                                if (dto.getSegmentoId() != null) {
-                                    Segmento segmento = segmentoMap.get(getStringCellValue(currentRow, 3).toUpperCase());
-                                    osParaEstaLinha.setSegmento(segmento);
+                                osPai = osExistenteOpt.get();
+                                if (osPai.getOs() == null || osPai.getOs().isBlank()) {
+                                    osPai.setOs(gerarNovaOsSequencial());
+                                    warnings.add("Linha " + currentRowNum + ": Encontrada OS existente para o projeto '" + projetoPlanilha + "' sem número. Atribuído novo número de OS: '" + osPai.getOs() + "'.");
+                                } else {
+                                    warnings.add("Linha " + currentRowNum + ": Já existe uma OS para o projeto '" + projetoPlanilha + "'. A linha foi adicionada à OS '" + osPai.getOs() + "'.");
                                 }
-                                osParaEstaLinha.setGestorTim(dto.getGestorTim());
-                                osParaEstaLinha.setDataCriacao(LocalDateTime.now());
-                                osParaEstaLinha.setUsuarioCriacao("sistema-import");
-                                osParaEstaLinha.setStatusRegistro("ATIVO");
+                            } else {
+                                // Projeto não encontrado, cria uma nova OS
+                                osPai = new OS();
+                                osPai.setProjeto(projetoPlanilha);
+                                osPai.setOs(gerarNovaOsSequencial()); // Gera "00001-24"
+                                if (dto.getSegmentoId() != null) {
+                                    osPai.setSegmento(segmentoRepository.findById(dto.getSegmentoId()).orElse(null));
+                                }
+                                osPai.setGestorTim(dto.getGestorTim());
+                                osPai.setDataCriacao(LocalDateTime.now());
+                                osPai.setUsuarioCriacao("sistema-import-auto");
+                                osPai.setStatusRegistro("ATIVO");
                             }
-                            // Salva a OS (seja nova ou existente) e adiciona ao cache
-                            osRepository.save(osParaEstaLinha);
-                            osPorProjetoCache.put(dto.getProjeto().toUpperCase(), osParaEstaLinha);
+                            // --- FIM DA CORREÇÃO Cenário 1 ---
+                            osRepository.save(osPai);
+                            osPorProjetoCache.put(projetoUpper, osPai); // Salva no cache
                         }
 
-                        // Agora que temos a OS correta, criamos o detalhe (a linha) dentro dela
-                        dto.setOs(osParaEstaLinha.getOs());
-                        OsLpuDetalhe novoDetalhe = createOs(dto);
-                        if (novoDetalhe != null) {
-                            if (isLegado) {
-                                criarOuAtualizarLancamentoLegado(novoDetalhe, dto);
-                            }
-                            affectedOsIds.add(novoDetalhe.getOs().getId());
-                        }
+                        // Cria o *novo item* (OsLpuDetalhe)
+                        OsLpuDetalhe novoDetalhe = criarNovoDetalheParaOS(osPai, dto, currentRowNum, warnings);
+                        affectedOsIds.add(osPai.getId());
+
+                    } else {
+                        // Caso de "Fallback" (Flag OFF, OS preenchida, KEY em branco)
+                        warnings.add("Linha " + currentRowNum + ": IGNORADA. A coluna 'OS' está preenchida, mas a 'KEY' está em branco e a flag 'Importar Legado' está desmarcada. O sistema não sabe se deve atualizar ou criar.");
                     }
-                    // --- FIM DA NOVA LÓGICA ---
+                    // ===================================================================
+                    // FIM DA LÓGICA REFEITA
+                    // ===================================================================
 
-                } catch (IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Erro na linha " + numeroLinha + ": " + e.getMessage());
+                } catch (IllegalArgumentException | BusinessException | EntityNotFoundException e) {
+                    warnings.add("Erro na linha " + currentRowNum + ": " + e.getMessage());
                 } catch (Exception e) {
                     e.printStackTrace();
-                    throw new RuntimeException("Erro inesperado ao processar a linha " + numeroLinha + ".", e);
+                    warnings.add("Erro inesperado na linha " + currentRowNum + ": " + e.getMessage());
                 }
             }
         } catch (IOException e) {
@@ -530,7 +717,102 @@ public class OsServiceImpl implements OsService {
         return osRepository.findAllWithDetailsByIds(new ArrayList<>(affectedOsIds));
     }
 
-    private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado) {
+    /**
+     * MÉTODO AUXILIAR ATUALIZADO (para Cenários 1 e 3)
+     * Cria um novo OsLpuDetalhe e o associa à OS pai.
+     */
+    private OsLpuDetalhe criarNovoDetalheParaOS(OS os, OsRequestDto dto, int numeroLinha, List<String> warnings) {
+        if (dto.getLpuIds() == null || dto.getLpuIds().isEmpty()) {
+            throw new BusinessException("A coluna LPU é obrigatória para criar um novo item.");
+        }
+        Lpu lpu = lpuRepository.findById(dto.getLpuIds().get(0))
+                .orElseThrow(() -> new EntityNotFoundException("LPU com ID " + dto.getLpuIds().get(0) + " não encontrada."));
+
+        OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
+        novoDetalhe.setOs(os);
+        novoDetalhe.setLpu(lpu);
+
+        // Lógica de Geração de KEY (Cenário 1 vs Cenário 3)
+        String keyPlanilha = dto.getKey();
+        if (keyPlanilha != null && !keyPlanilha.isBlank()) {
+            // Veio do Cenário 3 (Legado)
+            if (osLpuDetalheRepository.findByKey(keyPlanilha).isPresent()) {
+                throw new BusinessException("A KEY '" + keyPlanilha + "' já existe. (Linha: " + numeroLinha + ")");
+            }
+            novoDetalhe.setKey(keyPlanilha);
+        } else {
+            // Veio do Cenário 1 (Auto-Geração)
+            long count = osLpuDetalheRepository.countByOsAndLpuAndKeyNotContaining(os, lpu, "_AC_");
+            String sequencia = String.format("%04d", count + 1);
+            String novaKey = os.getOs() + "_" + lpu.getId() + "_" + sequencia;
+            novoDetalhe.setKey(novaKey);
+            warnings.add("Linha " + numeroLinha + ": KEY em branco. Gerada nova KEY automática: " + novaKey);
+        }
+
+        // Preenche o resto dos dados...
+        novoDetalhe.setSite(dto.getSite());
+        novoDetalhe.setContrato(dto.getContrato());
+        novoDetalhe.setRegional(dto.getRegional());
+        novoDetalhe.setLote(dto.getLote());
+        novoDetalhe.setBoq(dto.getBoq());
+        novoDetalhe.setPo(dto.getPo());
+        novoDetalhe.setItem(dto.getItem());
+        novoDetalhe.setObjetoContratado(dto.getObjetoContratado());
+        novoDetalhe.setUnidade(dto.getUnidade());
+        novoDetalhe.setQuantidade(dto.getQuantidade());
+
+        // Lógica de Valor (igual à de atualização)
+        Integer quantidade = dto.getQuantidade();
+        BigDecimal valorTotalPlanilha = dto.getValorTotal();
+        if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
+            if (quantidade != null && quantidade > 0 && lpu.getValorSemImposto() != null) {
+                BigDecimal valorCalculado = lpu.getValorSemImposto().multiply(new BigDecimal(quantidade));
+                novoDetalhe.setValorTotal(valorCalculado);
+            } else {
+                novoDetalhe.setValorTotal(BigDecimal.ZERO);
+            }
+        } else {
+            novoDetalhe.setValorTotal(valorTotalPlanilha);
+        }
+
+        novoDetalhe.setObservacoes(dto.getObservacoes());
+        novoDetalhe.setDataPo(dto.getDataPo());
+        novoDetalhe.setFaturamento(dto.getFaturamento());
+        novoDetalhe.setSolitIdFat(dto.getSolitIdFat());
+        novoDetalhe.setRecebIdFat(dto.getRecebIdFat());
+        novoDetalhe.setIdFaturamento(dto.getIdFaturamento());
+        novoDetalhe.setDataFatInprout(dto.getDataFatInprout());
+        novoDetalhe.setSolitFsPortal(dto.getSolitFsPortal());
+        novoDetalhe.setDataFs(dto.getDataFs());
+        novoDetalhe.setNumFs(dto.getNumFs());
+        novoDetalhe.setGate(dto.getGate());
+        novoDetalhe.setGateId(dto.getGateId());
+
+        return osLpuDetalheRepository.save(novoDetalhe);
+    }
+
+    /**
+     * MÉTODO AUXILIAR ATUALIZADO (para Cenário 2)
+     */
+    private void atualizarDetalheExistente(OsLpuDetalhe detalheExistente, OsRequestDto dto, boolean isLegado, List<String> warnings, int numeroLinha) {
+        // 1. ATUALIZA A ENTIDADE 'PAI' (OS)
+        OS os = detalheExistente.getOs();
+        if (dto.getProjeto() != null) {
+            os.setProjeto(dto.getProjeto());
+        }
+        if (dto.getGestorTim() != null) {
+            os.setGestorTim(dto.getGestorTim());
+        }
+        if (dto.getSegmentoId() != null) {
+            Segmento novoSegmento = segmentoRepository.findById(dto.getSegmentoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Segmento não encontrado com o ID: " + dto.getSegmentoId()));
+            os.setSegmento(novoSegmento);
+        }
+        os.setDataAtualizacao(LocalDateTime.now());
+        os.setUsuarioAtualizacao("sistema-import-update");
+        osRepository.save(os);
+
+        // 2. ATUALIZA A ENTIDADE 'FILHA' (OsLpuDetalhe)
         detalheExistente.setSite(dto.getSite());
         detalheExistente.setRegional(dto.getRegional());
         detalheExistente.setLote(dto.getLote());
@@ -540,7 +822,22 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setObjetoContratado(dto.getObjetoContratado());
         detalheExistente.setUnidade(dto.getUnidade());
         detalheExistente.setQuantidade(dto.getQuantidade());
-        detalheExistente.setValorTotal(dto.getValorTotal());
+
+        Integer quantidade = dto.getQuantidade();
+        BigDecimal valorTotalPlanilha = dto.getValorTotal();
+        Lpu lpuDoDetalhe = detalheExistente.getLpu();
+
+        if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
+            if (lpuDoDetalhe != null && lpuDoDetalhe.getValorSemImposto() != null && quantidade != null && quantidade > 0) {
+                BigDecimal valorCalculado = lpuDoDetalhe.getValorSemImposto().multiply(new BigDecimal(quantidade));
+                detalheExistente.setValorTotal(valorCalculado);
+            } else {
+                detalheExistente.setValorTotal(BigDecimal.ZERO);
+            }
+        } else {
+            detalheExistente.setValorTotal(valorTotalPlanilha);
+        }
+
         detalheExistente.setObservacoes(dto.getObservacoes());
         detalheExistente.setDataPo(dto.getDataPo());
         detalheExistente.setFaturamento(dto.getFaturamento());
@@ -553,27 +850,80 @@ public class OsServiceImpl implements OsService {
         detalheExistente.setNumFs(dto.getNumFs());
         detalheExistente.setGate(dto.getGate());
         detalheExistente.setGateId(dto.getGateId());
+
         osLpuDetalheRepository.save(detalheExistente);
 
+        // 3. (AQUI ESTÁ A MUDANÇA) SÓ mexe no lançamento se a flag for TRUE
         if (isLegado) {
-            criarOuAtualizarLancamentoLegado(detalheExistente, dto);
+            criarOuAtualizarLancamentoLegado(detalheExistente, dto, isLegado, warnings, numeroLinha);
         }
+        // Se 'isLegado' for false (Cenário 2), a função termina aqui.
     }
 
-    private void criarOuAtualizarLancamentoLegado(OsLpuDetalhe detalhe, OsRequestDto dto) {
+    /**
+     * MÉTODO AUXILIAR ATUALIZADO (Constraint 2: Gestor)
+     */
+    private void criarOuAtualizarLancamentoLegado(OsLpuDetalhe detalhe, OsRequestDto dto, boolean isLegado, List<String> warnings, int numeroLinha) {
+        if (!isLegado) return; // Segurança extra
+
+        // 1. Traz a busca pelo usuário "Sistema" (fallback) para o INÍCIO.
+        // Isso evita fazer uma query após a criação do novo Lancamento.
+        Usuario managerSistema = usuarioRepository.findById(1L)
+                .orElseThrow(() -> new EntityNotFoundException("Manager padrão (ID 1) não encontrado."));
+
         Lancamento lancamento = detalhe.getLancamentos().stream()
-                .max(Comparator.comparing(Lancamento::getId))
+                .filter(l -> l.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO_LEGADO)
+                .findFirst()
                 .orElseGet(() -> {
                     Lancamento novoLancamento = new Lancamento();
                     novoLancamento.setOsLpuDetalhe(detalhe);
                     novoLancamento.setOs(detalhe.getOs());
-                    Usuario manager = usuarioRepository.findById(1L)
-                            .orElseThrow(() -> new EntityNotFoundException("Manager padrão (ID 1) não encontrado."));
-                    novoLancamento.setManager(manager);
+
+                    // ===================================================================
+                    // INÍCIO DA CORREÇÃO (Campos NOT NULL)
+                    // ===================================================================
+                    // Define valores padrão/temporários IMEDIATAMENTE após a criação.
+
+                    // 1. Define um manager padrão (Sistema)
+                    novoLancamento.setManager(managerSistema);
+
+                    // 2. Define uma data_atividade padrão (que será corrigida logo abaixo)
+                    LocalDate dataAtividadeDto = dto.getDataAtividadeLancamento();
+                    if (dataAtividadeDto != null) {
+                        novoLancamento.setDataAtividade(dataAtividadeDto);
+                    } else {
+                        // Se a planilha não tem, usa a data de hoje como fallback inicial
+                        novoLancamento.setDataAtividade(LocalDate.now());
+                    }
+                    // O @PrePersist cuidará de data_criacao.
+                    // ===================================================================
+                    // FIM DA CORREÇÃO (Campos NOT NULL)
+                    // ===================================================================
+
                     detalhe.getLancamentos().add(novoLancamento);
                     return novoLancamento;
                 });
 
+        // *** CORREÇÃO CONSTRAINT 2: GESTOR (Agora é seguro fazer a query) ***
+        Usuario manager;
+        String nomeGestor = dto.getNomeGestorLancamento();
+
+        if (nomeGestor != null && !nomeGestor.isBlank()) {
+            // Tenta buscar pelo nome exato do gestor na planilha
+            manager = usuarioRepository.findByNome(nomeGestor)
+                    .orElseGet(() -> {
+                        // Se não encontrar, usa o Usuário "Sistema" (ID 1) como fallback
+                        warnings.add("Linha " + numeroLinha + ": O Gestor '" + nomeGestor + "' não foi encontrado. O lançamento legado será atribuído ao 'Sistema'.");
+                        return managerSistema; // Usa o manager "Sistema" buscado no início
+                    });
+        } else {
+            // Se a coluna gestor estiver em branco, usa o "Sistema"
+            manager = managerSistema;
+        }
+        lancamento.setManager(manager); // Define o manager correto
+
+
+        // ... (preenchimento de vistoria, planos, etc.) ...
         lancamento.setVistoria(dto.getVistoria());
         lancamento.setPlanoVistoria(dto.getPlanoVistoria());
         lancamento.setDesmobilizacao(dto.getDesmobilizacao());
@@ -585,39 +935,66 @@ public class OsServiceImpl implements OsService {
         lancamento.setDocumentacao(dto.getDocumentacao());
         lancamento.setPlanoDocumentacao(dto.getPlanoDocumentacao());
 
-        if (dto.getDataAtividadeLancamento() != null) {
-            lancamento.setDataAtividade(dto.getDataAtividadeLancamento());
-        } else if (lancamento.getDataAtividade() == null) {
-            lancamento.setDataAtividade(LocalDate.now());
+        // Lógica de Data Atividade (revalidada)
+        LocalDate dataAtividadeDto = dto.getDataAtividadeLancamento();
+        if (dataAtividadeDto != null) {
+            lancamento.setDataAtividade(dataAtividadeDto); // Usa a data da planilha
+        } else if (lancamento.getDataAtividade() == null || lancamento.getDataAtividade().equals(LocalDate.now())) {
+            // Se o DTO é nulo e o lançamento ainda tem o fallback de "hoje",
+            // significa que a planilha estava em branco.
+            warnings.add("Linha " + numeroLinha + ": Data de Atividade não fornecida ou inválida, usando data atual.");
+            // (O valor de LocalDate.now() já foi setado, então não fazemos nada)
         }
+        // Se a data do DTO for nula, mas o lançamento já tinha uma data (de uma atualização anterior), ela é mantida.
+
 
         if (dto.getCodigoPrestador() != null && !dto.getCodigoPrestador().isBlank()) {
             prestadorRepository.findByCodigoPrestador(dto.getCodigoPrestador())
-                    .ifPresent(lancamento::setPrestador);
+                    .ifPresentOrElse(
+                            lancamento::setPrestador,
+                            () -> warnings.add("Linha " + numeroLinha + ": Prestador com código '" + dto.getCodigoPrestador() + "' não encontrado.")
+                    );
         }
 
-        if (dto.getNomeEtapaDetalhada() != null && !dto.getNomeEtapaDetalhada().isBlank()) {
+        if (dto.getNomeEtapaDetalhada() != null && !dto.getNomeEtapaDetalhada().isBlank() && !dto.getNomeEtapaDetalhada().equals("-")) {
             etapaDetalhadaRepository.findByNome(dto.getNomeEtapaDetalhada())
-                    .stream().findFirst().ifPresent(lancamento::setEtapaDetalhada);
+                    .stream().findFirst()
+                    .ifPresentOrElse(
+                            lancamento::setEtapaDetalhada,
+                            () -> warnings.add("Linha " + numeroLinha + ": Etapa Detalhada com nome '" + dto.getNomeEtapaDetalhada() + "' não encontrada.")
+                    );
         }
 
-        if (dto.getStatusLancamento() != null && !dto.getStatusLancamento().isBlank()) {
+        if (dto.getStatusLancamento() != null && !dto.getStatusLancamento().isBlank() && !dto.getStatusLancamento().equals("-")) {
             try {
                 lancamento.setStatus(br.com.inproutservices.inproutsystem.enums.index.StatusEtapa.fromDescricao(dto.getStatusLancamento()));
-            } catch (IllegalArgumentException e) { /* Ignora status inválido */ }
+            } catch (IllegalArgumentException e) {
+                warnings.add("Linha " + numeroLinha + ": Status '" + dto.getStatusLancamento() + "' é inválido.");
+            }
         }
 
-        if (dto.getSituacaoLancamento() != null && !dto.getSituacaoLancamento().isBlank()) {
+        if (dto.getSituacaoLancamento() != null && !dto.getSituacaoLancamento().isBlank() && !dto.getSituacaoLancamento().equals("-")) {
             try {
                 lancamento.setSituacao(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional.fromDescricao(dto.getSituacaoLancamento()));
-            } catch (IllegalArgumentException e) { /* Ignora situação inválida */ }
+            } catch (IllegalArgumentException e) {
+                warnings.add("Linha " + numeroLinha + ": Situação '" + dto.getSituacaoLancamento() + "' é inválida.");
+            }
         }
 
         lancamento.setDetalheDiario(dto.getDetalheDiario());
+
         lancamento.setValor(dto.getValorLancamento());
+
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_LEGADO);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // O save do detalhe (pai) vai persistir o novo lançamento (filho)
+        osLpuDetalheRepository.save(detalhe);
     }
 
+    // =================================================================================
+    // FIM DAS FUNÇÕES DE IMPORTAÇÃO CORRIGIDAS
+    // =================================================================================
 
     private String gerarNovaOsSequencial() {
         String ano = String.valueOf(LocalDate.now().getYear()).substring(2);
@@ -896,12 +1273,14 @@ public class OsServiceImpl implements OsService {
             if (dateStr == null || dateStr.isBlank() || dateStr.equalsIgnoreCase("-")) return null;
 
             try {
+                // Tenta formatar dd/MM/yyyy
                 return LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
             } catch (Exception e) {
                 try {
+                    // Tenta formatar yyyy-MM-dd (ISO)
                     return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE);
                 } catch (Exception e2) {
-                    return null;
+                    return null; // Retorna nulo se ambos falharem
                 }
             }
         }
@@ -954,15 +1333,25 @@ public class OsServiceImpl implements OsService {
         return osLpuDetalheRepository.save(novoDetalhe);
     }
 
+    @Override
     @Transactional
     public void desativarDetalhe(Long detalheId) {
+        // 1. Busca o registro de detalhe que o usuário deseja excluir.
         OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(detalheId)
                 .orElseThrow(() -> new EntityNotFoundException("Detalhe de OS não encontrado com o ID: " + detalheId));
 
-        if (detalhe.getLancamentos() != null && !detalhe.getLancamentos().isEmpty()) {
-            throw new BusinessException("Não é possível excluir um registro que já possui lançamentos de atividade.");
-        }
+        OS osPai = detalhe.getOs(); // Pega a referência da OS "pai" antes de excluir o "filho"
+
+        // 2. Exclui permanentemente o registro (o detalhe) do banco de dados.
         osLpuDetalheRepository.delete(detalhe);
+        osLpuDetalheRepository.flush(); // Garante que a exclusão seja executada no banco neste momento
+
+        // 3. Verifica se a OS "pai" ficou sem nenhum outro detalhe.
+        //    Agora, o método countByOs existe e funcionará.
+        if (osLpuDetalheRepository.countByOs(osPai) == 0) {
+            // 4. Se não houver mais nenhum detalhe, exclui a OS "pai" também.
+            osRepository.delete(osPai);
+        }
     }
 
     @Override

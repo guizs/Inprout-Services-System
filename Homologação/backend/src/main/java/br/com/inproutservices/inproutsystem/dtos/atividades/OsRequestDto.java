@@ -60,6 +60,7 @@ public class OsRequestDto {
     private String situacaoLancamento;
     private String detalheDiario;
     private BigDecimal valorLancamento;
+    private String nomeGestorLancamento;
 
 
     // --- Getters e Setters para todos os campos ---
@@ -145,6 +146,14 @@ public class OsRequestDto {
     public void setDocumentacao(String documentacao) { this.documentacao = documentacao; }
     public LocalDate getPlanoDocumentacao() { return planoDocumentacao; }
     public void setPlanoDocumentacao(LocalDate planoDocumentacao) { this.planoDocumentacao = planoDocumentacao; }
+
+    public String getNomeGestorLancamento() {
+        return nomeGestorLancamento;
+    }
+
+    public void setNomeGestorLancamento(String nomeGestorLancamento) {
+        this.nomeGestorLancamento = nomeGestorLancamento;
+    }
 
     public LocalDate getDataAtividadeLancamento() {
         return dataAtividadeLancamento;

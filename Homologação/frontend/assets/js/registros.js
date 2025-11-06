@@ -26,20 +26,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     };
     const formatarData = (dataStr) => {
-        if (!dataStr) return '-';
-        // Trata ambos os formatos (com ou sem hora, com - ou /)
+        if (!dataStr || dataStr === '-') return '-'; // <-- CORREÇÃO AQUI
         let dataLimpa = dataStr.split(' ')[0];
         if (dataLimpa.includes('-')) {
             dataLimpa = dataLimpa.split('-').reverse().join('/');
         }
+        // Trata datas inválidas ou vazias que o JS pode gerar
+        if (dataLimpa === '//' || dataLimpa === 'Invalid Date') return '-'; // <-- CORREÇÃO AQUI
         return dataLimpa;
     };
 
 
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
+    const colunasGestor = ["HISTÓRICO", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "QUANTIDADE", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "KEY"];
+
     const colunasPorRole = {
-        'MANAGER': colunasCompletas,
+        'MANAGER': colunasGestor,
         'DEFAULT': colunasCompletas
     };
     const headers = colunasPorRole[userRole] || colunasPorRole['DEFAULT'];
@@ -107,35 +110,42 @@ document.addEventListener('DOMContentLoaded', function () {
 
             todasAsLinhas = [];
             osDataFiltrada.forEach(os => {
+                // A lógica agora só processa OSs que têm detalhes.
                 if (os.detalhes && os.detalhes.length > 0) {
+                    // Filtra para manter apenas os detalhes que estão com o status "ATIVO".
                     const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
 
-                    detalhesAtivos.forEach(detalhe => {
-                        let lancamentoParaExibir = detalhe.ultimoLancamento;
+                    // Adicionada uma verificação para garantir que, mesmo após o filtro, ainda existam detalhes a serem exibidos.
+                    if (detalhesAtivos.length > 0) {
+                        detalhesAtivos.forEach(detalhe => {
+                            let lancamentoParaExibir = detalhe.ultimoLancamento;
 
-                        if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
+                            // Se a API não retornou um 'ultimoLancamento' ou se a lista local de lançamentos existe,
+                            // aplicamos a lógica de seleção para garantir que o lançamento correto seja exibido.
+                            if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
 
-                            const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
+                                // 1. Tenta encontrar o lançamento operacional mais recente
+                                const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
 
-                            if (lancamentosOperacionais.length > 0) {
-                                lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
-                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                });
-                            } else {
-                                lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
-                                    return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                });
+                                if (lancamentosOperacionais.length > 0) {
+                                    lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
+                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                    });
+                                } else {
+                                    // 2. Se não houver operacionais, pega o legado mais recente como fallback
+                                    lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
+                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
+                                    });
+                                }
                             }
-                        }
 
-                        todasAsLinhas.push({
-                            os: os,
-                            detalhe: detalhe,
-                            ultimoLancamento: lancamentoParaExibir
+                            todasAsLinhas.push({
+                                os: os,
+                                detalhe: detalhe,
+                                ultimoLancamento: lancamentoParaExibir
+                            });
                         });
-                    });
-                } else {
-                    todasAsLinhas.push({ os: os, detalhe: null, ultimoLancamento: null });
+                    }
                 }
             });
 
@@ -158,21 +168,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /**
-     * Gera o HTML completo para um único grupo de OS no acordeão.
-     * @param {object} grupo - O objeto do grupo da OS contendo seus dados e linhas.
-     * @returns {string} - A string HTML do elemento do acordeão.
-     */
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
 
         const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
+        // --- INÍCIO DA MODIFICAÇÃO ---
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
+            // CORRIGIDO: Agora soma APENAS APROVADO e APROVADO_CPS_LEGADO
+            .filter(lanc => ['APROVADO', 'APROVADO_CPS_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+        // --- FIM DA MODIFICAÇÃO ---
 
         const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
         const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
@@ -406,16 +414,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const modalEditarDetalhe = modalEditarDetalheEl ? new bootstrap.Modal(modalEditarDetalheEl) : null;
         const modalConfirmarExclusaoEl = document.getElementById('modalConfirmarExclusao');
         const modalConfirmarExclusao = modalConfirmarExclusaoEl ? new bootstrap.Modal(modalConfirmarExclusaoEl) : null;
-
-        // --- INÍCIO DA ADIÇÃO ---
         const modalHistoricoEl = document.getElementById('modalHistoricoLancamentos');
         const modalHistorico = modalHistoricoEl ? new bootstrap.Modal(modalHistoricoEl) : null;
-        // --- FIM DA ADIÇÃO ---
 
         accordionContainer.addEventListener('click', function (e) {
             const btnEdit = e.target.closest('.btn-edit-detalhe');
             const btnDelete = e.target.closest('.btn-delete-registro');
-            const btnHistorico = e.target.closest('.btn-historico'); // Captura o clique no novo botão
+            const btnHistorico = e.target.closest('.btn-historico');
 
             if (btnEdit) {
                 e.preventDefault();
@@ -449,13 +454,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (btnDelete) {
                 const detalheId = btnDelete.dataset.id;
-                document.getElementById('deleteDetalheId').value = detalheId;
+                const deleteInput = document.getElementById('deleteOsId');
+                if (deleteInput) {
+                    // Armazena o ID correto no campo oculto do modal.
+                    deleteInput.value = detalheId;
+                }
                 if (modalConfirmarExclusao) {
                     modalConfirmarExclusao.show();
                 }
             }
-
-            // --- INÍCIO DA NOVA LÓGICA ---
             if (btnHistorico) {
                 e.preventDefault();
                 const detalheId = btnHistorico.dataset.detalheId;
@@ -475,16 +482,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         modalBody.innerHTML = lancamentosOrdenados.map(lanc => {
                             const etapa = get(lanc, 'etapa', {});
                             return `
-                                <tr>
-                                    <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
-                                    <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
-                                    <td>${get(lanc, 'situacao', '')}</td>
-                                    <td>${etapa.nomeDetalhado || ''}</td>
-                                    <td>${get(lanc, 'prestador.nome', '')}</td>
-                                    <td>${formatarMoeda(get(lanc, 'valor'))}</td>
-                                    <td>${get(lanc, 'manager.nome', '')}</td>
-                                </tr>
-                            `;
+                            <tr>
+                                <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                                <td><span class="badge rounded-pill text-bg-info">${get(lanc, 'situacaoAprovacao', '').replace(/_/g, ' ')}</span></td>
+                                <td>${get(lanc, 'situacao', '')}</td>
+                                <td>${etapa.nomeDetalhado || ''}</td>
+                                <td>${get(lanc, 'prestador.nome', '')}</td>
+                                <td>${formatarMoeda(get(lanc, 'valor'))}</td>
+                                <td>${get(lanc, 'manager.nome', '')}</td>
+                            </tr>
+                        `;
                         }).join('');
                     }
                     modalHistorico.show();
@@ -492,10 +499,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     mostrarToast("Não foi possível encontrar o histórico para esta linha.", "error");
                 }
             }
-            // --- FIM DA NOVA LÓGICA ---
         });
 
-        // ... (restante dos listeners) ...
         const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
         if (formEditarDetalheEl) {
             formEditarDetalheEl.addEventListener('change', (e) => {
@@ -584,27 +589,58 @@ document.addEventListener('DOMContentLoaded', function () {
         const btnConfirmarExclusaoDefinitivaEl = document.getElementById('btnConfirmarExclusaoDefinitiva');
         if (btnConfirmarExclusaoDefinitivaEl) {
             btnConfirmarExclusaoDefinitivaEl.addEventListener('click', async function () {
-                const detalheId = document.getElementById('deleteDetalheId').value;
+                // Pega o ID do detalhe do registro a ser excluído
+                const detalheId = document.getElementById('deleteOsId').value;
                 const btnConfirmar = this;
+
+                if (!detalheId || detalheId === 'undefined') {
+                    mostrarToast("Não foi possível identificar o registro para exclusão.", "error");
+                    return;
+                }
+
                 btnConfirmar.disabled = true;
                 btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const modalInstance = bootstrap.Modal.getInstance(document.getElementById('modalConfirmarExclusao'));
+
                 try {
+                    // Chama a API para excluir o registro de detalhe específico
                     const response = await fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}`, {
                         method: 'DELETE'
                     });
+
                     if (!response.ok) {
                         let errorMsg = 'Erro ao excluir o registro.';
-                        try { const errorData = await response.json(); errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`; }
-                        catch (e) { const errorText = await response.text(); errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`; }
+                        try {
+                            const errorData = await response.json();
+                            errorMsg = errorData.message || `Erro desconhecido. Status: ${response.status}.`;
+                        } catch (e) {
+                            const errorText = await response.text();
+                            errorMsg = errorText || `Erro de rede/servidor. Status: ${response.status}.`;
+                        }
                         throw new Error(errorMsg);
                     }
+
                     mostrarToast('Registro excluído com sucesso!', 'success');
                     if (modalInstance) modalInstance.hide();
-                    await inicializarPagina();
+
+                    // --- INÍCIO DA NOVA LÓGICA DE ATUALIZAÇÃO ---
+
+                    // 1. Remove o item excluído da lista global 'todasAsLinhas' em memória
+                    const indexParaRemover = todasAsLinhas.findIndex(linha => get(linha, 'detalhe.id') == detalheId);
+                    if (indexParaRemover > -1) {
+                        todasAsLinhas.splice(indexParaRemover, 1);
+                    }
+
+                    // 2. Chama a função que re-renderiza a tabela com base nos dados locais atualizados.
+                    //    Isso é muito mais rápido pois não faz uma nova chamada à API.
+                    renderizarTabelaComFiltro();
+
+                    // --- FIM DA NOVA LÓGICA DE ATUALIZAÇÃO ---
+
                 } catch (error) {
                     console.error("Erro ao excluir o registro:", error);
                     mostrarToast(error.message, 'error');
+                    if (modalInstance) modalInstance.hide();
                 } finally {
                     btnConfirmar.disabled = false;
                     btnConfirmar.innerHTML = 'Sim, Excluir';
@@ -835,7 +871,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const valorTotalCPS = grupo.linhas
                         .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
                         // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
-                        .filter(lanc => ['APROVADO', 'APROVADO_LEGADO'].includes(lanc.situacaoAprovacao))
+                        .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 

@@ -9,5 +9,6 @@ public enum SituacaoAprovacao {
     RECUSADO_COORDENADOR,
     RECUSADO_CONTROLLER,
     PRAZO_VENCIDO,
-    APROVADO_LEGADO           // Status para importações legadas que não entram no CPS.
+    APROVADO_LEGADO,           // Status para importações legadas que não entram no CPS.
+    APROVADO_CPS_LEGADO
 }

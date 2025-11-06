@@ -28,7 +28,7 @@ public class SolicitacaoAtividadeComplementarService {
     private final OsRepository osRepository;
     private final LpuRepository lpuRepository;
     private final UsuarioRepository usuarioRepository;
-    private final OsService osService; // Precisamos dele para criar a linha de registro no final
+    private final OsService osService;
 
     public SolicitacaoAtividadeComplementarService(SolicitacaoAtividadeComplementarRepository solicitacaoRepository, OsRepository osRepository, LpuRepository lpuRepository, UsuarioRepository usuarioRepository, OsService osService) {
         this.solicitacaoRepository = solicitacaoRepository;
@@ -73,36 +73,45 @@ public class SolicitacaoAtividadeComplementarService {
         Usuario usuario = usuarioRepository.findById(usuarioId).orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
         Role role = usuario.getRole();
 
-        // Perfis que podem ver o histórico de todos os segmentos.
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            // Remove o filtro de status, retornando todas as solicitações.
             return solicitacaoRepository.findAll();
         }
 
-        // Para os demais perfis (Manager, Coordinator), filtra por segmento.
         Set<Segmento> segmentos = usuario.getSegmentos();
         if (segmentos.isEmpty()) {
-            return List.of(); // Se não tiver segmentos, não vê nada.
+            return List.of();
         }
 
-        // Utiliza um novo método no repositório para buscar todas por segmento.
         return solicitacaoRepository.findAllByOsSegmentoIn(segmentos);
     }
 
+    // ======================= INÍCIO DA CORREÇÃO =======================
     @Transactional
     public SolicitacaoAtividadeComplementar aprovarPeloCoordenador(Long solicitacaoId, Long aprovadorId) {
-        SolicitacaoAtividadeComplementar solicitacao = solicitacaoRepository.findById(solicitacaoId).orElseThrow(() -> new EntityNotFoundException("Solicitação não encontrada."));
-        Usuario aprovador = usuarioRepository.findById(aprovadorId).orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
+        SolicitacaoAtividadeComplementar solicitacao = solicitacaoRepository.findById(solicitacaoId)
+                .orElseThrow(() -> new EntityNotFoundException("Solicitação não encontrada."));
+        Usuario aprovador = usuarioRepository.findById(aprovadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado."));
 
         if (solicitacao.getStatus() != StatusSolicitacaoComplementar.PENDENTE_COORDENADOR) {
             throw new BusinessException("Esta solicitação não está pendente para o Coordenador.");
         }
 
-        solicitacao.setStatus(StatusSolicitacaoComplementar.PENDENTE_CONTROLLER);
+        // 1. CRIA O ITEM DIRETAMENTE (a mágica acontece aqui)
+        osService.criarOsLpuDetalheComplementar(
+                solicitacao.getOs().getId(),
+                solicitacao.getLpu().getId(),
+                solicitacao.getQuantidade()
+        );
+
+        // 2. MUDA O STATUS DIRETAMENTE PARA APROVADO
+        solicitacao.setStatus(StatusSolicitacaoComplementar.APROVADO);
         solicitacao.setAprovadorCoordenador(aprovador);
         solicitacao.setDataAcaoCoordenador(LocalDateTime.now());
+
         return solicitacaoRepository.save(solicitacao);
     }
+    // ======================= FIM DA CORREÇÃO =======================
 
     @Transactional
     public SolicitacaoAtividadeComplementar rejeitar(Long solicitacaoId, Long aprovadorId, String motivo) {
@@ -137,8 +146,6 @@ public class SolicitacaoAtividadeComplementarService {
             throw new BusinessException("Esta solicitação não está pendente para o Controller.");
         }
 
-        // A MÁGICA ACONTECE AQUI!
-        // Chamamos o serviço de OS para efetivamente criar a nova linha de registro
         osService.criarOsLpuDetalheComplementar(
                 solicitacao.getOs().getId(),
                 solicitacao.getLpu().getId(),
@@ -151,7 +158,7 @@ public class SolicitacaoAtividadeComplementarService {
         return solicitacaoRepository.save(solicitacao);
     }
 
-    // NOVOS MÉTODOS DE LOTE
+    // ======================= INÍCIO DA CORREÇÃO (LOTE) =======================
     @Transactional
     public void aprovarLotePeloCoordenador(List<Long> solicitacaoIds, Long aprovadorId) {
         List<SolicitacaoAtividadeComplementar> solicitacoes = solicitacaoRepository.findAllById(solicitacaoIds);
@@ -159,13 +166,18 @@ public class SolicitacaoAtividadeComplementarService {
 
         for (SolicitacaoAtividadeComplementar s : solicitacoes) {
             if (s.getStatus() == StatusSolicitacaoComplementar.PENDENTE_COORDENADOR) {
-                s.setStatus(StatusSolicitacaoComplementar.PENDENTE_CONTROLLER);
+                // 1. CRIA O ITEM
+                osService.criarOsLpuDetalheComplementar(s.getOs().getId(), s.getLpu().getId(), s.getQuantidade());
+
+                // 2. MUDA O STATUS PARA APROVADO
+                s.setStatus(StatusSolicitacaoComplementar.APROVADO);
                 s.setAprovadorCoordenador(aprovador);
                 s.setDataAcaoCoordenador(LocalDateTime.now());
             }
         }
         solicitacaoRepository.saveAll(solicitacoes);
     }
+    // ======================= FIM DA CORREÇÃO (LOTE) =======================
 
     @Transactional
     public void aprovarLotePeloController(List<Long> solicitacaoIds, Long aprovadorId) {

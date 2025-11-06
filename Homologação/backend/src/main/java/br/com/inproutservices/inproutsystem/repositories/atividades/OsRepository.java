@@ -37,7 +37,7 @@ public interface OsRepository extends JpaRepository<OS, Long> {
     // Garante que a busca por projeto retorna no máximo um resultado, alinhado à regra de negócio.
     Optional<OS> findByProjeto(String projeto);
 
-    @Query("SELECT os.os FROM OS os WHERE os.os LIKE %:sufixo ORDER BY os.os DESC")
+    @Query(value = "SELECT os.os FROM OS os WHERE os.os LIKE %:sufixo ORDER BY CAST(SUBSTRING(os.os FROM 1 FOR POSITION('-' IN os.os) - 1) AS INTEGER) DESC", nativeQuery = true)
     List<String> findLastOsByYearSuffix(@Param("sufixo") String sufixo);
 
     @Query("SELECT DISTINCT os FROM OS os " +

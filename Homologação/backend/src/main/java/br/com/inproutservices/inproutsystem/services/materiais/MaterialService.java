@@ -2,6 +2,8 @@ package br.com.inproutservices.inproutsystem.services.materiais;
 
 import br.com.inproutservices.inproutsystem.dtos.materiais.EntradaMaterialDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialRequestDTO;
+// --- NOVO IMPORT ---
+import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialUpdateDTO;
 import br.com.inproutservices.inproutsystem.entities.materiais.EntradaMaterial;
 import br.com.inproutservices.inproutsystem.entities.materiais.Material;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
@@ -68,6 +70,29 @@ public class MaterialService {
 
         return materialRepository.save(material);
     }
+
+    // --- NOVO MÉTODO ADICIONADO ---
+    @Transactional
+    public Material atualizarMaterial(Long id, MaterialUpdateDTO dto) {
+        Material material = materialRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Material não encontrado com o ID: " + id));
+
+        // Validação de duplicidade de código
+        if (dto.codigo() != null && !dto.codigo().equals(material.getCodigo())) {
+            materialRepository.findByCodigo(dto.codigo()).ifPresent(existente -> {
+                if (!existente.getId().equals(material.getId())) {
+                    throw new BusinessException("O código '" + dto.codigo() + "' já está em uso por outro material.");
+                }
+            });
+            material.setCodigo(dto.codigo());
+        }
+
+        material.setDescricao(dto.descricao());
+        material.setObservacoes(dto.observacoes());
+
+        return materialRepository.save(material);
+    }
+    // --- FIM DO NOVO MÉTODO ---
 
     @Transactional
     public Material adicionarEntrada(EntradaMaterialDTO dto) {

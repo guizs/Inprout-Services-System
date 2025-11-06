@@ -3,6 +3,8 @@ package br.com.inproutservices.inproutsystem.controllers.materiais;
 import br.com.inproutservices.inproutsystem.dtos.materiais.EntradaMaterialDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialRequestDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialResponseDTO;
+// --- NOVO IMPORT ---
+import br.com.inproutservices.inproutsystem.dtos.materiais.MaterialUpdateDTO;
 import br.com.inproutservices.inproutsystem.entities.materiais.Material;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.materiais.MaterialService;
@@ -51,6 +53,16 @@ public class MaterialController {
                 .buildAndExpand(novoMaterial.getId()).toUri();
         return ResponseEntity.created(location).body(new MaterialResponseDTO(novoMaterial));
     }
+
+    // --- NOVO ENDPOINT ADICIONADO ---
+    @PutMapping("/{id}")
+    public ResponseEntity<MaterialResponseDTO> atualizarMaterial(
+            @PathVariable Long id,
+            @RequestBody MaterialUpdateDTO dto) {
+        Material materialAtualizado = materialService.atualizarMaterial(id, dto);
+        return ResponseEntity.ok(new MaterialResponseDTO(materialAtualizado));
+    }
+    // --- FIM DO NOVO ENDPOINT ---
 
     @PostMapping("/entradas")
     public ResponseEntity<MaterialResponseDTO> adicionarEntrada(@RequestBody EntradaMaterialDTO dto) {

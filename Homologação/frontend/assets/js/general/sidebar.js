@@ -32,30 +32,37 @@ fetch(sidebarPath)
             document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
             document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
             document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]').setAttribute('href', 'pages/gestaoAprovacoes.html');
+            // NOVO LINK
+            document.querySelector('#sidebar a[href="faturamento.html"]').setAttribute('href', 'pages/faturamento.html');
         }
 
         // ==========================================================
-        // NOVO CÓDIGO PARA CONTROLAR A VISIBILIDADE DO BOTÃO CPS
+        // CÓDIGO ATUALIZADO PARA CONTROLAR A VISIBILIDADE DOS BOTÕES
         // ==========================================================
         try {
-            // 1. Pega a role do usuário do localStorage, igual é feito no index.js
+            // 1. Pega a role do usuário do localStorage
             const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-            // 2. Seleciona o link do CPS. Usamos o atributo 'href' para encontrá-lo.
+            // 2. Seleciona os links
             const cpsLink = document.querySelector('#sidebar a[href*="cps.html"]');
+            const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]'); // NOVO
 
-            // 3. Verifica se o link foi encontrado antes de tentar manipulá-lo
-            if (cpsLink) {
-                // 4. Se a role for 'MANAGER', oculta o item PAI (o <li>), para remover o item inteiro da lista.
-                if (userRole === 'MANAGER') {
+            // 3. Verifica se o usuário é MANAGER
+            if (userRole === 'MANAGER') {
+                // Oculta o link do CPS
+                if (cpsLink) {
                     cpsLink.parentElement.style.display = 'none';
+                }
+                // Oculta o link do Faturamento
+                if (faturamentoLink) { // NOVO
+                    faturamentoLink.parentElement.style.display = 'none';
                 }
             }
         } catch (error) {
             console.error("Falha ao configurar a visibilidade da sidebar:", error);
         }
         // ==========================================================
-        // FIM DO NOVO CÓDIGO
+        // FIM DA ATUALIZAÇÃO
         // ==========================================================
 
 

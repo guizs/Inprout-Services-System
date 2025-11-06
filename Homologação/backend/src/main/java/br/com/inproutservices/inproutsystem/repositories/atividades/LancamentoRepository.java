@@ -154,4 +154,6 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "GROUP BY u.id, u.nome " +
             "ORDER BY u.nome")
     List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role, @Param("dataLimite") LocalDateTime dataLimite);
+
+    List<Lancamento> findAllByEtapaDetalhadaId(Long etapaDetalhadaId);
 }

@@ -1,0 +1,30 @@
+/* Estilo para destacar solicitações de adiantamento na fila do Assistant */
+.linha-adiantamento {
+    /* Um fundo amarelo claro para chamar a atenção */
+    background-color: var(--card-warning) !important; 
+    font-weight: 500;
+    color: #333;
+}
+
+/* Estilo para adiantamentos (na Visão de Adiantamentos) que ainda não foram finalizados */
+.linha-adiantamento-pendente {
+    /* Uma borda laranja/vermelha de destaque */
+    border-left: 5px solid var(--bs-orange) !important; 
+}
+
+/* Garante que o container da tabela possa ter uma altura mínima */
+.content-loader-container {
+    position: relative;
+    min-height: 400px; /* Altura mínima para o loader ser visível */
+}
+
+/* Garante que o loader cubra apenas o container da tabela */
+.content-loader-container .overlay-loader {
+    position: absolute;
+    border-radius: 0 0 0.5rem 0.5rem; /* Arredonda cantos inferiores */
+}
+
+/* Ajusta o tamanho da barra de rolagem da tabela */
+.custom-scroll {
+  max-height: calc(100vh - 280px); /* Ajuste de altura */
+}

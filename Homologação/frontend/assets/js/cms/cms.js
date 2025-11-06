@@ -1,4 +1,3 @@
-// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/frontend/assets/js/cms/cms.js
 document.addEventListener('DOMContentLoaded', () => {
     // --- Seletores de Elementos ---
     const tbodyMateriais = document.getElementById('tbody-cms');
@@ -77,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FIM: NOVOS ELEMENTOS DE IMPORTAÇÃO ---
 
     let todosOsMateriais = [];
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+    const API_BASE_URL = 'http://localhost:8080';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)

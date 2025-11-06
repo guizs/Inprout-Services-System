@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- VARIÁVEIS GLOBAIS ---
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+    const API_BASE_URL = 'http://localhost:8080';
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
     const userId = localStorage.getItem('usuarioId'); // Essencial para os novos endpoints
 

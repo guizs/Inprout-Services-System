@@ -64,11 +64,12 @@ public class SolicitacaoFaturamentoService {
             throw new BusinessException("Já existe uma solicitação de faturamento para este item.");
         }
 
-        // Regra 2: (Opcional, mas recomendado) Verifica se o item está mesmo na etapa 06.05
-        // Esta lógica pode ser ajustada, mas garante que o Coordenador só solicite
-        // o que o sistema mandou.
-        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("06.05 - Solicitar ID").stream().findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Etapa '06.05 - Solicitar ID' não encontrada no sistema."));
+        // ==========================================================
+        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
+        // ==========================================================
+        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Etapa 'Solicitar ID' não encontrada no sistema."));
+        // ==========================================================
 
         boolean itemEstaNaEtapa = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(osLpuDetalheId)
                 .map(Lancamento::getEtapaDetalhada)
@@ -76,7 +77,11 @@ public class SolicitacaoFaturamentoService {
                 .orElse(false);
 
         if (!itemEstaNaEtapa) {
-            throw new BusinessException("O último lançamento deste item não está na etapa '06.05 - Solicitar ID'.");
+            // ==========================================================
+            // CORREÇÃO AQUI: Mensagem de erro atualizada
+            // ==========================================================
+            throw new BusinessException("O último lançamento deste item não está na etapa 'Solicitar ID'.");
+            // ==========================================================
         }
 
         // Cria a nova solicitação
@@ -106,36 +111,9 @@ public class SolicitacaoFaturamentoService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<FilaCoordenadorDTO> getFilaCoordinator() {
-        // 1. Encontra a etapa "Solicitar ID"
-        // (Certifique-se que o nome no banco é exatamente este)
-        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("06.05 - Solicitar ID").stream().findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Etapa '06.05 - Solicitar ID' não foi cadastrada no sistema."));
-
-        // 2. Busca todos os lançamentos que estão nessa etapa
-        List<Lancamento> lancamentosNaEtapa = lancamentoRepo.findAllByEtapaDetalhadaId(etapaSolicitacao.getId());
-
-        return lancamentosNaEtapa.stream()
-                // 3. Filtra
-                .filter(lancamento -> {
-                    OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
-                    if (detalhe == null) return false;
-
-                    // Regra A: O campo de data de faturamento (dataFatInprout) DEVE estar vazio
-                    boolean faturado = detalhe.getDataFatInprout() != null;
-                    if (faturado) return false;
-
-                    // Regra B: Não pode já existir uma solicitação de faturamento em andamento para este item
-                    boolean solicitacaoEmAberto = faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId());
-
-                    return !solicitacaoEmAberto;
-                })
-                // 4. Converte para o DTO
-                .map(FilaCoordenadorDTO::new)
-                .collect(Collectors.toList());
-    }
-
+    /**
+     * FLUXO 1 e 2: Ação do Assistant para alterar o status.
+     */
     @Transactional
     public SolicitacaoFaturamento alterarStatus(Long solicitacaoId, Long assistantId, StatusFaturamento novoStatus, String motivo) {
         SolicitacaoFaturamento solicitacao = faturamentoRepo.findById(solicitacaoId)
@@ -171,11 +149,59 @@ public class SolicitacaoFaturamentoService {
         return faturamentoRepo.save(solicitacao);
     }
 
+
+    /**
+     * FLUXO 1: Busca a fila de "matéria-prima" do Coordenador.
+     * Encontra todos os lançamentos na etapa 06.05 que ainda não tiveram o ID solicitado.
+     */
+    @Transactional(readOnly = true)
+    public List<FilaCoordenadorDTO> getFilaCoordinator() {
+        // 1. Encontra a etapa "Solicitar ID"
+
+        // ==========================================================
+        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
+        // ==========================================================
+        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Etapa 'Solicitar ID' não foi cadastrada no sistema."));
+        // ==========================================================
+
+        // 2. Busca todos os lançamentos que estão nessa etapa
+        List<Lancamento> lancamentosNaEtapa = lancamentoRepo.findAllByEtapaDetalhadaId(etapaSolicitacao.getId());
+
+        return lancamentosNaEtapa.stream()
+                // 3. Filtra
+                .filter(lancamento -> {
+                    OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
+                    if (detalhe == null) return false;
+
+                    // Regra A: O campo de data de faturamento (dataFatInprout) DEVE estar vazio
+                    boolean faturado = detalhe.getDataFatInprout() != null;
+                    if (faturado) return false;
+
+                    // Regra B: Não pode já existir uma solicitação de faturamento em andamento para este item
+                    boolean solicitacaoEmAberto = faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId());
+
+                    return !solicitacaoEmAberto;
+                })
+                // 4. Converte para o DTO
+                .map(FilaCoordenadorDTO::new)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * FLUXO 2: Busca a fila de "matéria-prima" do Coordenador para ADIANTAMENTO.
+     * Encontra todos os itens de OS que podem ser adiantados.
+     */
     @Transactional(readOnly = true)
     public List<FilaAdiantamentoDTO> getFilaAdiantamentoCoordinator() {
         // 1. Encontra a etapa "Solicitar ID" para poder *excluí-la* da busca
-        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("06.05 - Solicitar ID").stream().findFirst()
+
+        // ==========================================================
+        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
+        // ==========================================================
+        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
                 .orElse(null); // Não lança exceção, apenas será nulo se não existir
+        // ==========================================================
 
         Long etapaSolicitacaoId = (etapaSolicitacao != null) ? etapaSolicitacao.getId() : -1L; // ID inválido se não achar
 
@@ -199,7 +225,7 @@ public class SolicitacaoFaturamentoService {
                     }
                     Lancamento ultimoLancamento = ultimoLancamentoOpt.get();
 
-                    // REGRA 3: Não pode estar na etapa "06.05" (pois já está na outra fila)
+                    // REGRA 3: Não pode estar na etapa "Solicitar ID" (pois já está na outra fila)
                     if (ultimoLancamento.getEtapaDetalhada() != null &&
                             ultimoLancamento.getEtapaDetalhada().getId().equals(etapaSolicitacaoId)) {
                         return false;
@@ -251,6 +277,9 @@ public class SolicitacaoFaturamentoService {
         return faturamentoRepo.save(solicitacao);
     }
 
+    /**
+     * FLUXO 3: Busca a "Visão de Adiantamentos" (Regra de Destaque).
+     */
     @Transactional(readOnly = true)
     public List<VisaoAdiantamentoDTO> getVisaoAdiantamentos(Long usuarioId) {
         Usuario usuario = usuarioRepo.findById(usuarioId)

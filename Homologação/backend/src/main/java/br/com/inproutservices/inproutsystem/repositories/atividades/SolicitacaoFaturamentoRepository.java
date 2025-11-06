@@ -48,8 +48,8 @@ public interface SolicitacaoFaturamentoRepository extends JpaRepository<Solicita
     @Query("SELECT sf FROM SolicitacaoFaturamento sf " +
             "JOIN sf.osLpuDetalhe d JOIN d.os o " +
             "LEFT JOIN FETCH sf.solicitante " +
-            "LEFT JOIN FETCH d.lpu " +
-            "LEFT JOIN FETCH o.segmento " +
+            "LEFT JOIN d.lpu " +
+            "LEFT JOIN o.segmento " +
             "WHERE sf.tipo = :tipo AND o.segmento IN :segmentos")
     List<SolicitacaoFaturamento> findByTipoAndSegmentoIn(@Param("tipo") TipoFaturamento tipo, @Param("segmentos") Set<Segmento> segmentos);
 
@@ -59,9 +59,9 @@ public interface SolicitacaoFaturamentoRepository extends JpaRepository<Solicita
     @Query("SELECT sf FROM SolicitacaoFaturamento sf " +
             "JOIN sf.osLpuDetalhe d JOIN d.os o " +
             "LEFT JOIN FETCH sf.solicitante " +
-            "LEFT JOIN FETCH sf.responsavel " + // Adicionado para o histórico
-            "LEFT JOIN FETCH d.lpu " +
-            "LEFT JOIN FETCH o.segmento " +
+            "LEFT JOIN FETCH sf.responsavel " +
+            "LEFT JOIN d.lpu " +
+            "LEFT JOIN o.segmento " +
             "WHERE sf.status IN :statuses AND o.segmento IN :segmentos")
     List<SolicitacaoFaturamento> findByStatusInAndSegmentoIn(@Param("statuses") List<StatusFaturamento> statuses, @Param("segmentos") Set<Segmento> segmentos);
 }

@@ -7,9 +7,9 @@ if (
     window.location.pathname === '/' ||
     window.location.pathname.endsWith('/index')
 ) {
-    sidebarPath = 'pages/extras/sidebar.html'; // Caminho relativo para index
+    sidebarPath = 'pages/extras/sidebar.html'; // Caminho relative para index
 } else {
-    sidebarPath = '../pages/extras/sidebar.html'; // Caminho relativo para páginas dentro de /pages
+    sidebarPath = '../pages/extras/sidebar.html'; // Caminho relative para páginas dentro de /pages
 }
 
 // Carrega dinamicamente o HTML da sidebar
@@ -32,8 +32,9 @@ fetch(sidebarPath)
             document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
             document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
             document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]').setAttribute('href', 'pages/gestaoAprovacoes.html');
-            // NOVO LINK
             document.querySelector('#sidebar a[href="faturamento.html"]').setAttribute('href', 'pages/faturamento.html');
+            // NOVO LINK
+            document.querySelector('#sidebar a[href="gateReport.html"]').setAttribute('href', 'pages/gateReport.html');
         }
 
         // ==========================================================
@@ -45,7 +46,9 @@ fetch(sidebarPath)
 
             // 2. Seleciona os links
             const cpsLink = document.querySelector('#sidebar a[href*="cps.html"]');
-            const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]'); // NOVO
+            const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]');
+            // NOVO LINK
+            const gateReportLink = document.querySelector('#sidebar a[href*="gateReport.html"]');
 
             // 3. Verifica se o usuário é MANAGER
             if (userRole === 'MANAGER') {
@@ -54,8 +57,12 @@ fetch(sidebarPath)
                     cpsLink.parentElement.style.display = 'none';
                 }
                 // Oculta o link do Faturamento
-                if (faturamentoLink) { // NOVO
+                if (faturamentoLink) {
                     faturamentoLink.parentElement.style.display = 'none';
+                }
+                // Oculta o link do Relatório de GATEs
+                if (gateReportLink) {
+                    gateReportLink.parentElement.style.display = 'none';
                 }
             }
         } catch (error) {

@@ -107,6 +107,21 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataFim") LocalDate dataFim
     );
 
+    // ================== NOVO MÉTODO (GATE) ==================
+    @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH o.segmento s " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH d.solicitacoesFaturamento sf " +
+            "WHERE l.dataAtividade BETWEEN :dataInicio AND :dataFim")
+    List<Lancamento> findByDataAtividadeBetweenWithDetails(
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
+    // ================== FIM DO NOVO MÉTODO ==================
+
+
     // ================== CORREÇÃO 5 ==================
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
             "FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o JOIN o.segmento s " +

@@ -1,0 +1,41 @@
+/* Garante que o scroll vertical funcione nesta página */
+body {
+    overflow-y: auto !important;
+    height: auto !important;
+    display: block !important;
+}
+
+/* Garante que o loader cubra apenas o container da tabela */
+.card .overlay-loader {
+    position: absolute;
+    border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* Estilo para a tabela de relatório */
+#table-gate-report thead th {
+    background-color: var(--primary-color) !important;
+    color: var(--text-color) !important;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    text-align: center;
+}
+
+#table-gate-report tbody td {
+    font-size: 0.85rem;
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Alinha a primeira coluna (Segmento) à esquerda */
+#table-gate-report tbody td:first-child,
+#table-gate-report tfoot td:first-child {
+    text-align: left;
+    font-weight: 500;
+}
+
+#table-gate-report tfoot td {
+    font-weight: bold;
+    font-size: 0.9rem;
+    text-align: right;
+    background-color: #f8f9fa;
+}

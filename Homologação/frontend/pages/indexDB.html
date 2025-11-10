@@ -57,6 +57,10 @@
                 <i class="bi bi-journal-text"></i><br>
                 LPU
             </div>
+            <div class="segment-card filter-card" data-filter="gate">
+                <i class="bi bi-calendar-check"></i><br>
+                GATES
+            </div>
         </div>
 
 
@@ -169,6 +173,37 @@
 
     </div>
 
+    <div id="conteudo-gate" class="conteudo-filtro d-none">
+        <div id="acoes-gate" class="bloco-etapas-header d-flex justify-content-between align-items-center">
+            <h4 class="titulo-etapas mb-0">GATEs de Faturamento</h4>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button type="button" class="btn btn-outline--success btn-adicionar-etapa" data-bs-toggle="modal"
+                    data-bs-target="#modalCriarGate">
+                    <i class="bi bi-plus-circle me-1"></i> Criar novo GATE
+                </button>
+            </div>
+        </div>
+
+        <div class="px-4 mt-3">
+            <div class="table-responsive custom-scroll">
+                <table class="table modern-table align-middle">
+                    <thead id="thead-gate">
+                        <tr>
+                            <th>Nome do GATE</th>
+                            <th>Data Início</th>
+                            <th>Data Fim</th>
+                            <th>Valor Faturado</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-gate">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     </div>
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
@@ -176,9 +211,66 @@
             aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body" id="toastTexto">
-                    </div>
+                </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
                     aria-label="Fechar"></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalCriarGate" tabindex="-1" aria-labelledby="modalCriarGateLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="formCriarGate">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalCriarGateLabel"><i class="bi bi-plus-circle me-2"></i>Novo GATE
+                            de Faturamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="gateNome" class="form-label">Nome do GATE</label>
+                            <input type="text" class="form-control" id="gateNome" placeholder="Ex: SETEMBRO/24"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="gateDataInicio" class="form-label">Data de Início</label>
+                            <input type="text" class="form-control" id="gateDataInicio"
+                                placeholder="Selecione a data inicial..." required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="gateDataFim" class="form-label">Data Final</label>
+                            <input type="text" class="form-control" id="gateDataFim"
+                                placeholder="Selecione a data final..." required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success" id="btnSalvarGate">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalExcluirGate" tabindex="-1" aria-labelledby="modalExcluirGateLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="modalExcluirGateLabel"><i
+                            class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você tem certeza que deseja excluir o GATE <strong id="nomeGateExcluir"></strong>?</p>
+                    <p class="text-danger small">Esta ação não pode ser desfeita. Exclua apenas se tiver certeza de que
+                        não há faturamentos vinculados.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusaoGate">Sim, Excluir</button>
+                </div>
             </div>
         </div>
     </div>
@@ -316,7 +408,7 @@
                             <label for="etapaSelecionada" class="form-label">Etapa</label>
                             <select id="etapaSelecionada" class="form-select" required>
                                 <option value="">Selecione a etapa</option>
-                                </select>
+                            </select>
                         </div>
 
                         <div class="mb-3 d-flex align-items-center gap-2">
@@ -374,11 +466,11 @@
                         <label for="etapaSelecionadaEditar" class="form-label">Selecionar Etapa</label>
                         <select id="etapaSelecionadaEditar" class="form-select">
                             <option value="">Selecione a etapa</option>
-                            </select>
+                        </select>
                     </div>
 
                     <div id="listaEtapasDetalhadasEditar" class="d-grid gap-3">
-                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -779,7 +871,7 @@
                             <label for="selectPrestadorDesativar" class="form-label">Selecione o prestador</label>
                             <select class="form-select" id="selectPrestadorDesativar" required>
                                 <option value="">Digite o nome ou código</option>
-                                </select>
+                            </select>
                         </div>
 
                         <div class="alert alert-warning mt-3 d-none" id="avisoPrestadorSelecionado">
@@ -1198,7 +1290,7 @@
 
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script src="../assets/js/general/global.js?v=2.1"></script>
     <script src="../assets/js/general/sidebar.js?v=2.1"></script>
     <script src="https://unpkg.com/imask"></script>

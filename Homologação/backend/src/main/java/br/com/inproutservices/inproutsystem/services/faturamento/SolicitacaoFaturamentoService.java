@@ -1,9 +1,6 @@
 package br.com.inproutservices.inproutsystem.services.faturamento;
 
-import br.com.inproutservices.inproutsystem.dtos.faturamento.FilaAdiantamentoDTO;
-import br.com.inproutservices.inproutsystem.dtos.faturamento.FilaCoordenadorDTO;
-import br.com.inproutservices.inproutsystem.dtos.faturamento.SolicitacaoFaturamentoDTO;
-import br.com.inproutservices.inproutsystem.dtos.faturamento.VisaoAdiantamentoDTO;
+import br.com.inproutservices.inproutsystem.dtos.faturamento.*;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.entities.atividades.SolicitacaoFaturamento;
@@ -48,200 +45,127 @@ public class SolicitacaoFaturamentoService {
         this.etapaDetalhadaRepo = etapaDetalhadaRepo;
     }
 
-    /**
-     * FLUXO 1: Ação do Coordenador para solicitar o ID de faturamento.
-     */
-    @Transactional
-    public SolicitacaoFaturamento solicitarIdFaturamento(Long osLpuDetalheId, Long coordinatorId) {
-        Usuario coordenador = usuarioRepo.findById(coordinatorId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário Coordenador não encontrado."));
-
-        OsLpuDetalhe itemOS = osLpuDetalheRepo.findById(osLpuDetalheId)
-                .orElseThrow(() -> new EntityNotFoundException("Item da OS (OsLpuDetalhe) não encontrado."));
-
-        // Regra 1: Verifica se já existe uma solicitação
-        if (faturamentoRepo.existsByOsLpuDetalheId(osLpuDetalheId)) {
-            throw new BusinessException("Já existe uma solicitação de faturamento para este item.");
-        }
-
-        // ==========================================================
-        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
-        // ==========================================================
-        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
-                .orElseThrow(() -> new EntityNotFoundException("Etapa 'Solicitar ID' não encontrada no sistema."));
-        // ==========================================================
-
-        boolean itemEstaNaEtapa = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(osLpuDetalheId)
-                .map(Lancamento::getEtapaDetalhada)
-                .map(etapa -> etapa.getId().equals(etapaSolicitacao.getId()))
-                .orElse(false);
-
-        if (!itemEstaNaEtapa) {
-            // ==========================================================
-            // CORREÇÃO AQUI: Mensagem de erro atualizada
-            // ==========================================================
-            throw new BusinessException("O último lançamento deste item não está na etapa 'Solicitar ID'.");
-            // ==========================================================
-        }
-
-        // Cria a nova solicitação
-        SolicitacaoFaturamento solicitacao = new SolicitacaoFaturamento();
-        solicitacao.setOsLpuDetalhe(itemOS);
-        solicitacao.setSolicitante(coordenador);
-        solicitacao.setStatus(StatusFaturamento.PENDENTE_ASSISTANT); // "ID SOLICITADO"
-        solicitacao.setTipo(TipoFaturamento.REGULAR);
-
-        return faturamentoRepo.save(solicitacao);
+    // Método auxiliar
+    private Usuario getUsuario(Long usuarioId) {
+        return usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
     }
 
     /**
-     * FLUXO 1 e 2: Busca a fila de trabalho principal do Assistant.
+     * FLUXO 1 e 2: Busca a fila de trabalho principal do Assistant (REFATORADO)
      */
     @Transactional(readOnly = true)
-    public List<SolicitacaoFaturamentoDTO> getFilaAssistant() {
-        // Busca todos que não estão finalizados
+    public List<SolicitacaoFaturamentoDTO> getFilaAssistant(Long usuarioId) {
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
+
         List<StatusFaturamento> statuses = List.of(
                 StatusFaturamento.PENDENTE_ASSISTANT,
                 StatusFaturamento.ID_RECEBIDO,
                 StatusFaturamento.ID_RECUSADO
         );
 
-        return faturamentoRepo.findByStatusInWithDetails(statuses).stream()
+        List<SolicitacaoFaturamento> fila;
+
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            fila = faturamentoRepo.findByStatusInWithDetails(statuses);
+        } else if (role == Role.COORDINATOR) {
+            Set<Segmento> segmentos = usuario.getSegmentos();
+            if (segmentos.isEmpty()) return List.of();
+            // --- CORREÇÃO AQUI --- (Removido "Os" do nome do método)
+            fila = faturamentoRepo.findByStatusInAndSegmentoIn(statuses, segmentos);
+        } else {
+            return List.of(); // Manager não vê esta fila
+        }
+
+        return fila.stream()
                 .map(SolicitacaoFaturamentoDTO::new)
                 .collect(Collectors.toList());
     }
 
     /**
-     * FLUXO 1 e 2: Ação do Assistant para alterar o status.
-     */
-    @Transactional
-    public SolicitacaoFaturamento alterarStatus(Long solicitacaoId, Long assistantId, StatusFaturamento novoStatus, String motivo) {
-        SolicitacaoFaturamento solicitacao = faturamentoRepo.findById(solicitacaoId)
-                .orElseThrow(() -> new EntityNotFoundException("Solicitação de faturamento não encontrada."));
-
-        Usuario assistant = usuarioRepo.findById(assistantId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário Assistant não encontrado."));
-
-        // Validação de Ação
-        if (novoStatus == StatusFaturamento.ID_RECUSADO && (motivo == null || motivo.isBlank())) {
-            throw new BusinessException("O motivo é obrigatório para recusar a solicitação.");
-        }
-
-        // --- LÓGICA PRINCIPAL ---
-        solicitacao.setStatus(novoStatus);
-        solicitacao.setResponsavel(assistant); // Define quem executou a ação
-        solicitacao.setDataUltimaAcao(LocalDateTime.now());
-
-        if (novoStatus == StatusFaturamento.ID_RECUSADO) {
-            solicitacao.setObservacao(motivo);
-        }
-
-        // Se a ação for "FATURADO", atualizamos a data na entidade OsLpuDetalhe
-        if (novoStatus == StatusFaturamento.FATURADO) {
-            OsLpuDetalhe detalhe = solicitacao.getOsLpuDetalhe();
-            if (detalhe != null) {
-                // Preenche o campo 'dataFatInprout' (ou outro campo que você defina como o "final")
-                detalhe.setDataFatInprout(LocalDate.now());
-                osLpuDetalheRepo.save(detalhe);
-            }
-        }
-
-        return faturamentoRepo.save(solicitacao);
-    }
-
-
-    /**
-     * FLUXO 1: Busca a fila de "matéria-prima" do Coordenador.
-     * Encontra todos os lançamentos na etapa 06.05 que ainda não tiveram o ID solicitado.
+     * FLUXO 1: Busca a fila "matéria-prima" do Coordenador (REFATORADO)
      */
     @Transactional(readOnly = true)
-    public List<FilaCoordenadorDTO> getFilaCoordinator() {
-        // 1. Encontra a etapa "Solicitar ID"
+    public List<FilaCoordenadorDTO> getFilaCoordinator(Long usuarioId) {
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
 
-        // ==========================================================
-        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
-        // ==========================================================
+        if (role == Role.ASSISTANT || role == Role.MANAGER) {
+            return List.of(); // Assistant e Manager não veem esta fila
+        }
+
         EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
                 .orElseThrow(() -> new EntityNotFoundException("Etapa 'Solicitar ID' não foi cadastrada no sistema."));
-        // ==========================================================
 
-        // 2. Busca todos os lançamentos que estão nessa etapa
         List<Lancamento> lancamentosNaEtapa = lancamentoRepo.findAllByEtapaDetalhadaId(etapaSolicitacao.getId());
 
+        Set<Segmento> segmentos = usuario.getSegmentos();
+
         return lancamentosNaEtapa.stream()
-                // 3. Filtra
                 .filter(lancamento -> {
                     OsLpuDetalhe detalhe = lancamento.getOsLpuDetalhe();
-                    if (detalhe == null) return false;
+                    if (detalhe == null || detalhe.getOs() == null) return false;
 
-                    // Regra A: O campo de data de faturamento (dataFatInprout) DEVE estar vazio
-                    boolean faturado = detalhe.getDataFatInprout() != null;
-                    if (faturado) return false;
+                    // Filtra por segmento se for Coordenador
+                    if (role == Role.COORDINATOR) {
+                        if (segmentos.isEmpty() || !segmentos.contains(detalhe.getOs().getSegmento())) {
+                            return false;
+                        }
+                    }
 
-                    // Regra B: Não pode já existir uma solicitação de faturamento em andamento para este item
-                    boolean solicitacaoEmAberto = faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId());
+                    // Regra A: O campo de data de faturamento DEVE estar vazio
+                    if (detalhe.getDataFatInprout() != null) return false;
 
-                    return !solicitacaoEmAberto;
+                    // Regra B: Não pode já existir uma solicitação de faturamento em andamento
+                    return !faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId());
                 })
-                // 4. Converte para o DTO
                 .map(FilaCoordenadorDTO::new)
                 .collect(Collectors.toList());
     }
 
     /**
-     * FLUXO 2: Busca a fila de "matéria-prima" do Coordenador para ADIANTAMENTO.
-     * Encontra todos os itens de OS que podem ser adiantados.
+     * FLUXO 2: Busca a fila de "matéria-prima" do Coordenador para ADIANTAMENTO (REFATORADO)
      */
     @Transactional(readOnly = true)
-    public List<FilaAdiantamentoDTO> getFilaAdiantamentoCoordinator() {
-        // 1. Encontra a etapa "Solicitar ID" para poder *excluí-la* da busca
+    public List<FilaAdiantamentoDTO> getFilaAdiantamentoCoordinator(Long usuarioId) {
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
 
-        // ==========================================================
-        // CORREÇÃO AQUI: Buscando pelo nome exato "Solicitar ID"
-        // ==========================================================
-        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
-                .orElse(null); // Não lança exceção, apenas será nulo se não existir
-        // ==========================================================
+        if (role == Role.ASSISTANT || role == Role.MANAGER) {
+            return List.of();
+        }
 
-        Long etapaSolicitacaoId = (etapaSolicitacao != null) ? etapaSolicitacao.getId() : -1L; // ID inválido se não achar
+        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst().orElse(null);
+        Long etapaSolicitacaoId = (etapaSolicitacao != null) ? etapaSolicitacao.getId() : -1L;
 
-        // 2. Busca todos os itens de OS (OsLpuDetalhe)
-        return osLpuDetalheRepo.findAll().stream()
+        List<OsLpuDetalhe> todosOsDetalhes = osLpuDetalheRepo.findAll();
+        Set<Segmento> segmentos = usuario.getSegmentos();
+
+        return todosOsDetalhes.stream()
                 .filter(detalhe -> {
-                    // REGRA 1: Não pode já estar faturado (data final preenchida)
-                    if (detalhe.getDataFatInprout() != null) {
-                        return false;
+                    if (detalhe.getOs() == null) return false;
+
+                    // Filtra por segmento se for Coordenador
+                    if (role == Role.COORDINATOR) {
+                        if (segmentos.isEmpty() || !segmentos.contains(detalhe.getOs().getSegmento())) {
+                            return false;
+                        }
                     }
 
-                    // REGRA 2: Não pode já ter uma solicitação em andamento
-                    if (faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId())) {
-                        return false;
-                    }
+                    if (detalhe.getDataFatInprout() != null) return false;
+                    if (faturamentoRepo.existsByOsLpuDetalheId(detalhe.getId())) return false;
 
-                    // 3. Pega o último lançamento daquele item
                     Optional<Lancamento> ultimoLancamentoOpt = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(detalhe.getId());
-                    if (ultimoLancamentoOpt.isEmpty()) {
-                        return false; // Item sem lançamento não pode ser adiantado
-                    }
+                    if (ultimoLancamentoOpt.isEmpty()) return false;
+
                     Lancamento ultimoLancamento = ultimoLancamentoOpt.get();
+                    if (ultimoLancamento.getEtapaDetalhada() != null && ultimoLancamento.getEtapaDetalhada().getId().equals(etapaSolicitacaoId)) return false;
+                    if (ultimoLancamento.getSituacao() == SituacaoOperacional.FINALIZADO) return false;
 
-                    // REGRA 3: Não pode estar na etapa "Solicitar ID" (pois já está na outra fila)
-                    if (ultimoLancamento.getEtapaDetalhada() != null &&
-                            ultimoLancamento.getEtapaDetalhada().getId().equals(etapaSolicitacaoId)) {
-                        return false;
-                    }
-
-                    // REGRA 4: Não pode estar "Finalizado" (pois deveria ir para a fila 06.05)
-                    if (ultimoLancamento.getSituacao() == SituacaoOperacional.FINALIZADO) {
-                        return false;
-                    }
-
-                    // Se passou por todas as regras, é elegível para adiantamento
                     return true;
                 })
-                // 4. Mapeia para o DTO, incluindo o status operacional
                 .map(detalhe -> {
-                    // Pega o status do último lançamento (que já buscamos)
                     SituacaoOperacional status = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(detalhe.getId())
                             .map(Lancamento::getSituacao)
                             .orElse(SituacaoOperacional.NAO_INICIADO);
@@ -251,84 +175,195 @@ public class SolicitacaoFaturamentoService {
     }
 
     /**
-     * FLUXO 2: Ação do Coordenador para solicitar o ADIANTAMENTO.
+     * NOVO MÉTODO: Busca os KPIs para o Dashboard
      */
-    @Transactional
-    public SolicitacaoFaturamento solicitarAdiantamento(Long osLpuDetalheId, Long coordinatorId) {
-        Usuario coordenador = usuarioRepo.findById(coordinatorId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário Coordenador não encontrado."));
+    @Transactional(readOnly = true)
+    public DashboardFaturamentoDTO getDashboardFaturamento(Long usuarioId) {
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
+        Set<Segmento> segmentos = usuario.getSegmentos();
 
+        // 1. Fila do Coordenador (Etapa "Solicitar ID")
+        long pendenteSolicitacao = (role == Role.ASSISTANT || role == Role.MANAGER) ? 0 : getFilaCoordinator(usuarioId).size();
+
+        // 2, 3, 4, 5. Busca as solicitações para os outros cálculos
+        List<SolicitacaoFaturamento> pendentes;
+        List<SolicitacaoFaturamento> faturados;
+        List<SolicitacaoFaturamento> adiantamentos;
+
+        List<StatusFaturamento> statusPendentes = List.of(StatusFaturamento.PENDENTE_ASSISTANT, StatusFaturamento.ID_RECEBIDO, StatusFaturamento.ID_RECUSADO);
+        List<StatusFaturamento> statusFaturado = List.of(StatusFaturamento.FATURADO);
+
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            pendentes = faturamentoRepo.findByStatusInWithDetails(statusPendentes);
+            faturados = faturamentoRepo.findByStatusInWithDetails(statusFaturado);
+            adiantamentos = faturamentoRepo.findByTipoWithDetails(TipoFaturamento.ADIANTAMENTO);
+        } else { // Coordenador
+            if (segmentos.isEmpty()) {
+                pendentes = List.of();
+                faturados = List.of();
+                adiantamentos = List.of();
+            } else {
+                // --- CORREÇÃO AQUI --- (Removido "Os" do nome do método)
+                pendentes = faturamentoRepo.findByStatusInAndSegmentoIn(statusPendentes, segmentos);
+                faturados = faturamentoRepo.findByStatusInAndSegmentoIn(statusFaturado, segmentos);
+                adiantamentos = faturamentoRepo.findByTipoAndSegmentoIn(TipoFaturamento.ADIANTAMENTO, segmentos);
+            }
+        }
+
+        // 2. Fila do Assistant (Pendente)
+        long pendenteFila = pendentes.stream()
+                .filter(s -> s.getStatus() == StatusFaturamento.PENDENTE_ASSISTANT)
+                .count();
+
+        // 3. IDs Recusados
+        long idsRecusados = pendentes.stream()
+                .filter(s -> s.getStatus() == StatusFaturamento.ID_RECUSADO)
+                .count();
+
+        // 4. Adiantamentos Pendentes (Tipo Adiantamento que NÃO esteja Faturado)
+        long adiantamentosPendentes = adiantamentos.stream()
+                .filter(s -> s.getStatus() != StatusFaturamento.FATURADO)
+                .count();
+
+        // 5. Faturado no Mês
+        LocalDateTime trintaDiasAtras = LocalDateTime.now().minusDays(30);
+        long faturadoMes = faturados.stream()
+                .filter(s -> s.getDataUltimaAcao().isAfter(trintaDiasAtras))
+                .count();
+
+        return new DashboardFaturamentoDTO(pendenteSolicitacao, pendenteFila, idsRecusados, adiantamentosPendentes, faturadoMes);
+    }
+
+    // --- MÉTODOS DE AÇÃO (sem grandes mudanças) ---
+
+    @Transactional
+    public SolicitacaoFaturamento solicitarIdFaturamento(Long osLpuDetalheId, Long coordinatorId) {
+        Usuario coordenador = getUsuario(coordinatorId);
         OsLpuDetalhe itemOS = osLpuDetalheRepo.findById(osLpuDetalheId)
                 .orElseThrow(() -> new EntityNotFoundException("Item da OS (OsLpuDetalhe) não encontrado."));
 
-        // Regra: Verifica se já existe uma solicitação
         if (faturamentoRepo.existsByOsLpuDetalheId(osLpuDetalheId)) {
             throw new BusinessException("Já existe uma solicitação de faturamento para este item.");
         }
 
-        // Cria a nova solicitação
+        EtapaDetalhada etapaSolicitacao = etapaDetalhadaRepo.findByNome("Solicitar ID").stream().findFirst()
+                .orElseThrow(() -> new EntityNotFoundException("Etapa 'Solicitar ID' não encontrada no sistema."));
+
+        boolean itemEstaNaEtapa = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(osLpuDetalheId)
+                .map(Lancamento::getEtapaDetalhada)
+                .map(etapa -> etapa.getId().equals(etapaSolicitacao.getId()))
+                .orElse(false);
+
+        if (!itemEstaNaEtapa) {
+            throw new BusinessException("O último lançamento deste item não está na etapa 'Solicitar ID'.");
+        }
+
         SolicitacaoFaturamento solicitacao = new SolicitacaoFaturamento();
         solicitacao.setOsLpuDetalhe(itemOS);
         solicitacao.setSolicitante(coordenador);
-        solicitacao.setStatus(StatusFaturamento.PENDENTE_ASSISTANT); // "ID SOLICITADO"
-        solicitacao.setTipo(TipoFaturamento.ADIANTAMENTO); // <-- AQUI ESTÁ A DIFERENÇA
+        solicitacao.setStatus(StatusFaturamento.PENDENTE_ASSISTANT);
+        solicitacao.setTipo(TipoFaturamento.REGULAR);
+
+        return faturamentoRepo.save(solicitacao);
+    }
+
+    @Transactional
+    public SolicitacaoFaturamento solicitarAdiantamento(Long osLpuDetalheId, Long coordinatorId) {
+        Usuario coordenador = getUsuario(coordinatorId);
+        OsLpuDetalhe itemOS = osLpuDetalheRepo.findById(osLpuDetalheId)
+                .orElseThrow(() -> new EntityNotFoundException("Item da OS (OsLpuDetalhe) não encontrado."));
+
+        if (faturamentoRepo.existsByOsLpuDetalheId(osLpuDetalheId)) {
+            throw new BusinessException("Já existe uma solicitação de faturamento para este item.");
+        }
+
+        SolicitacaoFaturamento solicitacao = new SolicitacaoFaturamento();
+        solicitacao.setOsLpuDetalhe(itemOS);
+        solicitacao.setSolicitante(coordenador);
+        solicitacao.setStatus(StatusFaturamento.PENDENTE_ASSISTANT);
+        solicitacao.setTipo(TipoFaturamento.ADIANTAMENTO);
         solicitacao.setObservacao("Solicitação de adiantamento de faturamento.");
 
         return faturamentoRepo.save(solicitacao);
     }
 
-    /**
-     * FLUXO 3: Busca a "Visão de Adiantamentos" (Regra de Destaque).
-     */
+    @Transactional
+    public SolicitacaoFaturamento alterarStatus(Long solicitacaoId, Long assistantId, StatusFaturamento novoStatus, String motivo) {
+        SolicitacaoFaturamento solicitacao = faturamentoRepo.findById(solicitacaoId)
+                .orElseThrow(() -> new EntityNotFoundException("Solicitação de faturamento não encontrada."));
+        Usuario assistant = getUsuario(assistantId);
+
+        if (novoStatus == StatusFaturamento.ID_RECUSADO && (motivo == null || motivo.isBlank())) {
+            throw new BusinessException("O motivo é obrigatório para recusar a solicitação.");
+        }
+
+        solicitacao.setStatus(novoStatus);
+        solicitacao.setResponsavel(assistant);
+        solicitacao.setDataUltimaAcao(LocalDateTime.now());
+
+        if (novoStatus == StatusFaturamento.ID_RECUSADO) {
+            solicitacao.setObservacao(motivo);
+        }
+
+        if (novoStatus == StatusFaturamento.FATURADO) {
+            OsLpuDetalhe detalhe = solicitacao.getOsLpuDetalhe();
+            if (detalhe != null) {
+                detalhe.setDataFatInprout(LocalDate.now());
+                osLpuDetalheRepo.save(detalhe);
+            }
+        }
+
+        return faturamentoRepo.save(solicitacao);
+    }
+
+    // Métodos de listagem de histórico (Visão e Faturado)
+
     @Transactional(readOnly = true)
     public List<VisaoAdiantamentoDTO> getVisaoAdiantamentos(Long usuarioId) {
-        Usuario usuario = usuarioRepo.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
+        Set<Segmento> segmentos = usuario.getSegmentos();
 
         List<SolicitacaoFaturamento> adiantamentos;
 
-        if (usuario.getRole() == Role.ADMIN || usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ASSISTANT) {
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             adiantamentos = faturamentoRepo.findByTipoWithDetails(TipoFaturamento.ADIANTAMENTO);
-        } else {
-            // Coordenador vê apenas seus segmentos
-            Set<Segmento> segmentos = usuario.getSegmentos();
+        } else { // Coordenador
             if (segmentos.isEmpty()) return List.of();
             adiantamentos = faturamentoRepo.findByTipoAndSegmentoIn(TipoFaturamento.ADIANTAMENTO, segmentos);
         }
 
-        // Mapeia para o DTO, aplicando a regra de destaque
         return adiantamentos.stream()
                 .map(sf -> {
-                    // Pega o último status operacional do item
                     SituacaoOperacional statusOp = lancamentoRepo.findFirstByOsLpuDetalheIdOrderByIdDesc(sf.getOsLpuDetalhe().getId())
                             .map(Lancamento::getSituacao)
                             .orElse(SituacaoOperacional.NAO_INICIADO);
-
                     boolean finalizado = (statusOp == SituacaoOperacional.FINALIZADO);
-
                     return new VisaoAdiantamentoDTO(sf, finalizado);
                 })
                 .collect(Collectors.toList());
     }
 
-    /**
-     * FLUXO 3: Busca o "Histórico Faturado".
-     */
     @Transactional(readOnly = true)
     public List<SolicitacaoFaturamentoDTO> getHistoricoFaturado(Long usuarioId) {
-        Usuario usuario = usuarioRepo.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
+        Usuario usuario = getUsuario(usuarioId);
+        Role role = usuario.getRole();
+        Set<Segmento> segmentos = usuario.getSegmentos();
 
         List<StatusFaturamento> statusFaturado = List.of(StatusFaturamento.FATURADO);
         List<SolicitacaoFaturamento> historico;
 
-        if (usuario.getRole() == Role.ADMIN || usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ASSISTANT) {
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             historico = faturamentoRepo.findByStatusInWithDetails(statusFaturado);
-        } else {
-            // Coordenador vê apenas seus segmentos
-            Set<Segmento> segmentos = usuario.getSegmentos();
+        } else { // Coordenador
             if (segmentos.isEmpty()) return List.of();
+
+            // ==========================================================
+            // CORREÇÃO AQUI: Removido o "Os" extra do nome do método
+            // ==========================================================
             historico = faturamentoRepo.findByStatusInAndSegmentoIn(statusFaturado, segmentos);
+            // ==========================================================
         }
 
         return historico.stream()

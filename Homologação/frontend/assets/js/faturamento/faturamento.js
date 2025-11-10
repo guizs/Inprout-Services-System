@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- VARIÁVEIS GLOBAIS ---
+    // API_BASE_URL já deve estar definido no seu global.js, mas garantimos aqui
     const API_BASE_URL = 'http://localhost:8080';
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
     const userId = localStorage.getItem('usuarioId'); // Essencial para os novos endpoints
@@ -48,6 +49,24 @@ document.addEventListener('DOMContentLoaded', () => {
             loaderId: '#historico-faturado-pane'
         }
     };
+    
+    // --- (NOVOS) MAPEAMENTO DOS CARDS DO DASHBOARD ---
+    const cards = {
+        solicitacao: document.getElementById('card-pendente-solicitacao'),
+        fila: document.getElementById('card-pendente-fila'),
+        recusados: document.getElementById('card-recusados'),
+        adiantamentos: document.getElementById('card-adiantamentos'),
+        faturados: document.getElementById('card-faturados')
+    };
+    
+    const kpis = {
+        solicitacao: document.getElementById('kpi-pendente-solicitacao'),
+        fila: document.getElementById('kpi-pendente-fila'),
+        recusados: document.getElementById('kpi-recusados'),
+        adiantamentos: document.getElementById('kpi-adiantamentos'),
+        faturadosMes: document.getElementById('kpi-faturados-mes')
+    };
+
 
     // Modais do Assistant
     const modalAcaoSimplesEl = document.getElementById('modalAcaoSimplesFaturamento');
@@ -115,9 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    /**
-     * Retorna um badge de status formatado.
-     */
     function formatarStatusFaturamento(status) {
         if (!status) return '';
         const statusLimpo = status.replace(/_/g, ' ');
@@ -131,14 +147,61 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<span class="badge text-bg-${cor}">${statusLimpo}</span>`;
     }
 
-    // --- FUNÇÕES DE RENDERIZAÇÃO DAS TABELAS ---
+    // --- (NOVA) FUNÇÃO DO DASHBOARD ---
+    async function carregarDashboard() {
+        if (!userId) return; // Não faz nada se não tiver ID
+        
+        try {
+            const response = await fetchComAuth(`${API_BASE_URL}/faturamento/dashboard`, {
+                headers: { 'X-User-ID': userId }
+            });
+            if (!response.ok) throw new Error('Falha ao carregar dashboard.');
+            
+            const data = await response.json();
+
+            // 1. Preenche os valores dos KPIs
+            if (kpis.solicitacao) kpis.solicitacao.textContent = data.pendenteSolicitacao;
+            if (kpis.fila) kpis.fila.textContent = data.pendenteFila;
+            if (kpis.recusados) kpis.recusados.textContent = data.idsRecusados;
+            if (kpis.adiantamentos) kpis.adiantamentos.textContent = data.adiantamentosPendentes;
+            if (kpis.faturadosMes) kpis.faturadosMes.textContent = data.faturadoMes;
+
+            // 2. Controla a visibilidade dos cards com base na role
+            switch (userRole) {
+                case 'ADMIN':
+                case 'CONTROLLER':
+                    Object.values(cards).forEach(card => card.style.display = 'block');
+                    break;
+                case 'COORDINATOR':
+                    if (cards.solicitacao) cards.solicitacao.style.display = 'block';
+                    if (cards.recusados) cards.recusados.style.display = 'block';
+                    if (cards.adiantamentos) cards.adiantamentos.style.display = 'block';
+                    break;
+                case 'ASSISTANT':
+                    if (cards.fila) cards.fila.style.display = 'block';
+                    if (cards.recusados) cards.recusados.style.display = 'block';
+                    if (cards.adiantamentos) cards.adiantamentos.style.display = 'block';
+                    break;
+                // MANAGER não vê nada por padrão (CSS)
+            }
+            
+        } catch (error) {
+            console.error("Erro ao carregar dashboard:", error);
+            // Esconde o container do dashboard se der erro
+            const dashboardContainer = document.getElementById('dashboard-container-faturamento');
+            if (dashboardContainer) dashboardContainer.innerHTML = `<p class="text-danger small">${error.message}</p>`;
+        }
+    }
+
+
+    // --- FUNÇÕES DE RENDERIZAÇÃO DAS TABELAS (ATUALIZADAS) ---
 
     async function carregarFilaFaturamento() {
         const tab = tabs.filaFaturamento;
         toggleLoader(tab.loaderId, true);
         
         try {
-            // Adicionado X-User-ID ao header
+            // ATUALIZADO: Envia X-User-ID
             const response = await fetchComAuth(`${API_BASE_URL}/faturamento/fila-assistant`, {
                 headers: { 'X-User-ID': userId }
             });
@@ -212,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleLoader(tab.loaderId, true);
         
         try {
-            // Adicionado X-User-ID ao header
+            // ATUALIZADO: Envia X-User-ID
             const response = await fetchComAuth(`${API_BASE_URL}/faturamento/fila-coordenador`, {
                 headers: { 'X-User-ID': userId }
             });
@@ -230,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             if (dados.length === 0) {
-                tab.tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">Nenhum item na etapa "06.05" aguardando solicitação de ID.</td></tr>`;
+                tab.tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">Nenhum item na etapa "Solicitar ID" aguardando ação.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
                     let acaoHtml = '';
@@ -267,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleLoader(tab.loaderId, true);
         
         try {
-            // Adicionado X-User-ID ao header
+            // ATUALIZADO: Envia X-User-ID
             const response = await fetchComAuth(`${API_BASE_URL}/faturamento/fila-adiantamento-coordenador`, {
                 headers: { 'X-User-ID': userId }
             });
@@ -319,13 +382,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- (FUNÇÃO AGORA IMPLEMENTADA) ---
     async function carregarVisaoAdiantamentos() {
         const tab = tabs.visaoAdiantamentos;
         toggleLoader(tab.loaderId, true);
         
         try {
-            // Adicionado X-User-ID ao header
+            // ATUALIZADO: Envia X-User-ID (já estava assim, mas confirmando)
             const response = await fetchComAuth(`${API_BASE_URL}/faturamento/visao-adiantamentos`, {
                 headers: { 'X-User-ID': userId }
             });
@@ -348,11 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
                     const detalhe = item.osLpuDetalhe;
-                    
-                    // REGRA DE DESTAQUE:
-                    // Se o item NÃO está finalizado operacionalmente, aplica a classe de destaque
                     const linhaClass = item.isOperacionalFinalizado ? '' : 'linha-adiantamento-pendente';
-                    
                     const statusOpBadge = item.isOperacionalFinalizado
                         ? `<span class="badge text-bg-success">FINALIZADO</span>`
                         : `<span class="badge text-bg-danger">NÃO FINALIZADO</span>`;
@@ -377,13 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- (FUNÇÃO AGORA IMPLEMENTADA) ---
     async function carregarHistoricoFaturado() {
         const tab = tabs.historicoFaturado;
         toggleLoader(tab.loaderId, true);
         
         try {
-            // Adicionado X-User-ID ao header
+            // ATUALIZADO: Envia X-User-ID (já estava assim, mas confirmando)
             const response = await fetchComAuth(`${API_BASE_URL}/faturamento/historico-faturado`, {
                 headers: { 'X-User-ID': userId }
             });
@@ -444,6 +501,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error((await response.json()).message || 'Erro ao processar solicitação.');
 
             mostrarToast('Solicitação de ID enviada para o Assistant!', 'success');
+            // Recarrega o dashboard e as filas
+            carregarDashboard();
             tabs.solicitarId.pane.dataset.loaded = 'false'; 
             carregarFilaSolicitarID();
             tabs.filaFaturamento.pane.dataset.loaded = 'false';
@@ -469,6 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error((await response.json()).message || 'Erro ao solicitar adiantamento.');
 
             mostrarToast('Solicitação de adiantamento enviada para o Assistant!', 'success');
+            // Recarrega o dashboard e as filas
+            carregarDashboard();
             tabs.solicitarAdiantamento.pane.dataset.loaded = 'false'; 
             carregarFilaAdiantamento();
             tabs.filaFaturamento.pane.dataset.loaded = 'false';
@@ -523,11 +584,10 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarToast('Status atualizado com sucesso!', 'success');
             modalAcaoSimples.hide();
             
-            // Recarrega a fila do Assistant
+            // Recarrega tudo
+            carregarDashboard();
             tabs.filaFaturamento.pane.dataset.loaded = 'false';
             carregarFilaFaturamento();
-            
-            // Força a recarga das outras abas
             tabs.visaoAdiantamentos.pane.dataset.loaded = 'false';
             tabs.historicoFaturado.pane.dataset.loaded = 'false';
 
@@ -556,11 +616,10 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarToast('Solicitação marcada como "ID Recusado"!', 'success');
             modalRecusar.hide();
             
-            // Recarrega a fila do Assistant
+            // Recarrega tudo
+            carregarDashboard();
             tabs.filaFaturamento.pane.dataset.loaded = 'false';
             carregarFilaFaturamento();
-            
-            // Força a recarga das outras abas
             tabs.visaoAdiantamentos.pane.dataset.loaded = 'false';
             tabs.historicoFaturado.pane.dataset.loaded = 'false';
 
@@ -590,11 +649,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const funcaoParaChamar = funcoesDeCarregamento[targetPaneId];
             const pane = document.querySelector(targetPaneId);
             
-            // Só carrega se a função existir e o painel NUNCA tiver sido carregado
-            // ou se for a fila do assistant (que precisa sempre atualizar)
             if (funcaoParaChamar && (pane.dataset.loaded !== 'true' || targetPaneId === '#fila-faturamento-pane')) {
                 funcaoParaChamar();
-                pane.dataset.loaded = 'true'; // Marca como carregado
+                pane.dataset.loaded = 'true';
             }
         });
     });
@@ -636,6 +693,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Função de inicialização
     function init() {
         setupRoleBasedTabs();
+        
+        // --- (NOVO) CHAMA O DASHBOARD ---
+        carregarDashboard();
+        
         const abaAtiva = document.querySelector('#faturamento-tabs .nav-link.active');
         if (abaAtiva) {
             const targetPaneId = abaAtiva.getAttribute('data-bs-target');

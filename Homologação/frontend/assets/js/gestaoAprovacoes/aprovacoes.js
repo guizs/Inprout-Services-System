@@ -400,19 +400,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="header-kpi"><span class="kpi-label text-primary">Previsão CPS</span><span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">% Atual</span><span class="kpi-value kpi-percentage">${percentualAtual.toFixed(2)}%</span></div>
                 
-                <!-- CORREÇÃO APLICADA AQUI: Usa a variável 'corPercentualPrevisto' nas classes -->
                 <div class="header-kpi">
                     <span class="kpi-label ${corPercentualPrevisto}">% Previsto</span>
                     <span class="kpi-value kpi-percentage ${corPercentualPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
                 </div>
             </div>`;
 
-            // HTML do cabeçalho do acordeão (o botão clicável)
+            // ==========================================================
+            // INÍCIO DA CORREÇÃO 2 (Remove inline onclick)
+            // ==========================================================
             const headerHTML = `
             <h2 class="accordion-header" id="heading-${uniqueId}">
                 <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
                     <div class="header-content">
-                        <div class="form-check me-2" onclick="event.stopPropagation()">
+                        <div class="form-check me-2 check-container-header">
                             <input class="form-check-input selecionar-todos-acordeon" type="checkbox" data-target-body="collapse-${uniqueId}">
                         </div>
                         <div class="header-title-wrapper">
@@ -424,6 +425,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </button>
             </h2>`;
+            // ==========================================================
+            // FIM DA CORREÇÃO 2
+            // ==========================================================
 
             // Define as colunas a serem exibidas na tabela interna
             let colunasParaRenderizar = [...colunas]; // Começa com todas as colunas
@@ -463,13 +467,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         <table class="table modern-table table-sm">
                             <thead>
                                 <tr>
-                                    <th></th> <!-- Coluna para o checkbox -->
-                                    ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')} <!-- Cabeçalhos da tabela interna -->
-                                </tr>
+                                    <th></th> ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')} </tr>
                             </thead>
                             <tbody data-group-id="${uniqueId}">
-                                ${bodyRowsHTML} <!-- Linhas da tabela interna -->
-                            </tbody>
+                                ${bodyRowsHTML} </tbody>
                         </table>
                     </div>
                 </div>
@@ -498,8 +499,6 @@ document.addEventListener('DOMContentLoaded', function () {
         coordenadoresCards.innerHTML = '';
         coordenadoresContainer.style.display = 'none';
 
-        // --- INÍCIO DA MODIFICAÇÃO: Adiciona os novos cards ---
-        // Adiciona cards de Materiais e Complementares para TODOS os perfis (exceto Manager)
         if (userRole !== 'MANAGER') {
             cardsHtml += `
                 <div class="card card-stat card-perigo">
@@ -510,14 +509,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             `;
         }
-        // --- FIM DA MODIFICAÇÃO ---
 
         if (userRole === 'COORDINATOR') {
             // Lógica para Coordenador... (código existente)
 
         } else if (userRole === 'CONTROLLER') {
             const pendenciasGerais = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_CONTROLLER').length;
-            // ... (código existente para 'solicitacoesPrazo', 'prazosVencidos', 'aprovadosHoje') ...
             const solicitacoesPrazo = todosLancamentos.filter(l => l.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO').length;
             const prazosVencidos = todosLancamentos.filter(l => l.situacaoAprovacao === 'PRAZO_VENCIDO').length;
             const aprovadosHoje = todosLancamentos.filter(l => {
@@ -557,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 coordenadoresCards.innerHTML = coordenadoresHtml;
             }
         }
-        dashboardContainer.innerHTML = cardsHtml; // Insere TODOS os cards (novos + antigos)
+        dashboardContainer.innerHTML = cardsHtml; 
     }
 
     function renderizarTabelaPendentesComplementares(solicitacoes) {
@@ -705,23 +702,32 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleLoader(true, '#historico-materiais-pane');
 
         try {
-            // Se 'todasPendenciasMateriais' já foi carregado pelo dashboard, pula o fetch
-            if (todasPendenciasMateriais.length === 0) {
-                const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
-                    headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
-                });
-                if (!pendentesResponse.ok) throw new Error('Falha ao carregar pendências de materiais.');
-                todasPendenciasMateriais = await pendentesResponse.json();
+            // ==========================================================
+            // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
+            // ==========================================================
+            // REMOVIDO: if (todasPendenciasMateriais.length === 0) { ... }
+            
+            const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
+                headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
+            });
+            if (!pendentesResponse.ok) throw new Error('Falha ao carregar pendências de materiais.');
+            todasPendenciasMateriais = await pendentesResponse.json();
+            
+            // REMOVIDO: O histórico agora é carregado pela sua própria aba
+            // const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
+            // ...
+            // todosHistoricoMateriais = await historicoResponse.json();
+            
+            // Popula o filtro (pode ser otimizado para não rodar sempre)
+            if (filtroSegmentoMateriais.options.length <= 1) { 
+                popularFiltroSegmento();
             }
-
-            // O histórico é sempre carregado ao clicar na aba
-            const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
-            if (!historicoResponse.ok) throw new Error('Falha ao carregar histórico de materiais.');
-            todosHistoricoMateriais = await historicoResponse.json();
-
-            popularFiltroSegmento();
+            
             renderizarTabelaPendentesMateriais(); // Renderiza com os dados (novos ou cacheados)
-            renderizarTabelaHistoricoMateriais();
+            // REMOVIDO: renderizarTabelaHistoricoMateriais();
+            // ==========================================================
+            // FIM DA CORREÇÃO 1
+            // ==========================================================
 
         } catch (error) {
             console.error("Erro ao carregar dados de materiais:", error);
@@ -731,6 +737,35 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleLoader(false, '#historico-materiais-pane');
         }
     }
+    
+    // ==========================================================
+    // INÍCIO DA CORREÇÃO 1 (Nova Função de Histórico)
+    // ==========================================================
+    async function carregarDadosHistoricoMateriais() {
+        if (!tbodyHistoricoMateriais) return;
+        toggleLoader(true, '#historico-materiais-pane');
+        try {
+            const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
+            if (!historicoResponse.ok) throw new Error('Falha ao carregar histórico de materiais.');
+            todosHistoricoMateriais = await historicoResponse.json();
+            
+            // Popula o filtro (se ainda não foi populado pela aba de pendências)
+            if (filtroSegmentoMateriais.options.length <= 1) { 
+                popularFiltroSegmento();
+            }
+            
+            renderizarTabelaHistoricoMateriais();
+        } catch (error) {
+             console.error("Erro ao carregar dados de histórico de materiais:", error);
+            mostrarToast(error.message, 'error');
+        } finally {
+            toggleLoader(false, '#historico-materiais-pane');
+        }
+    }
+    // ==========================================================
+    // FIM DA CORREÇÃO 1
+    // ==========================================================
+
 
     async function carregarDadosComplementares() {
         const tabComplementares = document.getElementById('complementares-tab');
@@ -738,20 +773,21 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleLoader(true, '#complementares-pane');
 
         try {
-            // Se 'todasPendenciasComplementares' já foi carregado, pula o fetch
-            if (todasPendenciasComplementares.length === 0) {
-                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
-                    headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
-                });
-                if (!response.ok) throw new Error('Falha ao carregar pendências de ativ. complementares.');
-                todasPendenciasComplementares = await response.json();
-            }
+            // ==========================================================
+            // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
+            // ==========================================================
+            // REMOVIDO: if (todasPendenciasComplementares.length === 0) { ... }
+            
+            const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
+                headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
+            });
+            if (!response.ok) throw new Error('Falha ao carregar pendências de ativ. complementares.');
+            todasPendenciasComplementares = await response.json();
 
             renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
-
-            // A lógica do badge foi movida para 'carregarDashboardEBadges'
-            // para carregar junto com o dashboard
-
+            // ==========================================================
+            // FIM DA CORREÇÃO 1
+            // ==========================================================
         } catch (error) {
             console.error("Erro ao carregar dados de atividades complementares:", error);
             mostrarToast(error.message, 'error');
@@ -782,10 +818,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function popularFiltroSegmento() {
         const segmentos = new Set();
-        [...todasPendenciasMateriais, ...todosHistoricoMateriais].forEach(s => {
-            if (s.os.segmento) {
-                segmentos.add(JSON.stringify(s.os.segmento));
-            }
+        // Garante que ambos os arrays (pendentes e histórico) existam antes de tentar iterar
+        (todasPendenciasMateriais || []).forEach(s => {
+            if (s.os.segmento) segmentos.add(JSON.stringify(s.os.segmento));
+        });
+        (todosHistoricoMateriais || []).forEach(s => {
+            if (s.os.segmento) segmentos.add(JSON.stringify(s.os.segmento));
         });
 
         filtroSegmentoMateriais.innerHTML = '<option value="todos">Todos os Segmentos</option>';
@@ -954,28 +992,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function carregarDadosAtividades() {
-        // Esta função agora SÓ renderiza a tabela de atividades
-        // Os dados já foram buscados pelo 'carregarDashboardEBadges'
         toggleLoader(true, '#atividades-pane');
         toggleLoader(true, '#historico-atividades-pane');
         try {
-            // Se os dados históricos ainda não foram carregados, busca
-            if (todosOsLancamentosGlobais.length === 0) {
-                const [responseGeral, responseHistorico] = await Promise.all([
-                    fetchComAuth(`${API_BASE_URL}/lancamentos`),
-                    fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`)
-                ]);
+            // ==========================================================
+            // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
+            // ==========================================================
+            // REMOVIDO: if (todosOsLancamentosGlobais.length === 0)
+            
+            const [responseGeral, responseHistorico, responsePendenciasAtiv] = await Promise.all([
+                fetchComAuth(`${API_BASE_URL}/lancamentos`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
+                fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`) // Busca as pendências atualizadas
+            ]);
 
-                if (!responseGeral.ok || !responseHistorico.ok) {
-                    throw new Error('Falha ao carregar dados de atividades.');
-                }
-                todosOsLancamentosGlobais = await responseGeral.json();
-                const historicoParaExibir = await responseHistorico.json();
-                renderizarTabelaHistorico(historicoParaExibir);
+            if (!responseGeral.ok || !responseHistorico.ok || !responsePendenciasAtiv.ok) {
+                throw new Error('Falha ao carregar dados de atividades.');
             }
+            
+            todosOsLancamentosGlobais = await responseGeral.json();
+            const historicoParaExibir = await responseHistorico.json();
+            todasPendenciasAtividades = await responsePendenciasAtiv.json(); // Atualiza o array global de pendências
 
-            // Renderiza as pendências com os dados globais já carregados
-            renderizarAcordeonPendencias(todasPendenciasAtividades);
+            renderizarTabelaHistorico(historicoParaExibir);
+            renderizarAcordeonPendencias(todasPendenciasAtividades); // Renderiza com os dados atualizados
+            // ==========================================================
+            // FIM DA CORREÇÃO 1
+            // ==========================================================
+
 
             if (userRole === 'COORDINATOR') {
                 document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-clock-history me-2"></i> Pendências';
@@ -993,6 +1037,29 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleLoader(false, '#historico-atividades-pane');
         }
     }
+    
+    // ==========================================================
+    // INÍCIO DA CORREÇÃO 1 (Nova Função de Histórico)
+    // ==========================================================
+    async function carregarDadosHistoricoAtividades() {
+        if (!tbodyHistorico) return;
+        toggleLoader(true, '#historico-atividades-pane');
+        try {
+            const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
+            if (!responseHistorico.ok) throw new Error('Falha ao carregar histórico de atividades.');
+            const historicoParaExibir = await responseHistorico.json();
+            renderizarTabelaHistorico(historicoParaExibir);
+        } catch (error) {
+            console.error('Falha ao buscar dados de histórico de atividades:', error);
+            mostrarToast('Falha ao carregar o histórico de atividades.', 'error');
+        } finally {
+            toggleLoader(false, '#historico-atividades-pane');
+        }
+    }
+    // ==========================================================
+    // FIM DA CORREÇÃO 1
+    // ==========================================================
+
 
     async function carregarDashboardEBadges() {
         // Mostra o loader no container do dashboard
@@ -1001,7 +1068,6 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const userId = localStorage.getItem('usuarioId');
 
-            // 1. Busca todos os contadores de pendência em paralelo
             const [
                 responseGeral,
                 responsePendenciasAtiv,
@@ -1016,19 +1082,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, { headers: { 'X-User-Role': userRole, 'X-User-ID': userId } })
             ]);
 
-            // 2. Processa as respostas
             if (!responseGeral.ok || !responsePendenciasAtiv.ok || !responsePendenciasCoord.ok || !responsePendenciasMat.ok || !responsePendenciasCompl.ok) {
                 throw new Error('Falha ao carregar um ou mais dados do dashboard.');
             }
 
-            // 3. Armazena os dados globalmente para as tabelas usarem
             todosOsLancamentosGlobais = await responseGeral.json();
             todasPendenciasAtividades = await responsePendenciasAtiv.json();
             const pendenciasPorCoordenador = await responsePendenciasCoord.json();
             todasPendenciasMateriais = await responsePendenciasMat.json();
             todasPendenciasComplementares = await responsePendenciasCompl.json();
 
-            // 4. Renderiza o Dashboard com TODOS os contadores
             renderizarCardsDashboard(
                 todosOsLancamentosGlobais,
                 pendenciasPorCoordenador,
@@ -1036,7 +1099,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 todasPendenciasComplementares.length
             );
 
-            // 5. Renderiza o Badge da aba de Materiais
             const tabMateriais = document.getElementById('materiais-tab');
             if (tabMateriais) {
                 let badgeMat = tabMateriais.querySelector('.badge');
@@ -1050,7 +1112,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 badgeMat.style.display = countMat > 0 ? '' : 'none';
             }
 
-            // 6. Renderiza o Badge da aba de Ativ. Complementares
             const tabComplementares = document.getElementById('complementares-tab');
             if (tabComplementares) {
                 let badgeCompl = tabComplementares.querySelector('.badge');
@@ -1179,6 +1240,10 @@ document.addEventListener('DOMContentLoaded', function () {
         collapseElement.addEventListener('hide.bs.collapse', () => collapseIcon.classList.replace('bi-chevron-up', 'bi-chevron-down'));
     }
 
+    // ==========================================================
+    // INÍCIO DA CORREÇÃO 1 (Atualização dos Handlers)
+    // ==========================================================
+
     document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function () {
         const isAcaoEmLote = modalAprovar._element.dataset.acaoEmLote === 'true';
         const ids = isAcaoEmLote
@@ -1207,7 +1272,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, 'success');
             modalAprovar.hide();
-            await carregarDadosAtividades();
+            
+            // Recarrega o dashboard (que recarrega os dados globais)
+            await carregarDashboardEBadges();
+            // Re-renderiza a tabela de atividades com os dados globais atualizados
+            renderizarAcordeonPendencias(todasPendenciasAtividades);
+            
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -1245,7 +1315,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, 'success');
             modalRecusar.hide();
-            await carregarDadosAtividades();
+
+            // Recarrega o dashboard (que recarrega os dados globais)
+            await carregarDashboardEBadges();
+            // Re-renderiza a tabela de atividades com os dados globais atualizados
+            renderizarAcordeonPendencias(todasPendenciasAtividades);
+
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -1284,7 +1359,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             mostrarToast(`Ação realizada com sucesso para ${ids.length} item(ns)!`, 'success');
             modalComentar.hide();
-            await carregarDadosAtividades();
+
+            // Recarrega o dashboard (que recarrega os dados globais)
+            await carregarDashboardEBadges();
+            // Re-renderiza a tabela de atividades com os dados globais atualizados
+            renderizarAcordeonPendencias(todasPendenciasAtividades);
+
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -1352,7 +1432,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast('Solicitação de material aprovada!', 'success');
                 modalAprovarMaterial.hide();
-                await carregarDadosMateriais();
+                
+                // Recarrega o dashboard (que recarrega os dados globais)
+                await carregarDashboardEBadges();
+                // Re-renderiza a tabela de materiais com os dados globais atualizados
+                renderizarTabelaPendentesMateriais();
+
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1384,7 +1469,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast('Solicitação de material recusada.', 'success');
                 modalRecusarMaterial.hide();
-                await carregarDadosMateriais();
+
+                // Recarrega o dashboard (que recarrega os dados globais)
+                await carregarDashboardEBadges();
+                // Re-renderiza a tabela de materiais com os dados globais atualizados
+                renderizarTabelaPendentesMateriais();
+
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1418,8 +1508,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast(`${ids.length} solicitação(ões) complementar(es) aprovada(s)!`, 'success');
                 modalAprovarComplementar.hide();
-                await carregarDadosComplementares();
-                await carregarDadosHistoricoComplementares();
+
+                // Recarrega o dashboard (que recarrega os dados globais)
+                await carregarDashboardEBadges();
+                // Re-renderiza a tabela de complementares com os dados globais atualizados
+                renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
+                
+                // Força o recarregamento do histórico na próxima visita
+                const painelHistCompl = document.getElementById('historico-complementares-pane');
+                if (painelHistCompl) painelHistCompl.dataset.loaded = 'false';
+
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1458,8 +1556,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast(`${ids.length} solicitação(ões) complementar(es) recusada(s).`, 'success');
                 modalRecusarComplementar.hide();
-                await carregarDadosComplementares();
-                await carregarDadosHistoricoComplementares();
+
+                // Recarrega o dashboard (que recarrega os dados globais)
+                await carregarDashboardEBadges();
+                // Re-renderiza a tabela de complementares com os dados globais atualizados
+                renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
+                
+                // Força o recarregamento do histórico na próxima visita
+                const painelHistCompl = document.getElementById('historico-complementares-pane');
+                if(painelHistCompl) painelHistCompl.dataset.loaded = 'false';
+
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1468,20 +1574,15 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+    // ==========================================================
+    // FIM DA CORREÇÃO 1
+    // ==========================================================
+
 
     if (filtroHistoricoStatus) {
         filtroHistoricoStatus.addEventListener('change', async () => {
-            toggleLoader(true, '#historico-atividades-pane');
-            try {
-                const responseHistorico = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`);
-                if (!responseHistorico.ok) throw new Error('Falha ao recarregar seu histórico.');
-                const historicoParaExibir = await responseHistorico.json();
-                renderizarTabelaHistorico(historicoParaExibir);
-            } catch (error) {
-                mostrarToast(error.message, 'error');
-            } finally {
-                toggleLoader(false, '#historico-atividades-pane');
-            }
+            // Apenas re-renderiza os dados de histórico que já foram carregados
+            await carregarDadosHistoricoAtividades();
         });
     }
 
@@ -1515,6 +1616,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const accordionContainer = document.getElementById('accordion-pendencias');
     if (accordionContainer) {
+        // ==========================================================
+        // INÍCIO DA CORREÇÃO 2 (Novo Listener de CLICK)
+        // ==========================================================
+        accordionContainer.addEventListener('click', (e) => {
+            // Se o clique foi no container do checkbox do header
+            if (e.target.closest('.check-container-header')) {
+                // Impede que o clique "borbulhe" até o botão do acordeão e o abra/feche
+                e.stopPropagation();
+            }
+        });
+        // ==========================================================
+        // FIM DA CORREÇÃO 2
+        // ==========================================================
+
         accordionContainer.addEventListener('change', (e) => {
             if (e.target.classList.contains('selecionar-todos-acordeon')) {
                 const headerCheckbox = e.target;
@@ -1580,53 +1695,79 @@ document.addEventListener('DOMContentLoaded', function () {
         aprovarLancamento(null);
     });
 
-    // Dispara o carregamento inicial da primeira aba visível
-    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
-    if (primeiraAba) {
-        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
-        const targetPane = document.querySelector(targetPaneId);
-
-        if (targetPane) {
-            targetPane.dataset.loading = 'true';
-
-            // CHAMA A NOVA FUNÇÃO DE DASHBOARD
-            carregarDashboardEBadges().finally(() => {
-                // Depois que o dashboard carregar, carrega o conteúdo da primeira aba
-                if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
-                    carregarDadosAtividades().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
-                    carregarDadosMateriais().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#complementares-pane') {
-                    carregarDadosComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#historico-complementares-pane') {
-                    carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
-                }
-            });
-        }
-    }
-
+    // ==========================================================
+    // INÍCIO DA CORREÇÃO 1 (Atualização do Listener de Abas)
+    // ==========================================================
     const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');
     tabElements.forEach(tabEl => {
         tabEl.addEventListener('show.bs.tab', function (event) {
             const targetPaneId = event.target.getAttribute('data-bs-target');
             const targetPane = document.querySelector(targetPaneId);
 
-            if (targetPane && targetPane.dataset.loading !== 'true') {
-                targetPane.dataset.loading = 'true';
-
-                // As funções agora vão usar dados globais se existirem, ou buscar se necessário
-                if (targetPaneId === '#atividades-pane' || targetPaneId === '#historico-atividades-pane') {
-                    carregarDadosAtividades().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#materiais-pane' || targetPaneId === '#historico-materiais-pane') {
-                    carregarDadosMateriais().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#complementares-pane') {
-                    carregarDadosComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
-                } else if (targetPaneId === '#historico-complementares-pane') {
-                    carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loading = 'false'; });
+            // As abas de PENDÊNCIAS agora sempre re-renderizam com os dados globais
+            if (targetPaneId === '#atividades-pane') {
+                renderizarAcordeonPendencias(todasPendenciasAtividades);
+            } else if (targetPaneId === '#materiais-pane') {
+                renderizarTabelaPendentesMateriais();
+            } else if (targetPaneId === '#complementares-pane') {
+                renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
+            } 
+            
+            // As abas de HISTÓRICO só carregam UMA VEZ
+            else if (targetPaneId === '#historico-atividades-pane') {
+                if (targetPane && targetPane.dataset.loaded !== 'true') {
+                    carregarDadosHistoricoAtividades().finally(() => { targetPane.dataset.loaded = 'true'; });
+                }
+            } else if (targetPaneId === '#historico-materiais-pane') {
+                if (targetPane && targetPane.dataset.loaded !== 'true') {
+                    carregarDadosHistoricoMateriais().finally(() => { targetPane.dataset.loaded = 'true'; });
+                }
+            } else if (targetPaneId === '#historico-complementares-pane') {
+                if (targetPane && targetPane.dataset.loaded !== 'true') {
+                    carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loaded = 'true'; });
                 }
             }
         });
     });
+
+    // Dispara o carregamento inicial (Dashboard E a primeira aba visível)
+    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
+    if (primeiraAba) {
+        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
+        const targetPane = document.querySelector(targetPaneId);
+
+        if (targetPane) {
+            // Marca como "carregando"
+            targetPane.dataset.loaded = 'true';
+
+            // CHAMA A NOVA FUNÇÃO DE DASHBOARD (que carrega todos os dados de pendência)
+            carregarDashboardEBadges().finally(() => {
+                // Depois que o dashboard carregar (e preencher os arrays globais):
+                
+                // Renderiza a primeira aba ativa com os dados que acabaram de ser carregados
+                if (targetPaneId === '#atividades-pane') {
+                    renderizarAcordeonPendencias(todasPendenciasAtividades);
+                } else if (targetPaneId === '#materiais-pane') {
+                    renderizarTabelaPendentesMateriais();
+                } else if (targetPaneId === '#complementares-pane') {
+                    renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
+                }
+                
+                // Se a primeira aba for de histórico, ela carrega seus próprios dados
+                else if (targetPaneId === '#historico-atividades-pane') {
+                    carregarDadosHistoricoAtividades();
+                } else if (targetPaneId === '#historico-materiais-pane') {
+                    carregarDadosHistoricoMateriais();
+                } else if (targetPaneId === '#historico-complementares-pane') {
+                    carregarDadosHistoricoComplementares();
+                }
+            });
+        }
+    }
+    // ==========================================================
+    // FIM DA CORREÇÃO 1
+    // ==========================================================
+
 
     // ==========================================================
     // LÓGICA DE AÇÕES EM LOTE PARA ABA COMPLEMENTAR

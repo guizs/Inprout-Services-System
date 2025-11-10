@@ -20,19 +20,48 @@ public class SolicitacaoFaturamentoController {
         this.faturamentoService = faturamentoService;
     }
 
+    // --- NOVO ENDPOINT ---
     /**
-     * Endpoint para a fila de trabalho do ASSISTANT.
-     * Lista todas as solicitações que não estão "FATURADO".
+     * Endpoint para os KPIs (indicadores) do dashboard.
+     */
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashboardFaturamentoDTO> getDashboard(@RequestHeader("X-User-ID") Long usuarioId) {
+        DashboardFaturamentoDTO dto = faturamentoService.getDashboardFaturamento(usuarioId);
+        return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * Endpoint para a fila de trabalho do ASSISTANT. (REFATORADO)
      */
     @GetMapping("/fila-assistant")
-    public ResponseEntity<List<SolicitacaoFaturamentoDTO>> getFilaAssistant() {
-        List<SolicitacaoFaturamentoDTO> fila = faturamentoService.getFilaAssistant();
+    public ResponseEntity<List<SolicitacaoFaturamentoDTO>> getFilaAssistant(@RequestHeader("X-User-ID") Long usuarioId) {
+        List<SolicitacaoFaturamentoDTO> fila = faturamentoService.getFilaAssistant(usuarioId);
         return ResponseEntity.ok(fila);
     }
 
     /**
+     * Endpoint para a fila de trabalho do COORDINATOR. (REFATORADO)
+     */
+    @GetMapping("/fila-coordenador")
+    public ResponseEntity<List<FilaCoordenadorDTO>> getFilaCoordenador(@RequestHeader("X-User-ID") Long usuarioId) {
+        List<FilaCoordenadorDTO> fila = faturamentoService.getFilaCoordinator(usuarioId);
+        return ResponseEntity.ok(fila);
+    }
+
+    /**
+     * Endpoint para a fila de Adiantamento do COORDINATOR. (REFATORADO)
+     */
+    @GetMapping("/fila-adiantamento-coordenador")
+    public ResponseEntity<List<FilaAdiantamentoDTO>> getFilaAdiantamentoCoordenador(@RequestHeader("X-User-ID") Long usuarioId) {
+        List<FilaAdiantamentoDTO> fila = faturamentoService.getFilaAdiantamentoCoordinator(usuarioId);
+        return ResponseEntity.ok(fila);
+    }
+
+    // --- Endpoints de Ação (POST) ---
+    // (Não precisam de X-User-ID no header pois o ID já vem no payload)
+
+    /**
      * Endpoint para a ação do COORDINATOR de "Solicitar ID".
-     * Cria a solicitação no fluxo REGULAR.
      */
     @PostMapping("/solicitar-id")
     public ResponseEntity<SolicitacaoFaturamentoDTO> solicitarIdFaturamento(@RequestBody SolicitacaoRequest payload) {
@@ -42,7 +71,6 @@ public class SolicitacaoFaturamentoController {
 
     @PostMapping("/solicitar-adiantamento")
     public ResponseEntity<SolicitacaoFaturamentoDTO> solicitarAdiantamento(@RequestBody SolicitacaoRequest payload) {
-        // Reutilizamos o mesmo DTO de request, pois ele só precisa do osLpuDetalheId e coordinatorId
         SolicitacaoFaturamento novaSolicitacao = faturamentoService.solicitarAdiantamento(payload.osLpuDetalheId(), payload.coordinatorId());
         return ResponseEntity.ok(new SolicitacaoFaturamentoDTO(novaSolicitacao));
     }
@@ -50,11 +78,8 @@ public class SolicitacaoFaturamentoController {
     // DTO aninhado simples para receber o payload da solicitação
     record SolicitacaoRequest(Long osLpuDetalheId, Long coordinatorId) {}
 
-    @GetMapping("/fila-coordenador")
-    public ResponseEntity<List<FilaCoordenadorDTO>> getFilaCoordenador() {
-        List<FilaCoordenadorDTO> fila = faturamentoService.getFilaCoordinator();
-        return ResponseEntity.ok(fila);
-    }
+
+    // --- Endpoints de Ação (Assistant) ---
 
     @PostMapping("/{id}/id-recebido")
     public ResponseEntity<SolicitacaoFaturamentoDTO> marcarIdRecebido(
@@ -89,11 +114,8 @@ public class SolicitacaoFaturamentoController {
         return ResponseEntity.ok(new SolicitacaoFaturamentoDTO(s));
     }
 
-    @GetMapping("/fila-adiantamento-coordenador")
-    public ResponseEntity<List<FilaAdiantamentoDTO>> getFilaAdiantamentoCoordenador() {
-        List<FilaAdiantamentoDTO> fila = faturamentoService.getFilaAdiantamentoCoordinator();
-        return ResponseEntity.ok(fila);
-    }
+    // --- Endpoints de Visualização (Histórico) ---
+    // (Estes já estavam corretos)
 
     @GetMapping("/visao-adiantamentos")
     public ResponseEntity<List<VisaoAdiantamentoDTO>> getVisaoAdiantamentos(@RequestHeader("X-User-ID") Long usuarioId) {

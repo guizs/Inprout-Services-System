@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Erro ao carregar dados da OS:", error);
             lpuChecklistContainerLote.innerHTML = '<p class="text-danger">Erro ao carregar dados.</p>';
-            preencherCamposOSLote(null);
+            // preencherCamposOSLote(null); // <-- Esta é a linha do bug. Remova-a.
         }
     });
 

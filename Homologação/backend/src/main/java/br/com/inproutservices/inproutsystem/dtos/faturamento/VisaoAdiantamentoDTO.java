@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.dtos.faturamento;
 
+import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto; // IMPORT ADICIONADO
 import br.com.inproutservices.inproutsystem.entities.atividades.SolicitacaoFaturamento;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusFaturamento;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
  */
 public record VisaoAdiantamentoDTO(
         Long id,
-        SolicitacaoFaturamentoDTO.OsLpuDetalheDTO osLpuDetalhe, // Reutiliza o DTO aninhado
+        OsResponseDto.OsLpuDetalheCompletoDto osLpuDetalhe, // <-- TIPO ALTERADO
         String solicitanteNome,
         StatusFaturamento statusFaturamento, // O status do fluxo de faturamento
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataSolicitacao,
@@ -21,7 +22,7 @@ public record VisaoAdiantamentoDTO(
     public VisaoAdiantamentoDTO(SolicitacaoFaturamento sf, boolean isOperacionalFinalizado) {
         this(
                 sf.getId(),
-                new SolicitacaoFaturamentoDTO.OsLpuDetalheDTO(sf.getOsLpuDetalhe()),
+                new OsResponseDto.OsLpuDetalheCompletoDto(sf.getOsLpuDetalhe()), // <-- CONSTRUTOR ATUALIZADO
                 sf.getSolicitante() != null ? sf.getSolicitante().getNome() : null,
                 sf.getStatus(),
                 sf.getDataSolicitacao(),

@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         visaoAdiantamentos: {
             nav: document.getElementById('nav-visao-adiantamentos'),
-            pane: document.getElementById('visao-adiantamentos-pane'),
+            pane: document.getElementById('nav-visao-adiantamentos'),
             btn: document.getElementById('visao-adiantamentos-tab'),
             thead: document.getElementById('thead-visao-adiantamentos'),
             tbody: document.getElementById('tbody-visao-adiantamentos'),
@@ -74,6 +74,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalRecusarEl = document.getElementById('modalRecusarFaturamento');
     const modalRecusar = modalRecusarEl ? new bootstrap.Modal(modalRecusarEl) : null;
 
+
+    // --- (NOVAS) FUNÇÕES AUXILIARES DE FORMATAÇÃO ---
+    const get = (obj, path, defaultValue = '-') => {
+        if (obj === null || obj === undefined) {
+            return defaultValue;
+        }
+        const value = path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj);
+        return value !== undefined ? value : defaultValue;
+    };
+    
+    const formatarData = (dataStr) => {
+        if (!dataStr || dataStr === '-') return '-';
+        let dataLimpa = dataStr.split(' ')[0];
+        if (dataLimpa.includes('-')) { // Formato YYYY-MM-DD
+            dataLimpa = dataLimpa.split('-').reverse().join('/');
+        }
+        // Trata formatos dd/MM/yyyy HH:mm:ss
+        else if (dataLimpa.includes('/')) {
+             dataLimpa = dataLimpa.split('/')[0].length === 2 ? dataLimpa : dataStr.split(' ')[0];
+        }
+        
+        if (dataLimpa === '//' || dataLimpa === 'Invalid Date') return '-';
+        return dataLimpa;
+    };
+
+    const formatarMoeda = (valor) => {
+        if (valor === null || valor === undefined || isNaN(Number(valor))) {
+            return '-';
+        }
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+    };
 
     // --- FUNÇÕES DE LÓGICA DA PÁGINA ---
     
@@ -208,24 +239,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar a fila de faturamento.');
             const dados = await response.json();
             
+            // ================== INÍCIO DA ALTERAÇÃO (FILA FATURAMENTO) ==================
             tab.thead.innerHTML = `
                 <tr>
-                    <th>OS</th>
-                    <th>Item (LPU)</th>
-                    <th>KEY</th>
                     <th>Tipo</th>
-                    <th>Status</th>
-                    <th>Solicitante</th>
-                    <th>Última Ação</th>
+                    <th>OS</th>
+                    <th>Projeto</th>
+                    <th>Segmento</th>
+                    <th>LPU</th>
+                    <th>Lote</th>
+                    <th>BOQ</th>
+                    <th>PO</th>
+                    <th>Item</th>
+                    <th>Objeto Contratado</th>
+                    <th>Qtd.</th>
+                    <th>Valor Total OS</th>
+                    <th>Observações</th>
+                    <th>Data PO</th>
+                    <th>Data Atividade</th>
+                    <th>KEY</th>
                     <th>Ações</th>
                 </tr>
             `;
 
             if (dados.length === 0) {
-                tab.tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted p-4">Nenhuma solicitação pendente na fila.</td></tr>`;
+                tab.tbody.innerHTML = `<tr><td colspan="17" class="text-center text-muted p-4">Nenhuma solicitação pendente na fila.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
-                    const detalhe = item.osLpuDetalhe;
+                    const detalhe = item.osLpuDetalhe; // Este é o OsLpuDetalheCompletoDto
+                    const ultimoLancamento = get(detalhe, 'ultimoLancamento', {});
                     const isAdiantamento = item.tipo === 'ADIANTAMENTO';
                     const linhaClass = isAdiantamento ? 'linha-adiantamento' : '';
                     const tipoBadge = isAdiantamento ? `<span class="badge bg-warning">ADIANTAMENTO</span>` : `<span class="badge bg-info">REGULAR</span>`;
@@ -249,22 +291,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     return `
                         <tr class="${linhaClass}">
-                            <td data-label="OS">${detalhe.os || 'N/A'}</td>
-                            <td data-label="Item (LPU)">${detalhe.lpuNome || 'N/A'}</td>
-                            <td data-label="KEY">${detalhe.key || 'N/A'}</td>
                             <td data-label="Tipo">${tipoBadge}</td>
-                            <td data-label="Status">${formatarStatusFaturamento(item.status)}</td>
-                            <td data-label="Solicitante">${item.solicitanteNome || 'N/A'}</td>
-                            <td data-label="Última Ação">${formatarDataHora(item.dataUltimaAcao)}</td>
+                            <td data-label="OS">${get(detalhe, 'os.os', '-')}</td>
+                            <td data-label="Projeto">${get(detalhe, 'os.projeto', '-')}</td>
+                            <td data-label="Segmento">${get(detalhe, 'os.segmento.nome', '-')}</td>
+                            <td data-label="LPU">${get(detalhe, 'lpu.codigoLpu', '-')}</td>
+                            <td data-label="Lote">${get(detalhe, 'lote', '-')}</td>
+                            <td data-label="BOQ">${get(detalhe, 'boq', '-')}</td>
+                            <td data-label="PO">${get(detalhe, 'po', '-')}</td>
+                            <td data-label="Item">${get(detalhe, 'item', '-')}</td>
+                            <td data-label="Objeto Contratado">${get(detalhe, 'lpu.nomeLpu', '-')}</td>
+                            <td data-label="Qtd.">${get(detalhe, 'quantidade', '-')}</td>
+                            <td data-label="Valor Total OS">${formatarMoeda(get(detalhe, 'valorTotal'))}</td>
+                            <td data-label="Observações">${get(detalhe, 'observacoes', '-')}</td>
+                            <td data-label="Data PO">${formatarData(get(detalhe, 'dataPo'))}</td>
+                            <td data-label="Data Atividade">${formatarData(get(ultimoLancamento, 'dataAtividade'))}</td>
+                            <td data-label="KEY">${get(detalhe, 'key', '-')}</td>
                             <td data-label="Ações"><div class="d-flex justify-content-center gap-1">${acoesHtml}</div></td>
                         </tr>
                     `;
                 }).join('');
             }
+            // ================== FIM DA ALTERAÇÃO (FILA FATURAMENTO) ==================
 
         } catch (error) {
             console.error(error);
-            tab.tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tab.tbody.innerHTML = `<tr><td colspan="17" class="text-center text-danger p-4">${error.message}</td></tr>`;
         } finally {
             toggleLoader(tab.loaderId, false);
         }
@@ -282,23 +334,40 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar a fila de solicitação de ID.');
             const dados = await response.json();
             
+            // ================== INÍCIO DA ALTERAÇÃO (SOLICITAR ID) ==================
             tab.thead.innerHTML = `
                 <tr>
+                    <th>Tipo</th>
                     <th>OS</th>
-                    <th>Item (LPU)</th>
+                    <th>Projeto</th>
+                    <th>Segmento</th>
+                    <th>LPU</th>
+                    <th>Lote</th>
+                    <th>BOQ</th>
+                    <th>PO</th>
+                    <th>Item</th>
+                    <th>Objeto Contratado</th>
+                    <th>Qtd.</th>
+                    <th>Valor Total OS</th>
+                    <th>Observações</th>
+                    <th>Data PO</th>
+                    <th>Data Atividade</th>
                     <th>KEY</th>
-                    <th>Etapa Atual</th>
                     <th>Ação</th>
                 </tr>
             `;
 
             if (dados.length === 0) {
-                tab.tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">Nenhum item na etapa "Solicitar ID" aguardando ação.</td></tr>`;
+                tab.tbody.innerHTML = `<tr><td colspan="17" class="text-center text-muted p-4">Nenhum item na etapa "Solicitar ID" aguardando ação.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
+                    const detalhe = item.detalhe; // Este é o OsLpuDetalheCompletoDto
+                    const ultimoLancamento = get(detalhe, 'ultimoLancamento', {});
+                    const tipoBadge = `<span class="badge bg-info">REGULAR</span>`; // Esta fila é sempre REGULAR
+
                     let acaoHtml = '';
                     if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
-                         acaoHtml = `<button class="btn btn-sm btn-success" data-action="solicitar-id" data-id="${item.osLpuDetalheId}">
+                         acaoHtml = `<button class="btn btn-sm btn-success" data-action="solicitar-id" data-id="${detalhe.id}">
                                         <i class="bi bi-send me-1"></i> Solicitar ID
                                      </button>`;
                     } else {
@@ -307,19 +376,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     return `
                         <tr>
-                            <td data-label="OS">${item.os || 'N/A'}</td>
-                            <td data-label="Item (LPU)">${item.lpuNome || 'N/A'}</td>
-                            <td data-label="KEY">${item.key || 'N/A'}</td>
-                            <td data-label="Etapa Atual"><span class="badge bg-secondary">${item.etapaNome || 'N/A'}</span></td>
+                            <td data-label="Tipo">${tipoBadge}</td>
+                            <td data-label="OS">${get(detalhe, 'os.os', '-')}</td>
+                            <td data-label="Projeto">${get(detalhe, 'os.projeto', '-')}</td>
+                            <td data-label="Segmento">${get(detalhe, 'os.segmento.nome', '-')}</td>
+                            <td data-label="LPU">${get(detalhe, 'lpu.codigoLpu', '-')}</td>
+                            <td data-label="Lote">${get(detalhe, 'lote', '-')}</td>
+                            <td data-label="BOQ">${get(detalhe, 'boq', '-')}</td>
+                            <td data-label="PO">${get(detalhe, 'po', '-')}</td>
+                            <td data-label="Item">${get(detalhe, 'item', '-')}</td>
+                            <td data-label="Objeto Contratado">${get(detalhe, 'lpu.nomeLpu', '-')}</td>
+                            <td data-label="Qtd.">${get(detalhe, 'quantidade', '-')}</td>
+                            <td data-label="Valor Total OS">${formatarMoeda(get(detalhe, 'valorTotal'))}</td>
+                            <td data-label="Observações">${get(detalhe, 'observacoes', '-')}</td>
+                            <td data-label="Data PO">${formatarData(get(detalhe, 'dataPo'))}</td>
+                            <td data-label="Data Atividade">${formatarData(get(ultimoLancamento, 'dataAtividade'))}</td>
+                            <td data-label="KEY">${get(detalhe, 'key', '-')}</td>
                             <td data-label="Ação">${acaoHtml}</td>
                         </tr>
                     `;
                 }).join('');
             }
+            // ================== FIM DA ALTERAÇÃO (SOLICITAR ID) ==================
 
         } catch (error) {
             console.error(error);
-            tab.tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tab.tbody.innerHTML = `<tr><td colspan="17" class="text-center text-danger p-4">${error.message}</td></tr>`;
         } finally {
             toggleLoader(tab.loaderId, false);
         }
@@ -337,6 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar a fila de adiantamento.');
             const dados = await response.json();
 
+            // NENHUMA ALTERAÇÃO SOLICITADA NESTA ABA
             tab.thead.innerHTML = `
                 <tr>
                     <th>OS</th>
@@ -351,22 +434,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 tab.tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted p-4">Nenhum item elegível para adiantamento encontrado.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
+                    const detalhe = item.detalhe; // Este é o OsLpuDetalheCompletoDto
+                    const ultimoLancamento = get(detalhe, 'ultimoLancamento', {});
+
                     let acaoHtml = '';
                     if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
-                         acaoHtml = `<button class="btn btn-sm btn-warning" data-action="solicitar-adiantamento" data-id="${item.osLpuDetalheId}">
+                         acaoHtml = `<button class="btn btn-sm btn-warning" data-action="solicitar-adiantamento" data-id="${detalhe.id}">
                                         <i class="bi bi-skip-forward-circle me-1"></i> Solicitar Adiantamento
                                      </button>`;
                     } else {
                         acaoHtml = '—'; // Visão (Controller)
                     }
                     
-                    const statusOperacional = item.ultimoStatusOperacional ? item.ultimoStatusOperacional.replace(/_/g, ' ') : 'NÃO INICIADO';
+                    const statusOperacional = get(ultimoLancamento, 'situacao', 'NÃO INICIADO').replace(/_/g, ' ');
 
                     return `
                         <tr>
-                            <td data-label="OS">${item.os || 'N/A'}</td>
-                            <td data-label="Item (LPU)">${item.lpuNome || 'N/A'}</td>
-                            <td data-label="KEY">${item.key || 'N/A'}</td>
+                            <td data-label="OS">${get(detalhe, 'os.os', '-')}</td>
+                            <td data-label="Item (LPU)">${get(detalhe, 'lpu.nomeLpu', '-')}</td>
+                            <td data-label="KEY">${get(detalhe, 'key', '-')}</td>
                             <td data-label="Status Operacional"><span class="badge bg-info">${statusOperacional}</span></td>
                             <td data-label="Ação">${acaoHtml}</td>
                         </tr>
@@ -394,42 +480,93 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar a visão de adiantamentos.');
             const dados = await response.json();
 
+            // ================== INÍCIO DA ALTERAÇÃO (VISÃO ADIANTAMENTOS) ==================
             tab.thead.innerHTML = `
                 <tr>
-                    <th>OS</th>
-                    <th>Item (LPU)</th>
-                    <th>KEY</th>
-                    <th>Status Faturamento</th>
+                    <th>STATUS</th>
                     <th>Data Solicitação</th>
-                    <th>Status Operacional</th>
+                    <th>DATA ATIVIDADE</th>
+                    <th>OS</th>
+                    <th>SITE</th>
+                    <th>SEGMENTO</th>
+                    <th>PROJETO</th>
+                    <th>LPU</th>
+                    <th>GESTOR TIM</th>
+                    <th>REGIONAL</th>
+                    <th>VISTORIA</th>
+                    <th>PLANO DE VISTORIA</th>
+                    <th>DESMOBILIZAÇÃO</th>
+                    <th>PLANO DESMOBILIZAÇÃO</th>
+                    <th>INSTALAÇÃO</th>
+                    <th>PLANO INSTALAÇÃO</th>
+                    <th>ATIVAÇÃO</th>
+                    <th>PLANO DE ATIVAÇÃO</th>
+                    <th>DOCUMENTAÇÃO</th>
+                    <th>PLANO DE DOCUMENTAÇÃO</th>
+                    <th>ETAPA GERAL</th>
+                    <th>ETAPA DETALHADA</th>
+                    <th>STATUS (Lanc.)</th>
+                    <th>SITUAÇÃO</th>
+                    <th>DETALHE DIÁRIO</th>
+                    <th>CÓD. PRESTADOR</th>
+                    <th>PRESTADOR</th>
+                    <th>VALOR</th>
+                    <th>GESTOR</th>
+                    <th>KEY</th>
                 </tr>
             `;
             
             if (dados.length === 0) {
-                tab.tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted p-4">Nenhum adiantamento solicitado.</td></tr>`;
+                tab.tbody.innerHTML = `<tr><td colspan="30" class="text-center text-muted p-4">Nenhum adiantamento solicitado.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
-                    const detalhe = item.osLpuDetalhe;
+                    const detalhe = item.osLpuDetalhe; // OsLpuDetalheCompletoDto
+                    const ultimoLancamento = get(detalhe, 'ultimoLancamento', {});
                     const linhaClass = item.isOperacionalFinalizado ? '' : 'linha-adiantamento-pendente';
-                    const statusOpBadge = item.isOperacionalFinalizado
-                        ? `<span class="badge text-bg-success">FINALIZADO</span>`
-                        : `<span class="badge text-bg-danger">NÃO FINALIZADO</span>`;
+                    
+                    // User requested 'STATUS' instead of 'STATUS FATURAMENTO'
+                    const statusFaturamento = formatarStatusFaturamento(item.statusFaturamento);
 
                     return `
                         <tr class="${linhaClass}">
-                            <td data-label="OS">${detalhe.os || 'N/A'}</td>
-                            <td data-label="Item (LPU)">${detalhe.lpuNome || 'N/A'}</td>
-                            <td data-label="KEY">${detalhe.key || 'N/A'}</td>
-                            <td data-label="Status Faturamento">${formatarStatusFaturamento(item.statusFaturamento)}</td>
+                            <td data-label="STATUS">${statusFaturamento}</td>
                             <td data-label="Data Solicitação">${formatarDataHora(item.dataSolicitacao)}</td>
-                            <td data-label="Status Operacional">${statusOpBadge}</td>
+                            <td data-label="DATA ATIVIDADE">${formatarData(get(ultimoLancamento, 'dataAtividade'))}</td>
+                            <td data-label="OS">${get(detalhe, 'os.os', '-')}</td>
+                            <td data-label="SITE">${get(detalhe, 'site', '-')}</td>
+                            <td data-label="SEGMENTO">${get(detalhe, 'os.segmento.nome', '-')}</td>
+                            <td data-label="PROJETO">${get(detalhe, 'os.projeto', '-')}</td>
+                            <td data-label="LPU">${get(detalhe, 'lpu.codigoLpu', '-')}</td>
+                            <td data-label="GESTOR TIM">${get(detalhe, 'os.gestorTim', '-')}</td>
+                            <td data-label="REGIONAL">${get(detalhe, 'regional', '-')}</td>
+                            <td data-label="VISTORIA">${get(ultimoLancamento, 'vistoria', '-')}</td>
+                            <td data-label="PLANO DE VISTORIA">${formatarData(get(ultimoLancamento, 'planoVistoria'))}</td>
+                            <td data-label="DESMOBILIZAÇÃO">${get(ultimoLancamento, 'desmobilizacao', '-')}</td>
+                            <td data-label="PLANO DESMOBILIZAÇÃO">${formatarData(get(ultimoLancamento, 'planoDesmobilizacao'))}</td>
+                            <td data-label="INSTALAÇÃO">${get(ultimoLancamento, 'instalacao', '-')}</td>
+                            <td data-label="PLANO INSTALAÇÃO">${formatarData(get(ultimoLancamento, 'planoInstalacao'))}</td>
+                            <td data-label="ATIVAÇÃO">${get(ultimoLancamento, 'ativacao', '-')}</td>
+                            <td data-label="PLANO DE ATIVAÇÃO">${formatarData(get(ultimoLancamento, 'planoAtivacao'))}</td>
+                            <td data-label="DOCUMENTAÇÃO">${get(ultimoLancamento, 'documentacao', '-')}</td>
+                            <td data-label="PLANO DE DOCUMENTAÇÃO">${formatarData(get(ultimoLancamento, 'planoDocumentacao'))}</td>
+                            <td data-label="ETAPA GERAL">${get(ultimoLancamento, 'etapa.nomeGeral', '-')}</td>
+                            <td data-label="ETAPA DETALHADA">${get(ultimoLancamento, 'etapa.nomeDetalhado', '-')}</td>
+                            <td data-label="STATUS (Lanc.)">${get(ultimoLancamento, 'status', '-')}</td>
+                            <td data-label="SITUAÇÃO">${get(ultimoLancamento, 'situacao', '-')}</td>
+                            <td data-label="DETALHE DIÁRIO">${get(ultimoLancamento, 'detalheDiario', '-')}</td>
+                            <td data-label="CÓD. PRESTADOR">${get(ultimoLancamento, 'prestador.codigo', '-')}</td>
+                            <td data-label="PRESTADOR">${get(ultimoLancamento, 'prestador.nome', '-')}</td>
+                            <td data-label="VALOR">${formatarMoeda(get(ultimoLancamento, 'valor'))}</td>
+                            <td data-label="GESTOR">${get(ultimoLancamento, 'manager.nome', '-')}</td>
+                            <td data-label="KEY">${get(detalhe, 'key', '-')}</td>
                         </tr>
                     `;
                 }).join('');
             }
+            // ================== FIM DA ALTERAÇÃO (VISÃO ADIANTAMENTOS) ==================
         } catch (error) {
             console.error(error);
-            tab.tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tab.tbody.innerHTML = `<tr><td colspan="30" class="text-center text-danger p-4">${error.message}</td></tr>`;
         } finally {
             toggleLoader(tab.loaderId, false);
         }
@@ -447,41 +584,74 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar o histórico de faturamento.');
             const dados = await response.json();
 
+            // ================== INÍCIO DA ALTERAÇÃO (HISTÓRICO FATURADO) ==================
             tab.thead.innerHTML = `
                 <tr>
                     <th>Data Faturamento</th>
-                    <th>OS</th>
-                    <th>Item (LPU)</th>
-                    <th>KEY</th>
+                    <th>Solicit ID Fat</th>
+                    <th>Receb. ID Fat</th>
+                    <th>Solicit FS Portal</th>
+                    <th>Data FS</th>
+                    <th>Num. FS</th>
                     <th>Tipo</th>
-                    <th>Solicitante</th>
-                    <th>Responsável</th>
+                    <th>OS</th>
+                    <th>Projeto</th>
+                    <th>Segmento</th>
+                    <th>LPU</th>
+                    <th>Lote</th>
+                    <th>BOQ</th>
+                    <th>PO</th>
+                    <th>Item</th>
+                    <th>Objeto Contratado</th>
+                    <th>Qtd.</th>
+                    <th>Valor Total OS</th>
+                    <th>Observações</th>
+                    <th>Data PO</th>
+                    <th>Data Atividade</th>
+                    <th>KEY</th>
                 </tr>
             `;
             
             if (dados.length === 0) {
-                tab.tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted p-4">Nenhum item faturado encontrado no histórico.</td></tr>`;
+                tab.tbody.innerHTML = `<tr><td colspan="22" class="text-center text-muted p-4">Nenhum item faturado encontrado no histórico.</td></tr>`;
             } else {
                 tab.tbody.innerHTML = dados.map(item => {
-                    const detalhe = item.osLpuDetalhe;
+                    const detalhe = item.osLpuDetalhe; // OsLpuDetalheCompletoDto
+                    const ultimoLancamento = get(detalhe, 'ultimoLancamento', {});
                     const tipoBadge = item.tipo === 'ADIANTAMENTO' ? `<span class="badge bg-warning">ADIANTAMENTO</span>` : `<span class="badge bg-info">REGULAR</span>`;
 
                     return `
                         <tr>
                             <td data-label="Data Faturamento">${formatarDataHora(item.dataUltimaAcao)}</td>
-                            <td data-label="OS">${detalhe.os || 'N/A'}</td>
-                            <td data-label="Item (LPU)">${detalhe.lpuNome || 'N/A'}</td>
-                            <td data-label="KEY">${detalhe.key || 'N/A'}</td>
+                            <td data-label="Solicit ID Fat">${get(detalhe, 'solitIdFat', '-')}</td>
+                            <td data-label="Receb. ID Fat">${get(detalhe, 'recebIdFat', '-')}</td>
+                            <td data-label="Solicit FS Portal">${get(detalhe, 'solitFsPortal', '-')}</td>
+                            <td data-label="Data FS">${formatarData(get(detalhe, 'dataFs'))}</td>
+                            <td data-label="Num. FS">${get(detalhe, 'numFs', '-')}</td>
                             <td data-label="Tipo">${tipoBadge}</td>
-                            <td data-label="Solicitante">${item.solicitanteNome || 'N/A'}</td>
-                            <td data-label="Responsável">${item.responsavelNome || 'N/A'}</td>
+                            <td data-label="OS">${get(detalhe, 'os.os', '-')}</td>
+                            <td data-label="Projeto">${get(detalhe, 'os.projeto', '-')}</td>
+                            <td data-label="Segmento">${get(detalhe, 'os.segmento.nome', '-')}</td>
+                            <td data-label="LPU">${get(detalhe, 'lpu.codigoLpu', '-')}</td>
+                            <td data-label="Lote">${get(detalhe, 'lote', '-')}</td>
+                            <td data-label="BOQ">${get(detalhe, 'boq', '-')}</td>
+                            <td data-label="PO">${get(detalhe, 'po', '-')}</td>
+                            <td data-label="Item">${get(detalhe, 'item', '-')}</td>
+                            <td data-label="Objeto Contratado">${get(detalhe, 'lpu.nomeLpu', '-')}</td>
+                            <td data-label="Qtd.">${get(detalhe, 'quantidade', '-')}</td>
+                            <td data-label="Valor Total OS">${formatarMoeda(get(detalhe, 'valorTotal'))}</td>
+                            <td data-label="Observações">${get(detalhe, 'observacoes', '-')}</td>
+                            <td data-label="Data PO">${formatarData(get(detalhe, 'dataPo'))}</td>
+                            <td data-label="Data Atividade">${formatarData(get(ultimoLancamento, 'dataAtividade'))}</td>
+                            <td data-label="KEY">${get(detalhe, 'key', '-')}</td>
                         </tr>
                     `;
                 }).join('');
             }
+            // ================== FIM DA ALTERAÇÃO (HISTÓRICO FATURADO) ==================
         } catch (error) {
             console.error(error);
-            tab.tbody.innerHTML = `<tr><td colspan="7" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tab.tbody.innerHTML = `<tr><td colspan="22" class="text-center text-danger p-4">${error.message}</td></tr>`;
         } finally {
             toggleLoader(tab.loaderId, false);
         }

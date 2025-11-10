@@ -59,12 +59,14 @@
         <div class="row g-2 align-items-center">
           <div class="col-md">
             <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
               <input type="search" class="form-control" id="inputBuscaMaterial"
                 placeholder="Buscar por código ou descrição...">
               <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
                 aria-expanded="false" data-bs-auto-close="outside" title="Filtros de Materiais">
                 <i class="bi bi-filter-circle"></i>
               </button>
+
               <div class="dropdown-menu dropdown-menu-end p-3" style="width: 280px;">
                 <div class="mb-2">
                   <label for="materiais_selectCondicaoFiltro" class="form-label small">Filtrar por saldo:</label>
@@ -120,7 +122,42 @@
           <tbody id="tbody-cms"></tbody>
         </table>
       </div>
+
+      <div class="pagination-controls mt-3">
+        <div>
+          <label for="rowsPerPage" class="form-label me-2">Itens por página:</label>
+          <select id="rowsPerPage" class="form-select form-select-sm d-inline-block" style="width: auto;">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="all">Todos</option>
+          </select>
+        </div>
+        <div id="pagination-info" class="text-muted">
+        </div>
+        <div>
+          <button class="btn btn-sm btn-outline-secondary" id="btnPrimeiraPagina" title="Primeira Página"><i
+              class="bi bi-chevron-bar-left"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnPaginaAnterior" title="Página Anterior"><i
+              class="bi bi-chevron-left"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnProximaPagina" title="Próxima Página"><i
+              class="bi bi-chevron-right"></i></button>
+          <button class="btn btn-sm btn-outline-secondary" id="btnUltimaPagina" title="Última Página"><i
+              class="bi bi-chevron-bar-right"></i></button>
+        </div>
+      </div>
     </div>
+  </div>
+
+
+  <div class="table-responsive custom-scroll">
+    <table class="table modern-table align-middle">
+      <thead id="thead-cms"></thead>
+      <tbody id="tbody-cms"></tbody>
+    </table>
+  </div>
+  </div>
   </div>
 
   <div class="modal fade" id="modalDetalhesMaterial" tabindex="-1" aria-labelledby="modalDetalhesMaterialLabel"
@@ -153,6 +190,8 @@
                 <div id="view-mode-fields">
                   <p><strong>Código:</strong> <span data-field="codigo"></span></p>
                   <p><strong>Descrição:</strong> <span data-field="descricao"></span></p>
+                  <p><strong>Modelo:</strong> <span data-field="modelo"></span></p>
+                  <p><strong>Nº de Série:</strong> <span data-field="numeroDeSerie"></span></p>
                   <p><strong>Unidade:</strong> <span data-field="unidadeMedida"></span></p>
                   <p><strong>Empresa:</strong> <span data-field="empresa"></span></p>
                   <p><strong>Quantidade em Estoque:</strong> <span data-field="saldoFisico"></span></p>
@@ -162,13 +201,21 @@
                 </div>
 
                 <div id="edit-mode-fields" class="row g-3 d-none">
-                  <div class="col-md-12">
+                  <div class="col-md-6">
                     <label for="materialCodigoEditar" class="form-label">Código</label>
                     <input type="text" class="form-control" id="materialCodigoEditar" required>
                   </div>
-                  <div class="col-md-12">
+                  <div class="col-md-6">
                     <label for="materialDescricaoEditar" class="form-label">Descrição</label>
                     <input type="text" class="form-control" id="materialDescricaoEditar" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="materialModeloEditar" class="form-label">Modelo</label>
+                    <input type="text" class="form-control" id="materialModeloEditar">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="materialNumeroDeSerieEditar" class="form-label">Nº de Série</label>
+                    <input type="text" class="form-control" id="materialNumeroDeSerieEditar">
                   </div>
                   <div class="col-md-12">
                     <label for="materialObservacoesEditar" class="form-label">Observações</label>
@@ -199,22 +246,25 @@
 
           <div class="modal-footer justify-content-between">
             <div id="footer-actions-left">
-              <button type="button" class="btn btn-danger btn-excluir-modal">Excluir Material</button>
+              <button type="button" class="btn btn-danger btn-excluir-modal btn-view-mode"
+                style="display: none;">Excluir Material</button>
             </div>
 
             <div id="footer-actions-right">
               <button type="button" class="btn btn-secondary btn-view-mode" data-bs-dismiss="modal">Fechar</button>
-              <button type="button" class="btn btn-primary btn-view-mode" id="btnEditarMaterialModal">
+              <button type="button" class="btn btn-primary btn-view-mode" id="btnEditarMaterialModal"
+                style="display: none;">
                 <i class="bi bi-pencil"></i> Editar
               </button>
-              <button type="button" class="btn btn-success btn-view-mode btn-registrar-entrada-modal">
+              <button type="button" class="btn btn-success btn-view-mode btn-registrar-entrada-modal"
+                style="display: none;">
                 <i class="bi bi-plus-circle"></i> Registrar Nova Entrada
               </button>
 
-              <button type="button" class="btn btn-secondary btn-edit-mode d-none" id="btnCancelarEdicao">
+              <button type="button" class="btn btn-secondary btn-edit-mode" id="btnCancelarEdicao">
                 <i class="bi bi-x-circle"></i> Cancelar
               </button>
-              <button type="submit" class="btn btn-success btn-edit-mode d-none" id="btnSalvarEdicaoMaterial">
+              <button type="submit" class="btn btn-success btn-edit-mode" id="btnSalvarEdicaoMaterial">
                 <i class="bi bi-check-circle"></i> Salvar Alterações
               </button>
             </div>
@@ -276,6 +326,16 @@
             <div class="mb-3">
               <label for="materialDescricao" class="form-label">Descrição</label>
               <input type="text" class="form-control" id="materialDescricao" required>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="materialModelo" class="form-label">Modelo</label>
+                <input type="text" class="form-control" id="materialModelo">
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="materialNumeroDeSerie" class="form-label">Nº de Série</label>
+                <input type="text" class="form-control" id="materialNumeroDeSerie">
+              </div>
             </div>
             <div class="row">
               <div class="col-md-6 mb-3">
@@ -445,7 +505,7 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <script src="../assets/js/general/global.js?v=2.1"></script>
-  <script src="../assets/js/general/sidebar.js?v=2.1"></script>
+  <script src="../assetsjs/general/sidebar.js?v=2.1"></script>
   <script src="../assets/js/cms/cms.js?v=2.1"></script>
 </body>
 

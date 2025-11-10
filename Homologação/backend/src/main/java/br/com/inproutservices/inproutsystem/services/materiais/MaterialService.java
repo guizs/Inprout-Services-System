@@ -52,6 +52,8 @@ public class MaterialService {
         Material material = new Material();
         material.setCodigo(dto.codigo());
         material.setDescricao(dto.descricao());
+        material.setModelo(dto.modelo());
+        material.setNumeroDeSerie(dto.numeroDeSerie());
         material.setUnidadeMedida(dto.unidadeMedida());
         material.setSaldoFisico(dto.saldoFisicoInicial());
         material.setObservacoes(dto.observacoes());
@@ -71,7 +73,7 @@ public class MaterialService {
         return materialRepository.save(material);
     }
 
-    // --- NOVO MÉTODO ADICIONADO ---
+    // --- MÉTODO ATUALIZADO ---
     @Transactional
     public Material atualizarMaterial(Long id, MaterialUpdateDTO dto) {
         Material material = materialRepository.findById(id)
@@ -89,10 +91,12 @@ public class MaterialService {
 
         material.setDescricao(dto.descricao());
         material.setObservacoes(dto.observacoes());
+        material.setModelo(dto.modelo());
+        material.setNumeroDeSerie(dto.numeroDeSerie());
 
         return materialRepository.save(material);
     }
-    // --- FIM DO NOVO MÉTODO ---
+    // --- FIM DA ATUALIZAÇÃO ---
 
     @Transactional
     public Material adicionarEntrada(EntradaMaterialDTO dto) {
@@ -140,19 +144,12 @@ public class MaterialService {
         materialRepository.deleteById(id);
     }
 
-    // --- INÍCIO DO NOVO MÉTODO DE IMPORTAÇÃO ---
-
-    /**
-     * Importa um lote de materiais legados de uma planilha Excel.
-     * @param file O arquivo .xlsx enviado pelo usuário.
-     * @return Uma lista de strings contendo o log de sucesso/erro de cada linha.
-     * @throws IOException Se houver um erro ao ler o arquivo.
-     */
+    // --- MÉTODO DE IMPORTAÇÃO ATUALIZADO ---
     @Transactional
     public List<String> importarLegadoCMA(MultipartFile file) throws IOException {
         List<String> log = new ArrayList<>();
         List<String> unidadesValidas = Arrays.asList("PÇ", "MT", "LT"); // Unidades permitidas pelo formulário
-        List<String> empresasValidas = Arrays.asList("INPROUT", "TLP"); // Empresas permitidas
+        List<String> empresasValidas = Arrays.asList("INPROUT", "CLIENTE"); // Empresas permitidas (CLIENTE em vez de TLP)
 
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(inputStream)) {
@@ -175,13 +172,16 @@ public class MaterialService {
                 }
 
                 try {
-                    // Mapeamento das colunas conforme sua solicitação
+                    // Mapeamento das colunas ATUALIZADO
                     String empresa = getStringCellValue(currentRow, 0); // Col A: ESTOQUE
                     String codigo = getStringCellValue(currentRow, 1); // Col B: CÓDIGO
                     String descricao = getStringCellValue(currentRow, 2); // Col C: DESCRIÇÃO
-                    String unidade = getStringCellValue(currentRow, 3); // Col D: UNIDADE
-                    BigDecimal saldoFisico = getBigDecimalCellValue(currentRow, 4); // Col E: SALDO FISICO
-                    BigDecimal custoUnitario = getBigDecimalCellValue(currentRow, 5); // Col F: CUSTO UNITÁRIO
+                    String modelo = getStringCellValue(currentRow, 3); // Col D: MODELO
+                    String numeroDeSerie = getStringCellValue(currentRow, 4); // Col E: Nº DE SÉRIE
+                    String unidade = getStringCellValue(currentRow, 5); // Col F: UNIDADE
+                    BigDecimal saldoFisico = getBigDecimalCellValue(currentRow, 6); // Col G: SALDO FISICO
+                    BigDecimal custoUnitario = getBigDecimalCellValue(currentRow, 7); // Col H: CUSTO UNITÁRIO
+
 
                     String codigoOriginal = codigo;
                     if ("PENDENTE".equalsIgnoreCase(codigo)) {
@@ -205,7 +205,7 @@ public class MaterialService {
 
                     // 2. Validação de valores (Empresa e Unidade)
                     if (!empresasValidas.contains(empresa.toUpperCase())) {
-                        log.add("Linha " + rowCounter + ": ERRO - Valor de ESTOQUE ('" + empresa + "') inválido. Use 'INPROUT' ou 'TLP'.");
+                        log.add("Linha " + rowCounter + ": ERRO - Valor de ESTOQUE ('" + empresa + "') inválido. Use 'INPROUT' ou 'CLIENTE'.");
                         continue;
                     }
                     if (!unidadesValidas.contains(unidade.toUpperCase())) {
@@ -223,6 +223,8 @@ public class MaterialService {
                     MaterialRequestDTO dto = new MaterialRequestDTO(
                             codigo,
                             descricao,
+                            modelo, // Novo
+                            numeroDeSerie, // Novo
                             unidade.toUpperCase(),
                             saldoFisico,
                             custoUnitario,
@@ -238,8 +240,6 @@ public class MaterialService {
                     } else {
                         log.add("Linha " + rowCounter + ": SUCESSO - Material '" + codigo + "' criado.");
                     }
-
-                    log.add("Linha " + rowCounter + ": SUCESSO - Material '" + codigo + "' criado.");
 
                 } catch (BusinessException be) { // Captura erros de negócio (ex: código duplicado)
                     log.add("Linha " + rowCounter + ": ERRO - " + be.getMessage());
@@ -269,7 +269,9 @@ public class MaterialService {
             return cell.getStringCellValue().trim();
         }
         if (cell.getCellType() == CellType.NUMERIC) {
-            return String.valueOf(cell.getNumericCellValue());
+            // Formata número como texto para evitar notação científica
+            DataFormatter formatter = new DataFormatter();
+            return formatter.formatCellValue(cell).trim();
         }
         return null;
     }

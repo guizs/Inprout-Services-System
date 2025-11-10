@@ -1,4 +1,3 @@
-// Path: guizs/inprout-services-system/Inprout-Services-System-9c7c6d66a45787cd6c5531a8ab5c139813218d8f/Homologação/backend/src/main/java/br/com/inproutservices/inproutsystem/entities/materiais/Material.java
 package br.com.inproutservices.inproutsystem.entities.materiais;
 
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -22,6 +21,14 @@ public class Material {
 
     @Column(nullable = false, length = 255)
     private String descricao;
+
+    // --- NOVOS CAMPOS ADICIONADOS ---
+    @Column(length = 100)
+    private String modelo;
+
+    @Column(name = "numero_serie", length = 100)
+    private String numeroDeSerie;
+    // --- FIM DOS NOVOS CAMPOS ---
 
     @Column(name = "unidade_medida", nullable = false, length = 10)
     private String unidadeMedida;
@@ -86,6 +93,24 @@ public class Material {
     public void setDescricao(String descricao) {
         this.descricao = descricao;
     }
+
+    // --- GETTERS/SETTERS DOS NOVOS CAMPOS ---
+    public String getModelo() {
+        return modelo;
+    }
+
+    public void setModelo(String modelo) {
+        this.modelo = modelo;
+    }
+
+    public String getNumeroDeSerie() {
+        return numeroDeSerie;
+    }
+
+    public void setNumeroDeSerie(String numeroDeSerie) {
+        this.numeroDeSerie = numeroDeSerie;
+    }
+    // --- FIM DOS GETTERS/SETTERS ---
 
     public String getUnidadeMedida() {
         return unidadeMedida;

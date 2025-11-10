@@ -10,5 +10,8 @@ public record MaterialUpdateDTO(
         @NotBlank(message = "A descrição é obrigatória")
         String descricao,
 
+        String modelo,
+        String numeroDeSerie,
+
         String observacoes
 ) {}

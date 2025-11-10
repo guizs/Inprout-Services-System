@@ -3,16 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbodyMateriais = document.getElementById('tbody-cms');
     const btnNovoMaterial = document.getElementById('btnNovoMaterial');
 
-    // --- REMOVIDO: Botão de editar principal e modal de edição separado ---
-    // const btnEditarMaterial = document.getElementById('btnEditarMaterial');
-    // const modalEditarMaterialEl = document.getElementById('modalEditarMaterial');
-    // const modalEditarMaterial = modalEditarMaterialEl ? new bootstrap.Modal(modalEditarMaterialEl) : null;
-    // const formEditarMaterial = document.getElementById('formEditarMaterial');
-    // const selectMaterialEditar = document.getElementById('selectMaterialEditar');
-    // const formCamposMaterial = document.getElementById('formCamposMaterial');
-    // const btnSalvarEdicaoMaterial = document.getElementById('btnSalvarEdicaoMaterial');
-    // let choicesSelectEditar = null; 
-
     // --- ADICIONADO: Seletores para os novos campos dentro do modal de detalhes ---
     const formEditarMaterial = document.getElementById('formEditarMaterial'); // Agora é o form do modal de detalhes
     const editMaterialIdInput = document.getElementById('editMaterialId');
@@ -21,10 +11,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelarEdicao = document.getElementById('btnCancelarEdicao');
     const viewModeFields = document.getElementById('view-mode-fields');
     const editModeFields = document.getElementById('edit-mode-fields');
-    const footerActionsView = document.getElementById('footer-actions-right').querySelectorAll('.btn-view-mode');
-    const footerActionsEdit = document.getElementById('footer-actions-right').querySelectorAll('.btn-edit-mode');
+    const footerActionsRightEl = document.getElementById('footer-actions-right');
+    const footerActionsView = footerActionsRightEl ? footerActionsRightEl.querySelectorAll('.btn-view-mode') : [];
+    const footerActionsEdit = footerActionsRightEl ? footerActionsRightEl.querySelectorAll('.btn-edit-mode') : [];
     const footerActionsLeft = document.getElementById('footer-actions-left');
     const materialTab = document.getElementById('materialTab');
+    let paginaAtual = 1;
+    let linhasPorPagina = 10;
+    let materiaisFiltradosCache = [];
 
 
     // Modal de Novo Material
@@ -35,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Modal de Detalhes
     const modalDetalhesEl = document.getElementById('modalDetalhesMaterial');
     const modalDetalhes = modalDetalhesEl ? new bootstrap.Modal(modalDetalhesEl) : null;
-    // const detalhesPane = document.getElementById('detalhes-pane'); // (Substituído por viewModeFields)
     const tbodyHistoricoEntradas = document.getElementById('tbody-historico-entradas');
 
     // Modal de Nova Entrada
@@ -48,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalExcluirEl = document.getElementById('modalExcluir');
     const modalExcluir = modalExcluirEl ? new bootstrap.Modal(modalExcluirEl) : null;
     const nomeMaterialExcluirSpan = document.getElementById('nomeMaterialExcluir');
-    const btnConfirmarExclusao = document.getElementById('btnConfirmarExclusao'); // ID Corrigido
+    const btnConfirmarExclusao = document.getElementById('btnConfirmarExclusao');
 
     // Filtros
     const inputBuscaMaterial = document.getElementById('inputBuscaMaterial');
@@ -97,8 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
             // Garante que esteja oculto
             importContainer.style.setProperty('display', 'none', 'important');
         }
-
-        // --- Botão Editar (principal) FOI REMOVIDO ---
     }
 
 
@@ -113,6 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetchComAuth(`${API_BASE_URL}/materiais`);
             if (!response.ok) throw new Error('Erro ao carregar materiais');
             todosOsMateriais = await response.json();
+            todosOsMateriais.sort((a, b) => a.codigo.localeCompare(b.codigo));
             aplicarFiltrosErenderizar();
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -124,40 +116,141 @@ document.addEventListener('DOMContentLoaded', () => {
     function aplicarFiltrosErenderizar() {
         let materiaisFiltrados = [...todosOsMateriais];
 
-        const termoBusca = inputBuscaMaterial.value.toLowerCase().trim();
-        if (termoBusca) {
-            materiaisFiltrados = materiaisFiltrados.filter(material =>
-                material.codigo.toLowerCase().includes(termoBusca) ||
-                material.descricao.toLowerCase().includes(termoBusca)
-            );
+        // VERIFICA SE O CAMPO DE BUSCA EXISTE
+        if (inputBuscaMaterial) {
+            const termoBusca = inputBuscaMaterial.value.toLowerCase().trim();
+            if (termoBusca) {
+                materiaisFiltrados = materiaisFiltrados.filter(material =>
+                    material.codigo.toLowerCase().includes(termoBusca) ||
+                    material.descricao.toLowerCase().includes(termoBusca)
+                );
+            }
         }
 
-        const condicao = selectCondicaoFiltro.value;
-        const valor = parseFloat(inputValorFiltro.value);
-        if (!isNaN(valor)) {
-            materiaisFiltrados = materiaisFiltrados.filter(material => {
-                const saldo = material.saldoFisico;
-                if (condicao === 'maior') return saldo > valor;
-                if (condicao === 'menor') return saldo < valor;
-                if (condicao === 'igual') return saldo === valor;
-                return true;
+        // VERIFICA SE OS FILTROS DE SALDO EXISTEM
+        if (selectCondicaoFiltro && inputValorFiltro) {
+            const condicao = selectCondicaoFiltro.value;
+            const valor = parseFloat(inputValorFiltro.value);
+            if (!isNaN(valor)) {
+                materiaisFiltrados = materiaisFiltrados.filter(material => {
+                    const saldo = material.saldoFisico;
+                    if (condicao === 'maior') return saldo > valor;
+                    if (condicao === 'menor') return saldo < valor;
+                    if (condicao === 'igual') return saldo === valor;
+                    return true;
+                });
+            }
+        }
+
+        // VERIFICA SE OS FILTROS DE UNIDADE EXISTEM
+        if (checkUnitPC && checkUnitMT) {
+            const unidadesSelecionadas = [];
+            if (checkUnitPC.checked) unidadesSelecionadas.push('PÇ');
+            if (checkUnitMT.checked) unidadesSelecionadas.push('MT');
+
+            if (unidadesSelecionadas.length > 0) {
+                materiaisFiltrados = materiaisFiltrados.filter(material =>
+                    unidadesSelecionadas.includes(material.unidadeMedida)
+                );
+            }
+        }
+
+        // 1. Salva os dados filtrados no cache
+        materiaisFiltradosCache = materiaisFiltrados;
+        // 2. Reseta para a primeira página
+        paginaAtual = 1;
+        // 3. Chama a nova função para renderizar a página
+        renderizarPagina();
+    }
+
+    function renderizarPagina() {
+        const paginationInfo = document.getElementById('pagination-info');
+        const materiais = materiaisFiltradosCache;
+
+        if (materiais.length === 0) {
+            renderizarTabelaMateriais([]); // Renderiza a tabela vazia
+            if (paginationInfo) paginationInfo.textContent = 'Mostrando 0 de 0 itens'; // VERIFICAÇÃO ADICIONADA
+            atualizarBotoesPaginacao(1);
+            return;
+        }
+
+        const totalItens = materiais.length;
+        const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(totalItens / linhasPorPagina);
+        paginaAtual = Math.max(1, Math.min(paginaAtual, totalPaginas));
+
+        const inicio = linhasPorPagina === 'all' ? 0 : (paginaAtual - 1) * linhasPorPagina;
+        const fim = linhasPorPagina === 'all' ? totalItens : inicio + linhasPorPagina;
+        const itensDaPagina = materiais.slice(inicio, fim);
+
+        renderizarTabelaMateriais(itensDaPagina); // Renderiza apenas os itens da página
+        if (paginationInfo) paginationInfo.textContent = `Página ${paginaAtual} de ${totalPaginas} (${totalItens} itens)`; // VERIFICAÇÃO ADICIONADA
+        atualizarBotoesPaginacao(totalPaginas);
+    }
+
+    /**
+     * Habilita/desabilita os botões de paginação
+     */
+    function atualizarBotoesPaginacao(totalPaginas) {
+        document.getElementById('btnPrimeiraPagina').disabled = paginaAtual <= 1;
+        document.getElementById('btnPaginaAnterior').disabled = paginaAtual <= 1;
+        document.getElementById('btnProximaPagina').disabled = paginaAtual >= totalPaginas;
+        document.getElementById('btnUltimaPagina').disabled = paginaAtual >= totalPaginas;
+    }
+
+    /**
+     * Adiciona os listeners de evento aos botões de paginação
+     */
+    function adicionarListenersPaginacao() {
+        const rowsPerPageEl = document.getElementById('rowsPerPage');
+        if (rowsPerPageEl) {
+            rowsPerPageEl.addEventListener('change', (e) => {
+                const valor = e.target.value;
+                linhasPorPagina = valor === 'all' ? 'all' : parseInt(valor, 10);
+                paginaAtual = 1;
+                renderizarPagina(); // Re-renderiza a página atual
             });
         }
 
-        const unidadesSelecionadas = [];
-        if (checkUnitPC.checked) unidadesSelecionadas.push('PÇ');
-        if (checkUnitMT.checked) unidadesSelecionadas.push('MT');
-
-        if (unidadesSelecionadas.length > 0) {
-            materiaisFiltrados = materiaisFiltrados.filter(material =>
-                unidadesSelecionadas.includes(material.unidadeMedida)
-            );
+        const btnPrimeira = document.getElementById('btnPrimeiraPagina');
+        if (btnPrimeira) {
+            btnPrimeira.addEventListener('click', () => {
+                paginaAtual = 1;
+                renderizarPagina();
+            });
         }
 
-        renderizarTabelaMateriais(materiaisFiltrados);
-    }
+        const btnAnterior = document.getElementById('btnPaginaAnterior');
+        if (btnAnterior) {
+            btnAnterior.addEventListener('click', () => {
+                if (paginaAtual > 1) {
+                    paginaAtual--;
+                    renderizarPagina();
+                }
+            });
+        }
 
-    function renderizarTabelaMateriais(materiais) {
+        const btnProxima = document.getElementById('btnProximaPagina');
+        if (btnProxima) {
+            btnProxima.addEventListener('click', () => {
+                const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(materiaisFiltradosCache.length / linhasPorPagina);
+                if (paginaAtual < totalPaginas) {
+                    paginaAtual++;
+                    renderizarPagina();
+                }
+            });
+        }
+
+        const btnUltima = document.getElementById('btnUltimaPagina');
+        if (btnUltima) {
+            btnUltima.addEventListener('click', () => {
+                const totalPaginas = linhasPorPagina === 'all' ? 1 : Math.ceil(materiaisFiltradosCache.length / linhasPorPagina);
+                paginaAtual = totalPaginas;
+                renderizarPagina();
+            });
+        }
+    }
+    
+    function renderizarTabelaMateriais(materiaisDaPagina) {
         const tbody = tbodyMateriais;
         const thead = tbody.previousElementSibling;
 
@@ -168,6 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <tr>
                 <th>Código</th>
                 <th>Descrição</th>
+                <th>Modelo</th>
+                <th>Nº de Série</th>
                 <th class="text-center">Unidade</th> 
                 <th class="text-center">Quantidade em Estoque</th> 
                 <th class="text-center">Custo Médio</th>
@@ -175,12 +270,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </tr>
         `;
 
-        if (materiais.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted">Nenhum material encontrado.</td></tr>`;
+        if (materiaisDaPagina.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nenhum material encontrado.</td></tr>`;
             return;
         }
 
-        materiais.forEach(material => {
+        materiaisDaPagina.forEach(material => {
             const tr = document.createElement('tr');
             tr.className = 'material-row';
             tr.dataset.id = material.id;
@@ -189,6 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
             tr.innerHTML = `
                 <td data-label="Código">${material.codigo}</td>
                 <td data-label="Descrição">${material.descricao}</td>
+                <td data-label="Modelo">${material.modelo || ''}</td>
+                <td data-label="Nº de Série">${material.numeroDeSerie || ''}</td>
                 <td data-label="Unidade" class="text-center">${material.unidadeMedida}</td>
                 <td data-label="Qtd. Estoque" class="text-center">${new Intl.NumberFormat('pt-BR').format(material.saldoFisico)}</td>
                 <td data-label="Custo Médio" class="text-center">${formatarMoeda(material.custoMedioPonderado)}</td>
@@ -198,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- NOVA FUNÇÃO ---
     /**
      * Alterna a visibilidade dos campos no modal de detalhes.
      * @param {boolean} modoEdicao - True para mostrar campos de edição, false para visualização.
@@ -237,10 +333,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Guarda o ID no formulário
             if (editMaterialIdInput) editMaterialIdInput.value = material.id;
 
-            // Preenche os campos de VISUALIZAÇÃO
+            // --- CAMPOS DE VISUALIZAÇÃO ATUALIZADOS ---
             if (viewModeFields) {
                 viewModeFields.querySelector('[data-field="codigo"]').textContent = material.codigo;
                 viewModeFields.querySelector('[data-field="descricao"]').textContent = material.descricao;
+                viewModeFields.querySelector('[data-field="modelo"]').textContent = material.modelo || 'N/A';
+                viewModeFields.querySelector('[data-field="numeroDeSerie"]').textContent = material.numeroDeSerie || 'N/A';
                 viewModeFields.querySelector('[data-field="unidadeMedida"]').textContent = material.unidadeMedida;
                 viewModeFields.querySelector('[data-field="empresa"]').textContent = material.empresa;
                 viewModeFields.querySelector('[data-field="saldoFisico"]').textContent = material.saldoFisico;
@@ -249,10 +347,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 viewModeFields.querySelector('[data-field="observacoes"]').textContent = material.observacoes || 'N/A';
             }
 
-            // Preenche os campos de EDIÇÃO (que estão escondidos)
+            // --- CAMPOS DE EDIÇÃO ATUALIZADOS ---
             if (editModeFields) {
                 document.getElementById('materialCodigoEditar').value = material.codigo;
                 document.getElementById('materialDescricaoEditar').value = material.descricao;
+                document.getElementById('materialModeloEditar').value = material.modelo || '';
+                document.getElementById('materialNumeroDeSerieEditar').value = material.numeroDeSerie || '';
                 document.getElementById('materialObservacoesEditar').value = material.observacoes || '';
             }
 
@@ -260,15 +360,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const tabHistorico = document.getElementById('historico-tab');
             const btnExcluir = modalDetalhesEl.querySelector('.btn-excluir-modal');
             const btnRegistrarEntrada = modalDetalhesEl.querySelector('.btn-registrar-entrada-modal');
-            // O novo botão de editar dentro do modal
             const btnEditar = modalDetalhesEl.querySelector('#btnEditarMaterialModal');
 
-            if (temAcessoTotal) {
-                tabHistorico.style.display = 'block';
-                btnExcluir.style.display = 'inline-block';
-                btnRegistrarEntrada.style.display = 'inline-block';
-                btnEditar.style.display = 'inline-block'; // Mostra o botão "Editar"
+            // --- LÓGICA DE VISIBILIDADE ATUALIZADA ---
+            // Oculta todos por padrão
+            [tabHistorico, btnExcluir, btnRegistrarEntrada, btnEditar].forEach(el => el.style.display = 'none');
 
+            // Libera com base na Role
+            if (temAcessoTotal) {
+                [tabHistorico, btnExcluir, btnRegistrarEntrada, btnEditar].forEach(el => el.style.display = 'inline-block');
+
+                // Popula o histórico apenas se o usuário tiver permissão
                 const entradas = material.entradas || [];
                 tbodyHistoricoEntradas.innerHTML = entradas.map(e => `
                     <tr>
@@ -280,10 +382,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 `).join('') || '<tr><td colspan="4" class="text-center">Nenhuma entrada registrada.</td></tr>';
 
             } else {
-                tabHistorico.style.display = 'none';
-                btnExcluir.style.display = 'none';
-                btnRegistrarEntrada.style.display = 'none';
-                btnEditar.style.display = 'none'; // Esconde o botão "Editar"
+                // Se não tem acesso total, mostra apenas a aba de histórico (mas esconde os botões de ação)
+                tabHistorico.style.display = 'block';
+                const entradas = material.entradas || [];
+                tbodyHistoricoEntradas.innerHTML = entradas.map(e => `
+                    <tr>
+                        <td>${new Date(e.dataEntrada).toLocaleString('pt-BR')}</td>
+                        <td>${e.quantidade}</td>
+                        <td>${formatarMoeda(e.custoUnitario)}</td>
+                        <td>${e.observacoes || ''}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="4" class="text-center">Nenhuma entrada registrada.</td></tr>';
             }
             // --- FIM DO CONTROLE DE ACESSO ---
 
@@ -291,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnExcluir.dataset.id = id;
             btnExcluir.dataset.descricao = material.descricao;
             btnRegistrarEntrada.dataset.id = id;
-            btnEditar.dataset.id = id; // Armazena o ID no botão editar
+            btnEditar.dataset.id = id;
 
             // Garante que a primeira aba esteja sempre ativa ao abrir
             new bootstrap.Tab(document.getElementById('detalhes-tab')).show();
@@ -320,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- FORMULÁRIO DE NOVO MATERIAL ATUALIZADO ---
     if (formMaterial) {
         formMaterial.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -330,6 +440,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const materialData = {
                 codigo: document.getElementById('materialCodigo').value,
                 descricao: document.getElementById('materialDescricao').value,
+                modelo: document.getElementById('materialModelo').value, // Novo
+                numeroDeSerie: document.getElementById('materialNumeroDeSerie').value, // Novo
                 unidadeMedida: document.getElementById('materialUnidade').value,
                 saldoFisicoInicial: document.getElementById('materialSaldo').value,
                 custoUnitarioInicial: parseFloat(document.getElementById('materialCustoUnitario').value.replace(/\./g, '').replace(',', '.')),
@@ -359,17 +471,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalDetalhesEl) {
         modalDetalhesEl.addEventListener('click', (e) => {
             const target = e.target;
-
-            // --- CORREÇÃO AQUI ---
-            // Encontra o botão mais próximo, caso o clique seja no ícone <i>
             const closestButton = target.closest('button');
-
-            // Se não clicou em um botão (ou elemento dentro de um), não faz nada.
             if (!closestButton) return;
-
-            // Agora é seguro ler o dataset, pois sabemos que closestButton existe.
             const id = closestButton.dataset.id;
-            // --- FIM DA CORREÇÃO ---
 
             // Botão Excluir
             if (closestButton.classList.contains('btn-excluir-modal')) {
@@ -429,7 +533,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- CORREÇÃO: ADICIONADA VERIFICAÇÃO DE NULO ---
     if (btnConfirmarExclusao) {
         btnConfirmarExclusao.addEventListener('click', async () => {
             const id = btnConfirmarExclusao.dataset.id;
@@ -446,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 mostrarToast('Material excluído com sucesso!', 'success');
                 if (modalExcluir) modalExcluir.hide();
-                await carregarMateriais(); // Chame a função correta para recarregar
+                await carregarMateriais();
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 if (modalExcluir) modalExcluir.hide();
@@ -456,13 +559,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    // --- FIM DA CORREÇÃO --- 
 
     // --- Event Listeners para os filtros ---
     if (inputBuscaMaterial) {
+        // MODIFICADO: Chama aplicarFiltrosErenderizar (que agora cuida da paginação)
         inputBuscaMaterial.addEventListener('input', aplicarFiltrosErenderizar);
     }
     if (btnAplicarFiltro) {
+        // MODIFICADO: Chama aplicarFiltrosErenderizar
         btnAplicarFiltro.addEventListener('click', aplicarFiltrosErenderizar);
     }
     if (btnLimparFiltro) {
@@ -471,29 +575,36 @@ document.addEventListener('DOMContentLoaded', () => {
             inputValorFiltro.value = '';
             checkUnitPC.checked = false;
             checkUnitMT.checked = false;
+            // MODIFICADO: Chama aplicarFiltrosErenderizar
             aplicarFiltrosErenderizar();
         });
     }
 
-    // --- INÍCIO: NOVOS EVENT LISTENERS PARA IMPORTAÇÃO ---
+    // --- TEMPLATE DE IMPORTAÇÃO ATUALIZADO ---
     if (btnBaixarTemplate) {
         btnBaixarTemplate.addEventListener('click', () => {
-            // Define os cabeçalhos conforme sua solicitação
-            const headers = ["ESTOQUE", "CÓDIGO", "DESCRIÇÃO", "UNIDADE", "SALDO FISICO", "CUSTO UNITÁRIO"];
-            // Adiciona uma linha de exemplo
-            const exampleData = [
-                { ESTOQUE: 'CLIENTE', CÓDIGO: '100.200', DESCRIÇÃO: 'CABO DE REDE CAT6', UNIDADE: 'MT', "SALDO FISICO": 150.50, "CUSTO UNITÁRIO": 5.75 },
-                { ESTOQUE: 'INPROUT', CÓDIGO: 'A-001', DESCRIÇÃO: 'CONECTOR RJ45', UNIDADE: 'PÇ', "SALDO FISICO": 500, "CUSTO UNITÁRIO": 1.20 }
+            // Define os cabeçalhos (APENAS CABEÇALHOS)
+            const headers = [
+                "ESTOQUE",
+                "CÓDIGO",
+                "DESCRIÇÃO",
+                "MODELO",
+                "Nº DE SÉRIE",
+                "UNIDADE",
+                "SALDO FISICO",
+                "CUSTO UNITÁRIO"
             ];
 
-            // Cria a planilha
-            const ws = XLSX.utils.json_to_sheet(exampleData, { header: headers });
+            // Cria a planilha a partir de um Array de Arrays (apenas a linha de header)
+            const ws = XLSX.utils.aoa_to_sheet([headers]);
 
             // Ajusta a largura das colunas
             ws['!cols'] = [
                 { wch: 15 }, // ESTOQUE
                 { wch: 15 }, // CÓDIGO
                 { wch: 40 }, // DESCRIÇÃO
+                { wch: 20 }, // MODELO
+                { wch: 20 }, // Nº DE SÉRIE
                 { wch: 10 }, // UNIDADE
                 { wch: 15 }, // SALDO FISICO
                 { wch: 15 }  // CUSTO UNITÁRIO
@@ -513,6 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- LÓGICA DE IMPORTAÇÃO ATUALIZADA ---
     if (importLegadoInput) {
         importLegadoInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
@@ -532,17 +644,14 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('file', file);
 
             try {
-                // Simula o processamento no servidor
                 await new Promise(res => setTimeout(res, 500));
                 barraProgresso.style.width = '50%';
                 barraProgresso.textContent = '50%';
                 textoProgresso.textContent = 'Processando no servidor...';
 
-                // Envia o arquivo para o novo endpoint
                 const response = await fetchComAuth(`${API_BASE_URL}/materiais/importar-legado`, {
                     method: 'POST',
                     body: formData
-                    // Não defina 'Content-Type', o FormData faz isso
                 });
 
                 barraProgresso.style.width = '100%';
@@ -553,7 +662,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(result.message || 'Erro desconhecido no servidor.');
                 }
 
-                // Exibe o log retornado pelo backend
                 textoProgresso.textContent = 'Importação concluída!';
                 if (result.log && result.log.length > 0) {
                     avisosContainer.classList.remove('d-none');
@@ -565,7 +673,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).join('');
                 }
 
-                // Recarrega a tabela de materiais
                 await carregarMateriais();
 
             } catch (error) {
@@ -575,31 +682,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error("Erro na importação de legado CMA:", error);
             } finally {
                 btnFecharProgresso.disabled = false;
-                importLegadoInput.value = ''; // Limpa o input de arquivo
+                importLegadoInput.value = '';
             }
         });
     }
-    // --- FIM: NOVOS EVENT LISTENERS PARA IMPORTAÇÃO ---
 
-    // ==========================================================
-    // --- INÍCIO: NOVA LÓGICA DO MODAL DE EDIÇÃO DE MATERIAL (INTEGRADA) ---
-    // ==========================================================
-
-    // Quando o formulário de EDIÇÃO é enviado (agora parte do modal de detalhes)
+    // --- LÓGICA DE EDIÇÃO (SALVAR) ATUALIZADA ---
     if (formEditarMaterial) {
         formEditarMaterial.addEventListener('submit', async (e) => {
             e.preventDefault();
             const materialId = editMaterialIdInput.value;
             if (!materialId) return;
 
-            // Mostra o loader no botão
             btnSalvarEdicaoMaterial.disabled = true;
             btnSalvarEdicaoMaterial.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
 
-            // Prepara o payload com os novos dados
+            // Payload ATUALIZADO
             const payload = {
                 codigo: document.getElementById('materialCodigoEditar').value,
                 descricao: document.getElementById('materialDescricaoEditar').value,
+                modelo: document.getElementById('materialModeloEditar').value, // Novo
+                numeroDeSerie: document.getElementById('materialNumeroDeSerieEditar').value, // Novo
                 observacoes: document.getElementById('materialObservacoesEditar').value
             };
 
@@ -617,27 +720,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 mostrarToast('Material atualizado com sucesso!', 'success');
                 if (modalDetalhes) modalDetalhes.hide();
-                await carregarMateriais(); // Recarrega a tabela principal
+                await carregarMateriais();
 
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
-                // Restaura o botão
                 btnSalvarEdicaoMaterial.disabled = false;
                 btnSalvarEdicaoMaterial.innerHTML = '<i class="bi bi-check-circle"></i> Salvar Alterações';
-                // Garante que o modal volte ao modo de visualização na próxima vez
                 alternarModoModalDetalhes(false);
             }
         });
     }
 
-    // --- FIM DA LÓGICA DO MODAL DE EDIÇÃO ---
-
-
     // --- Inicialização ---
     if (!temAcessoTotal && btnNovoMaterial) {
         btnNovoMaterial.style.display = 'none';
     }
-    setupRoleBasedUI_CMA(); // Chama a nova função de visibilidade
+
+    setupRoleBasedUI_CMA();
+    adicionarListenersPaginacao();
     carregarMateriais();
 });

@@ -163,12 +163,17 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN u.segmentos s " +
             "LEFT JOIN OS o ON o.segmento = s " +
             "LEFT JOIN OsLpuDetalhe d ON d.os = o " +
-            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d AND l.situacaoAprovacao = :situacao AND l.dataSubmissao < :dataLimite " +
+            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d " +
+            "   AND l.situacaoAprovacao IN :situacoes " +
+            "   AND l.dataAtividade < :dataLimite " +
             "WHERE u.role = :role " +
-            "AND (UPPER(u.nome) LIKE '%PAULO%' OR UPPER(u.nome) LIKE '%GUSTAVO%') " +
             "GROUP BY u.id, u.nome " +
             "ORDER BY u.nome")
-    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role, @Param("dataLimite") LocalDateTime dataLimite);
+    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(
+            @Param("situacoes") List<SituacaoAprovacao> situacoes,
+            @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role,
+            @Param("dataLimite") LocalDate dataLimite
+    );
 
     List<Lancamento> findAllByEtapaDetalhadaId(Long etapaDetalhadaId);
 }

@@ -509,8 +509,26 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador() {
-        LocalDateTime dataLimite = LocalDateTime.now().minusDays(2);
-        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR, dataLimite);
+
+        // 1. Calcula o limite de 2 dias ÚTEIS atrás
+        LocalDate hoje = LocalDate.now();
+        LocalDate umDiaUtilAtras = prazoService.getDiaUtilAnterior(hoje);
+        LocalDate dataLimite = prazoService.getDiaUtilAnterior(umDiaUtilAtras); // Esta é a data de 2 dias úteis atrás
+
+        // 2. Define os status que queremos contar
+        List<SituacaoAprovacao> situacoesParaContar = List.of(
+                SituacaoAprovacao.PENDENTE_COORDENADOR,
+                SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
+                SituacaoAprovacao.PRAZO_VENCIDO
+        );
+
+        // 3. Chama o repositório com os novos parâmetros
+        // A query vai contar onde dataAtividade < dataLimite
+        return lancamentoRepository.countPendenciasByCoordenador(
+                situacoesParaContar,
+                br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR,
+                dataLimite // Passa o LocalDate
+        );
     }
 
     @Override

@@ -30,7 +30,7 @@ let todasPendenciasComplementares = [];
 let todoHistoricoComplementares = [];
 let todasPendenciasAtividades = [];
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'https://www.inproutservices.com.br/api';
 
 // Funções para abrir modais
 function aprovarLancamento(id) {

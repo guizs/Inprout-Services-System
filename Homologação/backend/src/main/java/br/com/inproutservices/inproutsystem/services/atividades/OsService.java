@@ -86,4 +86,6 @@ public interface OsService {
 
     List<OS> importarOsDePlanilha(MultipartFile file, boolean isLegado, List<String> warnings) throws IOException;
 
+    OS atualizarGestorTim(Long osId, String novoGestorTim);
+
 }

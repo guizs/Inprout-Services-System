@@ -32,6 +32,16 @@ public class OsController {
         this.lpuService = lpuService;
     }
 
+    @PatchMapping("/{id}/gestor-tim")
+    public ResponseEntity<OS> atualizarGestorTim(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String novoGestorTim = payload.get("gestorTim");
+        if (novoGestorTim == null) {
+            return ResponseEntity.badRequest().build();
+        }
+        OS osAtualizada = osService.atualizarGestorTim(id, novoGestorTim);
+        return ResponseEntity.ok(osAtualizada);
+    }
+
     @GetMapping("/por-usuario/{usuarioId}")
     public ResponseEntity<List<OsResponseDto>> getOsPorUsuario(@PathVariable Long usuarioId) {
         List<OS> osDoUsuario = osService.getAllOsByUsuario(usuarioId);

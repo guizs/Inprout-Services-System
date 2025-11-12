@@ -69,10 +69,12 @@ public class GateService {
         gateRepository.delete(gate);
     }
 
+    // ================== INÍCIO DA CORREÇÃO ==================
     @Transactional(readOnly = true)
-    public GateReportResponseDTO getGateReport(Long gateId) {
-        Gate gate = gateRepository.findById(gateId)
-                .orElseThrow(() -> new EntityNotFoundException("GATE não encontrado com ID: " + id));
+    public GateReportResponseDTO getGateReport(Long id) { // <-- 1. Parâmetro alterado de 'gateId' para 'id'
+        Gate gate = gateRepository.findById(id) // <-- 2. Variável alterada de 'gateId' para 'id'
+                .orElseThrow(() -> new EntityNotFoundException("GATE não encontrado com ID: " + id)); // <-- 3. Variável de erro agora está correta
+        // ================== FIM DA CORREÇÃO ==================
 
         LocalDate dataInicio = gate.getDataInicio();
         LocalDate dataFim = gate.getDataFim();

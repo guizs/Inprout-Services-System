@@ -32,6 +32,13 @@ async function fetchComAuth(url, options = {}) {
     return response;
 }
 
+function toggleLoader(ativo = true) {
+    const overlay = document.getElementById("overlay-loader");
+    if (overlay) {
+        overlay.classList.toggle("d-none", !ativo);
+    }
+}
+
 /**
  * Mostra uma notificação toast na tela.
  * @param {string} mensagem A mensagem a ser exibida.

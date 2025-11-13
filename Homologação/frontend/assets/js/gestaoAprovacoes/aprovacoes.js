@@ -30,7 +30,7 @@ let todasPendenciasComplementares = [];
 let todoHistoricoComplementares = [];
 let todasPendenciasAtividades = [];
 
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'https://www.inproutservices.com.br/api';
 
 // Funções para abrir modais
 function aprovarLancamento(id) {
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
                                 <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
                             </div>`;
-                } else if (userRole === 'CONTROLLER') {
+                } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                     switch (lancamento.situacaoAprovacao) {
                         case 'PENDENTE_CONTROLLER':
                             acoesHtml = `<div class="d-flex justify-content-center gap-1">
@@ -431,7 +431,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Define as colunas a serem exibidas na tabela interna
             let colunasParaRenderizar = [...colunas]; // Começa com todas as colunas
-            if (userRole === 'CONTROLLER') {
+            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 // Se for Controller, remove a coluna "PRAZO AÇÃO"
                 colunasParaRenderizar = colunasParaRenderizar.filter(c => c !== "PRAZO AÇÃO");
             }
@@ -513,7 +513,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (userRole === 'COORDINATOR') {
             // Lógica para Coordenador... (código existente)
 
-        } else if (userRole === 'CONTROLLER') {
+        } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             const pendenciasGerais = todosLancamentos.filter(l => l.situacaoAprovacao === 'PENDENTE_CONTROLLER').length;
             const solicitacoesPrazo = todosLancamentos.filter(l => l.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO').length;
             const prazosVencidos = todosLancamentos.filter(l => l.situacaoAprovacao === 'PRAZO_VENCIDO').length;
@@ -593,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let checkboxHtml = `<input type="checkbox" class="form-check-input linha-checkbox-complementar" data-id="${s.id}">`;
             const statusFormatado = (s.status || '').replace(/_/g, ' ');
 
-            if ((userRole === 'COORDINATOR' && s.status === 'PENDENTE_COORDENADOR') || (userRole === 'CONTROLLER' && s.status === 'PENDENTE_CONTROLLER')) {
+            if ((userRole === 'COORDINATOR' && s.status === 'PENDENTE_COORDENADOR') || ((userRole === 'CONTROLLER' || userRole === 'ADMIN') && s.status === 'PENDENTE_CONTROLLER')) {
                 acoesHtml = `
                     <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarComplementar(${s.id})"><i class="bi bi-check-lg"></i></button>
                     <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarComplementar(${s.id})"><i class="bi bi-x-lg"></i></button>
@@ -865,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <th class="text-center">Qtd. em Estoque</th>
             <th>Justificativa</th>
         `;
-        if (userRole === 'CONTROLLER') {
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             colunasHtml += '<th>Status</th>';
         }
         thead.innerHTML = `<tr>${colunasHtml}</tr>`;
@@ -885,7 +885,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let acoesHtml = '';
             let statusHtml = '';
 
-            if (userRole === 'CONTROLLER') {
+            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 if (s.status === 'PENDENTE_CONTROLLER') {
                     acoesHtml = `
                 <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
@@ -913,7 +913,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
                 <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
                 <td data-label="Justificativa">${s.justificativa || ''}</td>
-                ${userRole === 'CONTROLLER' ? `<td data-label="Status">${statusHtml}</td>` : ''}
+                ${(userRole === 'CONTROLLER' || userRole === 'ADMIN') ? `<td data-label="Status">${statusHtml}</td>` : ''}
             `;
             tbody.appendChild(tr);
         });
@@ -1023,7 +1023,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (userRole === 'COORDINATOR') {
                 document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-clock-history me-2"></i> Pendências';
-            } else if (userRole === 'CONTROLLER') {
+            } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-shield-check me-2"></i> Pendências do Controller';
             }
 
@@ -1259,7 +1259,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let endpoint = '';
             let payload = { lancamentoIds: ids, aprovadorId: userId };
 
-            if (userRole === 'CONTROLLER') {
+            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 endpoint = primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO'
                     ? `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`
                     : `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
@@ -1300,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let endpoint = '';
         let payload = {};
 
-        if (userRole === 'CONTROLLER') {
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             endpoint = `${API_BASE_URL}/lancamentos/lote/controller-rejeitar`;
             payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo };
         } else {
@@ -1344,7 +1344,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const comentario = document.getElementById('comentarioCoordenador').value;
         const novaData = document.getElementById('novaDataProposta').value;
 
-        if (userRole === 'CONTROLLER') {
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             endpoint = `${API_BASE_URL}/lancamentos/lote/prazo/rejeitar`;
             payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: comentario, novaDataPrazo: novaData };
         } else {
@@ -1401,7 +1401,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (todosMesmoStatus) {
             if ((userRole === 'COORDINATOR' || userRole === 'MANAGER') && primeiroStatus === 'PENDENTE_COORDENADOR') {
                 [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'inline-block');
-            } else if (userRole === 'CONTROLLER') {
+            } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 if (primeiroStatus === 'PENDENTE_CONTROLLER') {
                     [btnAprovar, btnRecusar].forEach(btn => btn.style.display = 'inline-block');
                 } else if (primeiroStatus === 'AGUARDANDO_EXTENSAO_PRAZO') {
@@ -1593,7 +1593,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const primeiroId = checkboxesSelecionados[0].dataset.id;
         const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == primeiroId);
 
-        if (userRole === 'CONTROLLER' && (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || primeiroLancamento.situacaoAprovacao === 'PRAZO_VENCIDO')) {
+        if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') && (primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || primeiroLancamento.situacaoAprovacao === 'PRAZO_VENCIDO')) {
             modalComentar._element.dataset.acaoEmLote = 'true';
             recusarPrazoController(null);
         } else {

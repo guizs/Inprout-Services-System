@@ -1,5 +1,3 @@
-// Local: frontend/assets/js/cps/cps.js
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
     const API_URL = 'https://www.inproutservices.com.br/api';

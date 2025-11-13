@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -521,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (keyFieldGroup) keyFieldGroup.style.display = 'block';
                         if (segmentoFieldGroup) segmentoFieldGroup.style.display = 'block';
                         if (gestorTimFieldGroup) gestorTimFieldGroup.style.display = 'block';
-                    } else if (userRole === 'COORDINATOR') {
+                    } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
                         // Coordinator pode editar SOMENTE Gestor TIM
                         if (gestorTimFieldGroup) gestorTimFieldGroup.style.display = 'block';
                     }

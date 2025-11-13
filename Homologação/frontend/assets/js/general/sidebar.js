@@ -32,9 +32,18 @@ fetch(sidebarPath)
             document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
             document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
             document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]').setAttribute('href', 'pages/gestaoAprovacoes.html');
-            document.querySelector('#sidebar a[href="faturamento.html"]').setAttribute('href', 'pages/faturamento.html');
-            // NOVO LINK
-            document.querySelector('#sidebar a[href="gateReport.html"]').setAttribute('href', 'pages/gateReport.html');
+            
+            // --- INÍCIO DA VERIFICAÇÃO (PARA LINKS COMENTADOS) ---
+            const faturamentoLinkIndex = document.querySelector('#sidebar a[href="faturamento.html"]');
+            if (faturamentoLinkIndex) {
+                faturamentoLinkIndex.setAttribute('href', 'pages/faturamento.html');
+            }
+            
+            const gateReportLinkIndex = document.querySelector('#sidebar a[href="gateReport.html"]');
+            if (gateReportLinkIndex) {
+                gateReportLinkIndex.setAttribute('href', 'pages/gateReport.html');
+            }
+            // --- FIM DA VERIFICAÇÃO ---
         }
 
         // ==========================================================
@@ -47,20 +56,24 @@ fetch(sidebarPath)
             // 2. Seleciona os links
             const cpsLink = document.querySelector('#sidebar a[href*="cps.html"]');
             const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]');
-            // NOVO LINK
             const gateReportLink = document.querySelector('#sidebar a[href*="gateReport.html"]');
 
-            // 3. Verifica se o usuário é MANAGER
+            // 3. Esconde os links que ainda não estão prontos
+            if (faturamentoLink) {
+                faturamentoLink.parentElement.style.display = 'none';
+            }
+            if (gateReportLink) {
+                gateReportLink.parentElement.style.display = 'none';
+            }
+
+            // 4. Verifica se o usuário é MANAGER
             if (userRole === 'MANAGER') {
-                // Oculta o link do CPS
                 if (cpsLink) {
                     cpsLink.parentElement.style.display = 'none';
                 }
-                // Oculta o link do Faturamento
                 if (faturamentoLink) {
                     faturamentoLink.parentElement.style.display = 'none';
                 }
-                // Oculta o link do Relatório de GATEs
                 if (gateReportLink) {
                     gateReportLink.parentElement.style.display = 'none';
                 }
@@ -75,6 +88,25 @@ fetch(sidebarPath)
 
         const toggleButton = document.getElementById('menu-toggle'); // Botão para abrir/fechar o menu
         const sidebar = document.getElementById('sidebar'); // Container da sidebar
+
+        // ==========================================================
+        // INÍCIO DA CORREÇÃO PARA FORÇAR NAVEGAÇÃO
+        // ==========================================================
+        // Adiciona um listener para CADA link dentro da sidebar
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // 1. Previne o comportamento "estranho" que você está vendo
+                e.preventDefault();
+                
+                // 2. Força o navegador a carregar a página do link
+                window.location.href = this.href;
+            });
+        });
+        // ==========================================================
+        // FIM DA CORREÇÃO
+        // ==========================================================
+
 
         // Adiciona evento de clique no botão para abrir/fechar a sidebar
         toggleButton.addEventListener('click', (e) => {

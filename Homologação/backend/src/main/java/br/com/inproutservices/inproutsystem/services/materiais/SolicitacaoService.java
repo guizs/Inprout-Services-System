@@ -116,16 +116,24 @@ public class SolicitacaoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
         Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
 
+        // ===== INÍCIO DA CORREÇÃO =====
+        // Se for ADMIN, busca tudo, independente do segmento
+        List<StatusSolicitacao> statuses = Arrays.asList(StatusSolicitacao.PENDENTE_CONTROLLER, StatusSolicitacao.PENDENTE_COORDENADOR);
+        if (Role.ADMIN.name().equalsIgnoreCase(role)) {
+            return solicitacaoRepository.findByStatusIn(statuses);
+        }
+        // ===== FIM DA CORREÇÃO =====
+
         if ("COORDINATOR".equalsIgnoreCase(role)) {
             if (segmentosDoUsuario.isEmpty()) return List.of();
             return solicitacaoRepository.findByStatusInAndOsSegmentoIn(List.of(StatusSolicitacao.PENDENTE_COORDENADOR), segmentosDoUsuario);
         } else if ("CONTROLLER".equalsIgnoreCase(role)) {
-            List<StatusSolicitacao> statuses = Arrays.asList(StatusSolicitacao.PENDENTE_CONTROLLER, StatusSolicitacao.PENDENTE_COORDENADOR);
-            // Controller vê todos os segmentos, então não aplicamos o filtro de segmento para ele.
+            // Controller vê todos os segmentos
             return solicitacaoRepository.findByStatusIn(statuses);
         } else if ("MANAGER".equalsIgnoreCase(role)){
             if (segmentosDoUsuario.isEmpty()) return List.of();
-            return solicitacaoRepository.findByStatusInAndOsSegmentoIn(List.of(StatusSolicitacao.PENDENTE_COORDENADOR, StatusSolicitacao.PENDENTE_CONTROLLER), segmentosDoUsuario);
+
+            return solicitacaoRepository.findByStatusInAndOsSegmentoIn(statuses, segmentosDoUsuario);
         }
         return List.of();
     }

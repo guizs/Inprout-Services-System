@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formAdicionarEmLote.reset();
         lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
         formulariosContainerLote.innerHTML = '';
+
         btnAvancarParaPreenchimentoLote.disabled = true;
 
         // Inicializa o flatpickr no campo de data principal do lote
@@ -78,6 +79,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Pega todos os projetos unicos
             const projetos = [...new Set(osData.map(item => item.projeto))];
 
+            // ===== INÍCIO DA CORREÇÃO =====
+            // 1. Guarda os valores que o usuário PODE JÁ TER SELECIONADO
+            const projetoSelecionado = selectProjetoLote.value;
+            const osSelecionada = selectOSLote.value;
+            // ===== FIM DA CORREÇÃO =====
+
             selectProjetoLote.innerHTML = `<option value="" selected disabled>Selecione um Projeto...</option>`;
             projetos.forEach(projeto => {
                 const option = new Option(projeto, projeto);
@@ -89,6 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
+
+            // ===== INÍCIO DA CORREÇÃO =====
+            // 2. Restaura os valores se eles já existiam (e não eram o placeholder)
+            if (projetoSelecionado) {
+                selectProjetoLote.value = projetoSelecionado;
+            }
+            if (osSelecionada) {
+                selectOSLote.value = osSelecionada;
+            }
+            // ===== FIM DA CORREÇÃO =====
 
         } catch (error) {
             console.error('Erro ao carregar OSs:', error);
@@ -226,7 +243,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectPrestador.choices) selectPrestador.choices.destroy();
             selectPrestador.innerHTML = '';
             const choicesInstance = new Choices(selectPrestador, { searchEnabled: true, placeholder: true, placeholderValue: 'Busque pelo nome ou código...', itemSelectText: '', noResultsText: 'Nenhum resultado' });
-            choicesInstance.setChoices(todosOsPrestadoresLote.map(p => ({ value: p.id, label: `${p.codigoPrestador} - ${p.prestador}` })), 'value', 'label', false);
+            
+            // --- INÍCIO DA CORREÇÃO ---
+            // 1. Adicionamos um item "placeholder"
+            const placeholder = { value: '', label: 'Busque pelo nome ou código...', selected: true, disabled: true };
+            const choicesData = todosOsPrestadoresLote.map(p => ({ value: p.id, label: `${p.codigoPrestador} - ${p.prestador}` }));
+
+            // 2. Enviamos a lista completa (com placeholder)
+            choicesInstance.setChoices([placeholder, ...choicesData], 'value', 'label', false);
+            // --- FIM DA CORREÇÃO ---
+            
             selectPrestador.choices = choicesInstance;
         }
 

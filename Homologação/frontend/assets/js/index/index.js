@@ -771,7 +771,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (error) {
                     console.error(error);
                     mostrarToast('Erro ao carregar dados da OS.', 'error');
-                    // preencherCamposOS(null); // <-- Esta é a linha do bug. Remova-a.
                 }
             }
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';

@@ -296,11 +296,17 @@ public class LancamentoServiceImpl implements LancamentoService {
     public Lancamento aprovarPeloCoordenador(Long lancamentoId, Long coordenadorId) {
         Lancamento lancamento = getLancamentoById(lancamentoId);
 
-        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR) {
+        // ===== INÍCIO DA CORREÇÃO =====
+        Usuario aprovador = usuarioRepository.findById(coordenadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado com ID: " + coordenadorId));
+        boolean isAdmin = aprovador.getRole() == Role.ADMIN;
+
+        // Permite a ação SE o status for o correto OU se o usuário for ADMIN
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR && !isAdmin) {
+            // ===== FIM DA CORREÇÃO =====
             throw new BusinessException("Este lançamento não está pendente de aprovação pelo Coordenador.");
         }
 
-        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
         // 1. Pega o ID da linha de detalhe (OsLpuDetalhe) à qual o lançamento pertence.
         Long osLpuDetalheId = lancamento.getOsLpuDetalhe().getId();
 
@@ -312,8 +318,11 @@ public class LancamentoServiceImpl implements LancamentoService {
                         SituacaoAprovacao.PENDENTE_COORDENADOR)
                 .orElse(null);
 
-        // 3. A lógica de verificação continua a mesma, garantindo a aprovação em sequência.
-        if (maisAntigo == null || !maisAntigo.getId().equals(lancamento.getId())) {
+        // 3. A lógica de verificação
+        // ===== INÍCIO DA CORREÇÃO =====
+        // ADMIN também ignora a regra de sequência
+        if (!isAdmin && (maisAntigo == null || !maisAntigo.getId().equals(lancamento.getId()))) {
+            // ===== FIM DA CORREÇÃO =====
             throw new BusinessException("Existe um lançamento mais antigo para este projeto (OS/LPU) que precisa ser resolvido primeiro.");
         }
 

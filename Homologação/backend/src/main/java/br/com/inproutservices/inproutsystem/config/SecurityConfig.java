@@ -36,12 +36,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, "/usuarios/login").permitAll() // Permite que todos acessem o login
                         .requestMatchers(HttpMethod.POST, "/usuarios").hasRole("ADMIN") // Apenas quem tem a ROLE_ADMIN pode criar usuários
-
-                        // --- INÍCIO DAS NOVAS REGRAS (GATE) ---
                         .requestMatchers(HttpMethod.GET, "/gates/**").authenticated() // Todos autenticados podem ver os gates e o relatório
                         .requestMatchers(HttpMethod.POST, "/gates").hasAnyRole("ADMIN", "ASSISTANT") // Apenas Admin e Assistant criam
                         .requestMatchers(HttpMethod.DELETE, "/gates/**").hasAnyRole("ADMIN", "ASSISTANT") // Apenas Admin e Assistant deletam
-                        // --- FIM DAS NOVAS REGRAS ---
+                        .requestMatchers("/controle-cps/**").authenticated()
 
                         .anyRequest().authenticated() // Todas as outras requisições exigem autenticação
                 )

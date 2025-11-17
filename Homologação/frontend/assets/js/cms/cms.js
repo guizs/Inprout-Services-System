@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FIM: NOVOS ELEMENTOS DE IMPORTAÇÃO ---
 
     let todosOsMateriais = [];
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+    const API_BASE_URL = 'http://localhost:8080';
 
     // ==========================================================
     // CONTROLE DE ACESSO (ROLE)

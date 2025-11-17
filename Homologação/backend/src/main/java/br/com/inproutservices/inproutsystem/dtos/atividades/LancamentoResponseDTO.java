@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT ADICIONADO
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -49,7 +50,13 @@ public record LancamentoResponseDTO(
         SituacaoOperacional situacao,
         BigDecimal totalOs, // Campo para TOTAL OS
         BigDecimal valorCps, // Campo para VALOR CPS
-        BigDecimal valorPendente
+        BigDecimal valorPendente,
+
+        // --- CAMPOS DE PAGAMENTO ADICIONADOS AO RECORD ---
+        BigDecimal valorPagamento,
+        StatusPagamento statusPagamento,
+        AutorSimpleDTO controllerPagador,
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataPagamento
 ) {
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
@@ -90,7 +97,20 @@ public record LancamentoResponseDTO(
                 lancamento.getSituacao(),
                 null, // totalOs será preenchido no controller
                 null,  // valorCps será preenchido no controller
-                null
+                null, // valorPendente será preenchido no controller
+
+                // ===============================================
+                // --- INÍCIO DA CORREÇÃO ---
+                // Adiciona os 4 novos campos que estavam faltando
+                // ===============================================
+                lancamento.getValorPagamento(),
+                lancamento.getStatusPagamento(),
+                (lancamento.getControllerPagador() != null)
+                        ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
+                lancamento.getDataPagamento()
+                // ===============================================
+                // --- FIM DA CORREÇÃO ---
+                // ===============================================
         );
     }
 
@@ -107,8 +127,17 @@ public record LancamentoResponseDTO(
     public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
         public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) { this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome()); }
     }
-    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento) {
-        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) { this(os.getId(), os.getOs(), os.getProjeto(), os.getGestorTim(), (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null); }
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais) { // Adicionado custoTotalMateriais
+        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
+            this(
+                    os.getId(),
+                    os.getOs(),
+                    os.getProjeto(),
+                    os.getGestorTim(),
+                    (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null,
+                    os.getCustoTotalMateriais() // Adicionado custoTotalMateriais
+            );
+        }
     }
     public record OsLpuDetalheSimpleDTO(Long id, String key, LpuSimpleDTO lpu, String site, String po, String contrato, String regional, String lote, String boq, String item, String objetoContratado, String unidade, Integer quantidade, BigDecimal valorTotal, String observacoes, @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo) {
         public OsLpuDetalheSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe detalhe) { this(detalhe.getId(), detalhe.getKey(), (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null, detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional(), detalhe.getLote(), detalhe.getBoq(), detalhe.getItem(), detalhe.getObjetoContratado(), detalhe.getUnidade(), detalhe.getQuantidade(), detalhe.getValorTotal(), detalhe.getObservacoes(), detalhe.getDataPo()); }

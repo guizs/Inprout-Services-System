@@ -9,6 +9,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
@@ -369,6 +370,8 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
         lancamento.setUltUpdate(LocalDateTime.now());
+        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        lancamento.setValorPagamento(lancamento.getValor());
 
         // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
         // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.
@@ -1212,6 +1215,8 @@ public class LancamentoServiceImpl implements LancamentoService {
             if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_CONTROLLER) {
                 lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
                 lancamento.setUltUpdate(LocalDateTime.now());
+                lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+                lancamento.setValorPagamento(lancamento.getValor());
 
                 // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
                 // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.

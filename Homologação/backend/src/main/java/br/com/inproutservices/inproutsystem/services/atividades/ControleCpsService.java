@@ -1,0 +1,40 @@
+package br.com.inproutservices.inproutsystem.services.atividades;
+
+import br.com.inproutservices.inproutsystem.dtos.atividades.ControleCpsDTO;
+import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public interface ControleCpsService {
+
+    /**
+     * Busca a fila de pendências de pagamento (EM_ABERTO, FECHADO, ALTERACAO_SOLICITADA).
+     */
+    List<Lancamento> getFilaControleCps(Long usuarioId);
+
+    /**
+     * Busca o histórico de pagamentos (PAGO, RECUSADO).
+     */
+    List<Lancamento> getHistoricoControleCps(Long usuarioId);
+
+    /**
+     * Ação do Coordenador: Fecha um lançamento para pagamento, definindo o valor final.
+     */
+    Lancamento fecharParaPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto);
+
+    /**
+     * Ação do Coordenador: Recusa o pagamento de um lançamento.
+     */
+    Lancamento recusarPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto);
+
+    /**
+     * Ação do Coordenador: Solicita alteração de um lançamento já FECHADO.
+     */
+    Lancamento solicitarAlteracao(ControleCpsDTO.AcaoCoordenadorDTO dto);
+
+    /**
+     * Ação do Controller: Marca um ou mais lançamentos como PAGOS.
+     */
+    List<Lancamento> marcarComoPago(ControleCpsDTO.AcaoControllerDTO dto);
+}

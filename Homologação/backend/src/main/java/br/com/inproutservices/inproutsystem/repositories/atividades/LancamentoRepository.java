@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -174,6 +175,30 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role,
             @Param("dataLimite") LocalDate dataLimite
     );
+
+    /**
+     * Encontra lançamentos que foram APROVADOS mas ainda não têm um StatusPagamento definido.
+     * Usado para inicializar a fila do Coordenador.
+     */
+    List<Lancamento> findBySituacaoAprovacaoAndStatusPagamentoIsNull(SituacaoAprovacao situacaoAprovacao);
+
+    /**
+     * Busca todos os lançamentos que estão em um dos status de pagamento da fila de pendências.
+     */
+    @Query("SELECT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH o.segmento " +
+            "WHERE l.statusPagamento IN :statuses")
+    List<Lancamento> findByStatusPagamentoIn(@Param("statuses") List<StatusPagamento> statuses);
+
+    /**
+     * Busca todos os lançamentos em status de pagamento específicos E que pertençam aos segmentos do usuário.
+     */
+    @Query("SELECT l FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "WHERE l.statusPagamento IN :statuses AND o.segmento IN :segmentos")
+    List<Lancamento> findByStatusPagamentoInAndOsSegmentoIn(@Param("statuses") List<StatusPagamento> statuses, @Param("segmentos") Set<Segmento> segmentos);
 
     List<Lancamento> findAllByEtapaDetalhadaId(Long etapaDetalhadaId);
 }

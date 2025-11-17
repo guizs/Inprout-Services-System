@@ -127,7 +127,11 @@ public class LancamentoController {
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),
                     totalOs,
                     valorCps,
-                    valorPendente
+                    valorPendente,
+                    dto.valorPagamento(),
+                    dto.statusPagamento(),
+                    dto.controllerPagador(),
+                    dto.dataPagamento()
             );
         }).collect(Collectors.toList());
     }

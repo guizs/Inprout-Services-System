@@ -8,7 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
-import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT ADICIONADO
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT NECESSÁRIO
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -52,7 +52,7 @@ public record LancamentoResponseDTO(
         BigDecimal valorCps, // Campo para VALOR CPS
         BigDecimal valorPendente,
 
-        // --- CAMPOS DE PAGAMENTO ADICIONADOS AO RECORD ---
+        // --- CAMPOS DE PAGAMENTO ADICIONADOS AO RECORD (TOTAL 31) ---
         BigDecimal valorPagamento,
         StatusPagamento statusPagamento,
         AutorSimpleDTO controllerPagador,
@@ -100,7 +100,7 @@ public record LancamentoResponseDTO(
                 null, // valorPendente será preenchido no controller
 
                 // ===============================================
-                // --- INÍCIO DA CORREÇÃO ---
+                // --- AQUI ESTÁ A CORREÇÃO ---
                 // Adiciona os 4 novos campos que estavam faltando
                 // ===============================================
                 lancamento.getValorPagamento(),
@@ -108,13 +108,10 @@ public record LancamentoResponseDTO(
                 (lancamento.getControllerPagador() != null)
                         ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
                 lancamento.getDataPagamento()
-                // ===============================================
-                // --- FIM DA CORREÇÃO ---
-                // ===============================================
         );
     }
 
-    // (O restante do seu DTO continua igual)
+    // (O restante dos records aninhados permanece igual)
     public record ComentarioDTO(Long id, String texto, @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora, AutorSimpleDTO autor) {
         public ComentarioDTO(Comentario comentario) { this(comentario.getId(), comentario.getTexto(), comentario.getDataHora(), (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null); }
     }
@@ -127,7 +124,7 @@ public record LancamentoResponseDTO(
     public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
         public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) { this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome()); }
     }
-    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais) { // Adicionado custoTotalMateriais
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais) {
         public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
             this(
                     os.getId(),
@@ -135,7 +132,7 @@ public record LancamentoResponseDTO(
                     os.getProjeto(),
                     os.getGestorTim(),
                     (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null,
-                    os.getCustoTotalMateriais() // Adicionado custoTotalMateriais
+                    os.getCustoTotalMateriais()
             );
         }
     }

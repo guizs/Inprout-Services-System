@@ -40,6 +40,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/gates").hasAnyRole("ADMIN", "ASSISTANT") // Apenas Admin e Assistant criam
                         .requestMatchers(HttpMethod.DELETE, "/gates/**").hasAnyRole("ADMIN", "ASSISTANT") // Apenas Admin e Assistant deletam
                         .requestMatchers("/controle-cps/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/usuarios/email").authenticated()
 
                         .anyRequest().authenticated() // Todas as outras requisições exigem autenticação
                 )

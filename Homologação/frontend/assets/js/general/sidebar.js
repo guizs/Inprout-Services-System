@@ -28,6 +28,12 @@ fetch(sidebarPath)
         if (isIndex) {
             document.querySelector('#sidebar a[href="../index.html"]').setAttribute('href', 'index.html');
             document.querySelector('#sidebar a[href="cps.html"]').setAttribute('href', 'pages/cps.html');
+
+            // --- INÍCIO DA CORREÇÃO ---
+            // Adiciona a correção de caminho para a nova página
+            document.querySelector('#sidebar a[href="controle-cps.html"]').setAttribute('href', 'pages/controle-cps.html');
+            // --- FIM DA CORREÇÃO ---
+
             document.querySelector('#sidebar a[href="cms.html"]').setAttribute('href', 'pages/cms.html');
             document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
             document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
@@ -55,6 +61,7 @@ fetch(sidebarPath)
 
             // 2. Seleciona os links
             const cpsLink = document.querySelector('#sidebar a[href*="cps.html"]');
+            const controleCpsLink = document.querySelector('#sidebar a[href*="controle-cps.html"]'); // Adicionado
             const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]');
             const gateReportLink = document.querySelector('#sidebar a[href*="gateReport.html"]');
 
@@ -67,6 +74,8 @@ fetch(sidebarPath)
             }
 
             // 4. Verifica se o usuário é MANAGER
+            // (Managers não devem ver o Relatório CPS, Faturamento ou Gate Report)
+            // (Mas DEVEM ver o novo Controle CPS)
             if (userRole === 'MANAGER') {
                 if (cpsLink) {
                     cpsLink.parentElement.style.display = 'none';
@@ -118,7 +127,7 @@ fetch(sidebarPath)
         // Fecha a sidebar automaticamente ao clicar fora dela
         document.addEventListener('click', (e) => {
             const isClickInsideSidebar = sidebar.contains(e.target); // Verifica se clicou dentro da sidebar
-            const isClickToggle = toggleButton.contains(e.target);   // Verifica se clicou no botão de toggle
+            const isClickToggle = toggleButton.contains(e.target);    // Verifica se clicou no botão de toggle
 
             // Se clicou fora tanto da sidebar quanto do botão, fecha a sidebar
             if (!isClickInsideSidebar && !isClickToggle) {

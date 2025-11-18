@@ -1,0 +1,260 @@
+/* ==========================================================
+ * CSS UNIFICADO PARA A PÁGINA DE CONTROLE DE PAGAMENTO (CPS)
+ * * OBJETIVO: Deixar as abas, tabelas e modais desta página
+ * idênticos ao visual das páginas de 'Registros' e 'Gestão'.
+ * ========================================================== */
+
+/* --- 1. ESTILOS GERAIS DA PÁGINA (De gestao.css) --- */
+/* Garante o fundo cinza e a rolagem correta */
+body {
+    overflow-y: auto !important;
+    height: auto !important;
+    display: block !important;
+    background-color: #f8f9fa;
+}
+
+/* --- 2. ESTILOS DAS ABAS (De gestao.css) --- */
+/* Deixa as abas ("Pendências", "Histórico") elegantes */
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.nav-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    /* Cinza secundário */
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: -1px;
+}
+
+.nav-tabs .nav-link:hover:not(.active) {
+    border-bottom-color: #e9ecef;
+    /* Borda suave no hover */
+    color: #343a40;
+}
+
+.nav-tabs .nav-link.active {
+    border-bottom: 3px solid var(--accent-color, #7da78a);
+    /* Verde do tema */
+    background-color: transparent;
+    color: var(--accent-color, #7da78a);
+    font-weight: 600;
+}
+
+/* --- 3. ESTILOS DE CARD E TABELA (De gestao.css e global.css) --- */
+/* Padroniza o container da tabela */
+.card {
+    border: none;
+    border-radius: 0.75rem;
+}
+
+.card-header {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* Título moderno para o card ("Itens Aguardando Ação") */
+.card-title-modern {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #343a40;
+    display: flex;
+    align-items: center;
+}
+
+/* Container da tabela com scroll */
+.table-responsive.custom-scroll {
+    max-height: calc(100vh - 300px);
+    /* Altura ajustável */
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid #ccc;
+    border-radius: 0 0 12px 12px;
+    /* Arredonda só embaixo */
+    background-color: #fff;
+}
+
+/* Cabeçalho da tabela (Th) */
+.modern-table thead th {
+    background-color: var(--primary-color, #cce3d3);
+    /* Verde claro do tema */
+    color: var(--text-color, #333);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    padding: 0.75rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid #e2e8e4;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Células da tabela (Td) */
+.modern-table tbody td {
+    color: #444;
+    padding: 0.65rem 1rem;
+    border-top: 1px solid #ececec;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 0.85rem;
+}
+
+/* Efeito de hover nas linhas */
+.modern-table tbody tr:hover {
+    background-color: #e6f3ec;
+}
+
+/* Linha zebrada */
+.modern-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* Linha de "Alteração Solicitada" (Amarelo) */
+.modern-table tbody tr.table-warning:hover,
+.modern-table tbody tr.table-warning {
+    background-color: #fff8e1 !important;
+    /* Amarelo bem claro */
+    color: #664d03;
+}
+
+/* Linha de "Fechado / Pronto para Pagar" (Azul) */
+.modern-table tbody tr.table-info:hover,
+.modern-table tbody tr.table-info {
+    background-color: #e0f7fa !important;
+    /* Azul bem claro */
+    color: #004d40;
+}
+
+/* --- 4. BOTÕES DE AÇÃO (De gestao.css) --- */
+/* Botões de Pagar em Lote (Verde/Vermelho/Amarelo) */
+.btn-acao-lote {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 50px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    background-color: transparent;
+    border: 1px solid var(--btn-color-borda);
+    color: var(--btn-color-borda);
+}
+
+.btn-acao-lote:hover {
+    background-color: var(--btn-color-fundo-hover);
+    color: var(--btn-color-texto-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Cores dos botões */
+.btn-lote-success {
+    --btn-color-borda: #198754;
+    --btn-color-fundo-hover: #198754;
+    --btn-color-texto-hover: white;
+}
+
+.btn-lote-danger {
+    --btn-color-borda: #dc3545;
+    --btn-color-fundo-hover: #dc3545;
+    --btn-color-texto-hover: white;
+}
+
+/* --- 5. ESTILOS DE MODAL (De index.css) --- */
+/* ESTA É A PARTE QUE ESTÁ FALTANDO NA SUA PÁGINA */
+
+.modal-content {
+    border-radius: 12px;
+    border: none;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    background-color: #d6f5e3;
+    /* Verde claro */
+    border-bottom: 1px solid #b8e2c9;
+}
+
+.modal-header .modal-title {
+    font-weight: 600;
+    color: #333;
+}
+
+.modal-footer {
+    background-color: #f9f9f9;
+    border-top: 1px solid #ddd;
+}
+
+/* Títulos de seção dentro dos modais */
+.section-title {
+    font-weight: 600;
+    color: #4a665a;
+    border-bottom: 1px solid #cde7d8;
+    padding-bottom: 4px;
+    margin-bottom: 12px;
+    margin-top: 20px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+}
+
+/* Scroll do Modal */
+.modal-body {
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+/* --- 6. BADGES DE STATUS (Customizado) --- */
+/* Padroniza os badges de status da tabela */
+
+.badge.text-bg-primary {
+    /* EM_ABERTO */
+    background-color: var(--card-secondary, #b0bec5) !important;
+    color: var(--text-color, #333) !important;
+}
+
+.badge.text-bg-info {
+    /* FECHADO */
+    background-color: #bbdefb !important;
+    /* Azul claro de gestao.css */
+    color: var(--text-color, #333) !important;
+}
+
+.badge.text-bg-warning {
+    /* ALTERACAO_SOLICITADA */
+    background-color: var(--card-warning, #ffe082) !important;
+    color: var(--text-color, #333) !important;
+}
+
+.badge.text-bg-success {
+    /* PAGO */
+    background-color: var(--card-success, #a5d6a7) !important;
+    color: var(--text-color, #333) !important;
+}
+
+.badge.text-bg-danger {
+    /* RECUSADO */
+    background-color: #ffab91 !important;
+    /* Laranja/vermelho de gestao.css */
+    color: #b95000 !important;
+    font-weight: 600;
+}
+
+/* --- 7. LOADER (De gestao.css) --- */
+/* Garante que o loader fique DENTRO do container da aba */
+.content-loader-container {
+    position: relative;
+    min-height: 300px;
+}
+
+.content-loader-container .overlay-loader {
+    position: absolute;
+    z-index: 1040;
+    border-radius: 0 0 0.75rem 0.75rem;
+    background: rgba(255, 255, 255, 0.7);
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}

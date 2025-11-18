@@ -10,15 +10,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabPendencias = {
         pane: document.getElementById('pendencias-pagamento-pane'),
         btn: document.getElementById('pendencias-pagamento-tab'),
-        thead: document.getElementById('thead-pendencias-pagamento'),
-        tbody: document.getElementById('tbody-pendencias-pagamento'),
+        accordion: document.getElementById('accordionPendencias'),
+        msgVazio: document.getElementById('msg-sem-pendencias'),
         loaderId: '#pendencias-pagamento-pane'
     };
     const tabHistorico = {
         pane: document.getElementById('historico-pagamento-pane'),
         btn: document.getElementById('historico-pagamento-tab'),
-        thead: document.getElementById('thead-historico-pagamento'),
-        tbody: document.getElementById('tbody-historico-pagamento'),
+        accordion: document.getElementById('accordionHistorico'),
+        msgVazio: document.getElementById('msg-sem-historico'),
         loaderId: '#historico-pagamento-pane'
     };
 
@@ -96,123 +96,245 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // --- FUNÇÕES DE RENDERIZAÇÃO ---
+    // --- FUNÇÕES DE RENDERIZAÇÃO (ACORDEÃO) ---
 
     /**
-     * Define os cabeçalhos das tabelas.
+     * Cabeçalho da tabela para a fila de Pendências (SIMPLIFICADO).
      */
-    function inicializarCabecalhos() {
-        const colunas = [
-            "Ações", "Status Pagamento", "Data Atividade", "OS", "Site", "Segmento",
-            "Projeto", "LPU", "Cód. Prestador", "Prestador", "Gestor",
-            "Valor Operacional", "Valor a Pagar", "KEY"
-        ];
-        
-        // Checkbox para Controller na fila de pendências
-        const colunasPendencias = [
-            (userRole === 'CONTROLLER' || userRole === 'ADMIN') ? '<th><input type="checkbox" class="form-check-input" id="selecionar-todos-pagamento"></th>' : '',
-            ...colunas
-        ].filter(Boolean).map(c => c.startsWith('<th') ? c : `<th>${c}</th>`).join('');
-
-        tabPendencias.thead.innerHTML = `<tr>${colunasPendencias}</tr>`;
-        
-        // Cabeçalho do Histórico (sem checkbox)
-        const colunasHistorico = colunas.map(c => `<th>${c}</th>`).join('');
-        tabHistorico.thead.innerHTML = `<tr>${colunasHistorico}</tr>`;
+    function getTheadPendencias() {
+        const isController = (userRole === 'CONTROLLER' || userRole === 'ADMIN');
+        return `
+            <thead class="sticky-top">
+                <tr>
+                    ${isController ? '<th><input type="checkbox" class="form-check-input selecionar-todos-os" title="Selecionar todos desta OS"></th>' : ''}
+                    <th>Ações</th>
+                    <th>Status Pag.</th>
+                    <th>Data Ativ.</th>
+                    <th>Site</th>
+                    <th>Segmento</th>
+                    <th>Projeto</th>
+                    <th>LPU</th>
+                    <th>Prestador</th>
+                    <th>Gestor</th>
+                    <th>Valor a Pagar</th> <th>KEY</th>
+                </tr>
+            </thead>
+        `;
     }
 
     /**
-     * Renderiza a tabela de Pendências de Pagamento.
+     * Cabeçalho da tabela para a fila de Histórico (SIMPLIFICADO).
      */
-    function renderizarTabelaPendencias(lancamentos) {
-        const tbody = tabPendencias.tbody;
-        tbody.innerHTML = '';
+    function getTheadHistorico() {
+        return `
+            <thead class="sticky-top">
+                <tr>
+                    <th>Ações</th>
+                    <th>Status Pag.</th>
+                    <th>Data Ativ.</th>
+                    <th>Site</th>
+                    <th>Segmento</th>
+                    <th>Projeto</th>
+                    <th>LPU</th>
+                    <th>Prestador</th>
+                    <th>Gestor</th>
+                    <th>Valor a Pagar</th> <th>KEY</th>
+                </tr>
+            </thead>
+        `;
+    }
 
+    /**
+     * Renderiza o acordeão de Pendências de Pagamento.
+     */
+    function renderizarAcordeonPendencias(lancamentos) {
+        const accordionContainer = tabPendencias.accordion;
+        const msgVazio = tabPendencias.msgVazio;
+        
+        accordionContainer.innerHTML = '';
         if (!lancamentos || lancamentos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="15" class="text-center text-muted p-4">Nenhuma pendência de pagamento encontrada.</td></tr>`;
+            msgVazio.classList.remove('d-none');
             return;
         }
+        msgVazio.classList.add('d-none');
 
-        lancamentos.forEach(lanc => {
-            const tr = document.createElement('tr');
-            tr.dataset.id = lanc.id;
+        // Agrupar por OS
+        const grupos = lancamentos.reduce((acc, lanc) => {
+            const osKey = get(lanc, 'os.os', 'Sem OS');
+            if (!acc[osKey]) {
+                acc[osKey] = {
+                    lancamentos: [],
+                    projeto: get(lanc, 'os.projeto', '-'),
+                    segmento: get(lanc, 'os.segmento.nome', '-')
+                };
+            }
+            acc[osKey].lancamentos.push(lanc);
+            return acc;
+        }, {});
+
+        const theadHtml = getTheadPendencias();
+        const isController = (userRole === 'CONTROLLER' || userRole === 'ADMIN');
+
+        let index = 0;
+        for (const [os, dadosGrupo] of Object.entries(grupos)) {
+            const osId = `os-pendente-${index}`;
+            const totalItens = dadosGrupo.lancamentos.length;
             
-            // Adiciona classes de destaque
-            if(lanc.statusPagamento === 'ALTERACAO_SOLICITADA') {
-                tr.classList.add('table-warning'); // Destaque para alteração
-            } else if (lanc.statusPagamento === 'FECHADO') {
-                 tr.classList.add('table-info'); // Destaque para "Pronto para Pagar"
-            }
+            const tbodyHtml = dadosGrupo.lancamentos.map(lanc => {
+                const tr = document.createElement('tr');
+                tr.dataset.id = lanc.id;
+                
+                if(lanc.statusPagamento === 'ALTERACAO_SOLICITADA') tr.classList.add('table-warning');
+                else if (lanc.statusPagamento === 'FECHADO') tr.classList.add('table-info');
 
-            const valorOperacional = get(lanc, 'valor', 0);
-            const valorPagamento = get(lanc, 'valorPagamento', 0);
-            let destaqueValor = '';
-            if (valorOperacional !== valorPagamento) {
-                destaqueValor = 'text-danger fw-bold';
-            }
+                // SIMPLIFICADO: Usamos apenas 'valorPagamento'. O 'valor' original (operacional)
+                // é usado como fallback se 'valorPagamento' for nulo (o que não deve acontecer).
+                const valorOperacional = get(lanc, 'valor', 0);
+                const valorPagamento = get(lanc, 'valorPagamento', valorOperacional);
+                
+                // Destaque se o valor de pagamento for diferente do valor operacional original
+                let destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
 
-            const acoesHtml = gerarBotoesAcao(lanc);
-            const checkboxHtml = (userRole === 'CONTROLLER' || userRole === 'ADMIN') 
-                ? `<td><input type="checkbox" class="form-check-input linha-checkbox-pagamento" data-id="${lanc.id}"></td>` 
-                : '';
+                const acoesHtml = gerarBotoesAcao(lanc);
+                const checkboxHtml = isController 
+                    ? `<td><input type="checkbox" class="form-check-input linha-checkbox-pagamento" data-id="${lanc.id}"></td>` 
+                    : '';
 
-            tr.innerHTML = `
-                ${checkboxHtml}
-                <td data-label="Ações">${acoesHtml}</td>
-                <td data-label="Status Pagamento">${formatarStatusPagamento(lanc.statusPagamento)}</td>
-                <td data-label="Data Atividade">${formatarData(get(lanc, 'dataAtividade'))}</td>
-                <td data-label="OS">${get(lanc, 'os.os')}</td>
-                <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
-                <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
-                <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
-                <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
-                <td data-label="Cód. Prestador">${get(lanc, 'prestador.codigo')}</td>
-                <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
-                <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
-                <td data-label="Valor Operacional">${formatarMoeda(valorOperacional)}</td>
-                <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
-                <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+                return `
+                    <tr data-id="${lanc.id}" class="${tr.className}">
+                        ${checkboxHtml}
+                        <td data-label="Ações">${acoesHtml}</td>
+                        <td data-label="Status Pag.">${formatarStatusPagamento(lanc.statusPagamento)}</td>
+                        <td data-label="Data Ativ.">${formatarData(get(lanc, 'dataAtividade'))}</td>
+                        <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
+                        <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
+                        <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
+                        <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
+                        <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
+                        <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
+                        <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Montar o item do acordeão
+            const accordionItemHtml = `
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-${osId}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${osId}">
+                            <div class="d-flex justify-content-between w-100 pe-3">
+                                <span><i class="bi bi-file-earmark-text me-2"></i><strong>OS: ${os}</strong></span>
+                                <span class="text-muted d-none d-md-inline">Projeto: ${dadosGrupo.projeto}</span>
+                                <span class="text-muted d-none d-lg-inline">Segmento: ${dadosGrupo.segmento}</span>
+                                <span class="badge text-bg-primary">${totalItens} item(s)</span>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse-${osId}" class="accordion-collapse collapse" data-bs-parent="#accordionPendencias">
+                        <div class="accordion-body p-0">
+                            <div class="table-responsive-vertical custom-scroll">
+                                <table class="table modern-table table-hover align-middle mb-0">
+                                    ${theadHtml}
+                                    <tbody>
+                                        ${tbodyHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
-            tbody.appendChild(tr);
-        });
+            accordionContainer.innerHTML += accordionItemHtml;
+            index++;
+        }
     }
-    
-    /**
-     * Renderiza a tabela de Histórico de Pagamentos.
-     */
-    function renderizarTabelaHistorico(lancamentos) {
-        const tbody = tabHistorico.tbody;
-        tbody.innerHTML = '';
 
+    /**
+     * Renderiza o acordeão de Histórico de Pagamentos.
+     */
+    function renderizarAcordeonHistorico(lancamentos) {
+        const accordionContainer = tabHistorico.accordion;
+        const msgVazio = tabHistorico.msgVazio;
+
+        accordionContainer.innerHTML = '';
         if (!lancamentos || lancamentos.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="14" class="text-center text-muted p-4">Nenhum histórico de pagamento encontrado.</td></tr>`;
+            msgVazio.classList.remove('d-none');
             return;
         }
+        msgVazio.classList.add('d-none');
 
-        lancamentos.forEach(lanc => {
-            const tr = document.createElement('tr');
-            const valorOperacional = get(lanc, 'valor', 0);
-            const valorPagamento = get(lanc, 'valorPagamento', 0);
-            let destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
+        const grupos = lancamentos.reduce((acc, lanc) => {
+            const osKey = get(lanc, 'os.os', 'Sem OS');
+            if (!acc[osKey]) {
+                acc[osKey] = {
+                    lancamentos: [],
+                    projeto: get(lanc, 'os.projeto', '-'),
+                    segmento: get(lanc, 'os.segmento.nome', '-')
+                };
+            }
+            acc[osKey].lancamentos.push(lanc);
+            return acc;
+        }, {});
 
-            tr.innerHTML = `
-                <td data-label="Ações"><button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}"><i class="bi bi-eye"></i></button></td>
-                <td data-label="Status Pagamento">${formatarStatusPagamento(lanc.statusPagamento)}</td>
-                <td data-label="Data Atividade">${formatarData(get(lanc, 'dataAtividade'))}</td>
-                <td data-label="OS">${get(lanc, 'os.os')}</td>
-                <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
-                <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
-                <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
-                <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
-                <td data-label="Cód. Prestador">${get(lanc, 'prestador.codigo')}</td>
-                <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
-                <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
-                <td data-label="Valor Operacional">${formatarMoeda(valorOperacional)}</td>
-                <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
-                <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+        const theadHtml = getTheadHistorico();
+        let index = 0;
+
+        for (const [os, dadosGrupo] of Object.entries(grupos)) {
+            const osId = `os-historico-${index}`;
+            const totalItens = dadosGrupo.lancamentos.length;
+
+            const tbodyHtml = dadosGrupo.lancamentos.map(lanc => {
+                const valorOperacional = get(lanc, 'valor', 0);
+                const valorPagamento = get(lanc, 'valorPagamento', valorOperacional);
+                let destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
+
+                return `
+                    <tr data-id="${lanc.id}">
+                        <td data-label="Ações"><button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}"><i class="bi bi-eye"></i></button></td>
+                        <td data-label="Status Pag.">${formatarStatusPagamento(lanc.statusPagamento)}</td>
+                        <td data-label="Data Ativ.">${formatarData(get(lanc, 'dataAtividade'))}</td>
+                        <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
+                        <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
+                        <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
+                        <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
+                        <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
+                        <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
+                        <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            const accordionItemHtml = `
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-${osId}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${osId}">
+                             <div class="d-flex justify-content-between w-100 pe-3">
+                                <span><i class="bi bi-file-earmark-text me-2"></i><strong>OS: ${os}</strong></span>
+                                <span class="text-muted d-none d-md-inline">Projeto: ${dadosGrupo.projeto}</span>
+                                <span class="text-muted d-none d-lg-inline">Segmento: ${dadosGrupo.segmento}</span>
+                                <span class="badge text-bg-secondary">${totalItens} item(s)</span>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse-${osId}" class="accordion-collapse collapse" data-bs-parent="#accordionHistorico">
+                        <div class="accordion-body p-0">
+                            <div class="table-responsive-vertical custom-scroll">
+                                <table class="table modern-table table-hover align-middle mb-0">
+                                    ${theadHtml}
+                                    <tbody>
+                                        ${tbodyHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             `;
-            tbody.appendChild(tr);
-        });
+            accordionContainer.innerHTML += accordionItemHtml;
+            index++;
+        }
     }
 
     /**
@@ -222,17 +344,17 @@ document.addEventListener('DOMContentLoaded', () => {
         let acoesHtml = `<button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}" title="Ver Histórico"><i class="bi bi-eye"></i></button>`;
         const status = lanc.statusPagamento;
 
+        // Coordenador (e Admin) pode Fechar/Recusar itens EM_ABERTO
         if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
             if (status === 'EM_ABERTO') {
                 acoesHtml += ` <button class="btn btn-sm btn-outline-success btn-fechar-pagamento" data-id="${lanc.id}" title="Fechar para Pagamento"><i class="bi bi-check-circle"></i></button>`;
                 acoesHtml += ` <button class="btn btn-sm btn-outline-danger btn-recusar-pagamento" data-id="${lanc.id}" title="Recusar Pagamento"><i class="bi bi-x-circle"></i></button>`;
             }
+            // Coordenador (e Admin) pode Solicitar Alteração em itens FECHADO
             if (status === 'FECHADO') {
                 acoesHtml += ` <button class="btn btn-sm btn-outline-warning btn-solicitar-alteracao" data-id="${lanc.id}" title="Solicitar Alteração"><i class="bi bi-pencil-square"></i></button>`;
             }
         }
-        
-        // Controller não tem ação de linha (apenas em lote), mas pode ver o histórico
         
         return acoesHtml;
     }
@@ -248,18 +370,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Falha ao carregar fila de pagamentos.');
             todosOsLancamentos = await response.json();
             
-            // Filtra os dados para a aba de pendências
-            renderizarTabelaPendencias(todosOsLancamentos);
+            renderizarAcordeonPendencias(todosOsLancamentos);
             
-            // Controla a visibilidade das Ações em Lote
+            // Mostra/Esconde o cabeçalho do card (que contém o botão de lote)
+            const cardHeader = acoesLoteControllerContainer.closest('.card-header');
             if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-                acoesLoteControllerContainer.classList.remove('d-none');
+                cardHeader.classList.toggle('d-none', todosOsLancamentos.length === 0);
+            } else {
+                // Esconde para Coordenador se não houver itens, ou se o botão de lote não for necessário
+                cardHeader.classList.toggle('d-none', todosOsLancamentos.length === 0);
             }
             
         } catch (error) {
             console.error(error);
             mostrarToast(error.message, 'error');
-            tabPendencias.tbody.innerHTML = `<tr><td colspan="15" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tabPendencias.msgVazio.innerHTML = error.message;
+            tabPendencias.msgVazio.classList.remove('d-none', 'text-muted');
+            tabPendencias.msgVazio.classList.add('text-danger');
         } finally {
             togglePaneLoader(tabPendencias, false);
             atualizarEstadoAcoesLote();
@@ -274,11 +401,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!response.ok) throw new Error('Falha ao carregar histórico de pagamentos.');
             const historico = await response.json();
-            renderizarTabelaHistorico(historico);
+            renderizarAcordeonHistorico(historico);
         } catch (error) {
             console.error(error);
             mostrarToast(error.message, 'error');
-            tabHistorico.tbody.innerHTML = `<tr><td colspan="14" class="text-center text-danger p-4">${error.message}</td></tr>`;
+            tabHistorico.msgVazio.innerHTML = error.message;
+            tabHistorico.msgVazio.classList.remove('d-none', 'text-muted');
+            tabHistorico.msgVazio.classList.add('text-danger');
         } finally {
             togglePaneLoader(tabHistorico, false);
         }
@@ -286,6 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- FUNÇÕES DE AÇÃO (MODAIS E API) ---
 
+    // MODAL SIMPLIFICADO
     function abrirModalAcaoCoordenador(lancId, acao) {
         const lancamento = todosOsLancamentos.find(l => l.id == lancId);
         if (!lancamento) {
@@ -297,11 +427,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('lancamentoIdAcao').value = lancId;
         document.getElementById('acaoCoordenador').value = acao;
         
+        // Pega o valor da atividade (original) como fallback
         const valorOperacional = get(lancamento, 'valor', 0);
-        const valorPagamento = get(lancamento, 'valorPagamento', valorOperacional); // Usa o operacional como fallback
+        // Pega o valor de pagamento atual, ou o original se aquele for nulo
+        const valorPagamentoAtual = get(lancamento, 'valorPagamento', valorOperacional); 
 
-        document.getElementById('valorOperacionalDisplay').value = formatarMoeda(valorOperacional);
-        document.getElementById('valorPagamentoInput').value = valorPagamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
+        // Seta APENAS o valor de pagamento
+        document.getElementById('valorPagamentoInput').value = valorPagamentoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
         
         const modalTitle = document.getElementById('modalAlterarValorLabel');
         const helpText = document.getElementById('justificativaHelpText');
@@ -333,9 +465,27 @@ document.addEventListener('DOMContentLoaded', () => {
         modalRecusar.show();
     }
     
-    function abrirModalHistorico(lancId) {
-        const lancamento = todosOsLancamentos.find(l => l.id == lancId) || 
-                           (tabHistorico.pane.dataset.loaded === 'true' ? document.getElementById('tbody-historico-pagamento').data.find(l => l.id == lancId) : null); // Tenta buscar no histórico
+    async function abrirModalHistorico(lancId) {
+        let lancamento = todosOsLancamentos.find(l => l.id == lancId);
+        
+        if (!lancamento) {
+            try {
+                // Busca o lançamento individual se não estiver na lista de pendências
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${lancId}`, {
+                    headers: { 'X-User-ID': userId }
+                });
+                if (response.ok) {
+                     lancamento = await response.json();
+                } else {
+                    throw new Error('Lançamento não encontrado no histórico.');
+                }
+            } catch (error) {
+                console.error("Erro ao buscar lançamento individual:", error);
+                modalComentariosBody.innerHTML = `<p class="text-center text-danger">${error.message}</p>`;
+                modalComentarios.show();
+                return;
+            }
+        }
                            
         if (!lancamento || !lancamento.comentarios || lancamento.comentarios.length === 0) {
             modalComentariosBody.innerHTML = '<p class="text-center text-muted">Nenhum histórico de comentários encontrado para este lançamento.</p>';
@@ -359,9 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modalComentarios.show();
     }
     
-    /**
-     * Listener para o formulário de Alteração de Valor (Fechar / Solicitar Alteração)
-     */
+    // SUBMISSÃO DO MODAL DE ALTERAÇÃO (Nenhuma mudança necessária)
     formAlterarValor.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnConfirmar = document.getElementById('btnConfirmarAcaoValor');
@@ -395,9 +543,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /**
-     * Listener para o formulário de Recusa de Pagamento
-     */
+    // SUBMISSÃO DO MODAL DE RECUSA (Nenhuma mudança necessária)
     formRecusar.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnConfirmar = document.getElementById('btnConfirmarRecusa');
@@ -406,7 +552,7 @@ document.addEventListener('DOMContentLoaded', () => {
             lancamentoId: document.getElementById('lancamentoIdRecusar').value,
             coordenadorId: userId,
             justificativa: document.getElementById('justificativaRecusaInput').value.trim(),
-            valorPagamento: 0 // Valor não é relevante para recusa, mas o DTO pode exigir
+            valorPagamento: 0 // Valor não é relevante para recusa
         };
         
         setButtonLoading(btnConfirmar, true, 'Recusando...');
@@ -421,8 +567,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalRecusar.hide();
             await carregarFilaPendencias(); // Recarrega a fila de pendências
             
-            // Força o recarregamento do histórico na próxima visita
-            tabHistorico.pane.dataset.loaded = 'false';
+            tabHistorico.pane.dataset.loaded = 'false'; // Força recarga do histórico
 
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -431,9 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /**
-     * Listener para Ação em Lote do Controller (Pagar)
-     */
+    // AÇÃO EM LOTE DO CONTROLLER (Nenhuma mudança necessária)
     btnPagarSelecionados.addEventListener('click', async () => {
         const idsSelecionados = Array.from(document.querySelectorAll('.linha-checkbox-pagamento:checked')).map(cb => cb.dataset.id);
         
@@ -458,8 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
             mostrarToast(`${idsSelecionados.length} item(s) marcado(s) como PAGO!`, 'success');
             await carregarFilaPendencias(); // Recarrega a fila de pendências
             
-            // Força o recarregamento do histórico na próxima visita
-            tabHistorico.pane.dataset.loaded = 'false';
+            tabHistorico.pane.dataset.loaded = 'false'; // Força recarga do histórico
 
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -474,6 +616,10 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function atualizarEstadoAcoesLote() {
         if (!acoesLoteControllerContainer) return;
+        if (userRole !== 'CONTROLLER' && userRole !== 'ADMIN') {
+             acoesLoteControllerContainer.classList.add('d-none');
+             return;
+        }
         
         const checkboxes = document.querySelectorAll('.linha-checkbox-pagamento:checked');
         const total = checkboxes.length;
@@ -499,47 +645,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INICIALIZAÇÃO E EVENT LISTENERS ---
 
-    // Delegação de eventos para os botões nas tabelas
+    // Delegação de eventos para os botões nos acordeões
     document.getElementById('cpsPagamentoTabContent').addEventListener('click', (e) => {
         const button = e.target.closest('button');
         if (!button) return;
 
         const lancId = button.closest('tr')?.dataset.id;
-        if (!lancId) return;
 
-        if (button.classList.contains('btn-fechar-pagamento')) {
+        if (button.classList.contains('btn-fechar-pagamento') && lancId) {
             abrirModalAcaoCoordenador(lancId, 'fechar');
-        } else if (button.classList.contains('btn-recusar-pagamento')) {
+        } else if (button.classList.contains('btn-recusar-pagamento') && lancId) {
             abrirModalRecusar(lancId);
-        } else if (button.classList.contains('btn-solicitar-alteracao')) {
+        } else if (button.classList.contains('btn-solicitar-alteracao') && lancId) {
             abrirModalAcaoCoordenador(lancId, 'solicitar-alteracao');
-        } else if (button.classList.contains('btn-ver-historico')) {
+        } else if (button.classList.contains('btn-ver-historico') && lancId) {
             abrirModalHistorico(lancId);
         }
     });
     
-    // Listeners para seleção de linhas (lote)
+    // Listeners para seleção de linhas (lote) - AGORA DENTRO DO ACORDEÃO
     tabPendencias.pane.addEventListener('change', (e) => {
         const target = e.target;
-        const cbTodos = document.getElementById('selecionar-todos-pagamento');
         
         if (target.classList.contains('linha-checkbox-pagamento')) {
+            // Checkbox de linha individual
             target.closest('tr').classList.toggle('table-active', target.checked);
-            const totalCheckboxes = document.querySelectorAll('.linha-checkbox-pagamento').length;
-            const checkedCount = document.querySelectorAll('.linha-checkbox-pagamento:checked').length;
-            cbTodos.checked = checkedCount === totalCheckboxes;
-            cbTodos.indeterminate = checkedCount > 0 && checkedCount < totalCheckboxes;
+            
+            // Atualiza o checkbox "selecionar-todos-os" do grupo
+            const table = target.closest('table');
+            const totalLinhas = table.querySelectorAll('.linha-checkbox-pagamento').length;
+            const linhasMarcadas = table.querySelectorAll('.linha-checkbox-pagamento:checked').length;
+            const cbTodosOs = table.querySelector('.selecionar-todos-os');
+            
+            if (cbTodosOs) {
+                cbTodosOs.checked = (totalLinhas === linhasMarcadas);
+                cbTodosOs.indeterminate = (linhasMarcadas > 0 && linhasMarcadas < totalLinhas);
+            }
         } 
-        else if (target.id === 'selecionar-todos-pagamento') {
+        else if (target.classList.contains('selecionar-todos-os')) {
+            // Checkbox "selecionar-todos-os" (cabeçalho da tabela interna)
             const isChecked = target.checked;
-            document.querySelectorAll('.linha-checkbox-pagamento').forEach(cb => {
+            const tableBody = target.closest('table').querySelector('tbody');
+            
+            tableBody.querySelectorAll('.linha-checkbox-pagamento').forEach(cb => {
                 cb.checked = isChecked;
                 cb.closest('tr').classList.toggle('table-active', isChecked);
             });
-            cbTodos.indeterminate = false;
         }
         
-        atualizarEstadoAcoesLote();
+        atualizarEstadoAcoesLote(); // Atualiza o contador global
     });
 
     // Gatilho para carregar dados ao trocar de aba
@@ -560,8 +714,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Carregamento inicial
     function init() {
-        inicializarCabecalhos();
-        // Carrega a primeira aba (Pendências)
         carregarFilaPendencias();
         tabPendencias.pane.dataset.loaded = 'true';
     }

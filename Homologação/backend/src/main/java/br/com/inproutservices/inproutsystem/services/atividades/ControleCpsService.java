@@ -37,4 +37,6 @@ public interface ControleCpsService {
      * Ação do Controller: Marca um ou mais lançamentos como PAGOS.
      */
     List<Lancamento> marcarComoPago(ControleCpsDTO.AcaoControllerDTO dto);
+
+    Lancamento recusarPeloController(ControleCpsDTO.AcaoRecusaControllerDTO dto);
 }

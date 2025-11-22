@@ -210,6 +210,31 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         return lancamentoRepository.saveAll(processados);
     }
 
+    @Override
+    @Transactional
+    public Lancamento recusarPeloController(ControleCpsDTO.AcaoRecusaControllerDTO dto) {
+        Usuario controller = getUsuario(dto.controllerId());
+        if (controller.getRole() != Role.CONTROLLER && controller.getRole() != Role.ADMIN) {
+            throw new BusinessException("Apenas Controllers ou Admins podem realizar esta ação.");
+        }
+
+        Lancamento lancamento = getLancamento(dto.lancamentoId());
+
+        // Permite recusar se estiver FECHADO ou com ALTERAÇÃO SOLICITADA
+        if (lancamento.getStatusPagamento() != StatusPagamento.FECHADO &&
+                lancamento.getStatusPagamento() != StatusPagamento.ALTERACAO_SOLICITADA) {
+            throw new BusinessException("Apenas lançamentos na fila do Controller podem ser devolvidos.");
+        }
+
+        // Volta para EM_ABERTO para o Coordenador ajustar
+        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        criarComentario(lancamento, controller, "Pagamento devolvido pelo Controller. Motivo: " + dto.motivo());
+
+        return lancamentoRepository.save(lancamento);
+    }
+
     /**
      * Compara o valor antigo com o novo. Se houver mudança, atualiza o valor
      * e retorna uma string de justificativa para o comentário de auditoria.

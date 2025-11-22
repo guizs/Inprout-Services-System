@@ -48,30 +48,26 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDocumentacao,
         StatusEtapa status,
         SituacaoOperacional situacao,
-        BigDecimal totalOs, // Campo para TOTAL OS
-        BigDecimal valorCps, // Campo para VALOR CPS
+        BigDecimal totalOs,
+        BigDecimal valorCps,
         BigDecimal valorPendente,
 
-        // --- CAMPOS DE PAGAMENTO ADICIONADOS AO RECORD (TOTAL 31) ---
+        BigDecimal totalPago, // <--- CAMPO NOVO (Obrigatorio na ordem correta)
+
         BigDecimal valorPagamento,
         StatusPagamento statusPagamento,
         AutorSimpleDTO controllerPagador,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataPagamento
 ) {
+    // Construtor auxiliar que recebe a Entidade Lancamento
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
-                (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null)
-                        ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
-                (lancamento.getOsLpuDetalhe() != null)
-                        ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
-                (lancamento.getPrestador() != null)
-                        ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
-                (lancamento.getEtapaDetalhada() != null)
-                        ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
-                (lancamento.getManager() != null)
-                        ? new ManagerSimpleDTO(lancamento.getManager())
-                        : null,
+                (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null) ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
+                (lancamento.getOsLpuDetalhe() != null) ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
+                (lancamento.getPrestador() != null) ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
+                (lancamento.getEtapaDetalhada() != null) ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
+                (lancamento.getManager() != null) ? new ManagerSimpleDTO(lancamento.getManager()) : null,
                 lancamento.getValor(),
                 lancamento.getSituacaoAprovacao(),
                 lancamento.getDataAtividade(),
@@ -79,9 +75,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCriacao(),
                 lancamento.getDataPrazo(),
                 lancamento.getDataPrazoProposta(),
-                (lancamento.getComentarios() != null)
-                        ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
-                        : List.of(),
+                (lancamento.getComentarios() != null) ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList()) : List.of(),
                 lancamento.getEquipe(),
                 lancamento.getVistoria(),
                 lancamento.getPlanoVistoria(),
@@ -95,18 +89,15 @@ public record LancamentoResponseDTO(
                 lancamento.getPlanoDocumentacao(),
                 lancamento.getStatus(),
                 lancamento.getSituacao(),
-                null, // totalOs será preenchido no controller
-                null,  // valorCps será preenchido no controller
-                null, // valorPendente será preenchido no controller
+                null, // totalOs
+                null, // valorCps
+                null, // valorPendente
 
-                // ===============================================
-                // --- AQUI ESTÁ A CORREÇÃO ---
-                // Adiciona os 4 novos campos que estavam faltando
-                // ===============================================
+                null, // totalPago
+
                 lancamento.getValorPagamento(),
                 lancamento.getStatusPagamento(),
-                (lancamento.getControllerPagador() != null)
-                        ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
+                (lancamento.getControllerPagador() != null) ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
                 lancamento.getDataPagamento()
         );
     }

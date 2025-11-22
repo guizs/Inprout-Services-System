@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalComentariosEl = document.getElementById('modalComentarios');
     const modalComentarios = modalComentariosEl ? new bootstrap.Modal(modalComentariosEl) : null;
     const modalComentariosBody = document.getElementById('modalComentariosBody');
-    
+
     // Ações em Lote (Controller)
     const acoesLoteControllerContainer = document.getElementById('acoes-lote-controller-container');
     const btnPagarSelecionados = document.getElementById('btn-pagar-selecionados');
@@ -62,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dia || !mes || !ano) return null;
         return new Date(`${ano}-${mes}-${dia}T${hora || '00:00:00'}`);
     };
-    
+
     function togglePaneLoader(tab, ativo = true) {
         const container = document.querySelector(tab.loaderId);
         if (container) {
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return `<span class="badge text-bg-${cor}">${statusLimpo}</span>`;
     }
-    
+
     function setButtonLoading(button, isLoading, text = 'Salvando...') {
         if (!button) return;
         button.disabled = isLoading;
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             button.innerHTML = button.dataset.originalText || 'Confirmar';
         }
     }
-    
+
     // --- FUNÇÕES DE RENDERIZAÇÃO (ACORDEÃO) ---
 
     /**
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderizarAcordeonPendencias(lancamentos) {
         const accordionContainer = tabPendencias.accordion;
         const msgVazio = tabPendencias.msgVazio;
-        
+
         accordionContainer.innerHTML = '';
         if (!lancamentos || lancamentos.length === 0) {
             msgVazio.classList.remove('d-none');
@@ -158,17 +158,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         msgVazio.classList.add('d-none');
 
-        // Agrupar por OS
+        // 1. Agrupar lançamentos por OS
         const grupos = lancamentos.reduce((acc, lanc) => {
-            const osKey = get(lanc, 'os.os', 'Sem OS');
-            if (!acc[osKey]) {
-                acc[osKey] = {
-                    lancamentos: [],
+            const osId = get(lanc, 'os.id');
+            if (!acc[osId]) {
+                acc[osId] = {
+                    id: osId,
+                    os: get(lanc, 'os.os', 'Sem OS'),
                     projeto: get(lanc, 'os.projeto', '-'),
-                    segmento: get(lanc, 'os.segmento.nome', '-')
+                    segmento: get(lanc, 'os.segmento.nome', '-'),
+                    // Dados Financeiros
+                    totalOs: get(lanc, 'totalOs', 0),
+                    totalCps: get(lanc, 'valorCps', 0),
+                    custoMaterial: get(lanc, 'os.custoTotalMateriais', 0),
+                    totalPago: get(lanc, 'totalPago', 0), // Novo valor vindo do Backend
+                    lancamentos: [],
+                    totalPagarGrupo: 0
                 };
             }
-            acc[osKey].lancamentos.push(lanc);
+
+            const valorPagar = get(lanc, 'valorPagamento') !== '-' ? get(lanc, 'valorPagamento') : get(lanc, 'valor');
+            acc[osId].totalPagarGrupo += parseFloat(valorPagar) || 0;
+            acc[osId].lancamentos.push(lanc);
             return acc;
         }, {});
 
@@ -176,76 +187,97 @@ document.addEventListener('DOMContentLoaded', () => {
         const isController = (userRole === 'CONTROLLER' || userRole === 'ADMIN');
 
         let index = 0;
-        for (const [os, dadosGrupo] of Object.entries(grupos)) {
-            const osId = `os-pendente-${index}`;
+        for (const [osId, dadosGrupo] of Object.entries(grupos)) {
+            const uniqueId = `os-pendente-${index}`;
             const totalItens = dadosGrupo.lancamentos.length;
-            
-            const tbodyHtml = dadosGrupo.lancamentos.map(lanc => {
-                const tr = document.createElement('tr');
-                tr.dataset.id = lanc.id;
-                
-                if(lanc.statusPagamento === 'ALTERACAO_SOLICITADA') tr.classList.add('table-warning');
-                else if (lanc.statusPagamento === 'FECHADO') tr.classList.add('table-info');
 
-                // SIMPLIFICADO: Usamos apenas 'valorPagamento'. O 'valor' original (operacional)
-                // é usado como fallback se 'valorPagamento' for nulo (o que não deve acontecer).
+            // Cálculos de Porcentagem
+            const totalOs = dadosGrupo.totalOs;
+            const totalCps = dadosGrupo.totalCps;
+            const totalMat = dadosGrupo.custoMaterial;
+            const percentual = totalOs > 0 ? ((totalCps + totalMat) / totalOs) * 100 : 0;
+
+            // Checkbox do Cabeçalho (SÓ para Controller/Admin)
+            const checkboxHeader = isController
+                ? `<div class="form-check me-3 check-container-header" onclick="event.stopPropagation();">
+                        <input class="form-check-input selecionar-todos-acordeon" type="checkbox" data-target-body="collapse-${uniqueId}">
+                   </div>`
+                : '';
+
+            // KPI HTML do Cabeçalho (Com o novo campo "Já Pago")
+            const kpiHTML = `
+            <div class="header-kpi-wrapper">
+                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(totalOs)}</span></div>
+                <div class="header-kpi"><span class="kpi-label text-success">Já Pago</span><span class="kpi-value text-success">${formatarMoeda(dadosGrupo.totalPago)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(totalCps)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Material</span><span class="kpi-value">${formatarMoeda(totalMat)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">% Exec.</span><span class="kpi-value text-primary">${percentual.toFixed(2)}%</span></div>
+                <div class="header-kpi ms-3 border-start ps-3"><span class="kpi-label">A Pagar (Fila)</span><span class="kpi-value text-warning">${formatarMoeda(dadosGrupo.totalPagarGrupo)}</span></div>
+            </div>`;
+
+            // Gera as linhas da tabela interna
+            const tbodyHtml = dadosGrupo.lancamentos.map(lanc => {
+                const trClass = [];
+                if (lanc.statusPagamento === 'ALTERACAO_SOLICITADA') trClass.push('table-warning');
+                else if (lanc.statusPagamento === 'FECHADO') trClass.push('table-info');
+
                 const valorOperacional = get(lanc, 'valor', 0);
                 const valorPagamento = get(lanc, 'valorPagamento', valorOperacional);
-                
-                // Destaque se o valor de pagamento for diferente do valor operacional original
-                let destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
+                const destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
 
                 const acoesHtml = gerarBotoesAcao(lanc);
-                const checkboxHtml = isController 
-                    ? `<td><input type="checkbox" class="form-check-input linha-checkbox-pagamento" data-id="${lanc.id}"></td>` 
+                const checkboxHtml = isController
+                    ? `<td><div class="form-check d-flex justify-content-center"><input type="checkbox" class="form-check-input linha-checkbox-pagamento" data-id="${lanc.id}"></div></td>`
                     : '';
 
                 return `
-                    <tr data-id="${lanc.id}" class="${tr.className}">
+                    <tr data-id="${lanc.id}" class="${trClass.join(' ')}">
                         ${checkboxHtml}
-                        <td data-label="Ações">${acoesHtml}</td>
-                        <td data-label="Status Pag.">${formatarStatusPagamento(lanc.statusPagamento)}</td>
-                        <td data-label="Data Ativ.">${formatarData(get(lanc, 'dataAtividade'))}</td>
-                        <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
-                        <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
-                        <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
-                        <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
-                        <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
-                        <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
-                        <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
-                        <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+                        <td class="text-center">${acoesHtml}</td>
+                        <td>${formatarStatusPagamento(lanc.statusPagamento)}</td>
+                        <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                        <td>${get(lanc, 'detalhe.site')}</td>
+                        <td>${get(lanc, 'os.segmento.nome')}</td>
+                        <td>${get(lanc, 'os.projeto')}</td>
+                        <td title="${get(lanc, 'detalhe.lpu.nomeLpu')}">${get(lanc, 'detalhe.lpu.codigoLpu')}</td>
+                        <td>${get(lanc, 'prestador.nome')}</td>
+                        <td>${get(lanc, 'manager.nome')}</td>
+                        <td class="text-end ${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        <td><small class="text-muted">${get(lanc, 'detalhe.key')}</small></td>
                     </tr>
                 `;
             }).join('');
 
-            // Montar o item do acordeão
+            // Monta o Acordeão Final
+            // NOTA: Removido 'data-bs-parent="#accordionPendencias"' para permitir múltiplos abertos
             const accordionItemHtml = `
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-${osId}">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${osId}">
-                            <div class="d-flex justify-content-between w-100 pe-3">
-                                <span><i class="bi bi-file-earmark-text me-2"></i><strong>OS: ${os}</strong></span>
-                                <span class="text-muted d-none d-md-inline">Projeto: ${dadosGrupo.projeto}</span>
-                                <span class="text-muted d-none d-lg-inline">Segmento: ${dadosGrupo.segmento}</span>
-                                <span class="badge text-bg-primary">${totalItens} item(s)</span>
+                <div class="accordion-item border mb-3 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                    <h2 class="accordion-header" id="heading-${uniqueId}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                            <div class="header-content w-100">
+                                ${checkboxHeader}
+                                <div class="header-title-wrapper">
+                                    <span class="header-title-project">${dadosGrupo.projeto}</span>
+                                    <span class="header-title-os">${dadosGrupo.os}</span>
+                                </div>
+                                ${kpiHTML}
+                                <span class="badge bg-secondary header-badge align-self-center ms-3">${totalItens} item(s)</span>
                             </div>
                         </button>
                     </h2>
-                    <div id="collapse-${osId}" class="accordion-collapse collapse" data-bs-parent="#accordionPendencias">
+                    <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
                         <div class="accordion-body p-0">
-                            <div class="table-responsive-vertical custom-scroll">
-                                <table class="table modern-table table-hover align-middle mb-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle" style="font-size: 0.9rem;">
                                     ${theadHtml}
-                                    <tbody>
-                                        ${tbodyHtml}
-                                    </tbody>
+                                    <tbody>${tbodyHtml}</tbody>
                                 </table>
                             </div>
                         </div>
                     </div>
                 </div>
             `;
-            accordionContainer.innerHTML += accordionItemHtml;
+            accordionContainer.insertAdjacentHTML('beforeend', accordionItemHtml);
             index++;
         }
     }
@@ -344,18 +376,25 @@ document.addEventListener('DOMContentLoaded', () => {
         let acoesHtml = `<button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}" title="Ver Histórico"><i class="bi bi-eye"></i></button>`;
         const status = lanc.statusPagamento;
 
-        // Coordenador (e Admin) pode Fechar/Recusar itens EM_ABERTO
         if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
+            // ... lógica existente do coordenador ...
             if (status === 'EM_ABERTO') {
                 acoesHtml += ` <button class="btn btn-sm btn-outline-success btn-fechar-pagamento" data-id="${lanc.id}" title="Fechar para Pagamento"><i class="bi bi-check-circle"></i></button>`;
                 acoesHtml += ` <button class="btn btn-sm btn-outline-danger btn-recusar-pagamento" data-id="${lanc.id}" title="Recusar Pagamento"><i class="bi bi-x-circle"></i></button>`;
             }
-            // Coordenador (e Admin) pode Solicitar Alteração em itens FECHADO
             if (status === 'FECHADO') {
                 acoesHtml += ` <button class="btn btn-sm btn-outline-warning btn-solicitar-alteracao" data-id="${lanc.id}" title="Solicitar Alteração"><i class="bi bi-pencil-square"></i></button>`;
             }
         }
-        
+
+        // --- NOVA LÓGICA PARA O CONTROLLER ---
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+            // O Controller pode devolver itens que estão na fila dele (FECHADO ou ALTERACAO_SOLICITADA)
+            if (status === 'FECHADO' || status === 'ALTERACAO_SOLICITADA') {
+                acoesHtml += ` <button class="btn btn-sm btn-outline-danger btn-devolver-pagamento" data-id="${lanc.id}" title="Reprovar/Devolver ao Coordenador"><i class="bi bi-arrow-counterclockwise"></i></button>`;
+            }
+        }
+
         return acoesHtml;
     }
 
@@ -369,9 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!response.ok) throw new Error('Falha ao carregar fila de pagamentos.');
             todosOsLancamentos = await response.json();
-            
+
             renderizarAcordeonPendencias(todosOsLancamentos);
-            
+
             // Mostra/Esconde o cabeçalho do card (que contém o botão de lote)
             const cardHeader = acoesLoteControllerContainer.closest('.card-header');
             if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
@@ -380,7 +419,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Esconde para Coordenador se não houver itens, ou se o botão de lote não for necessário
                 cardHeader.classList.toggle('d-none', todosOsLancamentos.length === 0);
             }
-            
+
         } catch (error) {
             console.error(error);
             mostrarToast(error.message, 'error');
@@ -412,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
             togglePaneLoader(tabHistorico, false);
         }
     }
-    
+
     // --- FUNÇÕES DE AÇÃO (MODAIS E API) ---
 
     // MODAL SIMPLIFICADO
@@ -426,15 +465,15 @@ document.addEventListener('DOMContentLoaded', () => {
         formAlterarValor.reset();
         document.getElementById('lancamentoIdAcao').value = lancId;
         document.getElementById('acaoCoordenador').value = acao;
-        
+
         // Pega o valor da atividade (original) como fallback
         const valorOperacional = get(lancamento, 'valor', 0);
         // Pega o valor de pagamento atual, ou o original se aquele for nulo
-        const valorPagamentoAtual = get(lancamento, 'valorPagamento', valorOperacional); 
+        const valorPagamentoAtual = get(lancamento, 'valorPagamento', valorOperacional);
 
         // Seta APENAS o valor de pagamento
         document.getElementById('valorPagamentoInput').value = valorPagamentoAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',');
-        
+
         const modalTitle = document.getElementById('modalAlterarValorLabel');
         const helpText = document.getElementById('justificativaHelpText');
         const btnConfirmar = document.getElementById('btnConfirmarAcaoValor');
@@ -450,10 +489,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btnConfirmar.className = 'btn btn-warning';
             btnConfirmar.innerHTML = '<i class="bi bi-send me-1"></i> Solicitar Alteração';
         }
-        
+
         modalAlterarValor.show();
     }
-    
+
     function abrirModalRecusar(lancId) {
         const lancamento = todosOsLancamentos.find(l => l.id == lancId);
         if (!lancamento) {
@@ -464,10 +503,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('lancamentoIdRecusar').value = lancId;
         modalRecusar.show();
     }
-    
+
     async function abrirModalHistorico(lancId) {
         let lancamento = todosOsLancamentos.find(l => l.id == lancId);
-        
+
         if (!lancamento) {
             try {
                 // Busca o lançamento individual se não estiver na lista de pendências
@@ -475,7 +514,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'X-User-ID': userId }
                 });
                 if (response.ok) {
-                     lancamento = await response.json();
+                    lancamento = await response.json();
                 } else {
                     throw new Error('Lançamento não encontrado no histórico.');
                 }
@@ -486,7 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
         }
-                           
+
         if (!lancamento || !lancamento.comentarios || lancamento.comentarios.length === 0) {
             modalComentariosBody.innerHTML = '<p class="text-center text-muted">Nenhum histórico de comentários encontrado para este lançamento.</p>';
         } else {
@@ -508,12 +547,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         modalComentarios.show();
     }
-    
+
     // SUBMISSÃO DO MODAL DE ALTERAÇÃO (Nenhuma mudança necessária)
     formAlterarValor.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnConfirmar = document.getElementById('btnConfirmarAcaoValor');
-        
+
         const payload = {
             lancamentoId: document.getElementById('lancamentoIdAcao').value,
             acao: document.getElementById('acaoCoordenador').value,
@@ -531,7 +570,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error((await response.json()).message || 'Erro ao processar ação.');
-            
+
             mostrarToast('Ação registrada com sucesso!', 'success');
             modalAlterarValor.hide();
             await carregarFilaPendencias(); // Recarrega a fila de pendências
@@ -547,39 +586,50 @@ document.addEventListener('DOMContentLoaded', () => {
     formRecusar.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btnConfirmar = document.getElementById('btnConfirmarRecusa');
-        
+        const actionType = formRecusar.dataset.actionType; // Pega o tipo de ação
+
         const payload = {
             lancamentoId: document.getElementById('lancamentoIdRecusar').value,
+            // Se for controller, usa o ID dele, senão do coordenador (userId funciona para ambos)
             coordenadorId: userId,
+            controllerId: userId, // Para o endpoint novo
             justificativa: document.getElementById('justificativaRecusaInput').value.trim(),
-            valorPagamento: 0 // Valor não é relevante para recusa
+            motivo: document.getElementById('justificativaRecusaInput').value.trim(), // Para o endpoint novo
+            valorPagamento: 0
         };
-        
-        setButtonLoading(btnConfirmar, true, 'Recusando...');
+
+        let endpoint = '/controle-cps/recusar'; // Padrão (Coordenador)
+        if (actionType === 'controller_reject') {
+            endpoint = '/controle-cps/recusar-controller';
+        }
+
+        setButtonLoading(btnConfirmar, true, 'Processando...');
         try {
-            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/recusar`, {
+            const response = await fetchComAuth(API_BASE_URL + endpoint, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error((await response.json()).message || 'Erro ao recusar pagamento.');
-            
-            mostrarToast('Pagamento recusado com sucesso.', 'success');
+            if (!response.ok) throw new Error((await response.json()).message || 'Erro ao processar.');
+
+            mostrarToast(actionType === 'controller_reject' ? 'Item devolvido ao Coordenador!' : 'Pagamento recusado.', 'success');
             modalRecusar.hide();
-            await carregarFilaPendencias(); // Recarrega a fila de pendências
-            
-            tabHistorico.pane.dataset.loaded = 'false'; // Força recarga do histórico
+            await carregarFilaPendencias();
 
         } catch (error) {
             mostrarToast(error.message, 'error');
         } finally {
             setButtonLoading(btnConfirmar, false);
+            delete formRecusar.dataset.actionType; // Limpa o estado
+            // Reseta o modal para o estado padrão (Coordenador)
+            document.getElementById('modalRecusarPagamentoLabel').innerHTML = '<i class="bi bi-x-circle-fill me-2"></i>Recusar Pagamento';
+            document.getElementById('btnConfirmarRecusa').innerHTML = 'Confirmar Recusa';
         }
     });
 
     // AÇÃO EM LOTE DO CONTROLLER (Nenhuma mudança necessária)
     btnPagarSelecionados.addEventListener('click', async () => {
         const idsSelecionados = Array.from(document.querySelectorAll('.linha-checkbox-pagamento:checked')).map(cb => cb.dataset.id);
-        
+
         if (idsSelecionados.length === 0) {
             mostrarToast('Nenhum item selecionado para pagamento.', 'warning');
             return;
@@ -592,15 +642,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setButtonLoading(btnPagarSelecionados, true, 'Pagando...');
         try {
-             const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/pagar-lote`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/pagar-lote`, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
             if (!response.ok) throw new Error((await response.json()).message || 'Erro ao processar pagamento em lote.');
-            
+
             mostrarToast(`${idsSelecionados.length} item(s) marcado(s) como PAGO!`, 'success');
             await carregarFilaPendencias(); // Recarrega a fila de pendências
-            
+
             tabHistorico.pane.dataset.loaded = 'false'; // Força recarga do histórico
 
         } catch (error) {
@@ -610,36 +660,53 @@ document.addEventListener('DOMContentLoaded', () => {
             atualizarEstadoAcoesLote();
         }
     });
-    
+
     /**
      * Atualiza a visibilidade e contagem dos botões de ação em lote
      */
     function atualizarEstadoAcoesLote() {
         if (!acoesLoteControllerContainer) return;
         if (userRole !== 'CONTROLLER' && userRole !== 'ADMIN') {
-             acoesLoteControllerContainer.classList.add('d-none');
-             return;
+            acoesLoteControllerContainer.classList.add('d-none');
+            return;
         }
-        
+
         const checkboxes = document.querySelectorAll('.linha-checkbox-pagamento:checked');
         const total = checkboxes.length;
-        
+
         acoesLoteControllerContainer.classList.toggle('d-none', total === 0);
         contadorPagamento.textContent = total;
-        
+
         if (total > 0) {
             // Verifica se todos os selecionados estão aptos (FECHADO ou ALTERACAO_SOLICITADA)
             const todosAptos = Array.from(checkboxes).every(cb => {
-                 const lanc = todosOsLancamentos.find(l => l.id == cb.dataset.id);
-                 return lanc && (lanc.statusPagamento === 'FECHADO' || lanc.statusPagamento === 'ALTERACAO_SOLICITADA');
+                const lanc = todosOsLancamentos.find(l => l.id == cb.dataset.id);
+                return lanc && (lanc.statusPagamento === 'FECHADO' || lanc.statusPagamento === 'ALTERACAO_SOLICITADA');
             });
             btnPagarSelecionados.disabled = !todosAptos;
             if (!todosAptos) {
                 btnPagarSelecionados.title = 'Apenas itens com status FECHADO ou ALTERACAO SOLICITADA podem ser pagos.';
             } else {
-                 btnPagarSelecionados.title = 'Marcar todos os selecionados como PAGOS.';
+                btnPagarSelecionados.title = 'Marcar todos os selecionados como PAGOS.';
             }
         }
+    }
+
+    function abrirModalRecusarController(lancId) {
+        const lancamento = todosOsLancamentos.find(l => l.id == lancId);
+        if (!lancamento) return;
+
+        formRecusar.reset();
+        document.getElementById('lancamentoIdRecusar').value = lancId;
+
+        // Muda o título e o botão para indicar que é uma ação do Controller
+        document.getElementById('modalRecusarPagamentoLabel').innerHTML = '<i class="bi bi-arrow-counterclockwise me-2"></i>Devolver ao Coordenador';
+        document.getElementById('btnConfirmarRecusa').innerHTML = 'Confirmar Devolução';
+
+        // Adiciona um atributo para identificar que é ação do controller
+        formRecusar.dataset.actionType = 'controller_reject';
+
+        modalRecusar.show();
     }
 
 
@@ -660,39 +727,42 @@ document.addEventListener('DOMContentLoaded', () => {
             abrirModalAcaoCoordenador(lancId, 'solicitar-alteracao');
         } else if (button.classList.contains('btn-ver-historico') && lancId) {
             abrirModalHistorico(lancId);
+        } else if (button.classList.contains('btn-devolver-pagamento')) {
+            // Reutiliza o modal de recusa, mas ajusta o contexto
+            abrirModalRecusarController(lancId);
         }
     });
-    
+
     // Listeners para seleção de linhas (lote) - AGORA DENTRO DO ACORDEÃO
     tabPendencias.pane.addEventListener('change', (e) => {
         const target = e.target;
-        
+
         if (target.classList.contains('linha-checkbox-pagamento')) {
             // Checkbox de linha individual
             target.closest('tr').classList.toggle('table-active', target.checked);
-            
+
             // Atualiza o checkbox "selecionar-todos-os" do grupo
             const table = target.closest('table');
             const totalLinhas = table.querySelectorAll('.linha-checkbox-pagamento').length;
             const linhasMarcadas = table.querySelectorAll('.linha-checkbox-pagamento:checked').length;
             const cbTodosOs = table.querySelector('.selecionar-todos-os');
-            
+
             if (cbTodosOs) {
                 cbTodosOs.checked = (totalLinhas === linhasMarcadas);
                 cbTodosOs.indeterminate = (linhasMarcadas > 0 && linhasMarcadas < totalLinhas);
             }
-        } 
+        }
         else if (target.classList.contains('selecionar-todos-os')) {
             // Checkbox "selecionar-todos-os" (cabeçalho da tabela interna)
             const isChecked = target.checked;
             const tableBody = target.closest('table').querySelector('tbody');
-            
+
             tableBody.querySelectorAll('.linha-checkbox-pagamento').forEach(cb => {
                 cb.checked = isChecked;
                 cb.closest('tr').classList.toggle('table-active', isChecked);
             });
         }
-        
+
         atualizarEstadoAcoesLote(); // Atualiza o contador global
     });
 
@@ -701,7 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabEl.addEventListener('show.bs.tab', function (event) {
             const targetPaneId = event.target.getAttribute('data-bs-target');
             const targetPane = document.querySelector(targetPaneId);
-            
+
             if (targetPaneId === '#pendencias-pagamento-pane') {
                 carregarFilaPendencias(); // Sempre recarrega a fila de pendências
             } else if (targetPaneId === '#historico-pagamento-pane') {

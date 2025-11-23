@@ -431,17 +431,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarOpcoesFiltros() {
         try {
-            // Carregar Segmentos, Gestores e Prestadores (Reutilizando endpoints existentes ou criando novos simples)
-            // Exemplo simplificado:
+            // Carregar Segmentos, Gestores e Prestadores
             const [segmentos, gestores, prestadores] = await Promise.all([
-                fetchComAuth(`${API_BASE_URL}/segmentos`), // Ajuste as rotas conforme sua API
-                fetchComAuth(`${API_BASE_URL}/usuarios/gestores`),
-                fetchComAuth(`${API_BASE_URL}/prestadores`)
+                fetchComAuth(`${API_BASE_URL}/segmentos`), 
+                fetchComAuth(`${API_BASE_URL}/usuarios/gestores`), // URL agora válida com o novo endpoint
+                fetchComAuth(`${API_BASE_URL}/index/prestadores`) // --- URL CORRIGIDA DE /prestadores PARA /index/prestadores
             ]);
 
-            preencherSelect('filtro-segmento', await segmentos.json(), 'id', 'nome');
-            preencherSelect('filtro-gestor', await gestores.json(), 'id', 'nome');
-            preencherSelect('filtro-prestador', await prestadores.json(), 'id', 'nome');
+            if (segmentos.ok) preencherSelect('filtro-segmento', await segmentos.json(), 'id', 'nome');
+            if (gestores.ok) preencherSelect('filtro-gestor', await gestores.json(), 'id', 'nome');
+            if (prestadores.ok) preencherSelect('filtro-prestador', await prestadores.json(), 'id', 'prestador'); // keyLabel ajustado para 'prestador' se necessário
 
         } catch (e) { console.error("Erro ao carregar filtros", e); }
     }
@@ -455,6 +454,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function carregarDashboard() {
+        const container = document.getElementById('dashboard-container');
+
+        // Loader simples enquanto carrega
+        container.innerHTML = `
+            <div class="col-12 text-center py-4">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>`;
+
         const params = new URLSearchParams({
             inicio: document.getElementById('filtro-data-inicio').value,
             fim: document.getElementById('filtro-data-fim').value,
@@ -465,30 +472,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/dashboard?${params}`);
-            if (!response.ok) return;
+            if (!response.ok) throw new Error('Erro ao carregar dashboard');
+
             const dados = await response.json();
+            container.innerHTML = ''; // Limpa loader
 
-            // Atualiza Total Geral
-            document.getElementById('dash-total-geral').textContent = formatarMoeda(dados.valorTotal);
-
-            // Atualiza Cards de Segmento
-            const containerSeg = document.getElementById('dash-segmentos-container');
-            containerSeg.innerHTML = '';
-
-            dados.valoresPorSegmento.forEach(seg => {
-                const cardHtml = `
+            // 1. CARD PRINCIPAL: TOTAL GERAL
+            // Usa estilo 'card-info' (Azul) para destaque geral
+            const cardTotalHtml = `
             <div class="col-md-3 mb-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body border-start border-4 border-info">
-                        <h6 class="card-title text-muted small text-uppercase">${seg.segmento}</h6>
-                        <h5 class="mb-0 fw-bold text-dark">${formatarMoeda(seg.valor)}</h5>
+                <div class="card card-stat card-info h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column justify-content-center">
+                        <p class="text-uppercase text-muted fw-bold mb-1" style="font-size: 0.75rem;">Total CPS (Período)</p>
+                        <h3 class="mb-0 fw-bold text-dark">${formatarMoeda(dados.valorTotal)}</h3>
+                        <small class="text-muted mt-2"><i class="bi bi-calendar3"></i> Filtro Aplicado</small>
                     </div>
                 </div>
             </div>`;
-                containerSeg.insertAdjacentHTML('beforeend', cardHtml);
-            });
+            container.insertAdjacentHTML('beforeend', cardTotalHtml);
 
-        } catch (error) { console.error(error); }
+            // 2. CARDS POR SEGMENTO
+            // Vamos alternar cores ou usar uma cor padrão bonita para segmentos
+            if (dados.valoresPorSegmento && dados.valoresPorSegmento.length > 0) {
+                dados.valoresPorSegmento.forEach(seg => {
+                    // Define cor baseada no valor ou fixa. Vamos usar 'card-sucesso' (verde) para segmentos positivos
+                    const cardSegHtml = `
+                    <div class="col-md-3 mb-3">
+                        <div class="card card-stat card-sucesso h-100 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="badge bg-white text-success border border-success-subtle">${seg.segmento}</span>
+                                    <i class="bi bi-graph-up-arrow text-success opacity-50"></i>
+                                </div>
+                                <h5 class="mb-0 fw-bold text-dark">${formatarMoeda(seg.valor)}</h5>
+                                <small class="text-muted" style="font-size: 0.75rem;">Total no segmento</small>
+                            </div>
+                        </div>
+                    </div>`;
+                    container.insertAdjacentHTML('beforeend', cardSegHtml);
+                });
+            } else {
+                // Se não houver segmentos com valor
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="col-md-3 mb-3">
+                        <div class="card card-stat bg-light h-100 border-0">
+                            <div class="card-body d-flex align-items-center text-muted">
+                                <small>Sem dados por segmento no período.</small>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = `<div class="alert alert-danger w-100">Erro ao carregar indicadores.</div>`;
+        }
     }
 
     /**

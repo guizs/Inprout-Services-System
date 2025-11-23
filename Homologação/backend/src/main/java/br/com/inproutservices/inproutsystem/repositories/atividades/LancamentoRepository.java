@@ -182,6 +182,11 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
      */
     List<Lancamento> findBySituacaoAprovacaoAndStatusPagamentoIsNull(SituacaoAprovacao situacaoAprovacao);
 
+    @Query("SELECT l FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "WHERE o.segmento IN :segmentos")
+    List<Lancamento> findByOsSegmentoIn(@Param("segmentos") Set<Segmento> segmentos);
+
     /**
      * Busca todos os lançamentos que estão em um dos status de pagamento da fila de pendências.
      */

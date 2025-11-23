@@ -7,7 +7,6 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
-import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
@@ -32,7 +31,7 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
     private final LancamentoRepository lancamentoRepository;
     private final UsuarioRepository usuarioRepository;
-    private final ComentarioRepository comentarioRepository; // Para auditoria
+    private final ComentarioRepository comentarioRepository;
 
     public ControleCpsServiceImpl(LancamentoRepository lancamentoRepository, UsuarioRepository usuarioRepository, ComentarioRepository comentarioRepository) {
         this.lancamentoRepository = lancamentoRepository;
@@ -46,21 +45,17 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     }
 
     private Lancamento getLancamento(Long lancamentoId) {
-        return lancamentoRepository.findByIdWithDetails(lancamentoId) // Usamos o "WithDetails" para já trazer a OS e o Segmento
+        return lancamentoRepository.findByIdWithDetails(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com ID: " + lancamentoId));
     }
 
-    /**
-     * Atualiza o status de pagamento de todos os lançamentos APROVADOS que ainda estão nulos.
-     * Esta é a "fonte" da fila do Coordenador.
-     */
     @Transactional
     public void inicializarStatusPagamento() {
-        List<Lancamento> lancamentosParaInicializar = lancamentoRepository.findBySituacaoAprovacaoAndStatusPagamentoIsNull(SituacaoAprovacao.APROVADO);
+        // (Mantém o código existente...)
+        List<Lancamento> lancamentosParaInicializar = lancamentoRepository.findBySituacaoAprovacaoAndStatusPagamentoIsNull(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO);
         if (!lancamentosParaInicializar.isEmpty()) {
             for (Lancamento lancamento : lancamentosParaInicializar) {
                 lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
-                // Define o valor de pagamento inicial como o valor operacional
                 lancamento.setValorPagamento(lancamento.getValor());
             }
             lancamentoRepository.saveAll(lancamentosParaInicializar);
@@ -70,17 +65,14 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional(readOnly = true)
     public List<Lancamento> getFilaControleCps(Long usuarioId) {
-        // 1. Atualiza a fila com base nos lançamentos recém-aprovados
         inicializarStatusPagamento();
 
-        // 2. Define os status da fila de pendências
         List<StatusPagamento> statusFila = List.of(
                 StatusPagamento.EM_ABERTO,
                 StatusPagamento.FECHADO,
                 StatusPagamento.ALTERACAO_SOLICITADA
         );
 
-        // 3. Busca e filtra por permissão
         Usuario usuario = getUsuario(usuarioId);
         Role role = usuario.getRole();
 
@@ -96,14 +88,17 @@ public class ControleCpsServiceImpl implements ControleCpsService {
             return lancamentoRepository.findByStatusPagamentoInAndOsSegmentoIn(statusFila, segmentos);
         }
 
-        return List.of(); // Outros perfis não veem nada
+        return List.of();
     }
+
+    // ... (Outros métodos mantidos iguais até o filtrarLancamentos) ...
 
     @Override
     public List<Lancamento> getHistoricoControleCps(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
         return filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
     }
 
+    // ... (Métodos de ação mantidos iguais: fecharParaPagamento, recusarPagamento, etc.) ...
     @Override
     @Transactional
     public Lancamento fecharParaPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto) {
@@ -203,13 +198,11 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
         Lancamento lancamento = getLancamento(dto.lancamentoId());
 
-        // Permite recusar se estiver FECHADO ou com ALTERAÇÃO SOLICITADA
         if (lancamento.getStatusPagamento() != StatusPagamento.FECHADO &&
                 lancamento.getStatusPagamento() != StatusPagamento.ALTERACAO_SOLICITADA) {
             throw new BusinessException("Apenas lançamentos na fila do Controller podem ser devolvidos.");
         }
 
-        // Volta para EM_ABERTO para o Coordenador ajustar
         lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
         lancamento.setUltUpdate(LocalDateTime.now());
 
@@ -218,14 +211,9 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         return lancamentoRepository.save(lancamento);
     }
 
-    /**
-     * Compara o valor antigo com o novo. Se houver mudança, atualiza o valor
-     * e retorna uma string de justificativa para o comentário de auditoria.
-     */
     private String registrarAlteracaoValor(Lancamento lancamento, BigDecimal novoValor, String justificativa, Usuario usuario) {
         BigDecimal valorAntigo = lancamento.getValorPagamento();
 
-        // Compara os valores (escala 2 para comparação monetária)
         if (valorAntigo.setScale(2, BigDecimal.ROUND_HALF_UP).compareTo(novoValor.setScale(2, BigDecimal.ROUND_HALF_UP)) != 0) {
             if (justificativa == null || justificativa.isBlank()) {
                 throw new BusinessException("A justificativa é obrigatória ao alterar o valor de pagamento.");
@@ -238,34 +226,26 @@ public class ControleCpsServiceImpl implements ControleCpsService {
             return "Valor alterado de " + valorAntigoStr + " para " + novoValorStr + ". Motivo: " + justificativa;
         }
 
-        // Se os valores forem iguais, apenas atualiza (caso seja o primeiro "Fechar")
         lancamento.setValorPagamento(novoValor);
         return "Valor de pagamento (" + String.format("R$ %.2f", novoValor) + ") confirmado.";
     }
 
-    /**
-     * Cria e salva um comentário de auditoria.
-     */
     private void criarComentario(Lancamento lancamento, Usuario autor, String texto) {
         Comentario comentario = new Comentario();
         comentario.setLancamento(lancamento);
         comentario.setAutor(autor);
         comentario.setTexto(texto);
-        // O @PrePersist em Comentario cuida da data/hora
         comentarioRepository.save(comentario);
     }
 
     @Override
     public DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
-        // 1. Busca os dados filtrados
         List<Lancamento> lancamentos = filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
 
-        // 2. Calcula Total Geral
         BigDecimal totalGeral = lancamentos.stream()
                 .map(l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 3. Agrupa por Segmento
         Map<String, BigDecimal> porSegmento = lancamentos.stream()
                 .filter(l -> l.getOs() != null && l.getOs().getSegmento() != null)
                 .collect(Collectors.groupingBy(
@@ -283,25 +263,30 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         return new DashboardCpsDTO(totalGeral, listaSegmentos);
     }
 
+    // --- CORREÇÃO APLICADA AQUI ---
     private List<Lancamento> filtrarLancamentos(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
         Usuario usuario = getUsuario(usuarioId);
         List<Lancamento> base;
 
-        // Regra de Visibilidade: Controller vê tudo, Coordenador vê suas OSs/Segmentos
         if (usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ADMIN) {
             base = lancamentoRepository.findAll();
         } else {
-            // AJUSTE FIO: Aqui você pode filtrar pelo segmento do coordenador se necessário
-            // Por enquanto, buscando tudo e deixando o filtro de memória, mas o ideal seria repository.findBySegmento...
-            base = lancamentoRepository.findAll();
+            base = lancamentoRepository.findAll(); // Idealmente filtraria por segmento aqui no futuro
         }
 
         return base.stream()
-                // Apenas itens PAGOS ou FINALIZADOS entram no histórico/dashboard financeiro
                 .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO || l.getStatusPagamento() == StatusPagamento.RECUSADO)
                 .filter(l -> {
-                    // Data de referência: Pagamento (se tiver) ou Atividade
-                    LocalDate dataRef = l.getDataPagamento() != null ? l.getDataPagamento().toLocalDate() : l.getDataAtividade();
+                    // --- FIX: PROTEÇÃO CONTRA DATA NULA ---
+                    LocalDate dataRef = null;
+                    if (l.getDataPagamento() != null) {
+                        dataRef = l.getDataPagamento().toLocalDate();
+                    } else if (l.getDataAtividade() != null) {
+                        dataRef = l.getDataAtividade();
+                    }
+
+                    // Se não tiver nenhuma data, ignora este lançamento no filtro de data
+                    if (dataRef == null) return false;
 
                     boolean afterInicio = (inicio == null) || !dataRef.isBefore(inicio);
                     boolean beforeFim = (fim == null) || !dataRef.isAfter(fim);
@@ -312,31 +297,5 @@ public class ControleCpsServiceImpl implements ControleCpsService {
                 .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
                 .collect(Collectors.toList());
     }
-
-    // Método auxiliar para aplicar filtros (Reutilizado no Export e Dashboard)
-    private List<Lancamento> getHistoricoFiltrado(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
-        Usuario usuario = getUsuario(usuarioId);
-        List<Lancamento> base;
-
-        // Regra de Visibilidade (Coordinator vs Controller)
-        if (usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ADMIN) {
-            base = lancamentoRepository.findAll(); // Controller vê tudo
-        } else {
-            // Coordenador vê apenas o que está vinculado a ele (ajuste conforme sua regra de negócio exata)
-            // Exemplo: Filtrar por OSs do segmento do coordenador ou onde ele é manager
-            base = lancamentoRepository.findAll(); // Implementar filtro específico de coord se necessário
-        }
-
-        return base.stream()
-                .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO) // Apenas pagos contam para o dashboard financeiro
-                .filter(l -> {
-                    LocalDate dataRef = l.getDataPagamento() != null ? l.getDataPagamento().toLocalDate() : l.getDataAtividade();
-                    return (inicio == null || !dataRef.isBefore(inicio)) &&
-                            (fim == null || !dataRef.isAfter(fim));
-                })
-                .filter(l -> segmentoId == null || (l.getOs().getSegmento() != null && l.getOs().getSegmento().getId().equals(segmentoId)))
-                .filter(l -> gestorId == null || (l.getManager() != null && l.getManager().getId().equals(gestorId)))
-                .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
-                .collect(Collectors.toList());
-    }
+    // --- FIM DA CORREÇÃO ---
 }

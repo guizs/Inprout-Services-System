@@ -1,9 +1,11 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.ControleCpsDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.DashboardCpsDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ControleCpsService {
@@ -16,8 +18,8 @@ public interface ControleCpsService {
     /**
      * Busca o histórico de pagamentos (PAGO, RECUSADO).
      */
-    List<Lancamento> getHistoricoControleCps(Long usuarioId);
-
+    List<Lancamento> getHistoricoControleCps(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
+    DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
     /**
      * Ação do Coordenador: Fecha um lançamento para pagamento, definindo o valor final.
      */

@@ -53,6 +53,72 @@
             </li>
         </ul>
 
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Data Início</label>
+                        <input type="date" class="form-control form-control-sm" id="filtro-data-inicio">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Data Fim</label>
+                        <input type="date" class="form-control form-control-sm" id="filtro-data-fim">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Segmento</label>
+                        <select class="form-select form-select-sm" id="filtro-segmento">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Gestor</label>
+                        <select class="form-select form-select-sm" id="filtro-gestor">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted">Prestador</label>
+                        <select class="form-select form-select-sm" id="filtro-prestador">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button class="btn btn-sm btn-primary w-100" id="btn-filtrar" title="Aplicar Filtros">
+                            <i class="bi bi-search me-1"></i> Filtrar
+                        </button>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#" id="btn-exportar-fila">Exportar Fila (Atual)</a>
+                                </li>
+                                <li><a class="dropdown-item" href="#" id="btn-exportar-historico">Exportar Histórico
+                                        (Filtro)</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-4" id="dashboard-container">
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100 bg-gradient-primary text-white"
+                    style="background: linear-gradient(45deg, #0d6efd, #0a58ca);">
+                    <div class="card-body">
+                        <h6 class="card-title opacity-75">Total Pago (Período)</h6>
+                        <h3 class="mb-0 fw-bold" id="dash-total-geral">R$ 0,00</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="row" id="dash-segmentos-container">
+                </div>
+            </div>
+        </div>
+
         <div class="tab-content" id="cpsPagamentoTabContent">
 
             <div class="tab-pane fade show active" id="pendencias-pagamento-pane" role="tabpanel">
@@ -168,8 +234,7 @@
                     </div>
                     <div class="modal-body">
                         <input type="hidden" id="lancamentoIdRecusar">
-                        <p>Você tem certeza que deseja recusar o pagamento deste item? Ele será movido para o histórico
-                            como "RECUSADO".</p>
+                        <p>Você tem certeza que deseja recusar o pagamento deste item?</p>
                         <div class="mb-3">
                             <label for="justificativaRecusaInput" class="form-label">Justificativa (Obrigatório)</label>
                             <textarea class="form-control" id="justificativaRecusaInput" rows="3" required></textarea>

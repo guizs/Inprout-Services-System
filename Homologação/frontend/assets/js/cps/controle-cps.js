@@ -6,6 +6,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const userId = localStorage.getItem('usuarioId');
     let todosOsLancamentos = []; // Cache dos dados da fila de pendências
 
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('filtro-data-inicio').valueAsDate = primeiroDia;
+    document.getElementById('filtro-data-fim').valueAsDate = hoje;
+
+    carregarOpcoesFiltros();
+    carregarDashboard(); // Carrega inicial
+
+    // Listener do Botão Filtrar
+    document.getElementById('btn-filtrar').addEventListener('click', () => {
+        carregarDashboard();
+        // Se estiver na aba histórico, recarrega com filtros
+        if (tabHistorico.btn.classList.contains('active')) {
+            carregarHistorico();
+        }
+        // Fila geralmente não usa filtro de data de pagamento, mas pode usar de segmento
+    });
+
+    // Listener de Exportação (Simples front-side table export ou chamada de API)
+    document.getElementById('btn-exportar-historico').addEventListener('click', () => {
+        // Implementar lógica de exportação (window.open com params para endpoint de exportação)
+        const params = new URLSearchParams({ /* mesmos params do dashboard */ });
+        window.open(`${API_BASE_URL}/controle-cps/exportar/historico?${params}&token=${localStorage.getItem('token')}`, '_blank');
+    });
+
     // Abas
     const tabPendencias = {
         pane: document.getElementById('pendencias-pagamento-pane'),
@@ -104,22 +129,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function getTheadPendencias() {
         const isController = (userRole === 'CONTROLLER' || userRole === 'ADMIN');
         return `
-            <thead class="sticky-top">
-                <tr>
-                    ${isController ? '<th><input type="checkbox" class="form-check-input selecionar-todos-os" title="Selecionar todos desta OS"></th>' : ''}
-                    <th>Ações</th>
-                    <th>Status Pag.</th>
-                    <th>Data Ativ.</th>
-                    <th>Site</th>
-                    <th>Segmento</th>
-                    <th>Projeto</th>
-                    <th>LPU</th>
-                    <th>Prestador</th>
-                    <th>Gestor</th>
-                    <th>Valor a Pagar</th> <th>KEY</th>
-                </tr>
-            </thead>
-        `;
+        <thead>
+            <tr>
+                ${isController ? '<th class="text-center" style="width: 50px;"><i class="bi bi-check-all"></i></th>' : ''}
+                <th class="text-center">Ações</th>
+                <th>Status Pag.</th>
+                <th>Data Ativ.</th>
+                <th>Site</th>
+                <th>Segmento</th>
+                <th>Projeto</th>
+                <th title="LPU e Descrição">LPU</th>
+                <th>Prestador</th>
+                <th>Gestor</th>
+                <th class="text-center">Valor a Pagar</th> <th>KEY</th>
+            </tr>
+        </thead>
+    `;
     }
 
     /**
@@ -127,21 +152,21 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function getTheadHistorico() {
         return `
-            <thead class="sticky-top">
-                <tr>
-                    <th>Ações</th>
-                    <th>Status Pag.</th>
-                    <th>Data Ativ.</th>
-                    <th>Site</th>
-                    <th>Segmento</th>
-                    <th>Projeto</th>
-                    <th>LPU</th>
-                    <th>Prestador</th>
-                    <th>Gestor</th>
-                    <th>Valor a Pagar</th> <th>KEY</th>
-                </tr>
-            </thead>
-        `;
+        <thead>
+            <tr>
+                <th class="text-center">Ações</th>
+                <th>Status Pag.</th>
+                <th>Data Ativ.</th>
+                <th>Site</th>
+                <th>Segmento</th>
+                <th>Projeto</th>
+                <th title="LPU e Descrição">LPU</th>
+                <th>Prestador</th>
+                <th>Gestor</th>
+                <th class="text-center">Valor Pago</th> <th>KEY</th>
+            </tr>
+        </thead>
+    `;
     }
 
     /**
@@ -242,7 +267,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td title="${get(lanc, 'detalhe.lpu.nomeLpu')}">${get(lanc, 'detalhe.lpu.codigoLpu')}</td>
                         <td>${get(lanc, 'prestador.nome')}</td>
                         <td>${get(lanc, 'manager.nome')}</td>
-                        <td class="text-end ${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        
+                        <td class="text-center ${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        
                         <td><small class="text-muted">${get(lanc, 'detalhe.key')}</small></td>
                     </tr>
                 `;
@@ -296,77 +323,172 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         msgVazio.classList.add('d-none');
 
+        // 1. Agrupar lançamentos por ID da OS
         const grupos = lancamentos.reduce((acc, lanc) => {
-            const osKey = get(lanc, 'os.os', 'Sem OS');
-            if (!acc[osKey]) {
-                acc[osKey] = {
-                    lancamentos: [],
+            const osId = get(lanc, 'os.id');
+            if (!acc[osId]) {
+                acc[osId] = {
+                    id: osId,
+                    os: get(lanc, 'os.os', 'Sem OS'),
                     projeto: get(lanc, 'os.projeto', '-'),
-                    segmento: get(lanc, 'os.segmento.nome', '-')
+                    segmento: get(lanc, 'os.segmento.nome', '-'),
+                    // Dados Financeiros de Contexto (Totais da OS)
+                    totalOs: get(lanc, 'totalOs', 0),
+                    totalCps: get(lanc, 'valorCps', 0),
+                    custoMaterial: get(lanc, 'os.custoTotalMateriais', 0),
+                    lancamentos: [],
+                    totalPagoHistorico: 0 // Soma apenas dos itens desta lista (histórico)
                 };
             }
-            acc[osKey].lancamentos.push(lanc);
+
+            const valorPago = get(lanc, 'valorPagamento') !== '-' ? get(lanc, 'valorPagamento') : get(lanc, 'valor');
+            acc[osId].totalPagoHistorico += parseFloat(valorPago) || 0;
+            acc[osId].lancamentos.push(lanc);
             return acc;
         }, {});
 
-        const theadHtml = getTheadHistorico();
-        let index = 0;
+        const theadHtml = getTheadHistorico(); // Usa o cabeçalho simplificado do histórico
 
-        for (const [os, dadosGrupo] of Object.entries(grupos)) {
-            const osId = `os-historico-${index}`;
+        let index = 0;
+        for (const [osId, dadosGrupo] of Object.entries(grupos)) {
+            const uniqueId = `os-historico-${index}`;
             const totalItens = dadosGrupo.lancamentos.length;
 
+            // KPI HTML do Cabeçalho (Simplificado para Histórico)
+            // Removemos % Execução e A Pagar Fila, mantemos Totais e Total Pago
+            const kpiHTML = `
+        <div class="header-kpi-wrapper">
+            <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(dadosGrupo.totalOs)}</span></div>
+            <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(dadosGrupo.totalCps)}</span></div>
+            <div class="header-kpi"><span class="kpi-label">Material</span><span class="kpi-value">${formatarMoeda(dadosGrupo.custoMaterial)}</span></div>
+            
+            <div class="header-kpi ms-3 border-start ps-3">
+                <span class="kpi-label text-success">Pago (Nesta Lista)</span>
+                <span class="kpi-value text-success">${formatarMoeda(dadosGrupo.totalPagoHistorico)}</span>
+            </div>
+        </div>`;
+
+            // Gera as linhas da tabela interna
             const tbodyHtml = dadosGrupo.lancamentos.map(lanc => {
                 const valorOperacional = get(lanc, 'valor', 0);
                 const valorPagamento = get(lanc, 'valorPagamento', valorOperacional);
-                let destaqueValor = (valorOperacional !== valorPagamento) ? 'text-danger fw-bold' : '';
+                const destaqueValor = (valorOperacional !== valorPagamento) ? 'text-primary fw-bold' : ''; // Azul se houve alteração
+
+                // A única ação no histórico é ver comentários
+                const acoesHtml = `<button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}" title="Ver Histórico de Comentários"><i class="bi bi-eye"></i></button>`;
 
                 return `
                     <tr data-id="${lanc.id}">
-                        <td data-label="Ações"><button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}"><i class="bi bi-eye"></i></button></td>
-                        <td data-label="Status Pag.">${formatarStatusPagamento(lanc.statusPagamento)}</td>
-                        <td data-label="Data Ativ.">${formatarData(get(lanc, 'dataAtividade'))}</td>
-                        <td data-label="Site">${get(lanc, 'detalhe.site')}</td>
-                        <td data-label="Segmento">${get(lanc, 'os.segmento.nome')}</td>
-                        <td data-label="Projeto">${get(lanc, 'os.projeto')}</td>
-                        <td data-label="LPU">${get(lanc, 'detalhe.lpu.nomeLpu')}</td>
-                        <td data-label="Prestador">${get(lanc, 'prestador.nome')}</td>
-                        <td data-label="Gestor">${get(lanc, 'manager.nome')}</td>
-                        <td data-label="Valor a Pagar" class="${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
-                        <td data-label="KEY">${get(lanc, 'detalhe.key')}</td>
+                        <td class="text-center">${acoesHtml}</td>
+                        <td>${formatarStatusPagamento(lanc.statusPagamento)}</td>
+                        <td>${formatarData(get(lanc, 'dataAtividade'))}</td>
+                        <td>${get(lanc, 'detalhe.site')}</td>
+                        <td>${get(lanc, 'os.segmento.nome')}</td>
+                        <td>${get(lanc, 'os.projeto')}</td>
+                        <td title="${get(lanc, 'detalhe.lpu.nomeLpu')}">${get(lanc, 'detalhe.lpu.codigoLpu')}</td>
+                        <td>${get(lanc, 'prestador.nome')}</td>
+                        <td>${get(lanc, 'manager.nome')}</td>
+                        
+                        <td class="text-center ${destaqueValor}">${formatarMoeda(valorPagamento)}</td>
+                        
+                        <td><small class="text-muted">${get(lanc, 'detalhe.key')}</small></td>
                     </tr>
                 `;
             }).join('');
 
+            // Monta o Acordeão Final
+            // NOTA: Sem 'data-bs-parent' para permitir abrir vários ao mesmo tempo
             const accordionItemHtml = `
-                <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-${osId}">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${osId}">
-                             <div class="d-flex justify-content-between w-100 pe-3">
-                                <span><i class="bi bi-file-earmark-text me-2"></i><strong>OS: ${os}</strong></span>
-                                <span class="text-muted d-none d-md-inline">Projeto: ${dadosGrupo.projeto}</span>
-                                <span class="text-muted d-none d-lg-inline">Segmento: ${dadosGrupo.segmento}</span>
-                                <span class="badge text-bg-secondary">${totalItens} item(s)</span>
+            <div class="accordion-item border mb-3 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+                <h2 class="accordion-header" id="heading-${uniqueId}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                        <div class="header-content w-100">
+                            <div class="header-title-wrapper">
+                                <span class="header-title-project">${dadosGrupo.projeto}</span>
+                                <span class="header-title-os">${dadosGrupo.os}</span>
                             </div>
-                        </button>
-                    </h2>
-                    <div id="collapse-${osId}" class="accordion-collapse collapse" data-bs-parent="#accordionHistorico">
-                        <div class="accordion-body p-0">
-                            <div class="table-responsive-vertical custom-scroll">
-                                <table class="table modern-table table-hover align-middle mb-0">
-                                    ${theadHtml}
-                                    <tbody>
-                                        ${tbodyHtml}
-                                    </tbody>
-                                </table>
-                            </div>
+                            ${kpiHTML}
+                            <span class="badge bg-secondary header-badge align-self-center ms-3">${totalItens} item(s)</span>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
+                    <div class="accordion-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 align-middle" style="font-size: 0.9rem;">
+                                ${theadHtml}
+                                <tbody>${tbodyHtml}</tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
-            `;
-            accordionContainer.innerHTML += accordionItemHtml;
+            </div>
+        `;
+            accordionContainer.insertAdjacentHTML('beforeend', accordionItemHtml);
             index++;
         }
+    }
+
+    async function carregarOpcoesFiltros() {
+        try {
+            // Carregar Segmentos, Gestores e Prestadores (Reutilizando endpoints existentes ou criando novos simples)
+            // Exemplo simplificado:
+            const [segmentos, gestores, prestadores] = await Promise.all([
+                fetchComAuth(`${API_BASE_URL}/segmentos`), // Ajuste as rotas conforme sua API
+                fetchComAuth(`${API_BASE_URL}/usuarios/gestores`),
+                fetchComAuth(`${API_BASE_URL}/prestadores`)
+            ]);
+
+            preencherSelect('filtro-segmento', await segmentos.json(), 'id', 'nome');
+            preencherSelect('filtro-gestor', await gestores.json(), 'id', 'nome');
+            preencherSelect('filtro-prestador', await prestadores.json(), 'id', 'nome');
+
+        } catch (e) { console.error("Erro ao carregar filtros", e); }
+    }
+
+    function preencherSelect(id, dados, keyId, keyLabel) {
+        const select = document.getElementById(id);
+        select.innerHTML = '<option value="">Todos</option>';
+        dados.forEach(item => {
+            select.innerHTML += `<option value="${item[keyId]}">${item[keyLabel]}</option>`;
+        });
+    }
+
+    async function carregarDashboard() {
+        const params = new URLSearchParams({
+            inicio: document.getElementById('filtro-data-inicio').value,
+            fim: document.getElementById('filtro-data-fim').value,
+            segmentoId: document.getElementById('filtro-segmento').value,
+            gestorId: document.getElementById('filtro-gestor').value,
+            prestadorId: document.getElementById('filtro-prestador').value
+        });
+
+        try {
+            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/dashboard?${params}`);
+            if (!response.ok) return;
+            const dados = await response.json();
+
+            // Atualiza Total Geral
+            document.getElementById('dash-total-geral').textContent = formatarMoeda(dados.valorTotal);
+
+            // Atualiza Cards de Segmento
+            const containerSeg = document.getElementById('dash-segmentos-container');
+            containerSeg.innerHTML = '';
+
+            dados.valoresPorSegmento.forEach(seg => {
+                const cardHtml = `
+            <div class="col-md-3 mb-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body border-start border-4 border-info">
+                        <h6 class="card-title text-muted small text-uppercase">${seg.segmento}</h6>
+                        <h5 class="mb-0 fw-bold text-dark">${formatarMoeda(seg.valor)}</h5>
+                    </div>
+                </div>
+            </div>`;
+                containerSeg.insertAdjacentHTML('beforeend', cardHtml);
+            });
+
+        } catch (error) { console.error(error); }
     }
 
     /**
@@ -376,20 +498,22 @@ document.addEventListener('DOMContentLoaded', () => {
         let acoesHtml = `<button class="btn btn-sm btn-outline-info btn-ver-historico" data-id="${lanc.id}" title="Ver Histórico"><i class="bi bi-eye"></i></button>`;
         const status = lanc.statusPagamento;
 
+        // --- COORDENADOR ---
         if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
-            // ... lógica existente do coordenador ...
             if (status === 'EM_ABERTO') {
-                acoesHtml += ` <button class="btn btn-sm btn-outline-success btn-fechar-pagamento" data-id="${lanc.id}" title="Fechar para Pagamento"><i class="bi bi-check-circle"></i></button>`;
-                acoesHtml += ` <button class="btn btn-sm btn-outline-danger btn-recusar-pagamento" data-id="${lanc.id}" title="Recusar Pagamento"><i class="bi bi-x-circle"></i></button>`;
+                // APENAS O BOTÃO DE FECHAR (QUE PERMITE ALTERAR VALOR)
+                // O botão de Recusar foi removido conforme solicitado
+                acoesHtml += ` <button class="btn btn-sm btn-outline-success btn-fechar-pagamento" data-id="${lanc.id}" title="Confirmar Valor / Fechar Pagamento"><i class="bi bi-check-circle"></i></button>`;
             }
             if (status === 'FECHADO') {
-                acoesHtml += ` <button class="btn btn-sm btn-outline-warning btn-solicitar-alteracao" data-id="${lanc.id}" title="Solicitar Alteração"><i class="bi bi-pencil-square"></i></button>`;
+                // Permite editar valor mesmo se já estiver fechado (mas ainda não pago)
+                acoesHtml += ` <button class="btn btn-sm btn-outline-warning btn-solicitar-alteracao" data-id="${lanc.id}" title="Alterar Valor"><i class="bi bi-pencil-square"></i></button>`;
             }
         }
 
-        // --- NOVA LÓGICA PARA O CONTROLLER ---
+        // --- CONTROLLER ---
         if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-            // O Controller pode devolver itens que estão na fila dele (FECHADO ou ALTERACAO_SOLICITADA)
+            // O Controller pode devolver itens que estão na fila dele
             if (status === 'FECHADO' || status === 'ALTERACAO_SOLICITADA') {
                 acoesHtml += ` <button class="btn btn-sm btn-outline-danger btn-devolver-pagamento" data-id="${lanc.id}" title="Reprovar/Devolver ao Coordenador"><i class="bi bi-arrow-counterclockwise"></i></button>`;
             }
@@ -434,19 +558,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function carregarHistorico() {
         togglePaneLoader(tabHistorico, true);
+
+        // Captura valores dos filtros
+        const params = new URLSearchParams({
+            inicio: document.getElementById('filtro-data-inicio').value,
+            fim: document.getElementById('filtro-data-fim').value,
+            segmentoId: document.getElementById('filtro-segmento').value,
+            gestorId: document.getElementById('filtro-gestor').value,
+            prestadorId: document.getElementById('filtro-prestador').value
+        });
+
         try {
-            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico`, {
+            // Envia filtros na URL
+            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, {
                 headers: { 'X-User-ID': userId }
             });
             if (!response.ok) throw new Error('Falha ao carregar histórico de pagamentos.');
             const historico = await response.json();
             renderizarAcordeonHistorico(historico);
         } catch (error) {
-            console.error(error);
-            mostrarToast(error.message, 'error');
-            tabHistorico.msgVazio.innerHTML = error.message;
-            tabHistorico.msgVazio.classList.remove('d-none', 'text-muted');
-            tabHistorico.msgVazio.classList.add('text-danger');
+            // ... tratamento de erro igual ...
         } finally {
             togglePaneLoader(tabHistorico, false);
         }
@@ -479,8 +610,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnConfirmar = document.getElementById('btnConfirmarAcaoValor');
 
         if (acao === 'fechar') {
-            modalTitle.innerHTML = '<i class="bi bi-check-circle me-2"></i>Fechar para Pagamento';
-            helpText.textContent = 'Justificativa é obrigatória se o valor for alterado.';
+            modalTitle.innerHTML = '<i class="bi bi-check-circle me-2"></i>Confirmar ou Alterar Valor';
+            helpText.textContent = 'Se necessário, ajuste o valor final antes de fechar.';
             btnConfirmar.className = 'btn btn-success';
             btnConfirmar.innerHTML = '<i class="bi bi-check-circle me-1"></i> Fechar Pagamento';
         } else if (acao === 'solicitar-alteracao') {

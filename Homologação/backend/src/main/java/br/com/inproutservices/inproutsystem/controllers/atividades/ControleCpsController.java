@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.ControleCpsDTO;
+import br.com.inproutservices.inproutsystem.dtos.atividades.DashboardCpsDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
@@ -11,11 +12,13 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalhe
 import br.com.inproutservices.inproutsystem.services.atividades.ControleCpsService;
 import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -46,15 +49,6 @@ public class ControleCpsController {
     public ResponseEntity<List<LancamentoResponseDTO>> getFilaControleCps(@RequestHeader("X-User-ID") Long usuarioId) {
         List<Lancamento> fila = controleCpsService.getFilaControleCps(usuarioId);
         return ResponseEntity.ok(enriquecerComTotais(fila));
-    }
-
-    /**
-     * Retorna o histórico de pagamentos (PAGO, RECUSADO).
-     */
-    @GetMapping("/historico")
-    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoControleCps(@RequestHeader("X-User-ID") Long usuarioId) {
-        List<Lancamento> historico = controleCpsService.getHistoricoControleCps(usuarioId);
-        return ResponseEntity.ok(enriquecerComTotais(historico));
     }
 
     /**
@@ -175,5 +169,32 @@ public class ControleCpsController {
                     l.getDataPagamento()
             );
         }).collect(Collectors.toList());
+    }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<DashboardCpsDTO> getDashboard(
+            @RequestHeader("X-User-ID") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            @RequestParam(required = false) Long segmentoId,
+            @RequestParam(required = false) Long gestorId,
+            @RequestParam(required = false) Long prestadorId
+    ) {
+        DashboardCpsDTO dashboard = controleCpsService.getDashboard(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+        return ResponseEntity.ok(dashboard);
+    }
+
+    @GetMapping("/historico")
+    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoControleCps(
+            @RequestHeader("X-User-ID") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            @RequestParam(required = false) Long segmentoId,
+            @RequestParam(required = false) Long gestorId,
+            @RequestParam(required = false) Long prestadorId
+    ) {
+        // Passa os filtros para o serviço
+        List<Lancamento> historico = controleCpsService.getHistoricoControleCps(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+        return ResponseEntity.ok(enriquecerComTotais(historico));
     }
 }

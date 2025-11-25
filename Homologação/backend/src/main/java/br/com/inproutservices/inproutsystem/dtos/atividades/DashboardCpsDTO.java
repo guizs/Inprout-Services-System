@@ -5,5 +5,6 @@ import java.util.List;
 
 public record DashboardCpsDTO(
         BigDecimal valorTotal,
+        BigDecimal valorTotalPago,
         List<ValoresPorSegmentoDTO> valoresPorSegmento
 ) {}

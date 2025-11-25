@@ -206,7 +206,7 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        criarComentario(lancamento, controller, "Pagamento devolvido pelo Controller. Motivo: " + dto.motivo());
+        criarComentario(lancamento, controller, "Pagamento devolvido. Motivo: " + dto.motivo());
 
         return lancamentoRepository.save(lancamento);
     }
@@ -241,27 +241,62 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional(readOnly = true)
     public DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
-        List<Lancamento> lancamentos = filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
 
-        BigDecimal totalGeral = lancamentos.stream()
+        // 1. Buscar TODOS os lançamentos (a filtragem fina será feita no stream)
+        List<Lancamento> base;
+
+        // Se tiver regra de segmento por usuário no futuro, aplique aqui.
+        // Por enquanto, pegamos tudo e filtramos abaixo.
+        base = lancamentoRepository.findAll();
+
+        // 2. Filtra para obter o escopo da CPS (Aprovados no período)
+        List<Lancamento> lancamentosDaCps = base.stream()
+                // Regra 1: Deve estar APROVADO operacionalmente
+                .filter(l -> l.getSituacaoAprovacao() == br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO ||
+                        l.getSituacaoAprovacao() == br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO_CPS_LEGADO)
+                // Regra 2: Filtro de Data (Baseado na ATIVIDADE/COMPETÊNCIA)
+                .filter(l -> {
+                    if (l.getDataAtividade() == null) return false;
+                    boolean afterInicio = (inicio == null) || !l.getDataAtividade().isBefore(inicio);
+                    boolean beforeFim = (fim == null) || !l.getDataAtividade().isAfter(fim);
+                    return afterInicio && beforeFim;
+                })
+                // Regra 3: Filtros opcionais (Segmento, Gestor, Prestador)
+                .filter(l -> segmentoId == null || (l.getOs().getSegmento() != null && l.getOs().getSegmento().getId().equals(segmentoId)))
+                .filter(l -> gestorId == null || (l.getManager() != null && l.getManager().getId().equals(gestorId)))
+                .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
+                .collect(Collectors.toList());
+
+        // 3. Cálculo do Valor TOTAL DA CPS (Soma do campo 'valor' original)
+        BigDecimal totalCps = lancamentosDaCps.stream()
+                .map(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 4. Cálculo do Valor JÁ PAGO (Soma do campo 'valorPagamento' apenas onde statusPagamento == PAGO)
+        BigDecimal totalPago = lancamentosDaCps.stream()
+                .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
                 .map(l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        Map<String, BigDecimal> porSegmento = lancamentos.stream()
+        // 5. Agrupamento por Segmento (Baseado no Valor da CPS)
+        Map<String, BigDecimal> porSegmento = lancamentosDaCps.stream()
                 .filter(l -> l.getOs() != null && l.getOs().getSegmento() != null)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getSegmento().getNome(),
                         Collectors.mapping(
-                                l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO,
+                                l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO, // Soma o valor da CPS
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
 
         List<ValoresPorSegmentoDTO> listaSegmentos = porSegmento.entrySet().stream()
                 .map(e -> new ValoresPorSegmentoDTO(e.getKey(), e.getValue()))
+                .sorted(java.util.Comparator.comparing(ValoresPorSegmentoDTO::segmentoNome)) // Ordena alfabeticamente
                 .collect(Collectors.toList());
 
-        return new DashboardCpsDTO(totalGeral, listaSegmentos);
+        return new DashboardCpsDTO(totalCps, totalPago, listaSegmentos);
     }
 
     // --- CORREÇÃO APLICADA AQUI ---

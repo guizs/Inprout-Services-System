@@ -410,13 +410,14 @@ document.addEventListener('DOMContentLoaded', function () {
             // INÍCIO DA CORREÇÃO 2 (Remove inline onclick)
             // ==========================================================
             const headerHTML = `
-            <h2 class="accordion-header" id="heading-${uniqueId}">
+            <h2 class="accordion-header position-relative" id="heading-${uniqueId}">
+                <div class="position-absolute top-50 start-0 translate-middle-y ms-3" style="z-index: 5;">
+                    <input class="form-check-input selecionar-todos-acordeon shadow-sm" type="checkbox" 
+                           data-target-body="collapse-${uniqueId}" 
+                           style="cursor: pointer; margin: 0;">
+                </div>
                 <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                    <div class="header-content">
-                        <div class="form-check me-2 check-container-header">
-                            <input class="form-check-input selecionar-todos-acordeon" type="checkbox" data-target-body="collapse-${uniqueId}">
-                        </div>
-                        <div class="header-title-wrapper">
+                    <div class="header-content w-100 ps-5"> <div class="header-title-wrapper">
                             <span class="header-title-project">${grupo.projeto}</span>
                             <span class="header-title-os">${tituloOS}</span>
                         </div>
@@ -554,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 coordenadoresCards.innerHTML = coordenadoresHtml;
             }
         }
-        dashboardContainer.innerHTML = cardsHtml; 
+        dashboardContainer.innerHTML = cardsHtml;
     }
 
     function renderizarTabelaPendentesComplementares(solicitacoes) {
@@ -706,23 +707,23 @@ document.addEventListener('DOMContentLoaded', function () {
             // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
             // ==========================================================
             // REMOVIDO: if (todasPendenciasMateriais.length === 0) { ... }
-            
+
             const pendentesResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, {
                 headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
             });
             if (!pendentesResponse.ok) throw new Error('Falha ao carregar pendências de materiais.');
             todasPendenciasMateriais = await pendentesResponse.json();
-            
+
             // REMOVIDO: O histórico agora é carregado pela sua própria aba
             // const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
             // ...
             // todosHistoricoMateriais = await historicoResponse.json();
-            
+
             // Popula o filtro (pode ser otimizado para não rodar sempre)
-            if (filtroSegmentoMateriais.options.length <= 1) { 
+            if (filtroSegmentoMateriais.options.length <= 1) {
                 popularFiltroSegmento();
             }
-            
+
             renderizarTabelaPendentesMateriais(); // Renderiza com os dados (novos ou cacheados)
             // REMOVIDO: renderizarTabelaHistoricoMateriais();
             // ==========================================================
@@ -737,7 +738,7 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleLoader(false, '#historico-materiais-pane');
         }
     }
-    
+
     // ==========================================================
     // INÍCIO DA CORREÇÃO 1 (Nova Função de Histórico)
     // ==========================================================
@@ -748,15 +749,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const historicoResponse = await fetchComAuth(`${API_BASE_URL}/solicitacoes/historico/${userId}`);
             if (!historicoResponse.ok) throw new Error('Falha ao carregar histórico de materiais.');
             todosHistoricoMateriais = await historicoResponse.json();
-            
+
             // Popula o filtro (se ainda não foi populado pela aba de pendências)
-            if (filtroSegmentoMateriais.options.length <= 1) { 
+            if (filtroSegmentoMateriais.options.length <= 1) {
                 popularFiltroSegmento();
             }
-            
+
             renderizarTabelaHistoricoMateriais();
         } catch (error) {
-             console.error("Erro ao carregar dados de histórico de materiais:", error);
+            console.error("Erro ao carregar dados de histórico de materiais:", error);
             mostrarToast(error.message, 'error');
         } finally {
             toggleLoader(false, '#historico-materiais-pane');
@@ -777,7 +778,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
             // ==========================================================
             // REMOVIDO: if (todasPendenciasComplementares.length === 0) { ... }
-            
+
             const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, {
                 headers: { 'X-User-Role': userRole, 'X-User-ID': userId }
             });
@@ -999,7 +1000,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // INÍCIO DA CORREÇÃO 1 (Remoção do Cache)
             // ==========================================================
             // REMOVIDO: if (todosOsLancamentosGlobais.length === 0)
-            
+
             const [responseGeral, responseHistorico, responsePendenciasAtiv] = await Promise.all([
                 fetchComAuth(`${API_BASE_URL}/lancamentos`),
                 fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
@@ -1009,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!responseGeral.ok || !responseHistorico.ok || !responsePendenciasAtiv.ok) {
                 throw new Error('Falha ao carregar dados de atividades.');
             }
-            
+
             todosOsLancamentosGlobais = await responseGeral.json();
             const historicoParaExibir = await responseHistorico.json();
             todasPendenciasAtividades = await responsePendenciasAtiv.json(); // Atualiza o array global de pendências
@@ -1037,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleLoader(false, '#historico-atividades-pane');
         }
     }
-    
+
     // ==========================================================
     // INÍCIO DA CORREÇÃO 1 (Nova Função de Histórico)
     // ==========================================================
@@ -1272,12 +1273,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, 'success');
             modalAprovar.hide();
-            
+
             // Recarrega o dashboard (que recarrega os dados globais)
             await carregarDashboardEBadges();
             // Re-renderiza a tabela de atividades com os dados globais atualizados
             renderizarAcordeonPendencias(todasPendenciasAtividades);
-            
+
         } catch (error) {
             mostrarToast(`Erro: ${error.message}`, 'error');
         } finally {
@@ -1432,7 +1433,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 mostrarToast('Solicitação de material aprovada!', 'success');
                 modalAprovarMaterial.hide();
-                
+
                 // Recarrega o dashboard (que recarrega os dados globais)
                 await carregarDashboardEBadges();
                 // Re-renderiza a tabela de materiais com os dados globais atualizados
@@ -1513,7 +1514,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 await carregarDashboardEBadges();
                 // Re-renderiza a tabela de complementares com os dados globais atualizados
                 renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
-                
+
                 // Força o recarregamento do histórico na próxima visita
                 const painelHistCompl = document.getElementById('historico-complementares-pane');
                 if (painelHistCompl) painelHistCompl.dataset.loaded = 'false';
@@ -1561,10 +1562,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 await carregarDashboardEBadges();
                 // Re-renderiza a tabela de complementares com os dados globais atualizados
                 renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
-                
+
                 // Força o recarregamento do histórico na próxima visita
                 const painelHistCompl = document.getElementById('historico-complementares-pane');
-                if(painelHistCompl) painelHistCompl.dataset.loaded = 'false';
+                if (painelHistCompl) painelHistCompl.dataset.loaded = 'false';
 
             } catch (error) {
                 mostrarToast(error.message, 'error');
@@ -1711,8 +1712,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderizarTabelaPendentesMateriais();
             } else if (targetPaneId === '#complementares-pane') {
                 renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
-            } 
-            
+            }
+
             // As abas de HISTÓRICO só carregam UMA VEZ
             else if (targetPaneId === '#historico-atividades-pane') {
                 if (targetPane && targetPane.dataset.loaded !== 'true') {
@@ -1743,7 +1744,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // CHAMA A NOVA FUNÇÃO DE DASHBOARD (que carrega todos os dados de pendência)
             carregarDashboardEBadges().finally(() => {
                 // Depois que o dashboard carregar (e preencher os arrays globais):
-                
+
                 // Renderiza a primeira aba ativa com os dados que acabaram de ser carregados
                 if (targetPaneId === '#atividades-pane') {
                     renderizarAcordeonPendencias(todasPendenciasAtividades);
@@ -1752,7 +1753,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else if (targetPaneId === '#complementares-pane') {
                     renderizarTabelaPendentesComplementares(todasPendenciasComplementares);
                 }
-                
+
                 // Se a primeira aba for de histórico, ela carrega seus próprios dados
                 else if (targetPaneId === '#historico-atividades-pane') {
                     carregarDadosHistoricoAtividades();

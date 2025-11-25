@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="../assets/css/global.css" />
     <link rel="stylesheet" href="../assets/css/gestao.css" />
     <link rel="stylesheet" href="../assets/css/controle-cps.css" />
+    <link rel="stylesheet" href="../assets/css/index.css" />
 
 </head>
 
@@ -38,57 +39,68 @@
     <div id="sidebar-container"></div>
 
     <div class="container-fluid my-4">
-        <ul class="nav nav-tabs mb-3" id="cpsPagamentoTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="pendencias-pagamento-tab" data-bs-toggle="tab"
-                    data-bs-target="#pendencias-pagamento-pane" type="button" role="tab">
-                    <i class="bi bi-hourglass-split me-1"></i> Pendências de Pagamento
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="historico-pagamento-tab" data-bs-toggle="tab"
-                    data-bs-target="#historico-pagamento-pane" type="button" role="tab">
-                    <i class="bi bi-archive me-1"></i> Histórico de Pagamentos
-                </button>
-            </li>
-        </ul>
+
+        <div class="card overview-card shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom-0 p-0">
+                <a href="#collapseCpsCards" data-bs-toggle="collapse" role="button" aria-expanded="true"
+                    class="d-flex justify-content-between align-items-center w-100 p-3 text-decoration-none text-dark">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="bg-primary bg-opacity-10 text-primary rounded-circle p-2 d-flex align-items-center justify-content-center"
+                            style="width: 40px; height: 40px;">
+                            <i class="bi bi-speedometer2 fs-5"></i>
+                        </div>
+                        <h5 class="mb-0 fw-bold">Dashboard Financeiro</h5>
+                    </div>
+                    <i class="bi bi-chevron-down text-secondary"></i>
+                </a>
+            </div>
+            <div class="collapse show" id="collapseCpsCards">
+                <div class="card-body pt-0">
+                    <div class="row g-3 mb-3" id="dash-segmentos-container">
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body">
+            <div class="card-body py-3">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Data Início</label>
-                        <input type="date" class="form-control form-control-sm" id="filtro-data-inicio">
+
+                    <div class="col-md-3" id="container-filtro-datas">
+                        <label class="form-label small fw-bold text-muted mb-1">Período de Referência</label>
+                        <div class="input-group input-group-sm">
+                            <input type="date" class="form-control" id="filtro-data-inicio" title="Data Início">
+                            <span class="input-group-text bg-light">até</span>
+                            <input type="date" class="form-control" id="filtro-data-fim" title="Data Fim">
+                        </div>
                     </div>
+
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Data Fim</label>
-                        <input type="date" class="form-control form-control-sm" id="filtro-data-fim">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Segmento</label>
+                        <label class="form-label small fw-bold text-muted mb-1">Segmento</label>
                         <select class="form-select form-select-sm" id="filtro-segmento">
                             <option value="">Todos</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Gestor</label>
+                        <label class="form-label small fw-bold text-muted mb-1">Gestor</label>
                         <select class="form-select form-select-sm" id="filtro-gestor">
                             <option value="">Todos</option>
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-muted">Prestador</label>
+                        <label class="form-label small fw-bold text-muted mb-1">Prestador</label>
                         <select class="form-select form-select-sm" id="filtro-prestador">
                             <option value="">Todos</option>
                         </select>
                     </div>
-                    <div class="col-md-2 d-flex gap-2">
-                        <button class="btn btn-sm btn-primary w-100" id="btn-filtrar" title="Aplicar Filtros">
-                            <i class="bi bi-search me-1"></i> Filtrar
+
+                    <div class="col-md-3 d-flex gap-2 ms-auto">
+                        <button class="btn btn-sm btn-primary w-100 fw-bold" id="btn-filtrar">
+                            <i class="bi bi-funnel-fill me-1"></i> Atualizar
                         </button>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-success dropdown-toggle" type="button"
-                                data-bs-toggle="dropdown">
+                                data-bs-toggle="dropdown" title="Exportar Excel">
                                 <i class="bi bi-file-earmark-excel"></i>
                             </button>
                             <ul class="dropdown-menu">
@@ -103,21 +115,20 @@
             </div>
         </div>
 
-        <div class="row mb-4" id="dashboard-container">
-            <div class="col-md-3 mb-3">
-                <div class="card border-0 shadow-sm h-100 bg-gradient-primary text-white"
-                    style="background: linear-gradient(45deg, #0d6efd, #0a58ca);">
-                    <div class="card-body">
-                        <h6 class="card-title opacity-75">Total Pago (Período)</h6>
-                        <h3 class="mb-0 fw-bold" id="dash-total-geral">R$ 0,00</h3>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-9">
-                <div class="row" id="dash-segmentos-container">
-                </div>
-            </div>
-        </div>
+        <ul class="nav nav-tabs mb-3" id="cpsPagamentoTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pendencias-pagamento-tab" data-bs-toggle="tab"
+                    data-bs-target="#pendencias-pagamento-pane" type="button" role="tab">
+                    <i class="bi bi-hourglass-split me-1"></i> Pendências de Pagamento
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-pagamento-tab" data-bs-toggle="tab"
+                    data-bs-target="#historico-pagamento-pane" type="button" role="tab">
+                    <i class="bi bi-archive me-1"></i> Histórico de Pagamentos
+                </button>
+            </li>
+        </ul>
 
         <div class="tab-content" id="cpsPagamentoTabContent">
 
@@ -279,7 +290,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../assets/js/general/global.js?v=2.2"></script>
     <script src="../assets/js/general/sidebar.js?v=2.2"></script>
-    <script src="../assets/js/cps/controle-cps.js?v=2.3"></script>
+    <script src="../assets/js/cps/controle-cps.js?v=2.4"></script>
 </body>
 
 </html>

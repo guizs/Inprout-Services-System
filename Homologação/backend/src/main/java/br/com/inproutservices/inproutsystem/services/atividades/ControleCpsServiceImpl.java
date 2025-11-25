@@ -239,6 +239,7 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
         List<Lancamento> lancamentos = filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
 

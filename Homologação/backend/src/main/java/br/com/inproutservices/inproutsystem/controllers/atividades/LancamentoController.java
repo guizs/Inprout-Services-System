@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
+import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
@@ -127,7 +128,14 @@ public class LancamentoController {
                     dto.planoDocumentacao(), dto.status(), dto.situacao(),
                     totalOs,
                     valorCps,
-                    valorPendente
+                    valorPendente,
+
+                    null,
+
+                    dto.valorPagamento(),
+                    dto.statusPagamento(),
+                    dto.controllerPagador(),
+                    dto.dataPagamento()
             );
         }).collect(Collectors.toList());
     }

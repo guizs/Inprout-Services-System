@@ -5,7 +5,7 @@
 
 /* Define o fundo específico para esta página */
 body {
-    background-color: #f8f9fa; 
+    background-color: #f8f9fa;
 }
 
 /* =================================================================== */
@@ -41,10 +41,10 @@ body {
 }
 
 .custom-scroll {
-  max-height: calc(100vh - px);
-  overflow-y: auto;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+    max-height: calc(100vh - px);
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 8px;
 }
 
 /* =================================================================== */
@@ -74,27 +74,30 @@ body {
 /* ======================================== */
 
 .dashboard-cards .card-stat {
-    flex: 1 1 calc(25% - 8px); /* 4 cards por linha */
+    flex: 1 1 calc(25% - 8px);
+    /* 4 cards por linha */
     min-width: 180px;
 }
 
 /* Cor Padrão (Azulada/Secundária) */
 .card-stat.card-planejamento {
-  background-color: var(--card-secondary) !important;
-  border-left: 5px solid #889ca3;
+    background-color: var(--card-secondary) !important;
+    border-left: 5px solid #889ca3;
 }
 
 /* Cor de Alerta (Amarela) */
 .card-stat.card-alerta {
-  background-color: var(--card-warning) !important;
-  border-left: 5px solid #d1b154;
+    background-color: var(--card-warning) !important;
+    border-left: 5px solid #d1b154;
 }
 
 /* Cor de Perigo/Ação Urgente (Laranja/Vermelho do seu root) */
 .card-stat.card-perigo {
-  background-color: #ffab91 !important; /* Um tom de laranja/vermelho claro */
-  border-left: 5px solid var(--bs-orange);
+    background-color: #ffab91 !important;
+    /* Um tom de laranja/vermelho claro */
+    border-left: 5px solid var(--bs-orange);
 }
+
 .card-stat.card-perigo p,
 .card-stat.card-perigo h5 {
     color: #b95000 !important;
@@ -104,13 +107,14 @@ body {
 
 /* Cor de Sucesso (Verde) */
 .card-stat.card-sucesso {
-  background-color: var(--card-success) !important;
-  border-left: 5px solid #6b9b6d;
+    background-color: var(--card-success) !important;
+    border-left: 5px solid #6b9b6d;
 }
 
 /* Cor de Informação (Azul do seu tema) */
 .card-stat.card-info {
-    background-color: #bbdefb !important; /* Um azul claro para diferenciar */
+    background-color: #bbdefb !important;
+    /* Um azul claro para diferenciar */
     border-left: 5px solid #64b5f6;
 }
 
@@ -159,31 +163,37 @@ body {
 
 /* 1. Definição das Cores */
 .btn-lote-success {
-    --btn-color-borda: #198754; /* Verde do Bootstrap */
+    --btn-color-borda: #198754;
+    /* Verde do Bootstrap */
     --btn-color-fundo-hover: #198754;
     --btn-color-texto-hover: white;
 }
 
 .btn-lote-danger {
-    --btn-color-borda: #dc3545; /* Vermelho do Bootstrap */
+    --btn-color-borda: #dc3545;
+    /* Vermelho do Bootstrap */
     --btn-color-fundo-hover: #dc3545;
     --btn-color-texto-hover: white;
 }
 
 .btn-lote-warning {
-    --btn-color-borda: #ffc107; /* Amarelo do Bootstrap */
+    --btn-color-borda: #ffc107;
+    /* Amarelo do Bootstrap */
     --btn-color-fundo-hover: #ffc107;
-    --btn-color-texto-hover: #212529; /* Texto escuro para contraste */
+    --btn-color-texto-hover: #212529;
+    /* Texto escuro para contraste */
 }
 
 /* 2. Estilo Base e Efeito Hover */
 .btn-acao-lote {
-    font-size: 0.8rem; /* Pequeno para não ocupar muito espaço */
+    font-size: 0.8rem;
+    /* Pequeno para não ocupar muito espaço */
     padding: 0.4rem 0.9rem;
-    border-radius: 50px; /* Arredondado como outros botões do sistema */
+    border-radius: 50px;
+    /* Arredondado como outros botões do sistema */
     font-weight: 500;
     transition: all 0.2s ease-in-out;
-    
+
     /* Aplica as variáveis de cor */
     background-color: transparent;
     border: 1px solid var(--btn-color-borda);
@@ -194,7 +204,7 @@ body {
     background-color: var(--btn-color-fundo-hover);
     color: var(--btn-color-texto-hover);
     transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 /* =================================================================== */
@@ -223,7 +233,7 @@ body {
     }
 
     .modern-table td {
-        padding-left: 50%; 
+        padding-left: 50%;
         position: relative;
         text-align: right;
         border: none;
@@ -233,7 +243,7 @@ body {
     .modern-table tr td:first-child {
         padding-top: 1rem;
     }
-    
+
     .modern-table tr td:last-child {
         border-bottom: none;
         padding-bottom: 1rem;
@@ -253,37 +263,170 @@ body {
 }
 
 #accordion-pendencias .accordion-body .btn-sm {
-    padding: 0.2rem 0.5rem; /* Reduz o espaçamento interno */
-    font-size: 0.8rem;      /* Diminui o tamanho do ícone */
+    padding: 0.2rem 0.5rem;
+    /* Reduz o espaçamento interno */
+    font-size: 0.8rem;
+    /* Diminui o tamanho do ícone */
 }
 
 .accordion-button-vencido {
     background-color: #f8d7da !important;
     color: #58151c !important;
 }
+
 .accordion-button-vencido:not(.collapsed) {
     background-color: #f8d7da !important;
     color: #58151c !important;
 }
+
 .accordion-button-vencido::after {
     filter: invert(1) brightness(0.5);
 }
 
 /* 1. Define o container como o "limite" para o loader */
 .content-loader-container {
-    position: relative; /* Essencial para conter o loader */
-    min-height: 300px;  /* Altura mínima para o loader ser visível em conteúdo vazio */
+    position: relative;
+    /* Essencial para conter o loader */
+    min-height: 300px;
+    /* Altura mínima para o loader ser visível em conteúdo vazio */
 }
 
 /* 2. Regra específica que SOBRESCREVE qualquer outra definição global */
 /* Esta regra só se aplica a um .overlay-loader que está DENTRO de um .content-loader-container */
 .content-loader-container .overlay-loader {
-    position: absolute; /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
-    z-index: 1040;     /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
-    border-radius: 0.75rem; /* Opcional: arredonda as bordas do loader igual ao card */
+    position: absolute;
+    /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
+    z-index: 1040;
+    /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
+    border-radius: 0.75rem;
+    /* Opcional: arredonda as bordas do loader igual ao card */
 }
 
 .text-danger-emphasis {
-    color: #dc3545 !important; /* Cor vermelha do Bootstrap */
-    font-weight: 700 !important; /* Deixa o texto em negrito para mais destaque */
+    color: #dc3545 !important;
+    /* Cor vermelha do Bootstrap */
+    font-weight: 700 !important;
+    /* Deixa o texto em negrito para mais destaque */
+}
+
+.accordion-item {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem !important;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+/* Cabeçalho do Acordeão */
+.accordion-header .accordion-button {
+    background-color: #f8f9fa;
+    padding: 0.8rem 1.2rem;
+    font-weight: 500;
+    color: #212529;
+    box-shadow: none;
+}
+
+.accordion-header .accordion-button:not(.collapsed) {
+    background-color: #e9ecef;
+    /* Cinza mais escuro quando aberto */
+    color: #000;
+    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .125);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding-right: 1rem;
+}
+
+.header-title-wrapper {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    text-align: left;
+}
+
+.header-title-project {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.header-title-os {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.header-kpi-wrapper {
+    display: flex;
+    gap: 2rem;
+    margin-left: auto;
+    /* Empurra para a direita */
+    text-align: right;
+}
+
+.header-kpi {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.kpi-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.kpi-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+/* Badge no cabeçalho */
+.header-badge {
+    margin-left: 1rem;
+    font-size: 0.75rem;
+    padding: 0.4em 0.8em;
+    border-radius: 50rem;
+}
+
+/* Corpo do Acordeão */
+.accordion-body {
+    padding: 0;
+    /* Remove padding para a tabela encostar nas bordas */
+    background-color: #fff;
+}
+
+.accordion-body .table {
+    margin-bottom: 0;
+}
+
+.accordion-body thead th {
+    background-color: var(--primary-color) !important;
+    /* Garante o verde */
+    color: var(--text-color) !important;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 1rem;
+    white-space: nowrap;
+}
+
+.accordion-body tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.accordion-body tbody tr:last-child td {
+    border-bottom: none;
 }

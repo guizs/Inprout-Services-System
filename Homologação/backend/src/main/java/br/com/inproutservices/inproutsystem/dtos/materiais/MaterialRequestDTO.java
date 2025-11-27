@@ -12,6 +12,11 @@ public record MaterialRequestDTO(
         @NotBlank(message = "A descrição é obrigatória")
         String descricao,
 
+        // --- NOVOS CAMPOS ADICIONADOS ---
+        String modelo,
+        String numeroDeSerie,
+        // --- FIM DOS NOVOS CAMPOS ---
+
         @NotBlank(message = "A unidade de medida é obrigatória")
         String unidadeMedida,
 

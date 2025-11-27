@@ -1,8 +1,6 @@
-// Local: frontend/assets/js/cps/cps.js
-
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E ELEMENTOS DO DOM ---
-    const API_URL = 'https://www.inproutservices.com.br/api';
+    const API_URL = 'http://localhost:8080';
     const TOKEN = localStorage.getItem('token');
 
     const kpiTotalValueEl = document.getElementById('kpi-total-value');

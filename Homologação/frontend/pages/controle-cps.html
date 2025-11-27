@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Controle de Pagamentos (CPS) - INPROUT SERVICES</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+    <link rel="stylesheet" href="../assets/css/root.css" />
+    <link rel="stylesheet" href="../assets/css/global.css" />
+    <link rel="stylesheet" href="../assets/css/gestao.css" />
+    <link rel="stylesheet" href="../assets/css/controle-cps.css" />
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <button class="btn toggle-sidebar" id="menu-toggle"><i class="bi bi-grid fs-5"></i></button>
+            <a href="../index.html">
+                <img src="../assets/imgs/login/logo.png" alt="Logo Inprout" class="logo-navbar mx-3">
+            </a>
+            <div class="dropdown ms-auto">
+                <a class="btn dropdown-toggle user-dropdown" href="#" role="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle"></i> <span id="nomeUsuario">Olá, Usuário</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><button type="button" class="dropdown-item" data-bs-toggle="modal"
+                            data-bs-target="#modalMinhaConta">Minha Conta</button></li>
+                    <li><a class="dropdown-item" href="#" id="logoutBtn">Sair</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div id="sidebar-container"></div>
+
+    <div class="container-fluid my-4">
+
+        <div class="card overview-card shadow-sm mb-3">
+            <div class="card-header bg-white border-bottom-0 py-2 px-3">
+                <a href="#collapseDashboard" data-bs-toggle="collapse" role="button" aria-expanded="true"
+                    aria-controls="collapseDashboard"
+                    class="d-flex justify-content-between align-items-center w-100 text-decoration-none text-dark">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-speedometer2 text-secondary"></i>
+                        <h6 class="mb-0 fw-bold"> Controle de prestadores de serviços </h6>
+                    </div>
+                    <i class="bi bi-chevron-up transition-icon" id="icon-dashboard"></i>
+                </a>
+            </div>
+
+            <div id="collapseDashboard" class="collapse show">
+                <div class="card-body pt-0 pb-3">
+
+                    <div class="kpi-total compact mb-3">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                            <span class="kpi-label text-uppercase small fw-bold opacity-75"
+                                style="font-size: 0.7rem;">Valor total CPS</span>
+                            <span class="kpi-value" id="kpi-total-cps" style="font-size: 1.5rem; line-height: 1.2;">R$
+                                0,00</span>
+                        </div>
+                    </div>
+
+                    <div class="segment-grid" id="dash-segmentos-container">
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body py-3">
+                <div class="row g-3 align-items-end">
+
+                    <div class="col-md-3">
+                        <label class="form-label small fw-bold text-muted mb-1">Mês de referência</label>
+                        <select class="form-select form-select-sm" id="filtro-mes-ref">
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Segmento</label>
+                        <select class="form-select form-select-sm" id="filtro-segmento">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Gestor</label>
+                        <select class="form-select form-select-sm" id="filtro-gestor">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted mb-1">Prestador</label>
+                        <select class="form-select form-select-sm" id="filtro-prestador">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button class="btn btn-primary w-100 fw-bold" id="btn-filtrar" style="height: 38px;">
+                            <i class="bi bi-funnel-fill me-1"></i> Atualizar
+                        </button>
+
+                        <div class="dropdown">
+                            <button class="btn btn-outline-success dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown" title="Exportar Excel" style="height: 38px;">
+                                <i class="bi bi-file-earmark-excel"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" id="btn-exportar-historico">Exportar</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <ul class="nav nav-tabs mb-3" id="cpsPagamentoTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="pendencias-pagamento-tab" data-bs-toggle="tab"
+                    data-bs-target="#pendencias-pagamento-pane" type="button" role="tab">
+                    <i class="bi bi-hourglass-split me-1"></i> Pendências de pagamento
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="historico-pagamento-tab" data-bs-toggle="tab"
+                    data-bs-target="#historico-pagamento-pane" type="button" role="tab">
+                    <i class="bi bi-archive me-1"></i> Histórico de pagamentos
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="cpsPagamentoTabContent">
+
+            <div class="tab-pane fade show active" id="pendencias-pagamento-pane" role="tabpanel">
+                <div class="content-loader-container">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-white p-3 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 card-title-modern">
+                                    <i class="bi bi-hourglass-split me-2"></i>Pendências de pagamento
+                                </h5>
+
+                                <div id="acoes-lote-controller-container" class="d-none">
+                                    <button class="btn-acao-lote btn-lote-success" id="btn-pagar-selecionados">
+                                        <span class="spinner-border spinner-border-sm d-none me-2" role="status"
+                                            aria-hidden="true"></span>
+                                        <i class="bi bi-check-lg"></i> Marcar como pago (<span
+                                            id="contador-pagamento">0</span>)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="accordionPendencias"></div>
+                            <div id="msg-sem-pendencias"
+                                class="alert alert-light text-center text-muted shadow-sm mt-3 d-none">
+                                Nenhuma pendência encontrada.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="historico-pagamento-pane" role="tabpanel">
+                <div class="content-loader-container card shadow-sm">
+                    <div class="card-header bg-white p-3">
+                        <h5 class="mb-0 card-title-modern"><i class="bi bi-archive me-2"></i>Histórico de pagamentos
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="accordion" id="accordionHistorico"></div>
+                        <p id="msg-sem-historico" class="text-center text-muted p-4 d-none">
+                            Nenhum histórico de pagamento encontrado.
+                        </p>
+                    </div>
+                    <div class="overlay-loader d-none">
+                        <div class="spinner-border text-primary" role="status"><span
+                                class="visually-hidden">Carregando...</span></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalAlterarValorPagamento" tabindex="-1" aria-labelledby="modalAlterarValorLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="formAlterarValorPagamento">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalAlterarValorLabel"><i
+                                class="bi bi-pencil-square me-2"></i>Confirmar valor</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="lancamentoIdAcao">
+                        <input type="hidden" id="acaoCoordenador">
+                        <div class="mb-3">
+                            <label for="valorPagamentoInput" class="form-label">Valor final para pagamento</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" class="form-control" id="valorPagamentoInput" placeholder="0,00"
+                                    required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="justificativaPagamentoInput" class="form-label">Justificativa</label>
+                            <textarea class="form-control" id="justificativaPagamentoInput" rows="3"
+                                placeholder="Obrigatório se o valor for alterado."></textarea>
+                            <small class="form-text text-muted" id="justificativaHelpText"></small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success" id="btnConfirmarAcaoValor">Confirmar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalRecusarPagamento" tabindex="-1" aria-labelledby="modalRecusarPagamentoLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="formRecusarPagamento">
+                    <div class="modal-header">
+                        <h5 class="modal-title text-danger" id="modalRecusarPagamentoLabel"><i
+                                class="bi bi-x-circle-fill me-2"></i>Recusar pagamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="lancamentoIdRecusar">
+                        <p>Você tem certeza que deseja recusar o pagamento deste item?</p>
+                        <div class="mb-3">
+                            <label for="justificativaRecusaInput" class="form-label">Justificativa (Obrigatório)</label>
+                            <textarea class="form-control" id="justificativaRecusaInput" rows="3" required></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-danger" id="btnConfirmarRecusa">
+                            <span class="spinner-border spinner-border-sm d-none me-2" role="status"
+                                aria-hidden="true"></span>
+                            Confirmar recusa
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalComentarios" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-chat-left-text-fill"></i> Histórico do lançamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalComentariosBody"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
+        <div class="modal-dialog modal-md modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalMinhaContaLabel">
+                        <i class="bi bi-person-circle me-2"></i> Minha Conta
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-person-circle" style="font-size: 4rem; color: #198754;"></i>
+                        <h5 class="mt-2" id="nomeUsuarioModal">Nome do Usuário</h5>
+                        <p class="text-muted" id="emailUsuarioModal">email@dominio.com</p>
+                        <div id="userInfoDetalhes" class="mt-2"></div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#alterarEmail" aria-expanded="false">
+                            <i class="bi bi-envelope"></i> Alterar E-mail
+                        </button>
+
+                        <div class="collapse mt-2" id="alterarEmail">
+                            <form id="formAlterarEmail">
+                                <div class="mb-2">
+                                    <label class="form-label">Novo E-mail</label>
+                                    <input type="email" class="form-control" id="novoEmail"
+                                        placeholder="Digite seu novo e-mail">
+                                </div>
+                            </form>
+                        </div>
+
+                        <button class="btn btn-outline-success" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#alterarSenha" aria-expanded="false">
+                            <i class="bi bi-shield-lock"></i> Alterar senha
+                        </button>
+
+                        <div class="collapse mt-2" id="alterarSenha">
+                            <form id="formAlterarSenha">
+                                <div class="mb-2">
+                                    <label class="form-label">Nova senha</label>
+                                    <input type="password" class="form-control" id="novaSenha"
+                                        placeholder="Digite sua nova senha">
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Confirmar nova senha</label>
+                                    <input type="password" class="form-control" id="confirmarSenha"
+                                        placeholder="Confirme sua nova senha">
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnSalvarAlteracoes">
+                        <i class="bi bi-check-circle"></i> Salvar alterações
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="toastMensagem" class="toast align-items-center border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastTexto"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="../assets/js/general/global.js?v=2.2"></script>
+    <script src="../assets/js/general/sidebar.js?v=2.2"></script>
+    <script src="../assets/js/cps/controle-cps.js?v=2.5"></script>
+</body>
+
+</html>

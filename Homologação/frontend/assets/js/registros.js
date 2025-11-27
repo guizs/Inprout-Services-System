@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+    const API_BASE_URL = 'http://localhost:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
 
@@ -79,7 +79,8 @@ document.addEventListener('DOMContentLoaded', function () {
         "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
         "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
-        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key')
+        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key'),
+        "VALOR CPS LEGADO": (linha) => formatarMoeda(get(linha, 'os.valorCpsLegado'))
     };
 
     async function inicializarPagina() {
@@ -171,26 +172,41 @@ document.addEventListener('DOMContentLoaded', function () {
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
 
+        // 1. Pega os valores da OS (assume que todas as linhas do grupo são da mesma OS)
+        // Usa o primeiro item para pegar os dados da OS
+        const dadosOS = grupo.linhas[0].os || {};
+
         const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-        // --- INÍCIO DA MODIFICAÇÃO ---
+        // Valor CPS "Normal" (Lançamentos do sistema novo)
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            // CORRIGIDO: Agora soma APENAS APROVADO e APROVADO_CPS_LEGADO
             .filter(lanc => ['APROVADO', 'APROVADO_CPS_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-        // --- FIM DA MODIFICAÇÃO ---
 
-        const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-        const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+        const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
+
+        // --- NOVO: Valor CPS Legado (vindo da OS) ---
+        const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+
+        // Cálculo da porcentagem inclui o Legado
+        const percentual = valorTotalOS > 0
+            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
+            : 0;
 
         let kpiHTML = '';
         if (userRole !== 'MANAGER') {
+            // Constrói o HTML do KPI de Legado apenas se houver valor
+            const kpiLegadoHtml = valorCpsLegado > 0
+                ? `<div class="header-kpi"><span class="kpi-label text-warning">CPS Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
+                : '';
+
             kpiHTML = `
             <div class="header-kpi-wrapper">
                 <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                
+                ${kpiLegadoHtml} <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
             </div>`;
@@ -221,7 +237,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 // --- FIM DA ALTERAÇÃO ---
 
                 if (header === "AÇÕES") {
-                    let btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro (Chave/Segmento)"><i class="bi bi-pencil-fill"></i></button>` : '';
+                    let btnEditar = '';
+
+                    if (userRole === 'ADMIN' || userRole === 'ASSISTANT' || userRole === 'COORDINATOR') {
+                        btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro"><i class="bi bi-pencil-fill"></i></button>` : '';
+                    }
                     const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
                     return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                 }
@@ -408,6 +428,47 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function atualizarDadosLocaisEInterface(osId, detalheId, novosDados) {
+        // 1. Atualiza a fonte da verdade (todasAsLinhas)
+        todasAsLinhas.forEach(linha => {
+            // Atualiza dados da OS (afeta todas as linhas do grupo)
+            if (linha.os.id == osId) {
+                if (novosDados.gestorTim !== null) {
+                    linha.os.gestorTim = novosDados.gestorTim;
+                }
+                if (novosDados.segmentoId !== null && linha.os.segmento) {
+                    linha.os.segmento.id = novosDados.segmentoId;
+                    linha.os.segmento.nome = novosDados.segmentoNome;
+                }
+            }
+
+            // Atualiza dados do Detalhe (afeta apenas a linha específica)
+            if (linha.detalhe && linha.detalhe.id == detalheId) {
+                if (novosDados.key !== null) {
+                    linha.detalhe.key = novosDados.key;
+                }
+            }
+        });
+
+        // 2. Encontra e atualiza o grupo no cache de renderização (gruposFiltradosCache)
+        const grupoCacheIndex = gruposFiltradosCache.findIndex(g => g.id == osId);
+        if (grupoCacheIndex > -1) {
+            // Pega o grupo do cache
+            let grupoAfetado = gruposFiltradosCache[grupoCacheIndex];
+
+            // Atualiza o array 'linhas' dentro do grupo, buscando os dados frescos do 'todasAsLinhas'
+            grupoAfetado.linhas = todasAsLinhas.filter(l => l.os.id == osId);
+
+            // 3. Re-renderiza apenas esse grupo no DOM
+            const elementoGrupoNoDOM = document.getElementById(`accordion-item-${osId}`);
+            if (elementoGrupoNoDOM) {
+                const novoHtmlGrupo = gerarHtmlParaGrupo(grupoAfetado);
+
+                elementoGrupoNoDOM.outerHTML = novoHtmlGrupo;
+            }
+        }
+    }
+
     function adicionarListenersDeAcoes() {
         const accordionContainer = document.getElementById('accordion-registros');
         const modalEditarDetalheEl = document.getElementById('modalEditarDetalhe');
@@ -425,27 +486,63 @@ document.addEventListener('DOMContentLoaded', function () {
             if (btnEdit) {
                 e.preventDefault();
                 const detalheId = btnEdit.dataset.id;
-                if (!detalheId) {
-                    mostrarToast("Registro de detalhe não possui ID para edição.", "warning");
-                    return;
-                }
                 const linhaData = todasAsLinhas.find(l => get(l, 'detalhe.id') == detalheId);
                 if (modalEditarDetalhe && linhaData) {
                     const formEditarDetalheEl = document.getElementById('formEditarDetalhe');
                     document.getElementById('editDetalheId').value = detalheId;
+
+                    // VVVV --- MODIFICAÇÃO AQUI --- VVVV
+
+                    // 1. Armazena o ID da OS (necessário para o patch do Gestor TIM)
+                    const osId = get(linhaData, 'os.id');
+                    formEditarDetalheEl.dataset.osId = osId;
+
                     document.getElementById('osValue').value = get(linhaData, 'os.os', 'N/A');
+
+                    // 2. Popula TODOS os campos (Key, Segmento, Gestor)
                     const chaveExistente = get(linhaData, 'detalhe.key', '');
                     document.getElementById('novaKeyValue').value = chaveExistente;
-                    const segmentoAtualId = get(linhaData, 'os.segmento.id');
-                    carregarSegmentosESelecionarAtual(segmentoAtualId);
                     formEditarDetalheEl.dataset.originalKey = chaveExistente;
+
+                    const segmentoAtualId = get(linhaData, 'os.segmento.id');
+                    carregarSegmentosESelecionarAtual(segmentoAtualId); // Carrega os segmentos no select
                     formEditarDetalheEl.dataset.originalSegmentoId = segmentoAtualId;
+
+                    const gestorTimExistente = get(linhaData, 'os.gestorTim', '');
+                    document.getElementById('novoGestorTimValue').value = gestorTimExistente;
+                    formEditarDetalheEl.dataset.originalGestorTim = gestorTimExistente;
+
+                    // 3. Reseta os toggles
                     document.querySelectorAll('#formEditarDetalhe .toggle-editar').forEach(toggle => {
                         toggle.checked = false;
                         const targetInput = document.querySelector(toggle.dataset.target);
                         if (targetInput) targetInput.disabled = true;
                     });
                     document.getElementById('btnSalvarDetalhe').disabled = true;
+
+                    // 4. Controla a visibilidade dos campos por Role
+                    const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+
+                    const keyFieldGroup = document.getElementById('novaKeyValue').closest('.mb-3');
+                    const segmentoFieldGroup = document.getElementById('selectSegmento').closest('.mb-3');
+                    const gestorTimFieldGroup = document.getElementById('novoGestorTimValue').closest('.mb-3');
+
+                    // Esconde todos por padrão
+                    if (keyFieldGroup) keyFieldGroup.style.display = 'none';
+                    if (segmentoFieldGroup) segmentoFieldGroup.style.display = 'none';
+                    if (gestorTimFieldGroup) gestorTimFieldGroup.style.display = 'none';
+
+                    if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
+                        // Admin/Assistant podem editar Segmento, Key e Gestor TIM
+                        if (keyFieldGroup) keyFieldGroup.style.display = 'block';
+                        if (segmentoFieldGroup) segmentoFieldGroup.style.display = 'block';
+                        if (gestorTimFieldGroup) gestorTimFieldGroup.style.display = 'block';
+                    } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+                        // Coordinator pode editar SOMENTE Gestor TIM
+                        if (gestorTimFieldGroup) gestorTimFieldGroup.style.display = 'block';
+                    }
+                    // ^^^^ --- FIM DA MODIFICAÇÃO --- ^^^^
+
                     modalEditarDetalhe.show();
                 } else {
                     mostrarToast("Não foi possível carregar os dados para edição.", "error");
@@ -518,30 +615,46 @@ document.addEventListener('DOMContentLoaded', function () {
             formEditarDetalheEl.addEventListener('input', () => {
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+                const originalGestorTim = formEditarDetalheEl.dataset.originalGestorTim || '';
+
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
+                const currentGestorTim = document.getElementById('novoGestorTimValue').value;
+
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
-                document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged);
+                const gestorTimChanged = originalGestorTim !== currentGestorTim && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novoGestorTimValue"]').checked;
+
+                document.getElementById('btnSalvarDetalhe').disabled = !(keyChanged || segmentoChanged || gestorTimChanged);
             });
             formEditarDetalheEl.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const detalheId = document.getElementById('editDetalheId').value;
+                const osId = formEditarDetalheEl.dataset.osId; // Pega o OS ID
                 const btnSalvar = document.getElementById('btnSalvarDetalhe');
+
                 const originalKey = formEditarDetalheEl.dataset.originalKey || '';
                 const originalSegmentoId = formEditarDetalheEl.dataset.originalSegmentoId;
+                const originalGestorTim = formEditarDetalheEl.dataset.originalGestorTim || '';
+
                 const currentKey = document.getElementById('novaKeyValue').value;
                 const currentSegmentoId = document.getElementById('selectSegmento').value;
+                const currentGestorTim = document.getElementById('novoGestorTimValue').value;
+
                 const keyChanged = originalKey !== currentKey && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novaKeyValue"]').checked;
                 const segmentoChanged = originalSegmentoId != currentSegmentoId && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#selectSegmento"]').checked;
+                const gestorTimChanged = originalGestorTim !== currentGestorTim && document.querySelector('#formEditarDetalhe .toggle-editar[data-target="#novoGestorTimValue"]').checked;
 
-                if (!(keyChanged || segmentoChanged)) {
+                if (!(keyChanged || segmentoChanged || gestorTimChanged)) {
                     mostrarToast('Nenhuma alteração para salvar.', 'warning');
                     return;
                 }
+
                 btnSalvar.disabled = true;
                 btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
+
                 const promises = [];
+                // ... (código que adiciona as promises)
                 if (keyChanged) {
                     promises.push(fetchComAuth(`${API_BASE_URL}/os/detalhe/${detalheId}/key`, {
                         method: 'PATCH',
@@ -556,27 +669,66 @@ document.addEventListener('DOMContentLoaded', function () {
                         body: JSON.stringify({ novoSegmentoId: parseInt(currentSegmentoId) })
                     }));
                 }
+                if (gestorTimChanged) {
+                    promises.push(fetchComAuth(`${API_BASE_URL}/os/${osId}/gestor-tim`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ gestorTim: currentGestorTim })
+                    }));
+                }
+
                 try {
                     const results = await Promise.all(promises);
+                    // ... (código de verificação de erros) ...
                     let allSuccessful = true;
                     let errorMessages = [];
                     for (let i = 0; i < results.length; i++) {
                         const response = results[i];
                         if (!response.ok) {
                             allSuccessful = false;
-                            const errorType = (i === 0 && keyChanged) ? "Chave Externa" : "Segmento";
-                            let errorMessage = `${errorType}: Erro desconhecido ou de rede.`;
+                            let errorType = `Erro ${i + 1}`;
+                            try {
+                                const reqBody = JSON.parse(promises[i].body); // Note: Acessar .body pode não ser trivial
+                                if (reqBody.key) errorType = "Chave Externa";
+                                if (reqBody.novoSegmentoId) errorType = "Segmento";
+                                if (reqBody.gestorTim) errorType = "Gestor TIM";
+                            } catch (e) { }
+                            let errorMessage = `${errorType}: Erro desconhecido.`;
                             try { const errorData = await response.json(); errorMessage = `${errorType}: ${errorData.message || 'Erro de validação.'}`; } catch { }
                             errorMessages.push(errorMessage);
                         }
                     }
+
                     if (allSuccessful) {
                         mostrarToast('Detalhes atualizados com sucesso!', 'success');
+
+                        // --- VVVV INÍCIO DA SUBSTITUIÇÃO VVVV ---
+
+                        // 1. Obter os novos dados que foram salvos
+                        const novoGestorTim = gestorTimChanged ? currentGestorTim : null;
+                        const novaKey = keyChanged ? currentKey : null;
+                        const novoSegmentoId = segmentoChanged ? parseInt(currentSegmentoId) : null;
+                        let novoSegmentoNome = null;
+
+                        if (segmentoChanged) {
+                            const selectSegmento = document.getElementById('selectSegmento');
+                            novoSegmentoNome = selectSegmento.options[selectSegmento.selectedIndex].text;
+                        }
+
+                        // 2. Chamar a nova função de atualização em memória
+                        atualizarDadosLocaisEInterface(osId, detalheId, {
+                            gestorTim: novoGestorTim,
+                            key: novaKey,
+                            segmentoId: novoSegmentoId,
+                            segmentoNome: novoSegmentoNome
+                        });
+
+
                     } else {
                         throw new Error(errorMessages.join(' | '));
                     }
                     if (modalEditarDetalhe) modalEditarDetalhe.hide();
-                    await inicializarPagina();
+
                 } catch (error) {
                     mostrarToast(error.message, 'error');
                 } finally {
@@ -862,20 +1014,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // 1. Prepara os dados para a Aba de Resumo
                 textoProgresso.textContent = 'Gerando aba de resumo...';
-                const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "% Concluído"];
+                const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "Total CPS Legado", "% Concluído"];
                 const resumoRows = gruposParaExportar.map(grupo => {
-                    // Reutiliza a mesma lógica de cálculo do cabeçalho do acordeão
+                    // 1. Cálculos existentes
                     const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                         .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
                     const valorTotalCPS = grupo.linhas
-                        .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                        // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+                        .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
                         .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
-                    const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+                    // 2. --- CORREÇÃO: DEFININDO A VARIÁVEL QUE FALTAVA ---
+                    // Pegamos os dados da OS a partir da primeira linha do grupo
+                    const dadosOS = grupo.linhas[0].os || {};
+                    // Agora criamos a variável valorCpsLegado para poder usar depois
+                    const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+                    // -----------------------------------------------------
+
+                    // 3. Atualizando o percentual para incluir o legado (opcional, mas recomendado se for exibir)
+                    const percentual = valorTotalOS > 0
+                        ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
+                        : 0;
 
                     return [
                         grupo.projeto,
@@ -883,13 +1045,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         valorTotalOS,
                         valorTotalCPS,
                         custoTotalMateriais,
-                        percentual // O Excel pode formatar como porcentagem
+                        valorCpsLegado, // <--- Agora vai funcionar porque a variável foi criada acima
+                        percentual
                     ];
                 });
 
                 // 2. Prepara os dados para a Aba de Detalhes (lógica que já tínhamos)
                 textoProgresso.textContent = 'Gerando aba de detalhes...';
-                const detalhesHeaders = headers; // Headers globais da tabela
+                const detalhesHeaders = [...headers, "VALOR CPS LEGADO"];
                 const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
                     return detalhesHeaders.map(header => {
                         const func = dataMapping[header];

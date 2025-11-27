@@ -7,9 +7,9 @@ if (
     window.location.pathname === '/' ||
     window.location.pathname.endsWith('/index')
 ) {
-    sidebarPath = 'pages/extras/sidebar.html'; // Caminho relativo para index
+    sidebarPath = 'pages/extras/sidebar.html'; // Caminho relative para index
 } else {
-    sidebarPath = '../pages/extras/sidebar.html'; // Caminho relativo para páginas dentro de /pages
+    sidebarPath = '../pages/extras/sidebar.html'; // Caminho relative para páginas dentro de /pages
 }
 
 // Carrega dinamicamente o HTML da sidebar
@@ -26,41 +26,107 @@ fetch(sidebarPath)
 
         // Corrige os caminhos dos links, se estiver na index
         if (isIndex) {
-            document.querySelector('#sidebar a[href="../index.html"]').setAttribute('href', 'index.html');
-            document.querySelector('#sidebar a[href="cps.html"]').setAttribute('href', 'pages/cps.html');
-            document.querySelector('#sidebar a[href="cms.html"]').setAttribute('href', 'pages/cms.html');
-            document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
-            document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
-            document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]').setAttribute('href', 'pages/gestaoAprovacoes.html');
+            const linkIndex = document.querySelector('#sidebar a[href="../index.html"]');
+            if (linkIndex) linkIndex.setAttribute('href', 'index.html');
+            
+            const linkCps = document.querySelector('#sidebar a[href="cps.html"]');
+            if (linkCps) linkCps.setAttribute('href', 'pages/cps.html');
+
+            // --- INÍCIO DA CORREÇÃO (COM VERIFICAÇÃO DE SEGURANÇA) ---
+            // Adiciona a correção de caminho para a nova página apenas se o elemento existir
+            const linkControleCps = document.querySelector('#sidebar a[href="controle-cps.html"]');
+            linkControleCps.setAttribute('href', 'pages/controle-cps.html');
+            // --- FIM DA CORREÇÃO ---
+
+            const linkCms = document.querySelector('#sidebar a[href="cms.html"]');
+            if (linkCms) linkCms.setAttribute('href', 'pages/cms.html');
+            
+            const linkRegistros = document.querySelector('#sidebar a[href="registros.html"]');
+            if (linkRegistros) linkRegistros.setAttribute('href', 'pages/registros.html');
+            
+            const linkIndexDB = document.querySelector('#sidebar a[href="indexDB.html"]');
+            if (linkIndexDB) linkIndexDB.setAttribute('href', 'pages/indexDB.html');
+            
+            const linkGestao = document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]');
+            if (linkGestao) linkGestao.setAttribute('href', 'pages/gestaoAprovacoes.html');
+            
+            // --- INÍCIO DA VERIFICAÇÃO (PARA LINKS COMENTADOS) ---
+            const faturamentoLinkIndex = document.querySelector('#sidebar a[href="faturamento.html"]');
+            if (faturamentoLinkIndex) {
+                faturamentoLinkIndex.setAttribute('href', 'pages/faturamento.html');
+            }
+            
+            const gateReportLinkIndex = document.querySelector('#sidebar a[href="gateReport.html"]');
+            if (gateReportLinkIndex) {
+                gateReportLinkIndex.setAttribute('href', 'pages/gateReport.html');
+            }
+            // --- FIM DA VERIFICAÇÃO ---
         }
 
         // ==========================================================
-        // NOVO CÓDIGO PARA CONTROLAR A VISIBILIDADE DO BOTÃO CPS
+        // CÓDIGO ATUALIZADO PARA CONTROLAR A VISIBILIDADE DOS BOTÕES
         // ==========================================================
         try {
-            // 1. Pega a role do usuário do localStorage, igual é feito no index.js
+            // 1. Pega a role do usuário do localStorage
             const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-            // 2. Seleciona o link do CPS. Usamos o atributo 'href' para encontrá-lo.
+            // 2. Seleciona os links
             const cpsLink = document.querySelector('#sidebar a[href*="cps.html"]');
+            const controleCpsLink = document.querySelector('#sidebar a[href*="controle-cps.html"]'); // Adicionado
+            const faturamentoLink = document.querySelector('#sidebar a[href*="faturamento.html"]');
+            const gateReportLink = document.querySelector('#sidebar a[href*="gateReport.html"]');
 
-            // 3. Verifica se o link foi encontrado antes de tentar manipulá-lo
-            if (cpsLink) {
-                // 4. Se a role for 'MANAGER', oculta o item PAI (o <li>), para remover o item inteiro da lista.
-                if (userRole === 'MANAGER') {
+            // 3. Esconde os links que ainda não estão prontos
+            if (faturamentoLink) {
+                faturamentoLink.parentElement.style.display = 'none';
+            }
+            if (gateReportLink) {
+                gateReportLink.parentElement.style.display = 'none';
+            }
+
+            // 4. Verifica se o usuário é MANAGER
+            // (Managers não devem ver o Relatório CPS, Faturamento ou Gate Report)
+            // (Mas DEVEM ver o novo Controle CPS)
+            if (userRole === 'MANAGER') {
+                if (cpsLink) {
                     cpsLink.parentElement.style.display = 'none';
+                }
+                if (faturamentoLink) {
+                    faturamentoLink.parentElement.style.display = 'none';
+                }
+                if (gateReportLink) {
+                    gateReportLink.parentElement.style.display = 'none';
                 }
             }
         } catch (error) {
             console.error("Falha ao configurar a visibilidade da sidebar:", error);
         }
         // ==========================================================
-        // FIM DO NOVO CÓDIGO
+        // FIM DA ATUALIZAÇÃO
         // ==========================================================
 
 
         const toggleButton = document.getElementById('menu-toggle'); // Botão para abrir/fechar o menu
         const sidebar = document.getElementById('sidebar'); // Container da sidebar
+
+        // ==========================================================
+        // INÍCIO DA CORREÇÃO PARA FORÇAR NAVEGAÇÃO
+        // ==========================================================
+        // Adiciona um listener para CADA link dentro da sidebar
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                // 1. Previne o comportamento "estranho" que você está vendo
+                e.preventDefault();
+                
+                // 2. Força o navegador a carregar a página do link
+                window.location.href = this.href;
+            });
+        });
+        // ==========================================================
+        // FIM DA CORREÇÃO
+        // ==========================================================
+
 
         // Adiciona evento de clique no botão para abrir/fechar a sidebar
         toggleButton.addEventListener('click', (e) => {
@@ -72,7 +138,7 @@ fetch(sidebarPath)
         // Fecha a sidebar automaticamente ao clicar fora dela
         document.addEventListener('click', (e) => {
             const isClickInsideSidebar = sidebar.contains(e.target); // Verifica se clicou dentro da sidebar
-            const isClickToggle = toggleButton.contains(e.target);   // Verifica se clicou no botão de toggle
+            const isClickToggle = toggleButton.contains(e.target);    // Verifica se clicou no botão de toggle
 
             // Se clicou fora tanto da sidebar quanto do botão, fecha a sidebar
             if (!isClickInsideSidebar && !isClickToggle) {

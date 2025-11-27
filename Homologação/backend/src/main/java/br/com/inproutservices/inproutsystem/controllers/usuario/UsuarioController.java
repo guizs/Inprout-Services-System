@@ -4,6 +4,7 @@ import br.com.inproutservices.inproutsystem.dtos.login.LoginRequest;
 import br.com.inproutservices.inproutsystem.dtos.usuario.UsuarioRequestDTO;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
+import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import br.com.inproutservices.inproutsystem.services.TokenService;
 import br.com.inproutservices.inproutsystem.services.usuarios.PasswordService;
@@ -79,6 +80,14 @@ public class UsuarioController {
             // 6. Se mesmo o Plano B falhar, a senha está realmente incorreta.
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Usuário ou senha inválidos");
         }
+    }
+
+    @GetMapping("/gestores")
+    public ResponseEntity<List<Usuario>> listarGestores() {
+        List<Usuario> gestores = usuarioRepo.findAll().stream()
+                .filter(u -> (u.getRole() == Role.MANAGER || u.getRole() == Role.COORDINATOR) && Boolean.TRUE.equals(u.getAtivo()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(gestores);
     }
 
     // Método auxiliar para não repetir código

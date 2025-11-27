@@ -42,6 +42,9 @@ public class OS {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd/MM/yyyy HH:mm:ss")
     private LocalDateTime dataAtualizacao;
 
+    @Column(name = "valor_cps_legado", precision = 19, scale = 2)
+    private BigDecimal valorCpsLegado = BigDecimal.ZERO;
+
     private String usuarioCriacao;
     private String usuarioAtualizacao;
     private String statusRegistro;
@@ -111,4 +114,12 @@ public class OS {
     public void setUsuarioAtualizacao(String usuarioAtualizacao) { this.usuarioAtualizacao = usuarioAtualizacao; }
     public String getStatusRegistro() { return statusRegistro; }
     public void setStatusRegistro(String statusRegistro) { this.statusRegistro = statusRegistro; }
+
+    public BigDecimal getValorCpsLegado() {
+        return valorCpsLegado;
+    }
+
+    public void setValorCpsLegado(BigDecimal valorCpsLegado) {
+        this.valorCpsLegado = valorCpsLegado;
+    }
 }

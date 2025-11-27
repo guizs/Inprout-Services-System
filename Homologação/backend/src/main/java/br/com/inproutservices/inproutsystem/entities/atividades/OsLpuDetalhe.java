@@ -32,6 +32,10 @@ public class OsLpuDetalhe {
     @JoinColumn(name = "lpu_id", nullable = false)
     private Lpu lpu;
 
+    @OneToMany(mappedBy = "osLpuDetalhe", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
+    private Set<SolicitacaoFaturamento> solicitacoesFaturamento = new HashSet<>();
+
     // A nova KEY única de integração
     @Column(name = "chave_externa", unique = true, nullable = false)
     private String key;
@@ -163,6 +167,14 @@ public class OsLpuDetalhe {
 
     public Lpu getLpu() {
         return lpu;
+    }
+
+    public Set<SolicitacaoFaturamento> getSolicitacoesFaturamento() {
+        return solicitacoesFaturamento;
+    }
+
+    public void setSolicitacoesFaturamento(Set<SolicitacaoFaturamento> solicitacoesFaturamento) {
+        this.solicitacoesFaturamento = solicitacoesFaturamento;
     }
 
     public void setLpu(Lpu lpu) {

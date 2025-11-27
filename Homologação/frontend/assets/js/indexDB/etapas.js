@@ -74,10 +74,13 @@ function controlarVisibilidadeDasAcoes(filtroAtivo) {
     const role = (localStorage.getItem("role") || "").trim().toUpperCase();
 
     // 1. Array com todos os containers de ação para facilitar a iteração
+    // ADICIONADO "gate" AO ARRAY
     const todosOsContainers = [
         { id: 'acoes-etapas', filtro: 'etapas', permissoes: ["COORDINATOR", "ASSISTANT", "ADMIN"] },
         { id: 'acoes-prestadores', filtro: 'prestadores', permissoes: ["ADMIN", "ASSISTANT", "CONTROLLER"] },
-        { id: 'acoes-lpu', filtro: 'lpu', permissoes: ["ADMIN", "ASSISTANT", "CONTROLLER"] }
+        { id: 'acoes-lpu', filtro: 'lpu', permissoes: ["ADMIN", "ASSISTANT", "CONTROLLER"] },
+        // --- NOVA LINHA ---
+        { id: 'acoes-gate', filtro: 'gate', permissoes: ["ADMIN", "ASSISTANT"] }
     ];
 
     // 2. Itera sobre cada container para decidir se ele deve ser mostrado ou escondido
@@ -88,11 +91,14 @@ function controlarVisibilidadeDasAcoes(filtroAtivo) {
             return;
         }
 
+        // A REGRA DE NEGÓCIO É APLICADA AQUI
         const deveMostrar = (filtroAtivo === container.filtro) && container.permissoes.includes(role);
 
         if (deveMostrar) {
-            elemento.style.display = "";
+            // Usamos 'display: flex' pois 'bloco-etapas-header' usa flexbox
+            elemento.style.display = "flex";
         } else {
+            // Esconde com !important para garantir que sobreponha o CSS
             elemento.style.setProperty('display', 'none', 'important');
         }
     });
@@ -109,7 +115,7 @@ function declareVariaveisGlobais() {
     window.inputIndice = document.getElementById("indiceEtapaDetalhada");
     window.listaEditar = document.getElementById("listaEtapasDetalhadasEditar");
     window.btnSalvarEdicoes = document.getElementById("btnSalvarEdicoesEtapasDetalhadas");
-    window.urlEtapas = "https://www.inproutservices.com.br/api/index/etapas";
+    window.urlEtapas = "http://localhost:8080/index/etapas";
     window.etapasDisponiveis = [];
 }
 

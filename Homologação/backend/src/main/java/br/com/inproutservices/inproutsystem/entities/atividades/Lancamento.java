@@ -7,6 +7,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -99,6 +100,33 @@ public class Lancamento {
     @Column(name = "data_criacao", nullable = false, updatable = false)
     private LocalDateTime dataCriacao;
 
+    /**
+     * O valor final que será pago, definido pelo Coordenador.
+     * Pode ser diferente do campo 'valor' (operacional).
+     */
+    @Column(name = "valor_pagamento", precision = 10, scale = 2)
+    private BigDecimal valorPagamento;
+
+    /**
+     * O status do fluxo de pagamento (inicia após aprovação operacional).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_pagamento", length = 30)
+    private StatusPagamento statusPagamento;
+
+    /**
+     * O Controller que marcou o lançamento como "PAGO".
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "controller_pagador_id")
+    private Usuario controllerPagador;
+
+    /**
+     * A data em que o Controller marcou como "PAGO".
+     */
+    @Column(name = "data_pagamento")
+    private LocalDateTime dataPagamento;
+
 
     // Construtor padrão exigido pelo JPA
     public Lancamento() {
@@ -114,6 +142,38 @@ public class Lancamento {
         if (this.situacaoAprovacao == null) {
             this.situacaoAprovacao = SituacaoAprovacao.RASCUNHO;
         }
+    }
+
+    public BigDecimal getValorPagamento() {
+        return valorPagamento;
+    }
+
+    public void setValorPagamento(BigDecimal valorPagamento) {
+        this.valorPagamento = valorPagamento;
+    }
+
+    public StatusPagamento getStatusPagamento() {
+        return statusPagamento;
+    }
+
+    public void setStatusPagamento(StatusPagamento statusPagamento) {
+        this.statusPagamento = statusPagamento;
+    }
+
+    public Usuario getControllerPagador() {
+        return controllerPagador;
+    }
+
+    public void setControllerPagador(Usuario controllerPagador) {
+        this.controllerPagador = controllerPagador;
+    }
+
+    public LocalDateTime getDataPagamento() {
+        return dataPagamento;
+    }
+
+    public void setDataPagamento(LocalDateTime dataPagamento) {
+        this.dataPagamento = dataPagamento;
     }
 
     public OsLpuDetalhe getOsLpuDetalhe() {

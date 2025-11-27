@@ -42,6 +42,14 @@
   color: var(--btn-color-texto-hover);
 }
 
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.9rem;
+}
+
 
 /* ================================================================== */
 /* ====== ESTILOS PARA A TABELA E SEUS COMPONENTES ====== */

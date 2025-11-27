@@ -21,6 +21,7 @@ public record OsResponseDto(
         String projeto,
         String gestorTim,
         BigDecimal custoTotalMateriais,
+        BigDecimal valorCpsLegado,
         List<OsLpuDetalheCompletoDto> detalhes,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataAtualizacao,
@@ -36,6 +37,7 @@ public record OsResponseDto(
                 os.getProjeto(),
                 os.getGestorTim(),
                 os.getCustoTotalMateriais(),
+                os.getValorCpsLegado(),
                 os.getDetalhes().stream()
                         .map(OsLpuDetalheCompletoDto::new)
                         .collect(Collectors.toList()),

@@ -167,6 +167,23 @@ public class OsServiceImpl implements OsService {
     }
 
     @Override
+    @Transactional
+    public OS atualizarGestorTim(Long osId, String novoGestorTim) {
+        if (novoGestorTim == null || novoGestorTim.isBlank()) {
+            throw new BusinessException("O novo Gestor TIM não pode ser vazio.");
+        }
+
+        OS os = osRepository.findById(osId)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
+
+        os.setGestorTim(novoGestorTim);
+        os.setDataAtualizacao(LocalDateTime.now());
+        os.setUsuarioAtualizacao("sistema-patch-gestor"); // Idealmente, pegue o usuário logado
+
+        return osRepository.save(os);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public OS getOsById(Long id) {
         return osRepository.findByIdWithDetails(id)

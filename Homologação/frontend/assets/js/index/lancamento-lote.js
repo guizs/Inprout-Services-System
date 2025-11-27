@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formAdicionarEmLote.reset();
         lpuChecklistContainerLote.innerHTML = '<p class="text-muted">Selecione uma OS para ver as LPUs.</p>';
         formulariosContainerLote.innerHTML = '';
+
         btnAvancarParaPreenchimentoLote.disabled = true;
 
         // Inicializa o flatpickr no campo de data principal do lote
@@ -69,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const usuarioId = localStorage.getItem('usuarioId');
             if (!usuarioId) throw new Error('ID do usuário não encontrado.');
 
-            const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
             if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
 
             const osData = await response.json();
@@ -77,6 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Pega todos os projetos unicos
             const projetos = [...new Set(osData.map(item => item.projeto))];
+
+            // ===== INÍCIO DA CORREÇÃO =====
+            // 1. Guarda os valores que o usuário PODE JÁ TER SELECIONADO
+            const projetoSelecionado = selectProjetoLote.value;
+            const osSelecionada = selectOSLote.value;
+            // ===== FIM DA CORREÇÃO =====
 
             selectProjetoLote.innerHTML = `<option value="" selected disabled>Selecione um Projeto...</option>`;
             projetos.forEach(projeto => {
@@ -89,6 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const option = new Option(item.os, item.id);
                 selectOSLote.add(option);
             });
+
+            // ===== INÍCIO DA CORREÇÃO =====
+            // 2. Restaura os valores se eles já existiam (e não eram o placeholder)
+            if (projetoSelecionado) {
+                selectProjetoLote.value = projetoSelecionado;
+            }
+            if (osSelecionada) {
+                selectOSLote.value = osSelecionada;
+            }
+            // ===== FIM DA CORREÇÃO =====
 
         } catch (error) {
             console.error('Erro ao carregar OSs:', error);
@@ -226,7 +243,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectPrestador.choices) selectPrestador.choices.destroy();
             selectPrestador.innerHTML = '';
             const choicesInstance = new Choices(selectPrestador, { searchEnabled: true, placeholder: true, placeholderValue: 'Busque pelo nome ou código...', itemSelectText: '', noResultsText: 'Nenhum resultado' });
-            choicesInstance.setChoices(todosOsPrestadoresLote.map(p => ({ value: p.id, label: `${p.codigoPrestador} - ${p.prestador}` })), 'value', 'label', false);
+            
+            // --- INÍCIO DA CORREÇÃO ---
+            // 1. Adicionamos um item "placeholder"
+            const placeholder = { value: '', label: 'Busque pelo nome ou código...', selected: true, disabled: true };
+            const choicesData = todosOsPrestadoresLote.map(p => ({ value: p.id, label: `${p.codigoPrestador} - ${p.prestador}` }));
+
+            // 2. Enviamos a lista completa (com placeholder)
+            choicesInstance.setChoices([placeholder, ...choicesData], 'value', 'label', false);
+            // --- FIM DA CORREÇÃO ---
+            
             selectPrestador.choices = choicesInstance;
         }
 
@@ -312,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ==========================================
 
         try {
-            const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}`);
+            const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
             if (!response.ok) throw new Error('Falha ao buscar dados da OS.');
             const osData = await response.json();
 
@@ -356,7 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error("Erro ao carregar dados da OS:", error);
             lpuChecklistContainerLote.innerHTML = '<p class="text-danger">Erro ao carregar dados.</p>';
-            preencherCamposOSLote(null);
+            // preencherCamposOSLote(null); // <-- Esta é a linha do bug. Remova-a.
         }
     });
 
@@ -376,10 +402,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (todasAsEtapasLote.length === 0) {
-                todasAsEtapasLote = await fetchComAuth('https://www.inproutservices.com.br/api/index/etapas').then(res => res.json());
+                todasAsEtapasLote = await fetchComAuth('http://localhost:8080/index/etapas').then(res => res.json());
             }
             if (todosOsPrestadoresLote.length === 0) {
-                todosOsPrestadoresLote = await fetchComAuth('https://www.inproutservices.com.br/api/index/prestadores/ativos').then(res => res.json());
+                todosOsPrestadoresLote = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
@@ -506,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 lancamentosEmLote.push(dadosLpu);
             }
 
-            const response = await fetchComAuth('https://www.inproutservices.com.br/api/lancamentos/lote', {
+            const response = await fetchComAuth('http://localhost:8080/lancamentos/lote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(lancamentosEmLote)

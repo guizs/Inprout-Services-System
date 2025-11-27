@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT NECESSÁRIO
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -47,24 +48,26 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "dd/MM/yyyy") LocalDate planoDocumentacao,
         StatusEtapa status,
         SituacaoOperacional situacao,
-        BigDecimal totalOs, // Campo para TOTAL OS
-        BigDecimal valorCps, // Campo para VALOR CPS
-        BigDecimal valorPendente
+        BigDecimal totalOs,
+        BigDecimal valorCps,
+        BigDecimal valorPendente,
+
+        BigDecimal totalPago, // <--- CAMPO NOVO (Obrigatorio na ordem correta)
+
+        BigDecimal valorPagamento,
+        StatusPagamento statusPagamento,
+        AutorSimpleDTO controllerPagador,
+        @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataPagamento
 ) {
+    // Construtor auxiliar que recebe a Entidade Lancamento
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
-                (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null)
-                        ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
-                (lancamento.getOsLpuDetalhe() != null)
-                        ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
-                (lancamento.getPrestador() != null)
-                        ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
-                (lancamento.getEtapaDetalhada() != null)
-                        ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
-                (lancamento.getManager() != null)
-                        ? new ManagerSimpleDTO(lancamento.getManager())
-                        : null,
+                (lancamento.getOsLpuDetalhe() != null && lancamento.getOsLpuDetalhe().getOs() != null) ? new OsSimpleDTO(lancamento.getOsLpuDetalhe().getOs()) : null,
+                (lancamento.getOsLpuDetalhe() != null) ? new OsLpuDetalheSimpleDTO(lancamento.getOsLpuDetalhe()) : null,
+                (lancamento.getPrestador() != null) ? new PrestadorSimpleDTO(lancamento.getPrestador()) : null,
+                (lancamento.getEtapaDetalhada() != null) ? new EtapaInfoDTO(lancamento.getEtapaDetalhada()) : null,
+                (lancamento.getManager() != null) ? new ManagerSimpleDTO(lancamento.getManager()) : null,
                 lancamento.getValor(),
                 lancamento.getSituacaoAprovacao(),
                 lancamento.getDataAtividade(),
@@ -72,9 +75,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCriacao(),
                 lancamento.getDataPrazo(),
                 lancamento.getDataPrazoProposta(),
-                (lancamento.getComentarios() != null)
-                        ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
-                        : List.of(),
+                (lancamento.getComentarios() != null) ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList()) : List.of(),
                 lancamento.getEquipe(),
                 lancamento.getVistoria(),
                 lancamento.getPlanoVistoria(),
@@ -88,13 +89,20 @@ public record LancamentoResponseDTO(
                 lancamento.getPlanoDocumentacao(),
                 lancamento.getStatus(),
                 lancamento.getSituacao(),
-                null, // totalOs será preenchido no controller
-                null,  // valorCps será preenchido no controller
-                null
+                null, // totalOs
+                null, // valorCps
+                null, // valorPendente
+
+                null, // totalPago
+
+                lancamento.getValorPagamento(),
+                lancamento.getStatusPagamento(),
+                (lancamento.getControllerPagador() != null) ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
+                lancamento.getDataPagamento()
         );
     }
 
-    // (O restante do seu DTO continua igual)
+    // (O restante dos records aninhados permanece igual)
     public record ComentarioDTO(Long id, String texto, @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora, AutorSimpleDTO autor) {
         public ComentarioDTO(Comentario comentario) { this(comentario.getId(), comentario.getTexto(), comentario.getDataHora(), (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null); }
     }
@@ -107,8 +115,18 @@ public record LancamentoResponseDTO(
     public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
         public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) { this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome()); }
     }
-    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento) {
-        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) { this(os.getId(), os.getOs(), os.getProjeto(), os.getGestorTim(), (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null); }
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais, BigDecimal valorCpsLegado) {
+        public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
+            this(
+                    os.getId(),
+                    os.getOs(),
+                    os.getProjeto(),
+                    os.getGestorTim(),
+                    (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null,
+                    os.getCustoTotalMateriais(),
+                    os.getValorCpsLegado()
+            );
+        }
     }
     public record OsLpuDetalheSimpleDTO(Long id, String key, LpuSimpleDTO lpu, String site, String po, String contrato, String regional, String lote, String boq, String item, String objetoContratado, String unidade, Integer quantidade, BigDecimal valorTotal, String observacoes, @JsonFormat(pattern = "dd/MM/yyyy") LocalDate dataPo) {
         public OsLpuDetalheSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe detalhe) { this(detalhe.getId(), detalhe.getKey(), (detalhe.getLpu() != null) ? new LpuSimpleDTO(detalhe.getLpu()) : null, detalhe.getSite(), detalhe.getPo(), detalhe.getContrato(), detalhe.getRegional(), detalhe.getLote(), detalhe.getBoq(), detalhe.getItem(), detalhe.getObjetoContratado(), detalhe.getUnidade(), detalhe.getQuantidade(), detalhe.getValorTotal(), detalhe.getObservacoes(), detalhe.getDataPo()); }

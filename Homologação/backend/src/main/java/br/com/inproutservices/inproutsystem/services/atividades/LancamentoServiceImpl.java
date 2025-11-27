@@ -9,6 +9,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
@@ -296,11 +297,17 @@ public class LancamentoServiceImpl implements LancamentoService {
     public Lancamento aprovarPeloCoordenador(Long lancamentoId, Long coordenadorId) {
         Lancamento lancamento = getLancamentoById(lancamentoId);
 
-        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR) {
+        // ===== INÍCIO DA CORREÇÃO =====
+        Usuario aprovador = usuarioRepository.findById(coordenadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário aprovador não encontrado com ID: " + coordenadorId));
+        boolean isAdmin = aprovador.getRole() == Role.ADMIN;
+
+        // Permite a ação SE o status for o correto OU se o usuário for ADMIN
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR && !isAdmin) {
+            // ===== FIM DA CORREÇÃO =====
             throw new BusinessException("Este lançamento não está pendente de aprovação pelo Coordenador.");
         }
 
-        // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
         // 1. Pega o ID da linha de detalhe (OsLpuDetalhe) à qual o lançamento pertence.
         Long osLpuDetalheId = lancamento.getOsLpuDetalhe().getId();
 
@@ -312,8 +319,11 @@ public class LancamentoServiceImpl implements LancamentoService {
                         SituacaoAprovacao.PENDENTE_COORDENADOR)
                 .orElse(null);
 
-        // 3. A lógica de verificação continua a mesma, garantindo a aprovação em sequência.
-        if (maisAntigo == null || !maisAntigo.getId().equals(lancamento.getId())) {
+        // 3. A lógica de verificação
+        // ===== INÍCIO DA CORREÇÃO =====
+        // ADMIN também ignora a regra de sequência
+        if (!isAdmin && (maisAntigo == null || !maisAntigo.getId().equals(lancamento.getId()))) {
+            // ===== FIM DA CORREÇÃO =====
             throw new BusinessException("Existe um lançamento mais antigo para este projeto (OS/LPU) que precisa ser resolvido primeiro.");
         }
 
@@ -360,6 +370,8 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
         lancamento.setUltUpdate(LocalDateTime.now());
+        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        lancamento.setValorPagamento(lancamento.getValor());
 
         // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
         // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.
@@ -509,8 +521,26 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador() {
-        LocalDateTime dataLimite = LocalDateTime.now().minusDays(2);
-        return lancamentoRepository.countPendenciasByCoordenador(SituacaoAprovacao.PENDENTE_COORDENADOR, br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR, dataLimite);
+
+        // 1. Calcula o limite de 2 dias ÚTEIS atrás
+        LocalDate hoje = LocalDate.now();
+        LocalDate umDiaUtilAtras = prazoService.getDiaUtilAnterior(hoje);
+        LocalDate dataLimite = prazoService.getDiaUtilAnterior(umDiaUtilAtras); // Esta é a data de 2 dias úteis atrás
+
+        // 2. Define os status que queremos contar
+        List<SituacaoAprovacao> situacoesParaContar = List.of(
+                SituacaoAprovacao.PENDENTE_COORDENADOR,
+                SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
+                SituacaoAprovacao.PRAZO_VENCIDO
+        );
+
+        // 3. Chama o repositório com os novos parâmetros
+        // A query vai contar onde dataAtividade < dataLimite
+        return lancamentoRepository.countPendenciasByCoordenador(
+                situacoesParaContar,
+                br.com.inproutservices.inproutsystem.enums.usuarios.Role.COORDINATOR,
+                dataLimite // Passa o LocalDate
+        );
     }
 
     @Override
@@ -647,8 +677,18 @@ public class LancamentoServiceImpl implements LancamentoService {
                 return List.of();
             }
             return lancamentoRepository.findBySituacaoAprovacaoInAndOsSegmentoIn(statusPendentes, segmentosDoUsuario);
-        } else if (role == Role.CONTROLLER || role == Role.ADMIN) {
+
+        } else if (role == Role.CONTROLLER) {
             List<SituacaoAprovacao> statusPendentes = List.of(
+                    SituacaoAprovacao.PENDENTE_CONTROLLER,
+                    SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
+                    SituacaoAprovacao.PRAZO_VENCIDO
+            );
+            return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
+
+        } else if (role == Role.ADMIN) {
+            List<SituacaoAprovacao> statusPendentes = List.of(
+                    SituacaoAprovacao.PENDENTE_COORDENADOR,
                     SituacaoAprovacao.PENDENTE_CONTROLLER,
                     SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
                     SituacaoAprovacao.PRAZO_VENCIDO
@@ -656,7 +696,7 @@ public class LancamentoServiceImpl implements LancamentoService {
             return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
         }
 
-        return List.of(); // Retorna lista vazia para outras roles
+        return List.of();
     }
 
     @Override
@@ -958,131 +998,56 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Transactional
     public List<String> importarLegadoCps(MultipartFile file) throws IOException {
         List<String> warnings = new ArrayList<>();
+
         try (InputStream inputStream = file.getInputStream();
              Workbook workbook = WorkbookFactory.create(inputStream)) {
 
             Sheet sheet = workbook.getSheetAt(0);
             Iterator<Row> rows = sheet.iterator();
 
-            if (rows.hasNext()) {
-                rows.next(); // Pula o cabeçalho
-            }
-
-            // Busca o usuário "Sistema" para ser o autor
-            Usuario managerSistema = usuarioRepository.findById(1L)
-                    .orElseThrow(() -> new EntityNotFoundException("Usuário 'Sistema' (ID 1) não encontrado."));
+            if (rows.hasNext()) rows.next(); // Pula cabeçalho
 
             int rowCounter = 1;
             while (rows.hasNext()) {
                 Row currentRow = rows.next();
                 rowCounter++;
 
-                final int currentRowNum = rowCounter;
-
-                if (isRowEmpty(currentRow)) {
-                    continue;
-                }
+                if (isRowEmpty(currentRow)) continue;
 
                 try {
-                    // --- INÍCIO DA NOVA LÓGICA DE IMPORTAÇÃO ---
-
-                    // 1. Leitura dos dados da planilha
-                    String keyStr = getStringCellValue(currentRow, 8); // Tenta ler a KEY
+                    // Coluna A (0) = OS
                     String osStr = getStringCellValue(currentRow, 0);
-                    String contratoStr = getStringCellValue(currentRow, 1);
-                    String segmentoStr = getStringCellValue(currentRow, 2); // Segmento é usado apenas para criar a OS se ela não existir
-                    String projetoStr = getStringCellValue(currentRow, 3);  // Projeto é usado apenas para criar a OS se ela não existir
-                    String lpuStr = getStringCellValue(currentRow, 4);
-                    LocalDate dataAtividade = getLocalDateCellValue(currentRow, 5);
-                    String codPrestadorStr = getStringCellValue(currentRow, 6);
+                    // Coluna H (7) = Valor
                     BigDecimal valor = getBigDecimalCellValue(currentRow, 7);
 
-                    // 2. Validação de campos obrigatórios (a lógica de identificação principal)
-                    if (osStr == null || contratoStr == null || lpuStr == null || dataAtividade == null || codPrestadorStr == null || valor == null) {
-                        warnings.add("Linha " + currentRowNum + ": ERRO. Campos obrigatórios (OS, Contrato, LPU, Data, Cód. Prestador, Valor) não podem estar em branco.");
+                    if (osStr == null || osStr.isBlank()) {
+                        warnings.add("Linha " + rowCounter + ": Coluna OS está vazia.");
                         continue;
                     }
+                    if (valor == null) valor = BigDecimal.ZERO;
 
-                    OsLpuDetalhe detalhe;
+                    // Busca a OS
+                    Optional<OS> osOpt = osRepository.findByOs(osStr);
+                    if (osOpt.isPresent()) {
+                        OS os = osOpt.get();
 
-                    // 3. Estratégia de Identificação Híbrida
-                    if (keyStr != null && !keyStr.isBlank()) {
-                        // 3.1. Tenta pela KEY (prioridade)
-                        Optional<OsLpuDetalhe> detalheOpt = osLpuDetalheRepository.findByKey(keyStr);
-                        if (detalheOpt.isPresent()) {
-                            detalhe = detalheOpt.get();
-                        } else {
-                            warnings.add("Linha " + currentRowNum + ": ERRO - KEY '" + keyStr + "' fornecida, mas não encontrada no sistema.");
-                            continue;
-                        }
+                        // Soma o valor ao existente (caso tenha múltiplas linhas para a mesma OS na planilha)
+                        BigDecimal valorAtual = os.getValorCpsLegado() != null ? os.getValorCpsLegado() : BigDecimal.ZERO;
+                        os.setValorCpsLegado(valorAtual.add(valor));
+
+                        osRepository.save(os);
+                        // warnings.add("Linha " + rowCounter + ": Valor adicionado à OS " + osStr); // Opcional, pode poluir o log
                     } else {
-                        // 3.2. Fallback: Tenta por OS + Contrato + LPU
-                        Contrato contrato = contratoRepository.findByNome(contratoStr)
-                                .orElse(null);
-                        if (contrato == null) {
-                            warnings.add("Linha " + currentRowNum + ": ERRO - Contrato '" + contratoStr + "' não encontrado.");
-                            continue;
-                        }
-
-                        Lpu lpu = lpuRepository.findByCodigoLpuAndContratoId(lpuStr, contrato.getId())
-                                .orElse(null);
-                        if (lpu == null) {
-                            warnings.add("Linha " + currentRowNum + ": ERRO - LPU '" + lpuStr + "' não encontrada no contrato '" + contratoStr + "'.");
-                            continue;
-                        }
-
-                        OS os = osRepository.findByOs(osStr)
-                                .orElse(null);
-                        if (os == null) {
-                            warnings.add("Linha " + currentRowNum + ": ERRO - OS '" + osStr + "' não encontrada.");
-                            continue;
-                        }
-
-                        // Encontra o "detalhe" que liga a OS e a LPU
-                        Optional<OsLpuDetalhe> detalheOpt = os.getDetalhes().stream()
-                                .filter(d -> d.getLpu().getId().equals(lpu.getId()))
-                                .findFirst();
-
-                        if (detalheOpt.isPresent()) {
-                            detalhe = detalheOpt.get();
-                        } else {
-                            warnings.add("Linha " + currentRowNum + ": ERRO - A LPU '" + lpuStr + "' não está associada à OS '" + osStr + "' no sistema.");
-                            continue;
-                        }
+                        warnings.add("Linha " + rowCounter + ": OS '" + osStr + "' não encontrada no sistema.");
                     }
 
-                    // 4. Se chegamos aqui, `detalhe` foi encontrado. Vamos criar o lançamento.
-                    Prestador prestador = prestadorRepository.findByCodigoPrestador(codPrestadorStr)
-                            .orElse(null);
-                    if (prestador == null) {
-                        warnings.add("Linha " + currentRowNum + ": ERRO - Prestador com código '" + codPrestadorStr + "' não encontrado.");
-                        continue;
-                    }
-
-                    Lancamento lancamento = new Lancamento();
-                    lancamento.setOs(detalhe.getOs());
-                    lancamento.setOsLpuDetalhe(detalhe);
-                    lancamento.setDataAtividade(dataAtividade);
-                    lancamento.setPrestador(prestador);
-                    lancamento.setValor(valor);
-                    lancamento.setManager(managerSistema); // Usa o usuário "Sistema"
-
-                    // --- MUDANÇA PRINCIPAL ---
-                    lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO_CPS_LEGADO);
-                    // --- FIM DA MUDANÇA ---
-
-                    lancamentoRepository.save(lancamento);
-                    warnings.add("Linha " + currentRowNum + ": SUCESSO - Valor (R$ " + valor + ") contabilizado no item " + detalhe.getKey());
-
-                    // --- FIM DA NOVA LÓGICA DE IMPORTAÇÃO ---
-
-                } catch (BusinessException | EntityNotFoundException e) {
-                    warnings.add("Linha " + currentRowNum + ": ERRO - " + e.getMessage());
                 } catch (Exception e) {
-                    warnings.add("Linha " + currentRowNum + ": ERRO INESPERADO - " + e.getMessage());
-                    e.printStackTrace();
+                    warnings.add("Linha " + rowCounter + ": Erro inesperado - " + e.getMessage());
                 }
             }
+        }
+        if (warnings.isEmpty()) {
+            warnings.add("Importação de CPS Legado concluída com sucesso.");
         }
         return warnings;
     }
@@ -1185,6 +1150,8 @@ public class LancamentoServiceImpl implements LancamentoService {
             if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.PENDENTE_CONTROLLER) {
                 lancamento.setSituacaoAprovacao(SituacaoAprovacao.APROVADO);
                 lancamento.setUltUpdate(LocalDateTime.now());
+                lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+                lancamento.setValorPagamento(lancamento.getValor());
 
                 // --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
                 // 1. Acessa a linha de detalhe (OsLpuDetalhe) do lançamento.

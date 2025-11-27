@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -107,6 +108,21 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataFim") LocalDate dataFim
     );
 
+    // ================== NOVO MÉTODO (GATE) ==================
+    @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH o.segmento s " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH d.solicitacoesFaturamento sf " +
+            "WHERE l.dataAtividade BETWEEN :dataInicio AND :dataFim")
+    List<Lancamento> findByDataAtividadeBetweenWithDetails(
+            @Param("dataInicio") LocalDate dataInicio,
+            @Param("dataFim") LocalDate dataFim
+    );
+    // ================== FIM DO NOVO MÉTODO ==================
+
+
     // ================== CORREÇÃO 5 ==================
     @Query("SELECT new br.com.inproutservices.inproutsystem.dtos.atividades.ValoresPorSegmentoDTO(s.nome, SUM(l.valor)) " +
             "FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o JOIN o.segmento s " +
@@ -148,10 +164,46 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN u.segmentos s " +
             "LEFT JOIN OS o ON o.segmento = s " +
             "LEFT JOIN OsLpuDetalhe d ON d.os = o " +
-            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d AND l.situacaoAprovacao = :situacao AND l.dataSubmissao < :dataLimite " +
+            "LEFT JOIN Lancamento l ON l.osLpuDetalhe = d " +
+            "   AND l.situacaoAprovacao IN :situacoes " +
+            "   AND l.dataAtividade < :dataLimite " +
             "WHERE u.role = :role " +
-            "AND (UPPER(u.nome) LIKE '%PAULO%' OR UPPER(u.nome) LIKE '%GUSTAVO%') " +
             "GROUP BY u.id, u.nome " +
             "ORDER BY u.nome")
-    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(@Param("situacao") SituacaoAprovacao situacao, @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role, @Param("dataLimite") LocalDateTime dataLimite);
+    List<PendenciasPorCoordenadorDTO> countPendenciasByCoordenador(
+            @Param("situacoes") List<SituacaoAprovacao> situacoes,
+            @Param("role") br.com.inproutservices.inproutsystem.enums.usuarios.Role role,
+            @Param("dataLimite") LocalDate dataLimite
+    );
+
+    /**
+     * Encontra lançamentos que foram APROVADOS mas ainda não têm um StatusPagamento definido.
+     * Usado para inicializar a fila do Coordenador.
+     */
+    List<Lancamento> findBySituacaoAprovacaoAndStatusPagamentoIsNull(SituacaoAprovacao situacaoAprovacao);
+
+    @Query("SELECT l FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "WHERE o.segmento IN :segmentos")
+    List<Lancamento> findByOsSegmentoIn(@Param("segmentos") Set<Segmento> segmentos);
+
+    /**
+     * Busca todos os lançamentos que estão em um dos status de pagamento da fila de pendências.
+     */
+    @Query("SELECT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH o.segmento " +
+            "WHERE l.statusPagamento IN :statuses")
+    List<Lancamento> findByStatusPagamentoIn(@Param("statuses") List<StatusPagamento> statuses);
+
+    /**
+     * Busca todos os lançamentos em status de pagamento específicos E que pertençam aos segmentos do usuário.
+     */
+    @Query("SELECT l FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "WHERE l.statusPagamento IN :statuses AND o.segmento IN :segmentos")
+    List<Lancamento> findByStatusPagamentoInAndOsSegmentoIn(@Param("statuses") List<StatusPagamento> statuses, @Param("segmentos") Set<Segmento> segmentos);
+
+    List<Lancamento> findAllByEtapaDetalhadaId(Long etapaDetalhadaId);
 }

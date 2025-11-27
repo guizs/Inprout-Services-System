@@ -6,12 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sistema de Controle de Atividades</title>
 
-    <!-- Bootstrap & Estilos -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="cps.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- Styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_green.css">
     <link rel="stylesheet" href="../assets/css/root.css" />
     <link rel="stylesheet" href="../assets/css/global.css" />
     <link rel="stylesheet" href="../assets/css/indexDB/indexDB.css" />
@@ -19,7 +18,6 @@
 </head>
 
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <button class="btn toggle-sidebar" id="menu-toggle">
@@ -44,12 +42,10 @@
         </div>
     </nav>
 
-    <!-- Sidebar -->
     <div id="sidebar-container"></div>
 
     <div class="container-fluid my-4">
 
-        <!-- Segmentos com cards modernos -->
         <div class="segment-grid">
             <div class="segment-card filter-card" data-filter="etapas">
                 <i class="bi bi-list-check"></i><br>
@@ -63,12 +59,15 @@
                 <i class="bi bi-journal-text"></i><br>
                 LPU
             </div>
+            <div class="segment-card filter-card" data-filter="gate">
+                <i class="bi bi-calendar-check"></i><br>
+                GATES
+            </div>
         </div>
 
 
     </div>
 
-    <!-- Conteúdos (ocultos inicialmente) -->
     <div id="conteudo-etapas" class="conteudo-filtro d-none">
 
         <div class="bloco-etapas-header d-flex justify-content-between align-items-center">
@@ -104,7 +103,6 @@
     </div>
     </div>
 
-    <!-- Conteúdo de Prestadores -->
     <div id="conteudo-prestadores" class="conteudo-filtro d-none">
         <div id="acoes-prestadores" class="bloco-etapas-header d-flex justify-content-between align-items-center">
             <h4 class="titulo-etapas mb-0">Prestadores de Serviço</h4>
@@ -177,16 +175,44 @@
 
     </div>
 
+    <div id="conteudo-gate" class="conteudo-filtro d-none">
+        <div id="acoes-gate" class="bloco-etapas-header d-flex justify-content-between align-items-center">
+            <h4 class="titulo-etapas mb-0">GATEs de Faturamento</h4>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button type="button" class="btn btn-outline--success btn-adicionar-etapa" data-bs-toggle="modal"
+                    data-bs-target="#modalCriarGate">
+                    <i class="bi bi-plus-circle me-1"></i> Criar novo GATE
+                </button>
+            </div>
+        </div>
+
+        <div class="px-4 mt-3">
+            <div class="table-responsive custom-scroll">
+                <table class="table modern-table align-middle">
+                    <thead id="thead-gate">
+                        <tr>
+                            <th>Nome do GATE</th>
+                            <th>Data Início</th>
+                            <th>Data Fim</th>
+                            <th>Valor Faturado</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-gate">
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
-    <!-- Toast Container -->
+    </div>
+
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <!-- Toast Dinâmico -->
         <div id="toastMensagem" class="toast align-items-center border-0 text-bg-success" role="alert"
             aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body" id="toastTexto">
-                    <!-- A mensagem insere via JavaScript -->
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
                     aria-label="Fechar"></button>
@@ -194,8 +220,64 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalCriarGate" tabindex="-1" aria-labelledby="modalCriarGateLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="formCriarGate">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="modalCriarGateLabel"><i class="bi bi-plus-circle me-2"></i>Novo GATE
+                            de Faturamento</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="gateNome" class="form-label">Nome do GATE</label>
+                            <input type="text" class="form-control" id="gateNome" placeholder="Ex: SETEMBRO/24"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="gateDataInicio" class="form-label">Data de Início</label>
+                            <input type="text" class="form-control" id="gateDataInicio"
+                                placeholder="Selecione a data inicial..." required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="gateDataFim" class="form-label">Data Final</label>
+                            <input type="text" class="form-control" id="gateDataFim"
+                                placeholder="Selecione a data final..." required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success" id="btnSalvarGate">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-    <!-- Modal Minha Conta -->
+    <div class="modal fade" id="modalExcluirGate" tabindex="-1" aria-labelledby="modalExcluirGateLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger" id="modalExcluirGateLabel"><i
+                            class="bi bi-exclamation-triangle-fill me-2"></i>Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Você tem certeza que deseja excluir o GATE <strong id="nomeGateExcluir"></strong>?</p>
+                    <p class="text-danger small">Esta ação não pode ser desfeita. Exclua apenas se tiver certeza de que
+                        não há faturamentos vinculados.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusaoGate">Sim, Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">
@@ -266,7 +348,6 @@
         </div>
     </div>
 
-    <!-- Modal Adicionar Etapa -->
     <div class="modal fade" id="modalAdicionarEtapa" tabindex="-1" aria-labelledby="modalAdicionarEtapaLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-md modal-dialog-centered">
@@ -311,7 +392,6 @@
         </div>
     </div>
 
-    <!-- Modal Adicionar Etapa detalhada -->
     <div class="modal fade" id="modalAdicionarEtapaDetalhada" tabindex="-1"
         aria-labelledby="modalAdicionarEtapaDetalhadaLabel" aria-hidden="true">
         <div class="modal-dialog modal-md modal-dialog-centered">
@@ -330,7 +410,6 @@
                             <label for="etapaSelecionada" class="form-label">Etapa</label>
                             <select id="etapaSelecionada" class="form-select" required>
                                 <option value="">Selecione a etapa</option>
-                                <!-- Preencher dinamicamente com as etapas existentes -->
                             </select>
                         </div>
 
@@ -373,7 +452,6 @@
         </div>
     </div>
 
-    <!-- Modal Editar Etapa Detalhada -->
     <div class="modal fade" id="modalEditarEtapaDetalhada" tabindex="-1"
         aria-labelledby="modalEditarEtapaDetalhadaLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -390,12 +468,10 @@
                         <label for="etapaSelecionadaEditar" class="form-label">Selecionar Etapa</label>
                         <select id="etapaSelecionadaEditar" class="form-select">
                             <option value="">Selecione a etapa</option>
-                            <!-- preenchido via JS -->
                         </select>
                     </div>
 
                     <div id="listaEtapasDetalhadasEditar" class="d-grid gap-3">
-                        <!-- cards de edição de etapas detalhadas vão aqui -->
                     </div>
                 </div>
 
@@ -424,7 +500,6 @@
                     </div>
 
                     <div class="modal-body row g-3">
-                        <!-- Os campos vão aqui (divididos em col-md-6 col-lg-4, etc) -->
                         <div class="col-md-4">
                             <label class="form-label">Código</label>
                             <input type="text" class="form-control" id="codigoPrestador" required>
@@ -794,12 +869,10 @@
                     </div>
 
                     <div class="modal-body">
-                        <!-- 🔍 Seletor do prestador a ser desativado -->
                         <div class="mb-3">
                             <label for="selectPrestadorDesativar" class="form-label">Selecione o prestador</label>
                             <select class="form-select" id="selectPrestadorDesativar" required>
                                 <option value="">Digite o nome ou código</option>
-                                <!-- Vai ser preenchido via JS também -->
                             </select>
                         </div>
 
@@ -1218,15 +1291,19 @@
 
 
 
-    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="../assets/js/general/selection.js?v=2.1"></script>
-    <script src="../assets/js/general/global.js?v=2.1"></script>
-    <script src="../assets/js/general/sidebar.js?v=2.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+
+    <script src="../assets/js/general/global.js?v=2.2"></script>
+    <script src="../assets/js/general/sidebar.js?v=2.2"></script>
     <script src="https://unpkg.com/imask"></script>
-    <script src="../assets/js/indexDB/etapas.js?v=2.1"></script>
-    <script src="../assets/js/indexDB/prestadores.js?v=2.1"></script>
-    <script src="../assets/js/indexDB/lpus.js?v=2.1"></script>
+    <script src="../assets/js/indexDB/etapas.js?v=2.2"></script>
+    <script src="../assets/js/indexDB/prestadores.js?v=2.2"></script>
+    <script src="../assets/js/indexDB/lpus.js?v=2.2"></script>
+    <script src="../assets/js/indexDB/gate.js?v=2.2"></script>
+    
+    
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {

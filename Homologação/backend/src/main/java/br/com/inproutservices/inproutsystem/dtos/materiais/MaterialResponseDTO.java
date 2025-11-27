@@ -11,19 +11,24 @@ public record MaterialResponseDTO(
         Long id,
         String codigo,
         String descricao,
+        String modelo,
+        String numeroDeSerie,
         String unidadeMedida,
         BigDecimal saldoFisico,
         BigDecimal custoMedioPonderado,
         BigDecimal custoTotal,
         String observacoes,
         String empresa,
-        List<EntradaMaterialResponseDTO> entradas // NOVO CAMPO
+        List<EntradaMaterialResponseDTO> entradas
 ) {
     public MaterialResponseDTO(Material entity) {
         this(
                 entity.getId(),
                 entity.getCodigo(),
                 entity.getDescricao(),
+
+                entity.getModelo(),
+                entity.getNumeroDeSerie(),
                 entity.getUnidadeMedida(),
                 entity.getSaldoFisico(),
                 entity.getCustoMedioPonderado(),

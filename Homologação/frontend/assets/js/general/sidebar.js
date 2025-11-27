@@ -26,18 +26,31 @@ fetch(sidebarPath)
 
         // Corrige os caminhos dos links, se estiver na index
         if (isIndex) {
-            document.querySelector('#sidebar a[href="../index.html"]').setAttribute('href', 'index.html');
-            document.querySelector('#sidebar a[href="cps.html"]').setAttribute('href', 'pages/cps.html');
+            const linkIndex = document.querySelector('#sidebar a[href="../index.html"]');
+            if (linkIndex) linkIndex.setAttribute('href', 'index.html');
+            
+            const linkCps = document.querySelector('#sidebar a[href="cps.html"]');
+            if (linkCps) linkCps.setAttribute('href', 'pages/cps.html');
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Adiciona a correção de caminho para a nova página
-            document.querySelector('#sidebar a[href="controle-cps.html"]').setAttribute('href', 'pages/controle-cps.html');
+            // --- INÍCIO DA CORREÇÃO (COM VERIFICAÇÃO DE SEGURANÇA) ---
+            // Adiciona a correção de caminho para a nova página apenas se o elemento existir
+            const linkControleCps = document.querySelector('#sidebar a[href="controle-cps.html"]');
+            if (linkControleCps) {
+                linkControleCps.setAttribute('href', 'pages/controle-cps.html');
+            }
             // --- FIM DA CORREÇÃO ---
 
-            document.querySelector('#sidebar a[href="cms.html"]').setAttribute('href', 'pages/cms.html');
-            document.querySelector('#sidebar a[href="registros.html"]').setAttribute('href', 'pages/registros.html');
-            document.querySelector('#sidebar a[href="indexDB.html"]').setAttribute('href', 'pages/indexDB.html');
-            document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]').setAttribute('href', 'pages/gestaoAprovacoes.html');
+            const linkCms = document.querySelector('#sidebar a[href="cms.html"]');
+            if (linkCms) linkCms.setAttribute('href', 'pages/cms.html');
+            
+            const linkRegistros = document.querySelector('#sidebar a[href="registros.html"]');
+            if (linkRegistros) linkRegistros.setAttribute('href', 'pages/registros.html');
+            
+            const linkIndexDB = document.querySelector('#sidebar a[href="indexDB.html"]');
+            if (linkIndexDB) linkIndexDB.setAttribute('href', 'pages/indexDB.html');
+            
+            const linkGestao = document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]');
+            if (linkGestao) linkGestao.setAttribute('href', 'pages/gestaoAprovacoes.html');
             
             // --- INÍCIO DA VERIFICAÇÃO (PARA LINKS COMENTADOS) ---
             const faturamentoLinkIndex = document.querySelector('#sidebar a[href="faturamento.html"]');

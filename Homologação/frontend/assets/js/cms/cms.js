@@ -255,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('materialCodigoEditar').value = material.codigo;
                 document.getElementById('materialDescricaoEditar').value = material.descricao;
                 document.getElementById('materialObservacoesEditar').value = material.observacoes || '';
+                document.getElementById('materialSaldoEditar').value = material.saldoFisico;
             }
 
             // --- CONTROLE DE ACESSO PARA ABAS E BOTÕES DO MODAL ---
@@ -601,7 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 codigo: document.getElementById('materialCodigoEditar').value,
                 descricao: document.getElementById('materialDescricaoEditar').value,
-                observacoes: document.getElementById('materialObservacoesEditar').value
+                observacoes: document.getElementById('materialObservacoesEditar').value,
+                saldoFisico: parseFloat(document.getElementById('materialSaldoEditar').value)
             };
 
             try {

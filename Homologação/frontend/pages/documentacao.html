@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>Gestão de Documentação - INPROUT</title>
+    <link rel="stylesheet" href="../assets/css/documentacao.css" /> </head>
+<body>
+    <div class="container-fluid my-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white p-3">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Central de Documentação</h5>
+            </div>
+            <div class="card-body">
+                
+                <ul class="nav nav-tabs mb-3" id="docTabs" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes-pane">
+                            <i class="bi bi-inbox"></i> Aguardando Solicitação (Manager)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="fila-tab" data-bs-toggle="tab" data-bs-target="#fila-pane">
+                            <i class="bi bi-person-workspace"></i> Minha Fila (Documentador)
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico-pane">
+                            <i class="bi bi-clock-history"></i> Histórico
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content">
+                    
+                    <div class="tab-pane fade show active" id="pendentes-pane">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>OS</th>
+                                        <th>Projeto</th>
+                                        <th>Item/LPU</th>
+                                        <th>Data Envio Doc.</th>
+                                        <th>Documentador</th>
+                                        <th>Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-pendentes-solicitacao">
+                                    </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="fila-pane">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>OS</th>
+                                        <th>Projeto</th>
+                                        <th>Item/LPU</th>
+                                        <th>Data Envio Doc.</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-fila-trabalho"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="historico-pane">
+                         <tbody id="tbody-historico"></tbody>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalReportar" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reportar Problema na Documentação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="motivoReport" class="form-control" rows="4" placeholder="Descreva o que está faltando ou incorreto..."></textarea>
+                    <input type="hidden" id="idSolicitacaoReport">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-danger" id="btnConfirmarReport">Reportar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../assets/js/documentacao/documentacao.js"></script>
+</body>
+</html>

@@ -201,4 +201,12 @@ public class UsuarioController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
     }
+
+    @GetMapping("/documentadores")
+    public ResponseEntity<List<Usuario>> listarDocumentadores() {
+        List<Usuario> docs = usuarioRepo.findAll().stream()
+                .filter(u -> u.getRole() == Role.DOCUMENTADOR && Boolean.TRUE.equals(u.getAtivo()))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(docs);
+    }
 }

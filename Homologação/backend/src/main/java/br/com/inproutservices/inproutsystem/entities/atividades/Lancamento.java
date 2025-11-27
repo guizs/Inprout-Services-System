@@ -64,6 +64,9 @@ public class Lancamento {
     @JoinColumn(name = "etapa_detalhada_id")
     private EtapaDetalhada etapaDetalhada;
 
+    @Column(name = "data_envio_documentacao")
+    private LocalDate dataEnvioDocumentacao;
+
     // --- DEMAIS CAMPOS DO LANÇAMENTO ---
     @Column(name = "data_atividade", nullable = false)
     private LocalDate dataAtividade;
@@ -198,6 +201,14 @@ public class Lancamento {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public LocalDate getDataEnvioDocumentacao() {
+        return dataEnvioDocumentacao;
+    }
+
+    public void setDataEnvioDocumentacao(LocalDate dataEnvioDocumentacao) {
+        this.dataEnvioDocumentacao = dataEnvioDocumentacao;
     }
 
     public SituacaoAprovacao getSituacaoAprovacao() {

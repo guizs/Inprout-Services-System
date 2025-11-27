@@ -43,6 +43,9 @@ public record LancamentoRequestDTO(
         @JsonFormat(pattern = "dd/MM/yyyy")
         LocalDate planoDocumentacao,
 
+        @JsonFormat(pattern = "dd/MM/yyyy")
+        LocalDate dataEnvioDocumentacao,
+
         StatusEtapa status,
         SituacaoOperacional situacao,
         String detalheDiario,

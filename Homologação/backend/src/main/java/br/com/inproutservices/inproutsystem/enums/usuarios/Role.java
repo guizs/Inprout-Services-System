@@ -5,5 +5,6 @@ public enum Role {
     COORDINATOR,
     MANAGER,
     CONTROLLER,
-    ASSISTANT
+    ASSISTANT,
+    DOCUMENTADOR
 }

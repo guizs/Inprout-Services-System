@@ -171,26 +171,41 @@ document.addEventListener('DOMContentLoaded', function () {
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
 
+        // 1. Pega os valores da OS (assume que todas as linhas do grupo são da mesma OS)
+        // Usa o primeiro item para pegar os dados da OS
+        const dadosOS = grupo.linhas[0].os || {};
+
         const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-        // --- INÍCIO DA MODIFICAÇÃO ---
+        // Valor CPS "Normal" (Lançamentos do sistema novo)
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
-            // CORRIGIDO: Agora soma APENAS APROVADO e APROVADO_CPS_LEGADO
             .filter(lanc => ['APROVADO', 'APROVADO_CPS_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-        // --- FIM DA MODIFICAÇÃO ---
 
-        const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-        const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+        const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
+        
+        // --- NOVO: Valor CPS Legado (vindo da OS) ---
+        const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+
+        // Cálculo da porcentagem inclui o Legado
+        const percentual = valorTotalOS > 0 
+            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100 
+            : 0;
 
         let kpiHTML = '';
         if (userRole !== 'MANAGER') {
+            // Constrói o HTML do KPI de Legado apenas se houver valor
+            const kpiLegadoHtml = valorCpsLegado > 0 
+                ? `<div class="header-kpi"><span class="kpi-label text-warning">CPS Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
+                : '';
+
             kpiHTML = `
             <div class="header-kpi-wrapper">
                 <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                
+                ${kpiLegadoHtml} <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
             </div>`;

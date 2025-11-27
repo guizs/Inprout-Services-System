@@ -115,7 +115,7 @@ public record LancamentoResponseDTO(
     public record EtapaInfoDTO(Long id, String codigoGeral, String nomeGeral, String indiceDetalhado, String nomeDetalhado) {
         public EtapaInfoDTO(br.com.inproutservices.inproutsystem.entities.index.EtapaDetalhada etapaDetalhada) { this(etapaDetalhada.getId(), (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getCodigo() : null, (etapaDetalhada.getEtapa() != null) ? etapaDetalhada.getEtapa().getNome() : null, etapaDetalhada.getIndice(), etapaDetalhada.getNome()); }
     }
-    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais) {
+    public record OsSimpleDTO(Long id, String os, String projeto, String gestorTim, SegmentoSimpleDTO segmento, BigDecimal custoTotalMateriais, BigDecimal valorCpsLegado) {
         public OsSimpleDTO(br.com.inproutservices.inproutsystem.entities.atividades.OS os) {
             this(
                     os.getId(),
@@ -123,7 +123,8 @@ public record LancamentoResponseDTO(
                     os.getProjeto(),
                     os.getGestorTim(),
                     (os.getSegmento() != null) ? new SegmentoSimpleDTO(os.getSegmento()) : null,
-                    os.getCustoTotalMateriais()
+                    os.getCustoTotalMateriais(),
+                    os.getValorCpsLegado()
             );
         }
     }

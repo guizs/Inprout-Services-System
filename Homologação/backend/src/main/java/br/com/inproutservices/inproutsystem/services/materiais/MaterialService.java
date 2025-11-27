@@ -93,6 +93,9 @@ public class MaterialService {
         material.setObservacoes(dto.observacoes());
         material.setModelo(dto.modelo());
         material.setNumeroDeSerie(dto.numeroDeSerie());
+        if (dto.saldoFisico() != null) {
+            material.setSaldoFisico(dto.saldoFisico());
+        }
 
         return materialRepository.save(material);
     }

@@ -365,6 +365,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Lógica para definir o título da OS (incluindo se for complementar)
             const primeiroLancamento = grupo.linhas[0];
+            // Acessa os dados da OS a partir do primeiro lançamento para pegar o valor legado
+            const dadosOS = primeiroLancamento.os || {};
+
             const isComplementar = get(primeiroLancamento, 'detalhe.key', '').includes('_AC_');
             let tituloOS = grupo.os;
             if (isComplementar) {
@@ -375,15 +378,28 @@ document.addEventListener('DOMContentLoaded', function () {
             // Define a classe do botão do acordeão (vermelho se vencido)
             const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
-            // Cálculos dos KPIs
+            // --- CÁLCULOS DOS KPIS (INCLUINDO LEGADO) ---
             const totalOs = grupo.totalOs || 0;
             const totalCpsAprovado = grupo.valorCps || 0;
             const totalMaterial = grupo.custoTotalMateriais || 0;
             const totalPendente = grupo.valorPendente || 0;
-            const previsaoCps = totalCpsAprovado + totalPendente;
-            const percentualAtual = totalOs > 0 ? ((totalCpsAprovado + totalMaterial) / totalOs) * 100 : 0;
-            const percentualPrevisto = totalOs > 0 ? ((previsaoCps + totalMaterial) / totalOs) * 100 : 0;
 
+            // Novo: Valor do Legado (vindo da entidade OS)
+            const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+
+            // Previsão agora inclui o legado
+            const previsaoCps = totalCpsAprovado + totalPendente + valorCpsLegado;
+
+            // Percentuais atualizados
+            const percentualAtual = totalOs > 0
+                ? ((totalCpsAprovado + totalMaterial + valorCpsLegado) / totalOs) * 100
+                : 0;
+
+            const percentualPrevisto = totalOs > 0
+                ? ((previsaoCps + totalMaterial) / totalOs) * 100
+                : 0;
+
+            // Lógica de cores do percentual
             let corPercentualPrevisto = 'text-primary'; // Cor padrão (azul)
             if (percentualPrevisto >= 35) {
                 corPercentualPrevisto = 'text-danger-emphasis'; // Vermelho
@@ -391,11 +407,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 corPercentualPrevisto = 'text-warning-emphasis'; // Amarelo
             }
 
+            // --- HTML DO KPI DE LEGADO (CONDICIONAL) ---
+            const kpiLegadoHtml = valorCpsLegado > 0
+                ? `<div class="header-kpi"><span class="kpi-label text-warning">CPS Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
+                : '';
+
             // HTML dos KPIs (indicadores) do cabeçalho
             const kpiHTML = `
             <div class="header-kpi-wrapper">
                 <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(totalOs)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(totalCpsAprovado)}</span></div>
+                
+                ${kpiLegadoHtml} <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(totalCpsAprovado)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(totalMaterial)}</span></div>
                 <div class="header-kpi"><span class="kpi-label text-primary">Previsão CPS</span><span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span></div>
                 <div class="header-kpi"><span class="kpi-label">% Atual</span><span class="kpi-value kpi-percentage">${percentualAtual.toFixed(2)}%</span></div>
@@ -406,9 +428,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>`;
 
-            // ==========================================================
-            // INÍCIO DA CORREÇÃO 2 (Remove inline onclick)
-            // ==========================================================
             const headerHTML = `
             <h2 class="accordion-header position-relative" id="heading-${uniqueId}">
                 <div class="position-absolute top-50 start-0 translate-middle-y ms-3" style="z-index: 5;">
@@ -426,9 +445,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 </button>
             </h2>`;
-            // ==========================================================
-            // FIM DA CORREÇÃO 2
-            // ==========================================================
 
             // Define as colunas a serem exibidas na tabela interna
             let colunasParaRenderizar = [...colunas]; // Começa com todas as colunas

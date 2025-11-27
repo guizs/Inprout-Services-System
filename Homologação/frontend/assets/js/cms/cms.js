@@ -353,6 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('materialDescricaoEditar').value = material.descricao;
                 document.getElementById('materialModeloEditar').value = material.modelo || '';
                 document.getElementById('materialNumeroDeSerieEditar').value = material.numeroDeSerie || '';
+                document.getElementById('materialSaldoEditar').value = material.saldoFisico;
                 document.getElementById('materialObservacoesEditar').value = material.observacoes || '';
             }
 
@@ -703,7 +704,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 descricao: document.getElementById('materialDescricaoEditar').value,
                 modelo: document.getElementById('materialModeloEditar').value, // Novo
                 numeroDeSerie: document.getElementById('materialNumeroDeSerieEditar').value, // Novo
-                observacoes: document.getElementById('materialObservacoesEditar').value
+                observacoes: document.getElementById('materialObservacoesEditar').value,
+                saldoFisico: parseFloat(document.getElementById('materialSaldoEditar').value.replace(/\./g, '').replace(',', '.')) || 0
             };
 
             try {

@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return mostrarToast('O novo e-mail é igual ao atual.', 'error');
                 }
                 try {
-                    const response = await fetch(`http://localhost:8080/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
+                    const response = await fetchComAuth(`http://localhost:8080/usuarios/email?emailAtual=${encodeURIComponent(emailAtual)}&novoEmail=${encodeURIComponent(novoEmail)}`, { method: 'PUT' });
                     if (!response.ok) {
                         const resultado = await response.text();
                         throw new Error(resultado);

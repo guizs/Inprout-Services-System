@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'http://localhost:8080';
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
     const userId = localStorage.getItem('usuarioId');
-    let todosOsLancamentos = []; 
+    let todosOsLancamentos = [];
 
     // Objeto para guardar as instâncias do Choices (para poder atualizar/destruir depois)
     const filterChoices = {};
@@ -46,21 +46,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- HELPERS DE FORMATAÇÃO ---
     const get = (obj, path, def = '-') => path.split('.').reduce((a, b) => (a && a[b] != null ? a[b] : undefined), obj) || def;
-    
+
     const formatarData = (dataStr) => {
         if (!dataStr || dataStr === '-') return '-';
         let dataLimpa = dataStr.split(' ')[0];
         if (dataLimpa.includes('-')) {
             dataLimpa = dataLimpa.split('-').reverse().join('/');
         } else if (dataLimpa.includes('/')) {
-             dataLimpa = dataLimpa.split('/')[0].length === 2 ? dataLimpa : dataStr.split(' ')[0];
+            dataLimpa = dataLimpa.split('/')[0].length === 2 ? dataLimpa : dataStr.split(' ')[0];
         }
         if (dataLimpa === '//' || dataLimpa === 'Invalid Date') return '-';
         return dataLimpa;
     };
 
     const formatarMoeda = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
-    
+
     const parseDataBrasileira = (dataString) => {
         if (!dataString) return null;
         const [data, hora] = dataString.split(' ');
@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const [segmentosRes, gestoresRes, prestadoresRes] = await Promise.all([
                 fetchComAuth(`${API_BASE_URL}/segmentos`),
-                fetchComAuth(`${API_BASE_URL}/usuarios/gestores`), 
+                fetchComAuth(`${API_BASE_URL}/usuarios/gestores`),
                 fetchComAuth(`${API_BASE_URL}/index/prestadores`)
             ]);
 
@@ -156,14 +156,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function getDatasFiltro() {
         const select = document.getElementById('filtro-mes-ref');
-        const valorSelecionado = select ? select.value : null; 
+        const valorSelecionado = select ? select.value : null;
         if (!valorSelecionado) {
             const hoje = new Date();
             return { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0], fim: new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0] };
         }
         const [ano, mes] = valorSelecionado.split('-');
-        return { 
-            inicio: `${ano}-${mes}-01`, 
+        return {
+            inicio: `${ano}-${mes}-01`,
             fim: new Date(ano, mes, 0).toISOString().split('T')[0] // Último dia do mês
         };
     }
@@ -189,12 +189,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'X-User-ID': userId }
             });
             if (!response.ok) throw new Error('Erro ao carregar dashboard');
-            
+
             const dados = await response.json();
 
             // Atualiza valor total da CPS (Produção)
             kpiTotalEl.textContent = formatarMoeda(dados.valorTotal);
-            
+
             // Atualiza o subtítulo de valor pago
             let subKpi = document.getElementById('sub-kpi-pago');
             if (!subKpi) {
@@ -206,13 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 subKpi.style.opacity = '0.9';
                 containerKpi.appendChild(subKpi);
             }
-            
-            const percentualPago = dados.valorTotal > 0 
-                ? ((dados.valorTotalPago / dados.valorTotal) * 100).toFixed(1) 
+
+            const percentualPago = dados.valorTotal > 0
+                ? ((dados.valorTotalPago / dados.valorTotal) * 100).toFixed(1)
                 : 0;
 
             subKpi.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>Pago: <strong>${formatarMoeda(dados.valorTotalPago)}</strong> (${percentualPago}%)`;
-            
+
             container.innerHTML = '';
 
             if (dados.valoresPorSegmento?.length > 0) {
@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             linha.style.transition = 'all 0.5s';
             linha.style.opacity = '0';
-            
+
             setTimeout(() => {
                 linha.remove();
                 if (tbody.querySelectorAll('tr').length === 0) {
@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function atualizarLinhaVisualmente(lancamentoAtualizado) {
         const statusVisiveis = ['EM_ABERTO', 'FECHADO', 'ALTERACAO_SOLICITADA'];
-        
+
         if (!statusVisiveis.includes(lancamentoAtualizado.statusPagamento)) {
             removerLinhaVisualmente(lancamentoAtualizado.id);
             return;
@@ -281,10 +281,10 @@ document.addEventListener('DOMContentLoaded', () => {
             temp.innerHTML = novoHtml;
             const novaLinha = temp.firstElementChild;
             linhaAntiga.replaceWith(novaLinha);
-            
-            novaLinha.classList.add('table-success'); 
+
+            novaLinha.classList.add('table-success');
             setTimeout(() => novaLinha.classList.remove('table-success'), 1500);
-            
+
             const index = todosOsLancamentos.findIndex(l => l.id == lancamentoAtualizado.id);
             if (index !== -1) {
                 todosOsLancamentos[index] = lancamentoAtualizado;
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const valorFinal = (valPg !== null && valPg !== undefined) ? valPg : valOp;
         const destaque = valOp !== valorFinal ? 'text-danger fw-bold' : '';
         const checkRow = isController ? `<td><div class="form-check d-flex justify-content-center"><input type="checkbox" class="form-check-input linha-checkbox-pagamento" data-id="${l.id}"></div></td>` : '';
-        
+
         let rowClass = '';
         if (l.statusPagamento === 'ALTERACAO_SOLICITADA') rowClass = 'table-warning';
         else if (l.statusPagamento === 'FECHADO') rowClass = 'table-info';
@@ -337,10 +337,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetchComAuth(`${API_BASE_URL}/controle-cps`, { headers: { 'X-User-ID': userId } });
             todosOsLancamentos = await response.json();
             renderizarAcordeonPendencias(todosOsLancamentos);
-            
+
             const cardHeader = acoesLoteControllerContainer.closest('.card-header');
             cardHeader.classList.toggle('d-none', todosOsLancamentos.length === 0);
-            
+
         } catch (e) {
             tabPendencias.msgVazio.innerHTML = e.message;
             tabPendencias.msgVazio.classList.remove('d-none');
@@ -366,12 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const isController = ['CONTROLLER', 'ADMIN'].includes(userRole);
         let idx = 0;
-        
+
         for (const grp of Object.values(grupos)) {
             const perc = grp.totalOs > 0 ? ((grp.totalCps + grp.totalMat) / grp.totalOs * 100).toFixed(2) : 0;
             const uniqueId = `os-pendente-${idx++}`;
             const checkboxHead = isController ? `<div class="position-absolute top-50 start-0 translate-middle-y ms-3" style="z-index:5"><input class="form-check-input selecionar-todos-acordeon shadow-sm" type="checkbox" data-target-body="collapse-${uniqueId}" style="cursor:pointer;margin:0"></div>` : '';
-            
+
             const rows = grp.itens.map(l => gerarHtmlLinhaPendencia(l)).join('');
 
             container.insertAdjacentHTML('beforeend', `
@@ -491,8 +491,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cpsPagamentoTabContent').addEventListener('click', (e) => {
         const btn = e.target.closest('button');
         if (!btn) return;
-        
-        const id = btn.dataset.id; 
+
+        const id = btn.dataset.id;
         if (!id) return;
 
         if (btn.classList.contains('btn-fechar-pagamento')) {
@@ -540,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const ep = payload.acao === 'fechar' ? '/controle-cps/fechar' : '/controle-cps/solicitar-alteracao';
             const res = await fetchComAuth(API_BASE_URL + ep, { method: 'POST', body: JSON.stringify(payload) });
             if (!res.ok) throw new Error((await res.json()).message);
-            
+
             const lancamentoAtualizado = await res.json();
             mostrarToast('Ação realizada com sucesso!', 'success');
             modalAlterarValor.hide();
@@ -563,10 +563,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetchComAuth(API_BASE_URL + '/controle-cps/recusar-controller', { method: 'POST', body: JSON.stringify(payload) });
             if (!res.ok) throw new Error((await res.json()).message);
-            
+
             const lancamentoAtualizado = await res.json();
             mostrarToast('Pagamento recusado.', 'success');
-            modalRecusar.hide(); 
+            modalRecusar.hide();
             atualizarLinhaVisualmente(lancamentoAtualizado);
 
         } catch (err) { mostrarToast(err.message, 'error'); } finally { setButtonLoading(btn, false); }
@@ -578,10 +578,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetchComAuth(API_BASE_URL + '/controle-cps/pagar-lote', { method: 'POST', body: JSON.stringify({ lancamentoIds: ids, controllerId: userId }) });
             if (!res.ok) throw new Error((await res.json()).message);
-            
+
             const listaAtualizada = await res.json();
             mostrarToast('Pagamentos realizados com sucesso!', 'success');
-            
+
             listaAtualizada.forEach(l => atualizarLinhaVisualmente(l));
             document.getElementById('contador-pagamento').textContent = '0';
             document.getElementById('acoes-lote-controller-container').classList.add('d-none');
@@ -604,7 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listeners de Filtros
     const btnFiltrar = document.getElementById('btn-filtrar');
-    if(btnFiltrar) {
+    if (btnFiltrar) {
         btnFiltrar.addEventListener('click', () => {
             carregarDashboard();
             if (tabHistorico.btn.classList.contains('active')) {
@@ -612,18 +612,181 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
     const btnExportarHistorico = document.getElementById('btn-exportar-historico');
-    if(btnExportarHistorico) {
-        btnExportarHistorico.addEventListener('click', () => {
-            const datas = getDatasFiltro();
-            const params = new URLSearchParams({
-                inicio: datas.inicio, fim: datas.fim,
-                segmentoId: document.getElementById('filtro-segmento').value,
-                gestorId: document.getElementById('filtro-gestor').value,
-                prestadorId: document.getElementById('filtro-prestador').value
-            });
-            window.open(`${API_BASE_URL}/controle-cps/exportar/historico?${params}&token=${localStorage.getItem('token')}`, '_blank');
+
+    if (btnExportarHistorico) {
+        btnExportarHistorico.textContent = "Exportar relatório";
+
+        btnExportarHistorico.addEventListener('click', async () => {
+            const originalText = btnExportarHistorico.textContent;
+            btnExportarHistorico.textContent = "Gerando...";
+            btnExportarHistorico.classList.add('disabled');
+
+            try {
+                // 1. DEFINIÇÃO DOS CABEÇALHOS (SEM ID)
+
+                // Aba Pendências: Sem dados de pagamento e sem ID
+                const headersPendencias = [
+                    "Status Pagamento", "Data Atividade", "OS", "Projeto",
+                    "Segmento", "Site", "LPU", "Prestador", "Gestor",
+                    "Valor Operacional", "Valor CPS Legado" // Adicionado Legado
+                ];
+
+                // Aba Histórico: Completo (Sem ID)
+                const headersHistorico = [
+                    "Status Pagamento", "Data Atividade", "OS", "Projeto",
+                    "Segmento", "Site", "LPU", "Prestador", "Gestor",
+                    "Valor Operacional", "Valor CPS Legado", // Adicionado Legado
+                    "Valor Pagamento", "Data Pagamento", "Quem Pagou"
+                ];
+
+                // 2. PREPARAÇÃO DOS DADOS
+
+                // --- ABA 1: PENDÊNCIAS ---
+                const pendenciasRows = todosOsLancamentos.map(l => {
+                    // Garante que o valor legado seja numérico
+                    const valorLegado = get(l, 'os.valorCpsLegado', 0);
+
+                    return [
+                        (l.statusPagamento || '').replace(/_/g, ' '),
+                        formatarDataExcel(l.dataAtividade),
+                        get(l, 'os.os'),
+                        get(l, 'os.projeto'),
+                        get(l, 'os.segmento.nome'),
+                        get(l, 'detalhe.site'),
+                        get(l, 'detalhe.lpu.nomeLpu'),
+                        get(l, 'prestador.nome'),
+                        get(l, 'manager.nome'),
+                        l.valor || 0,
+                        valorLegado // Nova coluna
+                    ];
+                });
+
+                // --- ABA 2: HISTÓRICO ---
+                const datas = getDatasFiltro();
+                const params = new URLSearchParams({
+                    inicio: datas.inicio,
+                    fim: datas.fim,
+                    segmentoId: document.getElementById('filtro-segmento').value,
+                    gestorId: document.getElementById('filtro-gestor').value,
+                    prestadorId: document.getElementById('filtro-prestador').value
+                });
+
+                const responseHist = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, {
+                    headers: { 'X-User-ID': userId }
+                });
+
+                if (!responseHist.ok) throw new Error("Erro ao buscar histórico.");
+
+                const dadosHistorico = await responseHist.json();
+
+                const historicoRows = dadosHistorico.map(l => {
+                    // CORREÇÃO DA DATA DE PAGAMENTO
+                    let dataPagamentoExcel = '-';
+                    if (l.dataPagamento) {
+                        const dataObj = parseDataBrasileira(l.dataPagamento);
+                        if (dataObj && !isNaN(dataObj.getTime())) {
+                            dataPagamentoExcel = dataObj.toLocaleString('pt-BR');
+                        }
+                    }
+
+                    // Garante que o valor legado seja numérico
+                    const valorLegado = get(l, 'os.valorCpsLegado', 0);
+
+                    return [
+                        (l.statusPagamento || '').replace(/_/g, ' '),
+                        formatarDataExcel(l.dataAtividade),
+                        get(l, 'os.os'),
+                        get(l, 'os.projeto'),
+                        get(l, 'os.segmento.nome'),
+                        get(l, 'detalhe.site'),
+                        get(l, 'detalhe.lpu.nomeLpu'),
+                        get(l, 'prestador.nome'),
+                        get(l, 'manager.nome'),
+                        l.valor || 0,
+                        valorLegado, // Nova Coluna
+                        l.valorPagamento || 0,
+                        dataPagamentoExcel,
+                        get(l, 'controllerPagador.nome', '-')
+                    ];
+                });
+
+                // 3. CRIAÇÃO DO ARQUIVO
+                const wb = XLSX.utils.book_new();
+
+                // Adiciona Aba Pendências
+                if (pendenciasRows.length > 0) {
+                    const wsPendencias = XLSX.utils.aoa_to_sheet([headersPendencias, ...pendenciasRows]);
+                    ajustarLarguraColunas(wsPendencias, headersPendencias);
+                    XLSX.utils.book_append_sheet(wb, wsPendencias, "Pendências");
+                } else {
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headersPendencias]), "Pendências");
+                }
+
+                // Adiciona Aba Histórico
+                if (historicoRows.length > 0) {
+                    const wsHistorico = XLSX.utils.aoa_to_sheet([headersHistorico, ...historicoRows]);
+                    ajustarLarguraColunas(wsHistorico, headersHistorico);
+                    XLSX.utils.book_append_sheet(wb, wsHistorico, "Histórico");
+                } else {
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([headersHistorico]), "Histórico");
+                }
+
+                // 4. DOWNLOAD
+                XLSX.writeFile(wb, "Relatorio_Controle_CPS.xlsx");
+
+            } catch (error) {
+                console.error("Erro na exportação:", error);
+                mostrarToast("Erro ao gerar exportação: " + error.message, 'error');
+            } finally {
+                btnExportarHistorico.textContent = originalText;
+                btnExportarHistorico.classList.remove('disabled');
+            }
         });
+    }
+
+    // Função auxiliar para mapear o objeto de lançamento para array de valores
+    function mapearDadosParaExportacao(listaLancamentos) {
+        return listaLancamentos.map(l => {
+            return [
+                l.id,
+                (l.statusPagamento || '').replace(/_/g, ' '),
+                formatarDataExcel(l.dataAtividade),
+                get(l, 'os.os'),
+                get(l, 'os.projeto'),
+                get(l, 'os.segmento.nome'),
+                get(l, 'detalhe.site'),
+                get(l, 'detalhe.lpu.nomeLpu'),
+                get(l, 'prestador.nome'),
+                get(l, 'manager.nome'),
+                l.valor || 0,
+                l.valorPagamento || 0,
+                l.dataPagamento ? new Date(l.dataPagamento).toLocaleString('pt-BR') : '-',
+                get(l, 'controllerPagador.nome', '-')
+            ];
+        });
+    }
+
+    // Função para tratar datas corretamente no Excel (evita problemas de fuso)
+    function formatarDataExcel(dataStr) {
+        if (!dataStr) return null;
+        // Assume formato YYYY-MM-DD ou DD/MM/YYYY vindo do DTO/Tela
+        if (dataStr.includes('-')) {
+            const [ano, mes, dia] = dataStr.split('-');
+            return new Date(Date.UTC(ano, mes - 1, dia));
+        }
+        // Se vier formatado como DD/MM/YYYY
+        if (dataStr.includes('/')) {
+            const [dia, mes, ano] = dataStr.split('/');
+            return new Date(Date.UTC(ano, mes - 1, dia));
+        }
+        return dataStr;
+    }
+
+    // Função visual para ajustar largura das colunas
+    function ajustarLarguraColunas(ws, headers) {
+        ws['!cols'] = headers.map(() => ({ wch: 20 }));
     }
     const collapseElement = document.getElementById('collapseDashboard');
     const collapseIcon = document.getElementById('icon-dashboard');

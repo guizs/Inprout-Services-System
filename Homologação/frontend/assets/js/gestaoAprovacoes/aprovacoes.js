@@ -287,36 +287,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Mapeamento das colunas para os dados do lançamento (mantido como estava)
         const dataMapping = {
-            "AÇÕES": (lancamento) => { /* ... sua lógica de botões ... */
-                let acoesHtml = '';
-                if (userRole === 'COORDINATOR') {
-                    acoesHtml = `<div class="d-flex justify-content-center gap-1">
-                                <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                                <button class="btn btn-sm btn-outline-warning" title="Comentar/Solicitar Prazo" onclick="comentarLancamento(${lancamento.id})"><i class="bi bi-chat-left-text"></i></button>
-                                <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                            </div>`;
-                } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-                    switch (lancamento.situacaoAprovacao) {
-                        case 'PENDENTE_CONTROLLER':
-                            acoesHtml = `<div class="d-flex justify-content-center gap-1">
-                        <button class="btn btn-sm btn-outline-success" title="Aprovar Lançamento" onclick="aprovarLancamentoController(${lancamento.id})"><i class="bi bi-check-lg"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Recusar Lançamento" onclick="recusarLancamentoController(${lancamento.id})"><i class="bi bi-x-lg"></i></button>
-                         <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                    </div>`;
-                            break;
-                        case 'AGUARDANDO_EXTENSAO_PRAZO':
-                        case 'PRAZO_VENCIDO':
-                            acoesHtml = `<div class="d-flex justify-content-center gap-1">
-                        <button class="btn btn-sm btn-outline-success" title="Aprovar Novo Prazo" onclick="aprovarPrazoController(${lancamento.id})"><i class="bi bi-calendar-check"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Recusar/Definir Prazo" onclick="recusarPrazoController(${lancamento.id})"><i class="bi bi-calendar-x"></i></button>
-                         <button class="btn btn-sm btn-outline-secondary" title="Ver Comentários" onclick="verComentarios(${lancamento.id})" ${!lancamento.comentarios || lancamento.comentarios.length === 0 ? 'disabled' : ''}><i class="bi bi-eye"></i></button>
-                    </div>`;
-                            break;
-                    }
-                }
-                return acoesHtml;
-            },
             "PRAZO AÇÃO": (lancamento) => userRole !== 'CONTROLLER' ? `<span class="badge bg-danger">${formatarData(lancamento.dataPrazo)}</span>` : '',
             "STATUS APROVAÇÃO": (lancamento) => {
                 let statusHtml = `<span class="badge rounded-pill text-bg-warning">${(lancamento.situacaoAprovacao || '').replace(/_/g, ' ')}</span>`;
@@ -1276,12 +1246,14 @@ document.addEventListener('DOMContentLoaded', function () {
             let endpoint = '';
             let payload = { lancamentoIds: ids, aprovadorId: userId };
 
-            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+            if (primeiroLancamento.situacaoAprovacao === 'PENDENTE_COORDENADOR') {
+                // Se for status de coordenador (mesmo que seja Admin clicando), usa endpoint de coordenador
+                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
+            }
+            else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 endpoint = primeiroLancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO'
                     ? `${API_BASE_URL}/lancamentos/lote/prazo/aprovar`
                     : `${API_BASE_URL}/lancamentos/lote/controller-aprovar`;
-            } else {
-                endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
             }
 
             const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
@@ -1416,7 +1388,7 @@ document.addEventListener('DOMContentLoaded', function () {
         [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'none');
 
         if (todosMesmoStatus) {
-            if ((userRole === 'COORDINATOR' || userRole === 'MANAGER') && primeiroStatus === 'PENDENTE_COORDENADOR') {
+            if ((userRole === 'COORDINATOR' || userRole === 'MANAGER' || userRole === 'ADMIN') && primeiroStatus === 'PENDENTE_COORDENADOR') {
                 [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'inline-block');
             } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                 if (primeiroStatus === 'PENDENTE_CONTROLLER') {

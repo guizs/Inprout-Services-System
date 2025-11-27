@@ -79,7 +79,8 @@ document.addEventListener('DOMContentLoaded', function () {
         "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
         "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
-        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key')
+        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key'),
+        "VALOR CPS LEGADO": (linha) => formatarMoeda(get(linha, 'os.valorCpsLegado'))
     };
 
     async function inicializarPagina() {
@@ -185,19 +186,19 @@ document.addEventListener('DOMContentLoaded', function () {
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
         const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
-        
+
         // --- NOVO: Valor CPS Legado (vindo da OS) ---
         const valorCpsLegado = dadosOS.valorCpsLegado || 0;
 
         // Cálculo da porcentagem inclui o Legado
-        const percentual = valorTotalOS > 0 
-            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100 
+        const percentual = valorTotalOS > 0
+            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
             : 0;
 
         let kpiHTML = '';
         if (userRole !== 'MANAGER') {
             // Constrói o HTML do KPI de Legado apenas se houver valor
-            const kpiLegadoHtml = valorCpsLegado > 0 
+            const kpiLegadoHtml = valorCpsLegado > 0
                 ? `<div class="header-kpi"><span class="kpi-label text-warning">CPS Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
                 : '';
 
@@ -1013,20 +1014,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // 1. Prepara os dados para a Aba de Resumo
                 textoProgresso.textContent = 'Gerando aba de resumo...';
-                const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "% Concluído"];
+                const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "Total CPS Legado", "% Concluído"];
                 const resumoRows = gruposParaExportar.map(grupo => {
-                    // Reutiliza a mesma lógica de cálculo do cabeçalho do acordeão
+                    // 1. Cálculos existentes
                     const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
                         .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
                     const valorTotalCPS = grupo.linhas
-                        .flatMap(linha => get(linha, 'detalhe.lancamentos', [])) // Busca na nova lista 'lancamentos'
-                        // A condição agora verifica se o status é 'APROVADO' OU 'APROVADO_LEGADO'
+                        .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
                         .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
+
                     const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
 
-                    const percentual = valorTotalOS > 0 ? ((valorTotalCPS + custoTotalMateriais) / valorTotalOS) * 100 : 0;
+                    // 2. --- CORREÇÃO: DEFININDO A VARIÁVEL QUE FALTAVA ---
+                    // Pegamos os dados da OS a partir da primeira linha do grupo
+                    const dadosOS = grupo.linhas[0].os || {};
+                    // Agora criamos a variável valorCpsLegado para poder usar depois
+                    const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+                    // -----------------------------------------------------
+
+                    // 3. Atualizando o percentual para incluir o legado (opcional, mas recomendado se for exibir)
+                    const percentual = valorTotalOS > 0
+                        ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
+                        : 0;
 
                     return [
                         grupo.projeto,
@@ -1034,13 +1045,14 @@ document.addEventListener('DOMContentLoaded', function () {
                         valorTotalOS,
                         valorTotalCPS,
                         custoTotalMateriais,
-                        percentual // O Excel pode formatar como porcentagem
+                        valorCpsLegado, // <--- Agora vai funcionar porque a variável foi criada acima
+                        percentual
                     ];
                 });
 
                 // 2. Prepara os dados para a Aba de Detalhes (lógica que já tínhamos)
                 textoProgresso.textContent = 'Gerando aba de detalhes...';
-                const detalhesHeaders = headers; // Headers globais da tabela
+                const detalhesHeaders = [...headers, "VALOR CPS LEGADO"];
                 const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
                     return detalhesHeaders.map(header => {
                         const func = dataMapping[header];

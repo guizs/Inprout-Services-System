@@ -63,7 +63,7 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public List<Lancamento> getFilaControleCps(Long usuarioId) {
         inicializarStatusPagamento();
 

@@ -677,8 +677,18 @@ public class LancamentoServiceImpl implements LancamentoService {
                 return List.of();
             }
             return lancamentoRepository.findBySituacaoAprovacaoInAndOsSegmentoIn(statusPendentes, segmentosDoUsuario);
-        } else if (role == Role.CONTROLLER || role == Role.ADMIN) {
+
+        } else if (role == Role.CONTROLLER) {
             List<SituacaoAprovacao> statusPendentes = List.of(
+                    SituacaoAprovacao.PENDENTE_CONTROLLER,
+                    SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
+                    SituacaoAprovacao.PRAZO_VENCIDO
+            );
+            return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
+
+        } else if (role == Role.ADMIN) {
+            List<SituacaoAprovacao> statusPendentes = List.of(
+                    SituacaoAprovacao.PENDENTE_COORDENADOR,
                     SituacaoAprovacao.PENDENTE_CONTROLLER,
                     SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
                     SituacaoAprovacao.PRAZO_VENCIDO
@@ -686,7 +696,7 @@ public class LancamentoServiceImpl implements LancamentoService {
             return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
         }
 
-        return List.of(); // Retorna lista vazia para outras roles
+        return List.of();
     }
 
     @Override

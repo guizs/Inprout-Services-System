@@ -79,7 +79,6 @@ public class MaterialService {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Material não encontrado com o ID: " + id));
 
-        // Validação de duplicidade de código
         if (dto.codigo() != null && !dto.codigo().equals(material.getCodigo())) {
             materialRepository.findByCodigo(dto.codigo()).ifPresent(existente -> {
                 if (!existente.getId().equals(material.getId())) {
@@ -93,6 +92,10 @@ public class MaterialService {
         material.setObservacoes(dto.observacoes());
         material.setModelo(dto.modelo());
         material.setNumeroDeSerie(dto.numeroDeSerie());
+        if (dto.saldoFisico() != null) {
+            material.setSaldoFisico(dto.saldoFisico());
+        }
+
         if (dto.saldoFisico() != null) {
             material.setSaldoFisico(dto.saldoFisico());
         }

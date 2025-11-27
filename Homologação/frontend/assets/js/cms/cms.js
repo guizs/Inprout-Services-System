@@ -355,6 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('materialNumeroDeSerieEditar').value = material.numeroDeSerie || '';
                 document.getElementById('materialSaldoEditar').value = material.saldoFisico;
                 document.getElementById('materialObservacoesEditar').value = material.observacoes || '';
+                document.getElementById('materialSaldoEditar').value = material.saldoFisico;
             }
 
             // --- CONTROLE DE ACESSO PARA ABAS E BOTÕES DO MODAL ---

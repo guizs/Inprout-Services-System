@@ -197,4 +197,11 @@ public class ControleCpsController {
         List<Lancamento> historico = controleCpsService.getHistoricoControleCps(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
         return ResponseEntity.ok(enriquecerComTotais(historico));
     }
+
+    @PostMapping("/fechar-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> fecharParaPagamentoLote(@Valid @RequestBody ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.fecharParaPagamentoLote(dto);
+        // Reutiliza seu método existente de enriquecer com totais
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
+    }
 }

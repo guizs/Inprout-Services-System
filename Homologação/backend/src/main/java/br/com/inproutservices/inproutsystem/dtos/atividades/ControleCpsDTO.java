@@ -25,4 +25,9 @@ public class ControleCpsDTO {
             @NotNull Long controllerId,
             @NotNull String motivo
     ) {}
+
+    public record AcaoCoordenadorLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
+            @NotNull Long coordenadorId
+    ) {}
 }

@@ -64,6 +64,42 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
     @Override
     @Transactional
+    public List<Lancamento> fecharParaPagamentoLote(ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
+        Usuario coordenador = getUsuario(dto.coordenadorId());
+
+        // Validação de Permissão (Opcional, mas recomendado)
+        if (coordenador.getRole() != Role.COORDINATOR && coordenador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Usuário sem permissão para fechar pagamentos.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(dto.lancamentoIds());
+        List<Lancamento> processados = new ArrayList<>();
+
+        for (Lancamento l : lancamentos) {
+            // Apenas itens EM_ABERTO podem ser fechados pelo coordenador
+            if (l.getStatusPagamento() == StatusPagamento.EM_ABERTO) {
+
+                // Garante que o valor de pagamento esteja preenchido (usa o valor operacional se estiver nulo)
+                if (l.getValorPagamento() == null) {
+                    l.setValorPagamento(l.getValor());
+                }
+
+                l.setStatusPagamento(StatusPagamento.FECHADO);
+                l.setUltUpdate(LocalDateTime.now());
+
+                // Adiciona comentário automático
+                String valorFormatado = String.format("R$ %.2f", l.getValorPagamento());
+                criarComentario(l, coordenador, "Pagamento Fechado em Lote. Valor confirmado: " + valorFormatado);
+
+                processados.add(l);
+            }
+        }
+
+        return lancamentoRepository.saveAll(processados);
+    }
+
+    @Override
+    @Transactional
     public List<Lancamento> getFilaControleCps(Long usuarioId) {
         inicializarStatusPagamento();
 

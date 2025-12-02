@@ -455,45 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
             else { return sortConfig.direction === 'asc' ? valA - valB : valB - valA; }
         };
 
-        function atualizarContadorKpi() {
-            // 1. Descobre qual aba está ativa
-            const abaAtivaBtn = document.querySelector('#lancamentosTab .nav-link.active');
-            if (!abaAtivaBtn) return;
-
-            // 2. Pega o ID do painel alvo (ex: #lancamentos-pane)
-            const targetId = abaAtivaBtn.getAttribute('data-bs-target');
-            const painelAtivo = document.querySelector(targetId);
-
-            if (painelAtivo) {
-                // 3. Conta as linhas visíveis no corpo da tabela dentro deste painel
-                // Nota: Usamos 'tr' direto no tbody. Se houver mensagem de "Nenhum registro", ajustamos.
-                const linhas = painelAtivo.querySelectorAll('tbody tr');
-                let total = linhas.length;
-
-                // Verifica se é a linha de "Nenhum registro encontrado"
-                if (total === 1 && linhas[0].textContent.includes('Nenhum')) {
-                    total = 0;
-                }
-
-                // 4. Atualiza o valor no HTML
-                const elValor = document.getElementById('kpi-qtd-valor');
-                const elLabel = document.getElementById('kpi-qtd-label');
-
-                if (elValor) elValor.textContent = total;
-
-                // Opcional: Mudar o nome do label baseado na aba
-                if (elLabel) {
-                    const nomeAba = abaAtivaBtn.innerText.trim().split('\n')[0]; // Remove badge se tiver
-                    elLabel.textContent = nomeAba;
-                }
-            }
-        }
-
-        const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
-        tabEls.forEach(tabEl => {
-            tabEl.addEventListener('shown.bs.tab', atualizarContadorKpi);
-        });
-
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
@@ -527,6 +488,45 @@ document.addEventListener('DOMContentLoaded', () => {
         atualizarContadorKpi();
     }
 
+    function atualizarContadorKpi() {
+        // 1. Descobre qual aba está ativa
+        const abaAtivaBtn = document.querySelector('#lancamentosTab .nav-link.active');
+        if (!abaAtivaBtn) return;
+
+        // 2. Pega o ID do painel alvo (ex: #lancamentos-pane)
+        const targetId = abaAtivaBtn.getAttribute('data-bs-target');
+        const painelAtivo = document.querySelector(targetId);
+
+        if (painelAtivo) {
+            // 3. Conta as linhas visíveis no corpo da tabela dentro deste painel
+            // Nota: Usamos 'tr' direto no tbody. Se houver mensagem de "Nenhum registro", ajustamos.
+            const linhas = painelAtivo.querySelectorAll('tbody tr');
+            let total = linhas.length;
+
+            // Verifica se é a linha de "Nenhum registro encontrado"
+            if (total === 1 && linhas[0].textContent.includes('Nenhum')) {
+                total = 0;
+            }
+
+            // 4. Atualiza o valor no HTML
+            const elValor = document.getElementById('kpi-qtd-valor');
+            const elLabel = document.getElementById('kpi-qtd-label');
+
+            if (elValor) elValor.textContent = total;
+
+            // Opcional: Mudar o nome do label baseado na aba
+            if (elLabel) {
+                const nomeAba = abaAtivaBtn.innerText.trim().split('\n')[0]; // Remove badge se tiver
+                elLabel.textContent = nomeAba;
+            }
+        }
+    }
+
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tabEl => {
+        tabEl.addEventListener('shown.bs.tab', atualizarContadorKpi);
+    });
+
     function adicionarListenersDeOrdenacao() {
         const theads = document.querySelectorAll('.tab-pane thead');
         theads.forEach(thead => {
@@ -543,6 +543,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderizarTodasAsTabelas();
             });
         });
+    }
+
+    function criarHtmlLinhaItem() {
+        return `
+        <div class="item-row border-bottom pb-3 mb-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md">
+                    <label class="form-label visually-hidden">Material</label>
+                    <select class="form-select material-select" required>
+                        <option selected disabled value="">Selecione o material...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label visually-hidden">Quantidade</label>
+                    <input type="number" class="form-control quantidade-input" placeholder="Qtde." min="0.01" step="0.01" value="1" required>
+                </div>
+                <div class="col-md-auto">
+                    <button type="button" class="btn btn-outline-danger btn-sm btn-remover-item" title="Remover Item">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="material-info-card">
+                <div class="material-info-grid">
+                    </div>
+            </div>
+        </div>`;
     }
 
     const modalAdicionarEl = document.getElementById('modalAdicionar');
@@ -1193,6 +1221,66 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTodasAsTabelas();
     });
 
+    function popularSelectMateriais(selectElement) {
+        // Se o array de materiais ainda estiver vazio, busca no servidor
+        if (todosOsMateriais.length === 0) {
+            // Placeholder de carregamento
+            selectElement.innerHTML = '<option value="" selected disabled>Carregando materiais...</option>';
+
+            fetchComAuth('http://localhost:8080/materiais')
+                .then(res => res.json())
+                .then(data => {
+                    todosOsMateriais = data;
+                    // Chama a função que aplica o Choices.js
+                    aplicarChoicesNoSelect(selectElement);
+                })
+                .catch(err => {
+                    console.error("Erro ao buscar materiais:", err);
+                    selectElement.innerHTML = '<option value="">Erro ao carregar</option>';
+                });
+        } else {
+            // Se já temos dados, aplica direto
+            aplicarChoicesNoSelect(selectElement);
+        }
+    }
+
+    function aplicarChoicesNoSelect(selectElement) {
+        // Se já houver uma instância do Choices, destrua-a para evitar duplicação
+        if (selectElement.choices) {
+            selectElement.choices.destroy();
+        }
+
+        // Limpa o HTML original
+        selectElement.innerHTML = '';
+
+        // Prepara os dados para o Choices
+        // A mágica da busca está aqui: colocamos tudo no 'label'
+        const opcoes = [
+            { value: '', label: 'Selecione ou pesquise o material...', selected: true, disabled: true },
+            ...todosOsMateriais.map(m => ({
+                value: m.codigo,
+                // O texto abaixo é o que aparece na lista e o que é pesquisável
+                label: `${m.codigo} - ${m.descricao} | ${m.empresa} ${m.modelo ? '| ' + m.modelo : ''} ${m.numeroDeSerie ? '| SN:' + m.numeroDeSerie : ''}`,
+                customProperties: m // Guardamos o objeto completo se precisar
+            }))
+        ];
+
+        // Inicializa a biblioteca
+        const choices = new Choices(selectElement, {
+            choices: opcoes,
+            searchEnabled: true,
+            searchPlaceholderValue: 'Busque por código, nome, série, modelo...',
+            itemSelectText: '',
+            noResultsText: 'Nenhum material encontrado',
+            shouldSort: false, // Mantém a ordem original (ou pode ordenar por nome se preferir)
+            position: 'bottom', // Força abrir para baixo
+            renderChoiceLimit: 50 // Limite de renderização para performance
+        });
+
+        // Salva a instância no elemento DOM para poder destruir depois
+        selectElement.choices = choices;
+    }
+
     // ==========================================================
     // SEÇÃO 4: LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL
     // ==========================================================
@@ -1233,17 +1321,25 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         modalSolicitarMaterialEl.addEventListener('show.bs.modal', async () => {
+            // 1. Reseta o formulário
             formSolicitacao.reset();
-            listaItensContainer.innerHTML = `
-            <div class="row g-2 align-items-center mb-2 item-row">
-              <div class="col-md"><select class="form-select material-select" required><option selected disabled value="">Selecione...</option></select></div>
-              <div class="col-md-3"><input type="number" class="form-control quantidade-input" placeholder="Qtde." min="1" value="1" required></div>
-              <div class="col-md-auto"><button type="button" class="btn btn-outline-danger btn-sm btn-remover-item" title="Remover Item" disabled><i class="bi bi-trash"></i></button></div>
-            </div>`;
+
+            // 2. Cria a primeira linha usando a nova estrutura HTML (com o card)
+            listaItensContainer.innerHTML = criarHtmlLinhaItem();
+
+            // 3. Reseta o campo de LPU
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectLPU.disabled = true;
-            popularSelectMateriais(listaItensContainer.querySelector('.material-select'));
 
+            // 4. Configura o Select de Material da linha recém-criada
+            const firstMaterialSelect = listaItensContainer.querySelector('.material-select');
+
+            popularSelectMateriais(firstMaterialSelect);
+
+            // [IMPORTANTE] Ativa o evento para mostrar o card de detalhes ao selecionar
+            configurarEventoChangeMaterial(firstMaterialSelect);
+
+            // 5. Busca as OSs (Lógica original mantida)
             try {
                 const usuarioId = localStorage.getItem('usuarioId');
                 if (!usuarioId) {
@@ -1251,6 +1347,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
+
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
                     const option = new Option(os.os, os.id);
@@ -1261,6 +1358,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         });
+
+        function configurarEventoChangeMaterial(selectElement) {
+            selectElement.addEventListener('change', function () {
+                const codigoSelecionado = this.value;
+                // Encontra o objeto completo do material na lista global carregada
+                const material = todosOsMateriais.find(m => m.codigo === codigoSelecionado);
+
+                // Encontra o card dentro da mesma linha (.item-row)
+                const row = this.closest('.item-row');
+                const card = row.querySelector('.material-info-card');
+                const grid = card.querySelector('.material-info-grid');
+
+                if (material) {
+                    // Formata valores monetários
+                    const custoMedio = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoMedioPonderado || 0);
+                    const custoTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoTotal || 0);
+
+                    // Preenche o HTML com todas as colunas solicitadas
+                    grid.innerHTML = `
+                    <div class="info-item"><span class="info-label">Modelo</span><span class="info-value">${material.modelo || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Nº Série</span><span class="info-value">${material.numeroDeSerie || '-'}</span></div>
+                    <div class="info-item"><span class="info-label">Unidade</span><span class="info-value">${material.unidadeMedida}</span></div>
+                    <div class="info-item"><span class="info-label">Estoque Atual</span><span class="info-value">${material.saldoFisico}</span></div>
+                    <div class="info-item"><span class="info-label">Custo Médio</span><span class="info-value text-primary">${custoMedio}</span></div>
+                    <div class="info-item"><span class="info-label">Custo Total</span><span class="info-value">${custoTotal}</span></div>
+                    <div class="info-item" style="grid-column: 1 / -1;"><span class="info-label">Descrição Completa</span><span class="info-value small">${material.descricao}</span></div>
+                `;
+
+                    // Mostra o card
+                    card.classList.add('show');
+                } else {
+                    card.classList.remove('show');
+                }
+            });
+        }
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
@@ -1294,13 +1426,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         btnAdicionarItem.addEventListener('click', () => {
-            const novoItemRow = listaItensContainer.firstElementChild.cloneNode(true);
-            const newSelect = novoItemRow.querySelector('.material-select');
-            novoItemRow.querySelector('.quantidade-input').value = 1;
-            const btnRemover = novoItemRow.querySelector('.btn-remover-item');
-            btnRemover.disabled = false;
+            // Cria um elemento temporário para converter a string HTML em DOM
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = criarHtmlLinhaItem();
+            const novoItemRow = tempDiv.firstElementChild;
+
+            // Adiciona ao container
             listaItensContainer.appendChild(novoItemRow);
-            popularSelectMateriais(newSelect);
+
+            // Configura o select da nova linha
+            const newSelect = novoItemRow.querySelector('.material-select');
+            popularSelectMateriais(newSelect); // Popula as options
+            configurarEventoChangeMaterial(newSelect); // Adiciona o listener de detalhes
         });
 
         listaItensContainer.addEventListener('click', (e) => {

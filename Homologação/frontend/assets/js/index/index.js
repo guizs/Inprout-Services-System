@@ -1292,66 +1292,121 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectLPU = document.getElementById('lpuSolicitacao');
         const listaItensContainer = document.getElementById('listaItens');
         const btnAdicionarItem = document.getElementById('btnAdicionarItem');
+
+        // 1. DECLARAÇÃO DA VARIÁVEL DE DADOS
         let todosOsMateriais = [];
 
-        const popularSelectMateriais = (selectElement) => {
-            selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
+        // 2. FUNÇÃO PARA POPULAR O SELECT
+        function popularSelectMateriais(selectElement) {
             if (todosOsMateriais.length === 0) {
+                selectElement.innerHTML = '<option value="" selected disabled>Carregando materiais...</option>';
+
                 fetchComAuth('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
-                        preencherOpcoes(selectElement);
+                        aplicarChoicesNoSelect(selectElement);
                     })
                     .catch(err => {
                         console.error("Erro ao buscar materiais:", err);
                         selectElement.innerHTML = '<option value="">Erro ao carregar</option>';
                     });
             } else {
-                preencherOpcoes(selectElement);
+                aplicarChoicesNoSelect(selectElement);
             }
-        };
+        }
 
-        const preencherOpcoes = (selectElement) => {
-            selectElement.innerHTML = '<option value="" selected disabled>Selecione o material...</option>';
-            todosOsMateriais.forEach(material => {
-                const option = new Option(`${material.empresa} - ${material.codigo} - ${material.descricao}`, material.codigo);
-                selectElement.add(option);
+        // 3. FUNÇÃO DO CHOICES.JS (COM A ORDEM DO TEXTO CORRIGIDA)
+        function aplicarChoicesNoSelect(selectElement) {
+            if (selectElement.choices) {
+                selectElement.choices.destroy();
+            }
+
+            selectElement.innerHTML = '';
+
+            const opcoes = [
+                { value: '', label: 'Selecione ou pesquise o material...', selected: true, disabled: true },
+                ...todosOsMateriais.map(m => ({
+                    value: m.codigo,
+                    // CORRIGIDO: Empresa vem primeiro, igual ao original
+                    // Formato: EMPRESA - CÓDIGO - DESCRIÇÃO | DETALHES
+                    label: `${m.empresa} - ${m.codigo} - ${m.descricao} ${m.modelo ? '| ' + m.modelo : ''} ${m.numeroDeSerie ? '| SN:' + m.numeroDeSerie : ''}`,
+                    customProperties: m
+                }))
+            ];
+
+            const choices = new Choices(selectElement, {
+                choices: opcoes,
+                searchEnabled: true,
+                searchPlaceholderValue: 'Pesquisar material...',
+                itemSelectText: '',
+                noResultsText: 'Nenhum material encontrado',
+                shouldSort: false,
+                position: 'bottom',
+                renderChoiceLimit: 50
             });
-        };
+
+            selectElement.choices = choices;
+        }
+
+        // 4. FUNÇÃO PARA O CARD DE DETALHES
+        function configurarEventoChangeMaterial(selectElement) {
+            selectElement.addEventListener('change', function () {
+                const codigoSelecionado = this.value;
+                const material = todosOsMateriais.find(m => m.codigo === codigoSelecionado);
+
+                const row = this.closest('.item-row');
+                const card = row.querySelector('.material-info-card');
+                const grid = card.querySelector('.material-info-grid');
+
+                if (material) {
+                    const custoMedio = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoMedioPonderado || 0);
+                    const custoTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoTotal || 0);
+
+                    grid.innerHTML = `
+                        <div class="info-item"><span class="info-label">Modelo</span><span class="info-value">${material.modelo || '-'}</span></div>
+                        <div class="info-item"><span class="info-label">Nº Série</span><span class="info-value">${material.numeroDeSerie || '-'}</span></div>
+                        <div class="info-item"><span class="info-label">Unidade</span><span class="info-value">${material.unidadeMedida}</span></div>
+                        <div class="info-item"><span class="info-label">Estoque</span><span class="info-value">${material.saldoFisico}</span></div>
+                        <div class="info-item"><span class="info-label">Custo Médio</span><span class="info-value text-primary">${custoMedio}</span></div>
+                        <div class="info-item"><span class="info-label">Custo Total</span><span class="info-value">${custoTotal}</span></div>
+                        <div class="info-item" style="grid-column: 1 / -1;"><span class="info-label">Descrição</span><span class="info-value small">${material.descricao}</span></div>
+                    `;
+                    card.classList.add('show');
+
+                    const inputQtd = row.querySelector('.quantidade-input');
+                    if (inputQtd) inputQtd.max = material.saldoFisico;
+
+                } else {
+                    card.classList.remove('show');
+                }
+            });
+        }
+
+        // --- LISTENERS ---
 
         modalSolicitarMaterialEl.addEventListener('show.bs.modal', async () => {
-            // 1. Reseta o formulário
             formSolicitacao.reset();
-
-            // 2. Cria a primeira linha usando a nova estrutura HTML (com o card)
             listaItensContainer.innerHTML = criarHtmlLinhaItem();
 
-            // 3. Reseta o campo de LPU
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectLPU.disabled = true;
+            selectOS.innerHTML = '<option value="" selected disabled>Carregando OSs...</option>';
 
-            // 4. Configura o Select de Material da linha recém-criada
             const firstMaterialSelect = listaItensContainer.querySelector('.material-select');
-
             popularSelectMateriais(firstMaterialSelect);
-
-            // [IMPORTANTE] Ativa o evento para mostrar o card de detalhes ao selecionar
             configurarEventoChangeMaterial(firstMaterialSelect);
 
-            // 5. Busca as OSs (Lógica original mantida)
             try {
                 const usuarioId = localStorage.getItem('usuarioId');
-                if (!usuarioId) {
-                    throw new Error('ID do usuário não encontrado para filtrar as OSs.');
-                }
+                if (!usuarioId) throw new Error('ID do usuário não encontrado.');
+
                 const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                 const oss = await response.json();
 
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 oss.forEach(os => {
-                    const option = new Option(os.os, os.id);
-                    selectOS.add(option);
+                    selectOS.add(new Option(os.os, os.id));
                 });
             } catch (error) {
                 console.error("Erro ao buscar OSs:", error);
@@ -1359,44 +1414,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        function configurarEventoChangeMaterial(selectElement) {
-            selectElement.addEventListener('change', function () {
-                const codigoSelecionado = this.value;
-                // Encontra o objeto completo do material na lista global carregada
-                const material = todosOsMateriais.find(m => m.codigo === codigoSelecionado);
-
-                // Encontra o card dentro da mesma linha (.item-row)
-                const row = this.closest('.item-row');
-                const card = row.querySelector('.material-info-card');
-                const grid = card.querySelector('.material-info-grid');
-
-                if (material) {
-                    // Formata valores monetários
-                    const custoMedio = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoMedioPonderado || 0);
-                    const custoTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoTotal || 0);
-
-                    // Preenche o HTML com todas as colunas solicitadas
-                    grid.innerHTML = `
-                    <div class="info-item"><span class="info-label">Modelo</span><span class="info-value">${material.modelo || '-'}</span></div>
-                    <div class="info-item"><span class="info-label">Nº Série</span><span class="info-value">${material.numeroDeSerie || '-'}</span></div>
-                    <div class="info-item"><span class="info-label">Unidade</span><span class="info-value">${material.unidadeMedida}</span></div>
-                    <div class="info-item"><span class="info-label">Estoque Atual</span><span class="info-value">${material.saldoFisico}</span></div>
-                    <div class="info-item"><span class="info-label">Custo Médio</span><span class="info-value text-primary">${custoMedio}</span></div>
-                    <div class="info-item"><span class="info-label">Custo Total</span><span class="info-value">${custoTotal}</span></div>
-                    <div class="info-item" style="grid-column: 1 / -1;"><span class="info-label">Descrição Completa</span><span class="info-value small">${material.descricao}</span></div>
-                `;
-
-                    // Mostra o card
-                    card.classList.add('show');
-                } else {
-                    card.classList.remove('show');
-                }
-            });
-        }
-
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const selectLPU = document.getElementById('lpuSolicitacao');
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
 
@@ -1409,11 +1428,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
+
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
+                        const codigo = lpu.codigoLpu || lpu.codigo || '';
+                        const nome = lpu.nomeLpu || lpu.nome || '';
+                        const label = `${codigo} - ${nome}`;
+                        selectLPU.add(new Option(label, lpu.id));
                     });
                     selectLPU.disabled = false;
                 } else {
@@ -1426,23 +1448,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         btnAdicionarItem.addEventListener('click', () => {
-            // Cria um elemento temporário para converter a string HTML em DOM
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = criarHtmlLinhaItem();
             const novoItemRow = tempDiv.firstElementChild;
 
-            // Adiciona ao container
             listaItensContainer.appendChild(novoItemRow);
 
-            // Configura o select da nova linha
             const newSelect = novoItemRow.querySelector('.material-select');
-            popularSelectMateriais(newSelect); // Popula as options
-            configurarEventoChangeMaterial(newSelect); // Adiciona o listener de detalhes
+            popularSelectMateriais(newSelect);
+            configurarEventoChangeMaterial(newSelect);
         });
 
         listaItensContainer.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-remover-item')) {
-                e.target.closest('.item-row').remove();
+            const btnRemover = e.target.closest('.btn-remover-item');
+            if (btnRemover) {
+                if (listaItensContainer.querySelectorAll('.item-row').length > 1) {
+                    const row = btnRemover.closest('.item-row');
+                    const select = row.querySelector('.material-select');
+                    if (select && select.choices) select.choices.destroy();
+                    row.remove();
+                } else {
+                    mostrarToast('A solicitação deve ter pelo menos um item.', 'warning');
+                }
             }
         });
 
@@ -1451,6 +1478,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSubmit = document.getElementById('btnEnviarSolicitacao');
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
+
             const itens = [];
             document.querySelectorAll('#listaItens .item-row').forEach(row => {
                 const codigoMaterial = row.querySelector('.material-select').value;
@@ -1459,6 +1487,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     itens.push({ codigoMaterial, quantidade: parseFloat(quantidade) });
                 }
             });
+
+            if (itens.length === 0) {
+                mostrarToast('Adicione pelo menos um material.', 'warning');
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar Solicitação';
+                return;
+            }
 
             const payload = {
                 idSolicitante: localStorage.getItem('usuarioId'),
@@ -1474,14 +1509,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
+
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error('Falha ao criar solicitação. Verifique o console para detalhes.');
+                    throw new Error(errorText || 'Falha ao criar solicitação.');
                 }
+
                 mostrarToast('Solicitação enviada com sucesso!', 'success');
                 modalSolicitarMaterial.hide();
             } catch (error) {
-                mostrarToast(error.message, 'error');
+                mostrarToast(error.message || 'Erro ao enviar.', 'error');
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar Solicitação';
@@ -1489,9 +1526,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================================
-    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
-    // ==========================================================
     // ==========================================================
     // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
     // ==========================================================

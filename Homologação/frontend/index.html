@@ -211,15 +211,68 @@
     </div>
 
 
-    <div id="kpi-pendente-container"
-          class="d-none align-items-center px-3 py-2 bg-white border rounded-4 shadow-sm me-2">
-          <i class="bi bi-hourglass-split text-warning fs-4 me-2"></i>
-          <div class="d-flex flex-column" style="line-height: 1.1;">
-            <span class="text-secondary" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">CPS
-              Pendente Aprovação</span>
-            <span id="kpi-valor-pendente" class="text-dark" style="font-size: 1rem; font-weight: 800;">R$ 0,00</span>
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+
+      <ul class="nav nav-tabs border-0 mb-0" id="lancamentosTab" role="tablist">
+        <li class="nav-item" role="presentation" id="nav-item-minhas-pendencias">
+          <button class="nav-link position-relative" id="minhasPendencias-tab" data-bs-toggle="tab"
+            data-bs-target="#minhasPendencias-pane" type="button" role="tab">
+            Lançamentos pendentes
+            <span id="notificacao-pendencias"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              style="display: none;"></span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-lancamentos">
+          <button class="nav-link active" id="lancamentos-tab" data-bs-toggle="tab" data-bs-target="#lancamentos-pane"
+            type="button" role="tab">
+            Lançamentos
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-pendentes">
+          <button class="nav-link" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes-pane"
+            type="button" role="tab">
+            Pendente aprovação
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-paralisados">
+          <button class="nav-link" id="paralisados-tab" data-bs-toggle="tab" data-bs-target="#paralisados-pane"
+            type="button" role="tab">
+            Paralisados
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-historico">
+          <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico-pane"
+            type="button" role="tab">
+            Histórico
+          </button>
+        </li>
+      </ul>
+
+      <div class="d-flex gap-2 mb-1">
+
+        <div id="kpi-pendente-container" class="mini-kpi-card d-none align-items-center shadow-sm">
+          <div class="icon-wrapper bg-warning-subtle text-warning">
+            <i class="bi bi-hourglass-split"></i>
+          </div>
+          <div class="d-flex flex-column ms-2">
+            <span class="kpi-label">CPS Pendente</span>
+            <span id="kpi-valor-pendente" class="kpi-value">R$ 0,00</span>
           </div>
         </div>
+
+        <div id="kpi-quantidade-container" class="mini-kpi-card d-flex align-items-center shadow-sm">
+          <div class="icon-wrapper bg-primary-subtle text-primary">
+            <i class="bi bi-list-ol"></i>
+          </div>
+          <div class="d-flex flex-column ms-2">
+            <span class="kpi-label" id="kpi-qtd-label">Itens na lista</span>
+            <span id="kpi-qtd-valor" class="kpi-value">0</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
     <ul class="nav nav-tabs mb-3" id="lancamentosTab" role="tablist">
 

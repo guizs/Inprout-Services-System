@@ -455,6 +455,45 @@ document.addEventListener('DOMContentLoaded', () => {
             else { return sortConfig.direction === 'asc' ? valA - valB : valB - valA; }
         };
 
+        function atualizarContadorKpi() {
+            // 1. Descobre qual aba está ativa
+            const abaAtivaBtn = document.querySelector('#lancamentosTab .nav-link.active');
+            if (!abaAtivaBtn) return;
+
+            // 2. Pega o ID do painel alvo (ex: #lancamentos-pane)
+            const targetId = abaAtivaBtn.getAttribute('data-bs-target');
+            const painelAtivo = document.querySelector(targetId);
+
+            if (painelAtivo) {
+                // 3. Conta as linhas visíveis no corpo da tabela dentro deste painel
+                // Nota: Usamos 'tr' direto no tbody. Se houver mensagem de "Nenhum registro", ajustamos.
+                const linhas = painelAtivo.querySelectorAll('tbody tr');
+                let total = linhas.length;
+
+                // Verifica se é a linha de "Nenhum registro encontrado"
+                if (total === 1 && linhas[0].textContent.includes('Nenhum')) {
+                    total = 0;
+                }
+
+                // 4. Atualiza o valor no HTML
+                const elValor = document.getElementById('kpi-qtd-valor');
+                const elLabel = document.getElementById('kpi-qtd-label');
+
+                if (elValor) elValor.textContent = total;
+
+                // Opcional: Mudar o nome do label baseado na aba
+                if (elLabel) {
+                    const nomeAba = abaAtivaBtn.innerText.trim().split('\n')[0]; // Remove badge se tiver
+                    elLabel.textContent = nomeAba;
+                }
+            }
+        }
+
+        const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabEls.forEach(tabEl => {
+            tabEl.addEventListener('shown.bs.tab', atualizarContadorKpi);
+        });
+
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
@@ -484,6 +523,8 @@ document.addEventListener('DOMContentLoaded', () => {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
         }
+
+        atualizarContadorKpi();
     }
 
     function adicionarListenersDeOrdenacao() {

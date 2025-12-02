@@ -146,6 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar');
         const btnExportar = document.getElementById('btnExportar'); // Botão de exportar
 
+        const kpiPendenteContainer = document.getElementById('kpi-pendente-container');
+
         // Todos os itens da navegação são visíveis por padrão
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'block';
@@ -155,6 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
         [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
             if (el) el.style.display = 'none';
         });
+
+        if (kpiPendenteContainer) {
+            kpiPendenteContainer.classList.remove('d-flex');
+            kpiPendenteContainer.classList.add('d-none');
+        }
+
+        // Mostra apenas para COORDENADOR, ADMIN e CONTROLLER
+        if (['COORDINATOR', 'ADMIN', 'CONTROLLER'].includes(userRole)) {
+            if (kpiPendenteContainer) {
+                kpiPendenteContainer.classList.remove('d-none');
+                kpiPendenteContainer.classList.add('d-flex');
+            }
+        }
 
         // --- INÍCIO DA CORREÇÃO ---
         // Aplica regras de visibilidade para cada cargo
@@ -447,6 +462,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao)).sort(comparer);
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
         const paralisados = getProjetosParalisados().sort(comparer);
+
+        const kpiValorEl = document.getElementById('kpi-valor-pendente');
+        if (kpiValorEl) {
+            // Soma o valor de todos os itens na lista 'pendentesAprovacao'
+            const totalPendente = pendentesAprovacao.reduce((acc, curr) => {
+                return acc + (curr.valor || 0);
+            }, 0);
+
+            kpiValorEl.textContent = formatarMoeda(totalPendente);
+        }
 
         inicializarCabecalhos();
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);

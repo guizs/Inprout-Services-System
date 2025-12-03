@@ -280,81 +280,99 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
         const valorCpsLegado = dadosOS.valorCpsLegado || 0;
-
-        // --- NOVO CAMPO: TRANSPORTE ---
         const valorTransporte = dadosOS.transporte || 0;
 
-        // --- NOVO CÁLCULO DE PERCENTUAL ---
-        // (CPS + Material + Legado + Transporte) / Total OS
+        // --- CÁLCULO DE PERCENTUAL ---
         const totalGasto = valorTotalCPS + custoTotalMateriais + valorCpsLegado + valorTransporte;
         const percentual = valorTotalOS > 0 ? (totalGasto / valorTotalOS) * 100 : 0;
 
-
         // --- HTML DOS KPIS ---
-        let kpiHTML = '';
-        if (userRole !== 'MANAGER') {
-            const kpiLegadoHtml = valorCpsLegado > 0
-                ? `<div class="header-kpi"><span class="kpi-label text-warning">Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
-                : '';
+        // Montamos apenas os DIVs dos KPIs aqui. O layout é controlado pelo CSS container.
+        let kpisInternosHTML = '';
 
-            // Botão de Edição (Apenas Admin/Controller)
-            let btnEditarFinanceiro = '';
-            if (['ADMIN', 'CONTROLLER'].includes(userRole)) {
-                btnEditarFinanceiro = `
-                    <button class="btn btn-sm btn-link text-white p-0 ms-2" onclick="abrirModalFinanceiro(${osId}, '${dadosOS.os}', ${custoTotalMateriais}, ${valorTransporte})" title="Adicionar Material / Alterar Transporte">
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
-                `;
+        if (userRole !== 'MANAGER') {
+            // 1. Total OS
+            kpisInternosHTML += `
+                <div class="header-kpi">
+                    <span class="kpi-label">Total OS</span>
+                    <span class="kpi-value">${formatarMoeda(valorTotalOS)}</span>
+                </div>`;
+
+            // 2. Legado (Condicional)
+            if (valorCpsLegado > 0) {
+                kpisInternosHTML += `
+                <div class="header-kpi">
+                    <span class="kpi-label text-warning">Legado</span>
+                    <span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span>
+                </div>`;
             }
 
-            kpiHTML = `
-            <div class="header-kpi-wrapper">
-                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-                ${kpiLegadoHtml}
-                <div class="header-kpi"><span class="kpi-label">CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                
+            // 3. CPS
+            kpisInternosHTML += `
+                <div class="header-kpi">
+                    <span class="kpi-label">CPS</span>
+                    <span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span>
+                </div>`;
+
+            // 4. Material (com botão de editar para Admin/Controller)
+            let btnEditarFinanceiro = '';
+            if (['ADMIN', 'CONTROLLER'].includes(userRole)) {
+                // Adicionei style="cursor:pointer" e ajustei o ícone
+                btnEditarFinanceiro = `
+                    <i class="bi bi-pencil-square text-primary ms-1" 
+                       style="cursor: pointer; font-size: 0.8rem;"
+                       onclick="abrirModalFinanceiro(${osId}, '${dadosOS.os}', ${custoTotalMateriais}, ${valorTransporte}); event.stopPropagation();" 
+                       title="Editar Material/Transporte"></i>
+                `;
+            }
+            kpisInternosHTML += `
                 <div class="header-kpi">
                     <span class="kpi-label">Material</span>
-                    <span class="kpi-value">${formatarMoeda(custoTotalMateriais)} ${btnEditarFinanceiro}</span>
-                </div>
+                    <span class="kpi-value">
+                        ${formatarMoeda(custoTotalMateriais)}
+                        ${btnEditarFinanceiro}
+                    </span>
+                </div>`;
 
-                <div class="header-kpi"><span class="kpi-label">Transp.</span><span class="kpi-value">${formatarMoeda(valorTransporte)}</span></div>
+            // 5. Transporte
+            kpisInternosHTML += `
+                <div class="header-kpi">
+                    <span class="kpi-label">Transp.</span>
+                    <span class="kpi-value">${formatarMoeda(valorTransporte)}</span>
+                </div>`;
 
-                <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
-            </div>`;
+            // 6. Porcentagem
+            kpisInternosHTML += `
+                <div class="header-kpi">
+                    <span class="kpi-label">%</span>
+                    <span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span>
+                </div>`;
         }
 
-        // --- INÍCIO DA ALTERAÇÃO ---
-        // Adiciona a coluna "HISTÓRICO" dinamicamente
+        // --- DEFINIÇÃO DE COLUNAS DA TABELA INTERNA ---
         const headersVisiveis = [...headers];
         if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
             headersVisiveis.push("AÇÕES");
         }
-        headersVisiveis.unshift("HISTÓRICO"); // Adiciona no início
-        // --- FIM DA ALTERAÇÃO ---
+        headersVisiveis.unshift("HISTÓRICO");
 
-
+        // --- GERAÇÃO DAS LINHAS DA TABELA (BODY) ---
         const bodyRowsHTML = grupo.linhas.map(linhaData => {
             const cellsHTML = headersVisiveis.map(header => {
                 const detalheId = get(linhaData, 'detalhe.id', '');
 
-                // --- INÍCIO DA ALTERAÇÃO ---
                 if (header === "HISTÓRICO") {
-                    // Adiciona o botão de histórico, passando o ID do detalhe (da linha)
-                    // Desabilita se não houver detalheId ou se houver 1 ou menos lançamentos
                     const lancamentosCount = get(linhaData, 'detalhe.lancamentos', []).length;
                     const isDisabled = !detalheId || lancamentosCount <= 1;
-                    return `<td><button class="btn btn-sm btn-outline-info btn-historico" data-detalhe-id="${detalheId}" title="Ver Histórico de Lançamentos" ${isDisabled ? 'disabled' : ''}><i class="bi bi-clock-history"></i></button></td>`;
+                    return `<td><button class="btn btn-sm btn-outline-info btn-historico" data-detalhe-id="${detalheId}" title="Ver Histórico" ${isDisabled ? 'disabled' : ''}><i class="bi bi-clock-history"></i></button></td>`;
                 }
-                // --- FIM DA ALTERAÇÃO ---
 
                 if (header === "AÇÕES") {
                     let btnEditar = '';
-
                     if (userRole === 'ADMIN' || userRole === 'ASSISTANT' || userRole === 'COORDINATOR') {
-                        btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar Detalhe de Registro"><i class="bi bi-pencil-fill"></i></button>` : '';
+                        btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar"><i class="bi bi-pencil-fill"></i></button>` : '';
                     }
-                    const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir Registro"><i class="bi bi-trash-fill"></i></button>`;
+                    const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir"><i class="bi bi-trash-fill"></i></button>`;
                     return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                 }
 
@@ -371,13 +389,27 @@ document.addEventListener('DOMContentLoaded', function () {
             return `<tr>${cellsHTML}</tr>`;
         }).join('');
 
+
+        // --- MONTAGEM FINAL DO HTML DO ACORDEÃO ---
+        // AQUI ESTÁ A ESTRUTURA CORRIGIDA QUE USA O CSS NOVO
         const headerHTML = `
         <h2 class="accordion-header" id="heading-${uniqueId}">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                
                 <div class="header-content">
-                    <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
-                    ${kpiHTML} <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                    
+                    <div class="header-title-wrapper">
+                        <span class="header-title-project">${grupo.projeto || 'SEM PROJETO'}</span>
+                        <span class="header-title-os">${grupo.os || 'SEM OS'}</span>
+                    </div>
+
+                    <div class="header-kpi-wrapper">
+                        ${kpiHTML ? kpisInternosHTML : ''}
+                        <span class="header-badge">${grupo.linhas.length} itens</span>
+                    </div>
+
                 </div>
+
             </button>
         </h2>`;
 
@@ -385,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div id="collapse-${uniqueId}" class="accordion-collapse collapse" data-bs-parent="#accordion-registros">
             <div class="accordion-body">
                 <div class="table-responsive">
-                    <table class="table modern-table table-sm">
+                    <table class="table modern-table table-sm mb-0">
                         <thead><tr>${headersVisiveis.map(h => `<th>${h}</th>`).join('')}</tr></thead>
                         <tbody>${bodyRowsHTML}</tbody>
                     </table>

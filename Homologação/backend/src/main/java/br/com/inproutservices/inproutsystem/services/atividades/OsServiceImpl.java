@@ -805,6 +805,8 @@ public class OsServiceImpl implements OsService {
         novoDetalhe.setGate(dto.getGate());
         novoDetalhe.setGateId(dto.getGateId());
 
+        os.getDetalhes().add(novoDetalhe);
+
         return osLpuDetalheRepository.save(novoDetalhe);
     }
 

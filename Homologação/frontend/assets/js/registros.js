@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
         "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
         "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
-        "DATA CRIAÇÃO OS": (linha) => formatarData(get(linha, 'os.dataCriacao')), "KEY": (linha) => get(linha, 'detalhe.key'),
+        "DATA CRIAÇÃO": (linha) => formatarDataHora(get(linha, 'detalhe.dataCriacaoItem')), "KEY": (linha) => get(linha, 'detalhe.key'),
         "VALOR CPS LEGADO": (linha) => formatarMoeda(get(linha, 'os.valorCpsLegado'))
     };
 
@@ -171,6 +171,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
+
+        if (!grupo.linhas || grupo.linhas.length === 0) {
+            return '';
+        }
 
         // 1. Pega os valores da OS (assume que todas as linhas do grupo são da mesma OS)
         // Usa o primeiro item para pegar os dados da OS

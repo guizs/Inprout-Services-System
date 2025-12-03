@@ -324,6 +324,12 @@ body {
     font-weight: 500;
     color: #212529;
     box-shadow: none;
+    transition: background-color 0.2s ease;
+}
+
+.accordion-header .accordion-button.header-selected {
+    background-color: #e9ecef !important; /* Mesma cor de quando está aberto */
+    color: #000 !important;
 }
 
 .accordion-header .accordion-button:not(.collapsed) {

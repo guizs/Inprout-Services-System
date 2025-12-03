@@ -1628,6 +1628,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 const accordionItem = headerCheckbox.closest('.accordion-item');
                 if (!accordionItem) return;
 
+                const accordionButton = accordionItem.querySelector('.accordion-button');
+                if (accordionButton) {
+                    if (isChecked) {
+                        accordionButton.classList.add('header-selected');
+                    } else {
+                        accordionButton.classList.remove('header-selected');
+                    }
+                }
+
                 const itemCheckboxes = accordionItem.querySelectorAll(`#${targetBodyId} .linha-checkbox`);
                 itemCheckboxes.forEach(checkbox => {
                     checkbox.checked = isChecked;
@@ -1662,16 +1671,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 const totalCount = allCheckboxesInGroup.length;
 
                 const headerCheckbox = accordionItem.querySelector('.selecionar-todos-acordeon');
+                // Busca o botão para alterar a cor
+                const accordionButton = accordionItem.querySelector('.accordion-button');
 
                 if (headerCheckbox) {
                     if (checkedCount === 0) {
                         headerCheckbox.checked = false;
                         headerCheckbox.indeterminate = false;
+ 
+                        if (accordionButton) accordionButton.classList.remove('header-selected');
                     } else if (checkedCount === totalCount) {
                         headerCheckbox.checked = true;
                         headerCheckbox.indeterminate = false;
+
+                        if (accordionButton) accordionButton.classList.add('header-selected');
                     } else {
                         headerCheckbox.indeterminate = true;
+
+                        if (accordionButton) accordionButton.classList.remove('header-selected');
                     }
                 }
             }

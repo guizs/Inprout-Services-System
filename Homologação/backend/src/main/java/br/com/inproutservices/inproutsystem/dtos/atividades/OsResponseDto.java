@@ -77,6 +77,8 @@ public record OsResponseDto(
             String numFs,
             String gate,
             String gateId,
+            @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
+            LocalDateTime dataCriacaoItem,
             LancamentoResponseDTO ultimoLancamento,
             List<LancamentoResponseDTO> lancamentos
     ) {
@@ -109,6 +111,7 @@ public record OsResponseDto(
                     detalhe.getNumFs(),
                     detalhe.getGate(),
                     detalhe.getGateId(),
+                    detalhe.getDataCriacao(),
 
                     // --- INÍCIO DA CORREÇÃO COM REGRA DE EXCEÇÃO ---
                     detalhe.getLancamentos().stream()

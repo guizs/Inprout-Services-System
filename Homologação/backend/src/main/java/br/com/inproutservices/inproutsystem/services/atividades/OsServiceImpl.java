@@ -349,6 +349,24 @@ public class OsServiceImpl implements OsService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public OS atualizarValoresFinanceiros(Long osId, BigDecimal materialAdicional, BigDecimal transporteAdicional) {
+        OS os = osRepository.findById(osId)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada"));
+
+        if (materialAdicional != null) {
+            BigDecimal atual = os.getCustoTotalMateriais() != null ? os.getCustoTotalMateriais() : BigDecimal.ZERO;
+            os.setCustoTotalMateriais(atual.add(materialAdicional));
+        }
+
+        if (transporteAdicional != null) {
+            BigDecimal transporteAtual = os.getTransporte() != null ? os.getTransporte() : BigDecimal.ZERO;
+            os.setTransporte(transporteAtual.add(transporteAdicional));
+        }
+
+        return osRepository.save(os);
+    }
+
     @Override
     @Transactional(readOnly = true)
     public Page<OsResponseDto> findAllWithDetails(Pageable pageable) {

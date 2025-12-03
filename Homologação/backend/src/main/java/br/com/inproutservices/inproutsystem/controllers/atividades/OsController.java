@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -79,13 +80,16 @@ public class OsController {
         return ResponseEntity.ok(new OsResponseDto(osEncontrada));
     }
 
-    @GetMapping
-    public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        List<OS> oss = osService.findAllWithDetails();
-        List<OsResponseDto> dtos = oss.stream()
-                .map(OsResponseDto::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+    @PatchMapping("/{id}/valores-financeiros")
+    public ResponseEntity<OsResponseDto> atualizarValoresFinanceiros(
+            @PathVariable Long id,
+            @RequestBody Map<String, BigDecimal> payload
+    ) {
+        BigDecimal materialAdicional = payload.get("materialAdicional");
+        BigDecimal novoTransporte = payload.get("transporte");
+
+        OS osAtualizada = osService.atualizarValoresFinanceiros(id, materialAdicional, novoTransporte);
+        return ResponseEntity.ok(new OsResponseDto(osAtualizada));
     }
 
     @PostMapping("/importar-linha")

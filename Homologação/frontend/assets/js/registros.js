@@ -4,12 +4,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const API_BASE_URL = 'http://localhost:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
+    let isCarregandoTudo = true;
 
     // Variáveis de estado para a paginação
     let paginaAtual = 1;
     let linhasPorPagina = 10; // Valor inicial
     let gruposFiltradosCache = []; // Cache para os GRUPOS filtrados
     let osSortDirection = 'asc';
+    const TAMANHO_LOTE_BACKGROUND = 50;
 
     // Funções utilitárias
     const get = (obj, path, defaultValue = '-') => {
@@ -34,6 +36,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // Trata datas inválidas ou vazias que o JS pode gerar
         if (dataLimpa === '//' || dataLimpa === 'Invalid Date') return '-'; // <-- CORREÇÃO AQUI
         return dataLimpa;
+    };
+    const formatarDataHora = (dataStr) => {
+        if (!dataStr || dataStr === '-' || dataStr === 'null') return '-';
+        return dataStr; // O backend já manda formatado (dd/MM/yyyy HH:mm:ss), então é só exibir.
     };
 
 
@@ -79,139 +85,241 @@ document.addEventListener('DOMContentLoaded', function () {
         "DATA FAT INPROUT": (linha) => formatarData(get(linha, 'detalhe.dataFatInprout')), "SOLICIT FS PORTAL": (linha) => get(linha, 'detalhe.solitFsPortal'),
         "DATA FS": (linha) => formatarData(get(linha, 'detalhe.dataFs')), "NUM FS": (linha) => get(linha, 'detalhe.numFs'),
         "GATE": (linha) => get(linha, 'detalhe.gate'), "GATE ID": (linha) => get(linha, 'detalhe.gateId'),
-        "DATA CRIAÇÃO": (linha) => formatarDataHora(get(linha, 'detalhe.dataCriacaoItem')), "KEY": (linha) => get(linha, 'detalhe.key'),
+        "DATA CRIAÇÃO OS": (linha) => formatarDataHora(get(linha, 'detalhe.dataCriacaoItem')), "KEY": (linha) => get(linha, 'detalhe.key'),
         "VALOR CPS LEGADO": (linha) => formatarMoeda(get(linha, 'os.valorCpsLegado'))
     };
 
     async function inicializarPagina() {
         const accordionContainer = document.getElementById('accordion-registros');
+
+        // Loader de tela cheia apenas para os primeiros 10 (para ser rápido)
         accordionContainer.innerHTML = `
             <div class="text-center p-5">
-                <div class="spinner-border text-success" role="status">
-                    <span class="visually-hidden">Carregando...</span>
-                </div>
-                <p class="mt-2 text-muted">Buscando registros...</p>
+                <div class="spinner-border text-success" role="status"></div>
+                <p class="mt-2 text-muted">Iniciando...</p>
             </div>`;
 
         try {
-            const response = await fetchComAuth(`${API_BASE_URL}/os`, {
+            // 1. Carrega a PRIMEIRA página (rápida, só 10 itens)
+            const response = await fetchComAuth(`${API_BASE_URL}/os?page=0&size=10`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
-            if (!response.ok) throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
 
-            const osData = await response.json();
-            const userSegmentos = JSON.parse(localStorage.getItem('segmentos')) || [];
-            let osDataFiltrada = osData;
+            if (!response.ok) throw new Error('Erro inicial');
+            const data = await response.json();
 
-            if (['MANAGER', 'COORDINATOR'].includes(userRole)) {
-                osDataFiltrada = (userSegmentos.length > 0)
-                    ? osData.filter(os => os.segmento && userSegmentos.includes(os.segmento.id))
-                    : [];
-            }
-
-            todasAsLinhas = [];
-            osDataFiltrada.forEach(os => {
-                // A lógica agora só processa OSs que têm detalhes.
-                if (os.detalhes && os.detalhes.length > 0) {
-                    // Filtra para manter apenas os detalhes que estão com o status "ATIVO".
-                    const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
-
-                    // Adicionada uma verificação para garantir que, mesmo após o filtro, ainda existam detalhes a serem exibidos.
-                    if (detalhesAtivos.length > 0) {
-                        detalhesAtivos.forEach(detalhe => {
-                            let lancamentoParaExibir = detalhe.ultimoLancamento;
-
-                            // Se a API não retornou um 'ultimoLancamento' ou se a lista local de lançamentos existe,
-                            // aplicamos a lógica de seleção para garantir que o lançamento correto seja exibido.
-                            if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
-
-                                // 1. Tenta encontrar o lançamento operacional mais recente
-                                const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
-
-                                if (lancamentosOperacionais.length > 0) {
-                                    lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => {
-                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                    });
-                                } else {
-                                    // 2. Se não houver operacionais, pega o legado mais recente como fallback
-                                    lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => {
-                                        return (maisRecente.id > atual.id) ? maisRecente : atual;
-                                    });
-                                }
-                            }
-
-                            todasAsLinhas.push({
-                                os: os,
-                                detalhe: detalhe,
-                                ultimoLancamento: lancamentoParaExibir
-                            });
-                        });
-                    }
-                }
-            });
-
-            const btnSortOS = document.getElementById('btnSortOS');
-            if (btnSortOS) {
-                btnSortOS.addEventListener('click', () => {
-                    osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
-                    const icon = btnSortOS.querySelector('i');
-                    icon.classList.toggle('bi-sort-down', osSortDirection === 'asc');
-                    icon.classList.toggle('bi-sort-up-alt', osSortDirection === 'desc');
-                    renderizarTabelaComFiltro();
-                });
-            }
-
+            // Renderiza os primeiros 10
+            processarEAdicionarDados(data.content || [], true);
             renderizarTabelaComFiltro();
 
+            // 2. Inicia o loop para buscar o restante (Progressivo)
+            // Passamos o total de páginas que a API informou
+            carregarPaginasRestantesProgressivamente(data.totalPages);
+
         } catch (error) {
-            console.error('Falha ao carregar os registros:', error);
-            accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados. Verifique o console.</div>`;
+            console.error('Erro:', error);
+            accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados.</div>`;
         }
+    }
+
+    async function carregarPaginasRestantesProgressivamente(totalPaginasBackend) {
+        const loadingBadge = document.getElementById('loading-indicator-busca');
+
+        try {
+            if (loadingBadge) loadingBadge.classList.remove('d-none'); // Mostra o spinnerzinho na busca
+
+            let paginaAtualFetch = 0;
+            let temMaisPaginas = true;
+
+            while (temMaisPaginas) {
+                // Fetch de 50 em 50
+                const response = await fetchComAuth(`${API_BASE_URL}/os?page=${paginaAtualFetch}&size=${TAMANHO_LOTE_BACKGROUND}`, {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+                });
+
+                if (!response.ok) break;
+
+                const pageData = await response.json();
+                const novosRegistros = pageData.content || [];
+
+                if (novosRegistros.length === 0) {
+                    temMaisPaginas = false;
+                    break;
+                }
+
+                // Adiciona à lista global (o false diz para NÃO limpar o que já tem)
+                processarEAdicionarDados(novosRegistros, false);
+
+                // Atualiza a tabela na tela para o usuário ver os dados chegando!
+                // Só atualizamos se o usuário estiver na página 1 ou pesquisando, para não pular a tela dele
+                if (paginaAtual === 1 || document.getElementById('searchInput').value !== "") {
+                    renderizarTabelaComFiltro();
+                }
+
+                // Verifica se é a última página
+                if (pageData.last) {
+                    temMaisPaginas = false;
+                } else {
+                    paginaAtualFetch++;
+                }
+
+                // Pequeno delay opcional para não travar a UI do navegador se o PC for lento
+                await new Promise(r => setTimeout(r, 50));
+            }
+
+            isCarregandoTudo = false;
+            console.log("Carga progressiva finalizada!");
+
+        } catch (err) {
+            console.error("Erro no carregamento progressivo:", err);
+        } finally {
+            if (loadingBadge) loadingBadge.classList.add('d-none'); // Esconde o spinner
+        }
+    }
+
+    async function carregarRestanteEmBackground() {
+        try {
+            // 1. MOSTRAR O INDICADOR (Remove a classe que esconde)
+            const loadingBadge = document.getElementById('loading-indicator-busca');
+            if (loadingBadge) loadingBadge.classList.remove('d-none');
+
+            // Chama a API pedindo TUDO
+            const responseCompleta = await fetchComAuth(`${API_BASE_URL}/os?completo=true`, {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            });
+
+            if (!responseCompleta.ok) return;
+
+            const jsonCompleto = await responseCompleta.json();
+            const todosDados = jsonCompleto.content || jsonCompleto;
+
+            // Substitui os dados iniciais pelos dados completos
+            processarEAdicionarDados(todosDados, true);
+
+            isCarregandoTudo = false;
+
+            // Atualiza a tabela
+            renderizarTabelaComFiltro();
+
+            console.log("Carga em background finalizada.");
+
+        } catch (err) {
+            console.error("Erro no carregamento de fundo:", err);
+        } finally {
+            // 2. ESCONDER O INDICADOR (Adiciona a classe d-none novamente)
+            const loadingBadge = document.getElementById('loading-indicator-busca');
+            if (loadingBadge) loadingBadge.classList.add('d-none');
+        }
+    }
+
+    function processarEAdicionarDados(listaDeOs, limparAnteriores = false) {
+        if (limparAnteriores) {
+            todasAsLinhas = [];
+        }
+
+        // Criamos um Set com os IDs existentes para evitar duplicidade visual
+        // (Isso corrige o fato de buscarmos a page 0 de novo no loop maior)
+        const idsExistentes = new Set(todasAsLinhas.map(item => item.os.id + '-' + item.detalhe.id));
+
+        const userSegmentos = JSON.parse(localStorage.getItem('segmentos')) || [];
+
+        listaDeOs.forEach(os => {
+            if (['MANAGER', 'COORDINATOR'].includes(userRole)) {
+                if (!os.segmento || !userSegmentos.includes(os.segmento.id)) return;
+            }
+
+            if (os.detalhes && os.detalhes.length > 0) {
+                const detalhesAtivos = os.detalhes.filter(detalhe => detalhe.statusRegistro !== 'INATIVO');
+
+                if (detalhesAtivos.length > 0) {
+                    detalhesAtivos.forEach(detalhe => {
+                        // CRÍTICO: Verifica duplicidade antes de adicionar
+                        const uniqueKey = os.id + '-' + detalhe.id;
+                        if (idsExistentes.has(uniqueKey)) return; // Pula se já existe
+
+                        let lancamentoParaExibir = detalhe.ultimoLancamento;
+                        if (!lancamentoParaExibir && detalhe.lancamentos && detalhe.lancamentos.length > 0) {
+                            const lancamentosOperacionais = detalhe.lancamentos.filter(l => l.situacaoAprovacao !== 'APROVADO_LEGADO');
+                            if (lancamentosOperacionais.length > 0) {
+                                lancamentoParaExibir = lancamentosOperacionais.reduce((maisRecente, atual) => (maisRecente.id > atual.id) ? maisRecente : atual);
+                            } else {
+                                lancamentoParaExibir = detalhe.lancamentos.reduce((maisRecente, atual) => (maisRecente.id > atual.id) ? maisRecente : atual);
+                            }
+                        }
+
+                        todasAsLinhas.push({
+                            os: os,
+                            detalhe: detalhe,
+                            ultimoLancamento: lancamentoParaExibir
+                        });
+
+                        // Adiciona ao set local para checagem na mesma iteração
+                        idsExistentes.add(uniqueKey);
+                    });
+                }
+            }
+        });
     }
 
     function gerarHtmlParaGrupo(grupo) {
         const uniqueId = grupo.id;
 
-        if (!grupo.linhas || grupo.linhas.length === 0) {
-            return '';
-        }
+        if (!grupo.linhas || grupo.linhas.length === 0) return '';
 
-        // 1. Pega os valores da OS (assume que todas as linhas do grupo são da mesma OS)
-        // Usa o primeiro item para pegar os dados da OS
         const dadosOS = grupo.linhas[0].os || {};
+        const osId = dadosOS.id;
 
+        // --- CÁLCULOS FINANCEIROS ---
         const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
             .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
 
-        // Valor CPS "Normal" (Lançamentos do sistema novo)
         const valorTotalCPS = grupo.linhas
             .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
             .filter(lanc => ['APROVADO', 'APROVADO_CPS_LEGADO'].includes(lanc.situacaoAprovacao))
             .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
 
         const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
-
-        // --- NOVO: Valor CPS Legado (vindo da OS) ---
         const valorCpsLegado = dadosOS.valorCpsLegado || 0;
 
-        // Cálculo da porcentagem inclui o Legado
-        const percentual = valorTotalOS > 0
-            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
-            : 0;
+        // --- NOVO CAMPO: TRANSPORTE ---
+        const valorTransporte = dadosOS.transporte || 0;
 
+        // --- NOVO CÁLCULO DE PERCENTUAL ---
+        // (CPS + Material + Legado + Transporte) / Total OS
+        const totalGasto = valorTotalCPS + custoTotalMateriais + valorCpsLegado + valorTransporte;
+        const percentual = valorTotalOS > 0 ? (totalGasto / valorTotalOS) * 100 : 0;
+
+
+        // --- HTML DOS KPIS ---
         let kpiHTML = '';
         if (userRole !== 'MANAGER') {
-            // Constrói o HTML do KPI de Legado apenas se houver valor
             const kpiLegadoHtml = valorCpsLegado > 0
-                ? `<div class="header-kpi"><span class="kpi-label text-warning">CPS Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
+                ? `<div class="header-kpi"><span class="kpi-label text-warning">Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>`
                 : '';
+
+            // Botão de Edição (Apenas Admin/Controller)
+            let btnEditarFinanceiro = '';
+            if (['ADMIN', 'CONTROLLER'].includes(userRole)) {
+                btnEditarFinanceiro = `
+                    <button class="btn btn-sm btn-link text-white p-0 ms-2" onclick="abrirModalFinanceiro(${osId}, '${dadosOS.os}', ${custoTotalMateriais}, ${valorTransporte})" title="Adicionar Material / Alterar Transporte">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                `;
+            }
 
             kpiHTML = `
             <div class="header-kpi-wrapper">
                 <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
+                ${kpiLegadoHtml}
+                <div class="header-kpi"><span class="kpi-label">CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
                 
-                ${kpiLegadoHtml} <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
+                <div class="header-kpi">
+                    <span class="kpi-label">Material</span>
+                    <span class="kpi-value">${formatarMoeda(custoTotalMateriais)} ${btnEditarFinanceiro}</span>
+                </div>
+
+                <div class="header-kpi"><span class="kpi-label">Transp.</span><span class="kpi-value">${formatarMoeda(valorTransporte)}</span></div>
+
                 <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
             </div>`;
         }
@@ -268,8 +376,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
                 <div class="header-content">
                     <div class="header-title-wrapper"><span class="header-title-project">${grupo.projeto}</span><span class="header-title-os">${grupo.os}</span></div>
-                    ${kpiHTML}
-                    <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
+                    ${kpiHTML} <span class="badge bg-primary header-badge">${grupo.linhas.length} itens</span>
                 </div>
             </button>
         </h2>`;
@@ -348,6 +455,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderizarTabelaComFiltro() {
         const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
+        const infoBuscaContainer = document.getElementById('info-busca-container'); // Elemento para avisos de busca
+
+        // Lógica de Aviso de Carregamento na Busca
+        if (termoBusca.length > 0 && isCarregandoTudo) {
+            // Se o usuário está buscando e ainda estamos carregando o resto...
+            if (infoBuscaContainer) {
+                infoBuscaContainer.innerHTML = `<span class="badge bg-warning text-dark"><div class="spinner-border spinner-border-sm" role="status"></div> Buscando nos dados carregados (o restante está chegando)...</span>`;
+            }
+        } else if (infoBuscaContainer) {
+            infoBuscaContainer.innerHTML = '';
+        }
+
         const linhasFiltradas = termoBusca
             ? todasAsLinhas.filter(linhaData => {
                 const textoPesquisavel = [
@@ -1138,3 +1257,73 @@ document.addEventListener('DOMContentLoaded', function () {
     adicionarListenersPaginacao();
     adicionarListenersDeAcoes();
 });
+
+window.abrirModalFinanceiro = async function (osId, nomeOs, materialAtual, transporteAtual) {
+    if (event) event.stopPropagation();
+
+    const { value: formValues } = await Swal.fire({
+        title: `Valores Extras - OS ${nomeOs}`,
+        html: `
+                <div class="text-start mb-3">
+                    <label class="form-label fw-bold">Adicionar ao Material (R$)</label>
+                    <div class="text-muted small mb-1">Atual: ${formatarMoeda(materialAtual)} (Valor será somado)</div>
+                    <input id="swal-input-material" type="number" step="0.01" class="form-control" placeholder="Ex: 1500.00">
+                </div>
+                <div class="text-start">
+                    <label class="form-label fw-bold">Adicionar ao Transporte (R$)</label>
+                    <div class="text-muted small mb-1">Atual: ${formatarMoeda(transporteAtual)} (Valor será somado)</div>
+                    <input id="swal-input-transporte" type="number" step="0.01" class="form-control" placeholder="Ex: 50.00">
+                </div>
+            `,
+        showCancelButton: true,
+        confirmButtonText: 'Salvar Adições', // Texto do botão mais claro
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            return {
+                materialAdicional: document.getElementById('swal-input-material').value,
+                transporte: document.getElementById('swal-input-transporte').value
+            }
+        }
+    });
+
+    if (formValues) {
+        try {
+            // Prepara payload (envia null se vazio para não alterar)
+            const payload = {};
+            if (formValues.materialAdicional) payload.materialAdicional = parseFloat(formValues.materialAdicional);
+            if (formValues.transporte) payload.transporte = parseFloat(formValues.transporte);
+
+            if (Object.keys(payload).length === 0) return; // Nada alterado
+
+            const response = await fetch(`${API_BASE_URL}/os/${osId}/valores-financeiros`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + localStorage.getItem('token')
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('Erro ao atualizar valores');
+
+            const osAtualizada = await response.json();
+
+            // Atualiza os dados locais para refletir na tela sem recarregar tudo
+            // (Aqui vamos fazer um reload simples da tabela para garantir consistência)
+            Swal.fire('Sucesso!', 'Valores atualizados.', 'success');
+
+            // Atualiza o objeto na memória global (todasAsLinhas)
+            todasAsLinhas.forEach(linha => {
+                if (linha.os.id === osId) {
+                    linha.os.custoTotalMateriais = osAtualizada.custoTotalMateriais;
+                    linha.os.transporte = osAtualizada.transporte;
+                }
+            });
+            renderizarTabelaComFiltro();
+
+        } catch (error) {
+            console.error(error);
+            Swal.fire('Erro', 'Não foi possível salvar os valores.', 'error');
+        }
+    }
+};

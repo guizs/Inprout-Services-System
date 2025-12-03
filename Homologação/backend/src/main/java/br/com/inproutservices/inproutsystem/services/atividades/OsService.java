@@ -10,6 +10,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.data.domain.Pageable;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -90,5 +91,7 @@ public interface OsService {
     OS atualizarGestorTim(Long osId, String novoGestorTim);
 
     Page<OsResponseDto> findAllWithDetails(Pageable pageable);
+
+    OS atualizarValoresFinanceiros(Long osId, BigDecimal materialAdicional, BigDecimal novoTransporte);
 
 }

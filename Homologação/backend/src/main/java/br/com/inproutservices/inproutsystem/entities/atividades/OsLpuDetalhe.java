@@ -5,6 +5,7 @@ import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ public class OsLpuDetalhe {
     private Long id;
 
     @Column(name = "data_criacao", nullable = false, updatable = false)
+    @CreationTimestamp
     private LocalDateTime dataCriacao;
 
     @PrePersist

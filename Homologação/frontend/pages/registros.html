@@ -45,17 +45,30 @@
     <div class="container-fluid my-4">
         <div class="card shadow-sm">
             <div class="card-header bg-white p-3">
+
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                     <div class="d-flex align-items-center gap-2 flex-grow-1">
+
                         <div class="input-group search-box flex-grow-1">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" id="searchInput" class="form-control"
+
+                            <input type="text" id="searchInput" class="form-control border-end-0"
                                 placeholder="Buscar por OS, Site, Contrato, KEY...">
+
+                            <span class="input-group-text bg-white border-start-0 d-none" id="loading-indicator-busca">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="text-muted small fst-italic"
+                                        style="font-size: 0.8rem;">Sincronizando...</span>
+                                    <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                                </div>
+                            </span>
                         </div>
+
                         <button class="btn btn-outline-secondary btn-sm" id="btnSortOS" title="Ordenar por OS">
                             OS <i class="bi bi-sort-down"></i>
                         </button>
                     </div>
+
                     <div class="d-flex flex-wrap align-items-center gap-2" id="botoes-acao">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" id="importLegado" />

@@ -354,23 +354,27 @@ document.addEventListener('DOMContentLoaded', function () {
             const totalMaterial = grupo.custoTotalMateriais || 0;
             const totalPendente = grupo.valorPendente || 0;
 
-            // Novo: Valor do Legado (vindo da entidade OS)
+            // Dados vindos da entidade OS
             const valorCpsLegado = dadosOS.valorCpsLegado || 0;
+            const valorTransporte = dadosOS.transporte || 0; // <--- Variável do Transporte
 
-            // Previsão agora inclui o legado
+            // Previsão de Serviços (Aprovado + Pendente + Legado)
             const previsaoCps = totalCpsAprovado + totalPendente + valorCpsLegado;
 
-            // Percentuais atualizados
+            // 1. Percentual Atual (O que já foi gasto/aprovado de fato)
+            // SOMA: CPS Aprovado + Material + Legado + Transporte
             const percentualAtual = totalOs > 0
-                ? ((totalCpsAprovado + totalMaterial + valorCpsLegado) / totalOs) * 100
+                ? ((totalCpsAprovado + totalMaterial + valorCpsLegado + valorTransporte) / totalOs) * 100
                 : 0;
 
+            // 2. Percentual Previsto (O que será gasto se aprovar os pendentes)
+            // SOMA: Previsão CPS + Material + Transporte
             const percentualPrevisto = totalOs > 0
-                ? ((previsaoCps + totalMaterial) / totalOs) * 100
+                ? ((previsaoCps + totalMaterial + valorTransporte) / totalOs) * 100
                 : 0;
 
             // Lógica de cores do percentual
-            let corPercentualPrevisto = 'text-primary'; // Cor padrão (azul)
+            let corPercentualPrevisto = 'text-primary';
             if (percentualPrevisto >= 35) {
                 corPercentualPrevisto = 'text-danger-emphasis'; // Vermelho
             } else if (percentualPrevisto >= 20) {
@@ -383,19 +387,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 : '';
 
             // HTML dos KPIs (indicadores) do cabeçalho
-            const kpiHTML = `
+            let kpiHTML = `
             <div class="header-kpi-wrapper">
-                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(totalOs)}</span></div>
+                <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
                 
-                ${kpiLegadoHtml} <div class="header-kpi"><span class="kpi-label">Total CPS</span><span class="kpi-value">${formatarMoeda(totalCpsAprovado)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">Total Material</span><span class="kpi-value">${formatarMoeda(totalMaterial)}</span></div>
-                <div class="header-kpi"><span class="kpi-label text-primary">Previsão CPS</span><span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span></div>
-                <div class="header-kpi"><span class="kpi-label">% Atual</span><span class="kpi-value kpi-percentage">${percentualAtual.toFixed(2)}%</span></div>
+                ${valorCpsLegado > 0 ? `<div class="header-kpi"><span class="kpi-label text-warning">Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>` : ''}
                 
-                <div class="header-kpi">
-                    <span class="kpi-label ${corPercentualPrevisto}">% Previsto</span>
-                    <span class="kpi-value kpi-percentage ${corPercentualPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
-                </div>
+                <div class="header-kpi"><span class="kpi-label">CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
+                
+                <div class="header-kpi"><span class="kpi-label">Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
+                
+                <div class="header-kpi"><span class="kpi-label">Transp.</span><span class="kpi-value">${formatarMoeda(valorTransporte)}</span></div>
+
+                <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
             </div>`;
 
             const headerHTML = `
@@ -1678,7 +1682,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (checkedCount === 0) {
                         headerCheckbox.checked = false;
                         headerCheckbox.indeterminate = false;
- 
+
                         if (accordionButton) accordionButton.classList.remove('header-selected');
                     } else if (checkedCount === totalCount) {
                         headerCheckbox.checked = true;

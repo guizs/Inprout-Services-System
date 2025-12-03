@@ -357,10 +357,23 @@
                             <h5 class="mb-0 card-title-modern">
                                 <i class="bi bi-hourglass-split me-2"></i>Fila de Pagamento
                             </h5>
-                            <div id="cps-acoes-lote-container" class="d-none">
-                                <button class="btn-acao-lote btn-lote-success" id="btn-pagar-selecionados-cps">
-                                    <i class="bi bi-check-lg"></i> Pagar (<span id="contador-pagamento-cps">0</span>)
-                                </button>
+
+                            <div class="d-flex align-items-center gap-2">
+
+                                <div id="cps-acoes-lote-coord-container" class="d-none">
+                                    <button class="btn-acao-lote btn-lote-success" id="btn-fechar-selecionados-cps">
+                                        <i class="bi bi-check-all"></i> Fechar Pagamento (<span
+                                            id="contador-fechar-cps">0</span>)
+                                    </button>
+                                </div>
+
+                                <div id="cps-acoes-lote-controller-container" class="d-none">
+                                    <button class="btn-acao-lote btn-lote-success" id="btn-pagar-selecionados-cps">
+                                        <i class="bi bi-currency-dollar"></i> Pagar (<span
+                                            id="contador-pagamento-cps">0</span>)
+                                    </button>
+                                </div>
+
                             </div>
                         </div>
                         <div class="card-body">
@@ -385,34 +398,18 @@
                         <div
                             class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
                             <h5 class="mb-0 card-title-modern">
-                                <i class="bi bi-hourglass-split me-2"></i>Fila de Pagamento
+                                <i class="bi bi-archive me-2"></i>Histórico de Pagamentos
                             </h5>
-
-                            <div class="d-flex align-items-center gap-2">
-
-                                <div id="cps-acoes-lote-coord-container" class="d-none">
-                                    <button class="btn-acao-lote btn-lote-success" id="btn-fechar-selecionados-cps">
-                                        <i class="bi bi-check-all"></i> Fechar Pagamento (<span
-                                            id="contador-fechar-cps">0</span>)
-                                    </button>
-                                </div>
-
-                                <div id="cps-acoes-lote-controller-container" class="d-none">
-                                    <button class="btn-acao-lote btn-lote-success" id="btn-pagar-selecionados-cps">
-                                        <i class="bi bi-currency-dollar"></i> Pagar (<span
-                                            id="contador-pagamento-cps">0</span>)
-                                    </button>
-                                </div>
-
-                            </div>
+                            <button class="btn btn-sm btn-outline-success" id="btn-exportar-historico-cps">
+                                <i class="bi bi-file-earmark-excel"></i> Exportar
+                            </button>
                         </div>
-
                         <div class="card-body">
-                            <div class="accordion" id="accordionPendenciasCPS"></div>
-                            <div id="msg-sem-pendencias-cps"
-                                class="alert alert-light text-center text-muted shadow-sm mt-3 d-none">
-                                Nenhuma pendência de pagamento encontrada.
-                            </div>
+                            <div class="accordion" id="accordionHistoricoCPS"></div>
+
+                            <p id="msg-sem-historico-cps" class="text-center text-muted p-4 d-none">
+                                Nenhum histórico encontrado com os filtros atuais.
+                            </p>
                         </div>
                     </div>
                     <div class="overlay-loader d-none">

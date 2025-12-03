@@ -1821,10 +1821,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // ==========================================================
-    // LÓGICA DO CONTROLE CPS (MIGRADO)
+    // LÓGICA DO CONTROLE CPS (MIGRADO E CORRIGIDO)
     // ==========================================================
 
-    // Elementos CPS
+    // Variáveis Globais do CPS
+    let choicesCpsPrestador = null; // Inicializa como null para controle
+    let dadosCpsGlobais = [];
+
+    // Elementos DOM (Garante que pegamos apenas se existirem)
     const tabCPSPendencias = document.getElementById('cps-pendencias-tab');
     const tabCPSHistorico = document.getElementById('cps-historico-tab');
     const filtroCpsMes = document.getElementById('cps-filtro-mes-ref');
@@ -1836,52 +1840,69 @@ document.addEventListener('DOMContentLoaded', function () {
     const modalAlterarValorCPS = new bootstrap.Modal(document.getElementById('modalAlterarValorCPS'));
     const modalRecusarCPS = new bootstrap.Modal(document.getElementById('modalRecusarCPS'));
 
-    let choicesCpsSegmento, choicesCpsPrestador;
-    let dadosCpsGlobais = [];
-
     // --- Inicialização dos Filtros CPS ---
     function initFiltrosCPS() {
-        // Mês
-        const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-        const hoje = new Date();
-        filtroCpsMes.innerHTML = '';
-        for (let i = 0; i < 12; i++) {
-            const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const txt = `${nomesMeses[d.getMonth()]}/${d.getFullYear()}`;
-            filtroCpsMes.add(new Option(txt, val, i === 0, i === 0));
+        // 1. Evita erro de null se os elementos não existirem na tela
+        if (!filtroCpsMes || !filtroCpsSegmento || !filtroCpsPrestador) return;
+
+        // 2. Popula Mês (apenas se estiver vazio para evitar refazer)
+        if (filtroCpsMes.options.length === 0) {
+            const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            const hoje = new Date();
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+                const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const txt = `${nomesMeses[d.getMonth()]}/${d.getFullYear()}`;
+                filtroCpsMes.add(new Option(txt, val, i === 0, i === 0));
+            }
         }
 
-        // Carrega Segmentos e Prestadores
-        Promise.all([
-            fetchComAuth(`${API_BASE_URL}/segmentos`),
-            fetchComAuth(`${API_BASE_URL}/index/prestadores`)
-        ]).then(async ([resSeg, resPrest]) => {
-            if (resSeg.ok) {
-                const segs = await resSeg.json();
-                segs.forEach(s => filtroCpsSegmento.add(new Option(s.nome, s.id)));
-            }
-            if (resPrest.ok) {
-                const prests = await resPrest.json();
-                prests.forEach(p => filtroCpsPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
-            }
+        // 3. Carrega Segmentos e Prestadores (apenas se estiverem vazios)
+        if (filtroCpsSegmento.options.length <= 1) {
+            Promise.all([
+                fetchComAuth(`${API_BASE_URL}/segmentos`),
+                fetchComAuth(`${API_BASE_URL}/index/prestadores`)
+            ]).then(async ([resSeg, resPrest]) => {
+                // Limpa antes de adicionar
+                filtroCpsSegmento.innerHTML = '<option value="">Todos</option>';
+                filtroCpsPrestador.innerHTML = '<option value="">Todos</option>';
 
-            // Inicia Choices.js (opcional, para ficar bonito)
-            if (typeof Choices !== 'undefined') {
-                choicesCpsPrestador = new Choices(filtroCpsPrestador, { searchEnabled: true, itemSelectText: '' });
-            }
-        });
+                if (resSeg.ok) {
+                    const segs = await resSeg.json();
+                    segs.forEach(s => filtroCpsSegmento.add(new Option(s.nome, s.id)));
+                }
+                if (resPrest.ok) {
+                    const prests = await resPrest.json();
+                    prests.forEach(p => filtroCpsPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+                }
+
+                // 4. Correção do erro "Choices already initialised"
+                if (typeof Choices !== 'undefined') {
+                    if (choicesCpsPrestador) {
+                        choicesCpsPrestador.destroy(); // Destrói a instância anterior se existir
+                    }
+                    choicesCpsPrestador = new Choices(filtroCpsPrestador, {
+                        searchEnabled: true,
+                        itemSelectText: '',
+                        shouldSort: false
+                    });
+                }
+            });
+        }
     }
 
     // --- Carregar Pendências CPS ---
     async function carregarPendenciasCPS() {
-        toggleLoader(true, '#cps-pendencias-pane');
+        toggleLoader(true, '#cps-pendencias-pane'); // Helper global
         try {
             const res = await fetchComAuth(`${API_BASE_URL}/controle-cps`, { headers: { 'X-User-ID': userId } });
             if (!res.ok) throw new Error('Erro ao buscar pendências CPS');
             dadosCpsGlobais = await res.json();
+
+            // Chama renderização passando o ID correto da aba de pendências
             renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
         } catch (error) {
+            console.error(error);
             mostrarToast(error.message, 'error');
         } finally {
             toggleLoader(false, '#cps-pendencias-pane');
@@ -1890,7 +1911,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Carregar Histórico CPS ---
     async function carregarHistoricoCPS() {
-        toggleLoader(true, '#cps-historico-pane');
+        toggleLoader(true, '#cps-historico-pane'); // Helper global
+
         const mes = filtroCpsMes.value.split('-');
         const inicio = `${mes[0]}-${mes[1]}-01`;
         const fim = new Date(mes[0], mes[1], 0).toISOString().split('T')[0];
@@ -1905,27 +1927,41 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, { headers: { 'X-User-ID': userId } });
             if (!res.ok) throw new Error('Erro ao buscar histórico CPS');
             const dados = await res.json();
+
+            // CORREÇÃO: Passa os IDs corretos da aba de Histórico (verifique se seu HTML tem esses IDs)
             renderizarAcordeonCPS(dados, 'accordionHistoricoCPS', 'msg-sem-historico-cps', false);
         } catch (error) {
+            console.error(error);
             mostrarToast(error.message, 'error');
         } finally {
             toggleLoader(false, '#cps-historico-pane');
         }
     }
 
-    // --- Renderização Genérica (Copiada e Adaptada do controle-cps.js) ---
+    // --- Renderização Genérica CORRIGIDA ---
     function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
         const container = document.getElementById(containerId);
         const msgDiv = document.getElementById(msgVazioId);
+
+        if (!container || !msgDiv) return;
+
         container.innerHTML = '';
 
-        if (!lista.length) {
+        // Filtro de segurança: Se for histórico, só mostra o que foi finalizado/pago
+        // (Caso a API traga sujeira, isso garante a visualização correta)
+        let listaFiltrada = lista;
+        if (!isPendencia) {
+            // No histórico queremos ver tudo, principalmente o PAGO
+            // Se quiser filtrar algo específico no histórico, faça aqui
+        }
+
+        if (!listaFiltrada.length) {
             msgDiv.classList.remove('d-none');
             return;
         }
         msgDiv.classList.add('d-none');
 
-        const grupos = lista.reduce((acc, l) => {
+        const grupos = listaFiltrada.reduce((acc, l) => {
             const id = l.os?.id || 0;
             if (!acc[id]) acc[id] = {
                 os: l.os?.os, projeto: l.os?.projeto,
@@ -1937,13 +1973,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }, {});
 
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-        const isController = ['CONTROLLER', 'ADMIN'].includes(userRole);
+        const isControllerOrAdmin = ['CONTROLLER', 'ADMIN'].includes(userRole);
+        const isCoordOrAdmin = ['COORDINATOR', 'ADMIN'].includes(userRole);
+
         const formatMoney = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
         Object.values(grupos).forEach((grp, idx) => {
             const uniqueId = `cps-${isPendencia ? 'pend' : 'hist'}-${idx}`;
 
-            // Cabeçalho do Acordeão
+            // --- ORDENAÇÃO: Fechado sempre por último ---
+            grp.itens.sort((a, b) => {
+                const peso = (status) => {
+                    if (status === 'EM_ABERTO') return 1;
+                    if (status === 'ALTERACAO_SOLICITADA') return 2;
+                    if (status === 'FECHADO') return 3; // Fica por baixo
+                    return 4; // PAGO e outros
+                };
+                return peso(a.statusPagamento) - peso(b.statusPagamento);
+            });
+
+            // Header do Acordeão
             const htmlHeader = `
             <div class="header-content w-100 ps-2">
                 <div class="header-title-wrapper">
@@ -1958,49 +2007,59 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
 
-            // Linhas da Tabela
             const linhas = grp.itens.map(l => {
-                // Botoes
                 let btns = `<button class="btn btn-sm btn-outline-info" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
+                let showCheckbox = false;
 
                 if (isPendencia) {
-                    if (['COORDINATOR', 'ADMIN'].includes(userRole)) {
+                    // Botões Coordenador
+                    if (isCoordOrAdmin) {
                         if (l.statusPagamento === 'EM_ABERTO')
                             btns += ` <button class="btn btn-sm btn-outline-success" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
                         if (l.statusPagamento === 'FECHADO')
                             btns += ` <button class="btn btn-sm btn-outline-warning" onclick="abrirModalCpsValor(${l.id}, 'solicitar-alteracao')"><i class="bi bi-pencil-square"></i></button>`;
                     }
-                    if (isController && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
+                    // Botões Controller (Recusar apenas se Fechado ou Alt. Solicitada)
+                    if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
                         btns += ` <button class="btn btn-sm btn-outline-danger" onclick="abrirModalCpsRecusar(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
                     }
+
+                    // Lógica do Checkbox
+                    if (userRole === 'ADMIN') showCheckbox = true;
+                    else if (userRole === 'COORDINATOR' && l.statusPagamento === 'EM_ABERTO') showCheckbox = true;
+                    else if (userRole === 'CONTROLLER' && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) showCheckbox = true;
                 }
 
-                // Checkbox Controller
-                const checkHtml = (isPendencia && isController)
+                const checkHtml = showCheckbox
                     ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}"></td>`
-                    : '';
+                    : (isPendencia ? '<td></td>' : '');
 
                 const valOp = l.valor || 0;
                 const valPg = l.valorPagamento !== null ? l.valorPagamento : valOp;
-                const destaque = valOp !== valPg ? 'text-primary fw-bold' : '';
+
+                // --- CORES DA LINHA (CSS Bootstrap) ---
+                let rowClass = '';
+                if (l.statusPagamento === 'FECHADO') rowClass = 'table-success'; // Verde Claro
+                else if (l.statusPagamento === 'ALTERACAO_SOLICITADA') rowClass = 'table-warning'; // Amarelo Claro
+                // Em Aberto fica branco (padrão)
 
                 return `
-                <tr>
+                <tr class="${rowClass}">
                     ${checkHtml}
-                    <td class="text-center">${btns}</td>
-                    <td><span class="badge text-bg-secondary">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
-                    <td>${l.dataAtividade ? new Date(l.dataAtividade).toLocaleDateString('pt-BR') : '-'}</td>
-                    <td>${l.detalhe?.site || '-'}</td>
-                    <td>${l.detalhe?.lpu?.nomeLpu || '-'}</td>
-                    <td>${l.prestador?.nome || '-'}</td>
-                    <td>${l.manager?.nome || '-'}</td>
-                    <td class="text-center ${destaque}">${formatMoney(valPg)}</td>
-                    <td><small>${l.detalhe?.key || '-'}</small></td>
+                    <td class="text-center bg-transparent">${btns}</td>
+                    <td class="bg-transparent"><span class="badge text-bg-secondary bg-opacity-75 text-dark">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
+                    <td class="bg-transparent">${l.dataAtividade ? new Date(l.dataAtividade).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td class="bg-transparent">${l.detalhe?.site || '-'}</td>
+                    <td class="bg-transparent">${l.detalhe?.lpu?.nomeLpu || '-'}</td>
+                    <td class="bg-transparent">${l.prestador?.nome || '-'}</td>
+                    <td class="bg-transparent">${l.manager?.nome || '-'}</td>
+                    <td class="text-center bg-transparent fw-bold">${formatMoney(valPg)}</td>
+                    <td class="bg-transparent"><small>${l.detalhe?.key || '-'}</small></td>
                 </tr>
             `;
             }).join('');
 
-            const thCheck = (isPendencia && isController) ? '<th><i class="bi bi-check-all"></i></th>' : '';
+            const thCheck = isPendencia ? '<th><i class="bi bi-check-all"></i></th>' : '';
 
             container.insertAdjacentHTML('beforeend', `
             <div class="accordion-item border mb-2">
@@ -2012,7 +2071,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div id="c-${uniqueId}" class="accordion-collapse collapse">
                     <div class="accordion-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle small">
+                            <table class="table mb-0 align-middle small" style="border-collapse: collapse;">
                                 <thead class="table-light"><tr>${thCheck}<th class="text-center">Ações</th><th>Status</th><th>Data</th><th>Site</th><th>Item</th><th>Prestador</th><th>Gestor</th><th class="text-center">Valor</th><th>KEY</th></tr></thead>
                                 <tbody>${linhas}</tbody>
                             </table>
@@ -2023,22 +2082,17 @@ document.addEventListener('DOMContentLoaded', function () {
         `);
         });
 
-        atualizarBotoesLoteCPS();
+        if (isPendencia) atualizarBotoesLoteCPS();
     }
 
-    // --- Handlers de Ação (Funções globais para usar no onclick) ---
-
+    // --- Handlers de Ação Globais ---
     window.abrirModalCpsValor = function (id, acao) {
         const l = dadosCpsGlobais.find(x => x.id == id);
         if (!l) return;
-
         document.getElementById('cpsLancamentoIdAcao').value = id;
         document.getElementById('cpsAcaoCoordenador').value = acao;
-
-        // Formata valor para input
         const val = l.valorPagamento !== null ? l.valorPagamento : l.valor;
         document.getElementById('cpsValorPagamentoInput').value = val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-
         modalAlterarValorCPS.show();
     };
 
@@ -2047,142 +2101,118 @@ document.addEventListener('DOMContentLoaded', function () {
         modalRecusarCPS.show();
     };
 
-    // --- Event Listeners (Botões e Abas) ---
-
-    // 1. Submit Fechar/Alterar Valor
-    document.getElementById('formAlterarValorCPS').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = document.getElementById('btnConfirmarAcaoCPS');
-        const id = document.getElementById('cpsLancamentoIdAcao').value;
-        const acao = document.getElementById('cpsAcaoCoordenador').value;
-        const valor = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
-        const just = document.getElementById('cpsJustificativaInput').value;
-
-        const endpoint = acao === 'fechar' ? '/controle-cps/fechar' : '/controle-cps/solicitar-alteracao';
-
-        btn.disabled = true;
-        try {
-            const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, {
-                method: 'POST',
-                body: JSON.stringify({ lancamentoId: id, coordenadorId: userId, valorPagamento: valor, justificativa: just })
-            });
-            if (!res.ok) throw new Error((await res.json()).message);
-
-            mostrarToast('Ação realizada com sucesso!', 'success');
-            modalAlterarValorCPS.hide();
-            carregarPendenciasCPS(); // Recarrega a lista
-        } catch (err) {
-            mostrarToast(err.message, 'error');
-        } finally {
-            btn.disabled = false;
-        }
-    });
-
-    // 2. Submit Recusar (Controller)
-    document.getElementById('formRecusarCPS').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('cpsLancamentoIdRecusar').value;
-        const motivo = document.getElementById('cpsMotivoRecusaInput').value;
-
-        try {
-            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/recusar-controller`, {
-                method: 'POST',
-                body: JSON.stringify({ lancamentoId: id, controllerId: userId, motivo: motivo })
-            });
-            if (!res.ok) throw new Error((await res.json()).message);
-
-            mostrarToast('Pagamento devolvido.', 'success');
-            modalRecusarCPS.hide();
-            carregarPendenciasCPS();
-        } catch (err) {
-            mostrarToast(err.message, 'error');
-        }
-    });
-
-    // 3. Pagamento em Lote (Controller)
-    document.getElementById('btn-pagar-selecionados-cps').addEventListener('click', async function () {
-        const checks = document.querySelectorAll('.cps-check:checked');
-        const ids = Array.from(checks).map(c => c.dataset.id);
-        if (!ids.length) return;
-
-        this.disabled = true;
-        try {
-            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/pagar-lote`, {
-                method: 'POST',
-                body: JSON.stringify({ lancamentoIds: ids, controllerId: userId })
-            });
-            if (!res.ok) throw new Error((await res.json()).message);
-
-            mostrarToast(`${ids.length} pagamentos confirmados!`, 'success');
-            carregarPendenciasCPS();
-        } catch (err) {
-            mostrarToast(err.message, 'error');
-        } finally {
-            this.disabled = false;
-        }
-    });
-
-    // 4. Atualizar botão de lote ao clicar nos checkboxes
-    document.getElementById('accordionPendenciasCPS').addEventListener('change', (e) => {
-        if (e.target.classList.contains('cps-check')) {
-            atualizarBotoesLoteCPS();
-        }
-    });
+    // --- Lógica de Botões de Lote ---
 
     function atualizarBotoesLoteCPS() {
         const containerCoord = document.getElementById('cps-acoes-lote-coord-container');
         const containerController = document.getElementById('cps-acoes-lote-controller-container');
-
         const checks = document.querySelectorAll('.cps-check:checked');
         const contadorCoord = document.getElementById('contador-fechar-cps');
         const contadorController = document.getElementById('contador-pagamento-cps');
 
-        // Esconde ambos inicialmente
+        // Reseta visibilidade (Esconde tudo primeiro)
         if (containerCoord) containerCoord.classList.add('d-none');
         if (containerController) containerController.classList.add('d-none');
 
         if (checks.length === 0) return;
 
-        // Pega o userRole (já definido no seu arquivo globalmente ou pegue novamente)
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-
-        // Verifica o status dos itens selecionados
-        // (Para ação em lote, todos devem ter o mesmo status idealmente, ou filtramos)
         const ids = Array.from(checks).map(c => c.dataset.id);
+
+        // Busca os objetos completos baseados nos IDs selecionados
         const itensSelecionados = dadosCpsGlobais.filter(i => ids.includes(String(i.id)));
 
+        // Verifica uniformidade dos status
         const todosEmAberto = itensSelecionados.every(i => i.statusPagamento === 'EM_ABERTO');
         const todosFechados = itensSelecionados.every(i => i.statusPagamento === 'FECHADO' || i.statusPagamento === 'ALTERACAO_SOLICITADA');
 
-        // REGRA: Coordenador/Admin vê botão de FECHAR se itens estiverem EM_ABERTO
-        if ((userRole === 'ADMIN') && todosEmAberto) {
+        // Lógica de Exibição
+        if ((userRole === 'COORDINATOR' || userRole === 'ADMIN') && todosEmAberto) {
             if (containerCoord) {
                 containerCoord.classList.remove('d-none');
-                contadorCoord.textContent = checks.length;
+                if (contadorCoord) contadorCoord.textContent = checks.length;
+            } else {
+                console.error("Erro: Container 'cps-acoes-lote-coord-container' não encontrado no HTML.");
             }
         }
 
-        // REGRA: Controller/Admin vê botão de PAGAR se itens estiverem FECHADO
         if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') && todosFechados) {
             if (containerController) {
                 containerController.classList.remove('d-none');
-                contadorController.textContent = checks.length;
+                if (contadorController) contadorController.textContent = checks.length;
             }
         }
+    }
+
+    // Listener para checkboxes (delegação)
+    const accordionPendencias = document.getElementById('accordionPendenciasCPS');
+    if (accordionPendencias) {
+        accordionPendencias.addEventListener('change', (e) => {
+            if (e.target.classList.contains('cps-check')) {
+                atualizarBotoesLoteCPS();
+            }
+        });
+    }
+
+    // --- Listeners de Submit ---
+
+    // 1. Submit Fechar/Alterar Valor (Individual)
+    const formAlterarValor = document.getElementById('formAlterarValorCPS');
+    if (formAlterarValor) {
+        formAlterarValor.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnConfirmarAcaoCPS');
+            const id = parseInt(document.getElementById('cpsLancamentoIdAcao').value);
+            const acao = document.getElementById('cpsAcaoCoordenador').value;
+            const valor = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
+            const just = document.getElementById('cpsJustificativaInput').value;
+
+            const endpoint = acao === 'fechar' ? '/controle-cps/fechar' : '/controle-cps/solicitar-alteracao';
+
+            btn.disabled = true;
+            try {
+                const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    body: JSON.stringify({ lancamentoId: id, coordenadorId: userId, valorPagamento: valor, justificativa: just })
+                });
+                if (!res.ok) throw new Error((await res.json()).message);
+
+                mostrarToast('Status atualizado!', 'success');
+                modalAlterarValorCPS.hide();
+
+                // --- ATUALIZAÇÃO LOCAL ---
+                // Encontra o item na lista global e atualiza
+                const item = dadosCpsGlobais.find(i => i.id === id);
+                if (item) {
+                    if (acao === 'fechar') {
+                        item.statusPagamento = 'FECHADO';
+                        item.valorPagamento = valor;
+                    } else {
+                        item.statusPagamento = 'ALTERACAO_SOLICITADA';
+                    }
+                }
+                // Redesenha a tabela instantaneamente
+                renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
+
+            } catch (err) {
+                mostrarToast(err.message, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
     }
 
     const btnFecharLote = document.getElementById('btn-fechar-selecionados-cps');
     if (btnFecharLote) {
         btnFecharLote.addEventListener('click', async function () {
             const checks = document.querySelectorAll('.cps-check:checked');
-            const ids = Array.from(checks).map(c => c.dataset.id);
+            const ids = Array.from(checks).map(c => parseInt(c.dataset.id));
             if (!ids.length) return;
 
-            // Confirmação simples (opcional)
-            if (!confirm(`Deseja fechar ${ids.length} pagamentos com o valor atual?`)) return;
+            if (!confirm(`Fechar ${ids.length} pagamentos?`)) return;
 
             this.disabled = true;
-            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
 
             try {
                 const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/fechar-lote`, {
@@ -2190,15 +2220,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({ lancamentoIds: ids, coordenadorId: userId })
                 });
 
-                if (!res.ok) {
-                    const erro = await res.json();
-                    throw new Error(erro.message || "Erro ao fechar pagamentos.");
-                }
+                if (!res.ok) throw new Error("Erro ao processar lote.");
 
-                mostrarToast(`${ids.length} pagamentos fechados com sucesso!`, 'success');
+                mostrarToast('Lote fechado com sucesso!', 'success');
 
-                // Recarrega a lista para atualizar os status
-                carregarPendenciasCPS();
+                // --- ATUALIZAÇÃO LOCAL ---
+                ids.forEach(id => {
+                    const item = dadosCpsGlobais.find(i => i.id === id);
+                    if (item) item.statusPagamento = 'FECHADO';
+                });
+                renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
 
             } catch (err) {
                 mostrarToast(err.message, 'error');
@@ -2209,23 +2240,92 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // 5. Listeners de troca de aba
-    tabCPSPendencias.addEventListener('shown.bs.tab', () => {
-        initFiltrosCPS(); // Garante filtros carregados
-        carregarPendenciasCPS();
+    document.getElementById('formRecusarCPS').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = parseInt(document.getElementById('cpsLancamentoIdRecusar').value);
+        const motivo = document.getElementById('cpsMotivoRecusaInput').value;
+
+        try {
+            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/recusar-controller`, {
+                method: 'POST',
+                body: JSON.stringify({ lancamentoId: id, controllerId: userId, motivo: motivo })
+            });
+            if (!res.ok) throw new Error("Erro ao recusar.");
+
+            mostrarToast('Devolvido para Coordenador.', 'success');
+            modalRecusarCPS.hide();
+
+            // --- ATUALIZAÇÃO LOCAL ---
+            const item = dadosCpsGlobais.find(i => i.id === id);
+            if (item) item.statusPagamento = 'EM_ABERTO'; // Volta a ficar em aberto/recusado
+
+            renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
+
+        } catch (err) {
+            mostrarToast(err.message, 'error');
+        }
     });
 
-    tabCPSHistorico.addEventListener('shown.bs.tab', () => {
+    // 3. Pagar em Lote (Controller)
+    const btnPagarLote = document.getElementById('btn-pagar-selecionados-cps');
+    if (btnPagarLote) {
+        btnPagarLote.addEventListener('click', async function () {
+            const checks = document.querySelectorAll('.cps-check:checked');
+            const ids = Array.from(checks).map(c => parseInt(c.dataset.id));
+            if (!ids.length) return;
+
+            this.disabled = true;
+            try {
+                const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/pagar-lote`, {
+                    method: 'POST',
+                    body: JSON.stringify({ lancamentoIds: ids, controllerId: userId })
+                });
+                if (!res.ok) throw new Error("Erro ao pagar.");
+
+                mostrarToast('Pagamentos realizados!', 'success');
+
+                // --- ATUALIZAÇÃO LOCAL ---
+                // Se pagou, sai da lista de pendências. Removemos do array global.
+                dadosCpsGlobais = dadosCpsGlobais.filter(i => !ids.includes(i.id));
+
+                renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
+
+            } catch (err) {
+                mostrarToast(err.message, 'error');
+            } finally {
+                this.disabled = false;
+            }
+        });
+    }
+
+    // --- Listeners de Inicialização ---
+
+    // Troca de aba
+    if (tabCPSPendencias) {
+        tabCPSPendencias.addEventListener('shown.bs.tab', () => {
+            initFiltrosCPS();
+            carregarPendenciasCPS();
+        });
+    }
+
+    if (tabCPSHistorico) {
+        tabCPSHistorico.addEventListener('shown.bs.tab', () => {
+            initFiltrosCPS();
+            carregarHistoricoCPS();
+        });
+    }
+
+    // Botão Atualizar Filtros
+    if (btnAtualizarCps) {
+        btnAtualizarCps.addEventListener('click', () => {
+            if (tabCPSPendencias.classList.contains('active')) carregarPendenciasCPS();
+            if (tabCPSHistorico.classList.contains('active')) carregarHistoricoCPS();
+        });
+    }
+
+    // Inicializa se a aba já estiver ativa (ex: F5)
+    if (tabCPSPendencias && tabCPSPendencias.classList.contains('active')) {
         initFiltrosCPS();
-        carregarHistoricoCPS();
-    });
-
-    btnAtualizarCps.addEventListener('click', () => {
-        // Recarrega a aba ativa
-        if (tabCPSPendencias.classList.contains('active')) carregarPendenciasCPS();
-        if (tabCPSHistorico.classList.contains('active')) carregarHistoricoCPS();
-    });
-
-    // Inicializa filtros na primeira carga (opcional)
-    initFiltrosCPS();
+        carregarPendenciasCPS();
+    }
 });

@@ -287,7 +287,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const percentual = valorTotalOS > 0 ? (totalGasto / valorTotalOS) * 100 : 0;
 
         // --- HTML DOS KPIS ---
-        // Montamos apenas os DIVs dos KPIs aqui. O layout é controlado pelo CSS container.
         let kpisInternosHTML = '';
 
         if (userRole !== 'MANAGER') {
@@ -317,7 +316,6 @@ document.addEventListener('DOMContentLoaded', function () {
             // 4. Material (com botão de editar para Admin/Controller)
             let btnEditarFinanceiro = '';
             if (['ADMIN', 'CONTROLLER'].includes(userRole)) {
-                // Adicionei style="cursor:pointer" e ajustei o ícone
                 btnEditarFinanceiro = `
                     <i class="bi bi-pencil-square text-primary ms-1" 
                        style="cursor: pointer; font-size: 0.8rem;"
@@ -391,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
         // --- MONTAGEM FINAL DO HTML DO ACORDEÃO ---
-        // AQUI ESTÁ A ESTRUTURA CORRIGIDA QUE USA O CSS NOVO
+        // CORREÇÃO AQUI: Use kpisInternosHTML diretamente
         const headerHTML = `
         <h2 class="accordion-header" id="heading-${uniqueId}">
             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
@@ -404,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
 
                     <div class="header-kpi-wrapper">
-                        ${kpiHTML ? kpisInternosHTML : ''}
+                        ${kpisInternosHTML}
                         <span class="header-badge">${grupo.linhas.length} itens</span>
                     </div>
 

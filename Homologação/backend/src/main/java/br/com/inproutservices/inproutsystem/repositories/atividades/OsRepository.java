@@ -16,19 +16,21 @@ import java.util.Set;
 @Repository
 public interface OsRepository extends JpaRepository<OS, Long> {
 
-    @Query("SELECT DISTINCT os FROM OS os " +
+    @Query(value = "SELECT DISTINCT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH os.segmento " +
-            "LEFT JOIN FETCH d.lancamentos l")
+            "LEFT JOIN FETCH d.lancamentos l",
+            countQuery = "SELECT count(DISTINCT os) FROM OS os")
     Page<OS> findAllWithDetails(Pageable pageable);
 
-    @Query("SELECT DISTINCT os FROM OS os " +
+    @Query(value = "SELECT DISTINCT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH os.segmento " +
             "LEFT JOIN FETCH d.lancamentos l " +
-            "WHERE o.segmento.id IN :segmentoIds")
+            "WHERE os.segmento.id IN :segmentoIds",
+            countQuery = "SELECT count(DISTINCT os) FROM OS os WHERE os.segmento.id IN :segmentoIds")
     Page<OS> findBySegmentoIdIn(@Param("segmentoIds") Set<Long> segmentoIds, Pageable pageable);
 
     @Query("SELECT os FROM OS os " +

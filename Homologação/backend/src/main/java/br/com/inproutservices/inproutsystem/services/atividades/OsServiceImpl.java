@@ -5,6 +5,7 @@ package br.com.inproutservices.inproutsystem.services.atividades;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LancamentoResponseDTO;
 import br.com.inproutservices.inproutsystem.dtos.atividades.LpuComLancamentoDto;
 import br.com.inproutservices.inproutsystem.dtos.atividades.OsRequestDto;
+import br.com.inproutservices.inproutsystem.dtos.atividades.OsResponseDto;
 import br.com.inproutservices.inproutsystem.dtos.index.LpuResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
@@ -364,7 +365,7 @@ public class OsServiceImpl implements OsService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OS> findAllWithDetails(Pageable pageable) { // Aceita paginação
+    public Page<OsResponseDto> findAllWithDetails(Pageable pageable) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
         String userEmail;
@@ -374,7 +375,6 @@ public class OsServiceImpl implements OsService {
             userEmail = principal.toString();
         }
 
-        // Se for anônimo (caso raro em rotas protegidas), retorna vazio paginado
         if ("anonymousUser".equals(userEmail)) {
             return Page.empty(pageable);
         }
@@ -384,30 +384,29 @@ public class OsServiceImpl implements OsService {
 
         Role role = usuarioLogado.getRole();
 
-        // CENÁRIO 1: ADMIN, CONTROLLER, ASSISTANT (Vê tudo)
+        Page<OS> paginaOS;
+
+        // LÓGICA DE FILTRO POR ROLE
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            // O Banco já retorna apenas a página solicitada (ex: 20 itens)
-            return osRepository.findAllWithDetails(pageable);
-        }
-
-        // CENÁRIO 2: MANAGER, COORDINATOR (Vê apenas seus segmentos)
-        if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            // Admin vê tudo
+            paginaOS = osRepository.findAllWithDetails(pageable);
+        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            // Gestor/Coordenador vê apenas seus segmentos
             Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
-
             if (segmentosDoUsuario.isEmpty()) {
                 return Page.empty(pageable);
             }
-
-            // Coleta apenas os IDs para passar ao SQL
             Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
                     .map(Segmento::getId)
                     .collect(Collectors.toSet());
 
-            // Chama o novo método do repositório que filtra E pagina no banco
-            return osRepository.findBySegmentoIdIn(segmentosDoUsuarioIds, pageable);
+            paginaOS = osRepository.findBySegmentoIdIn(segmentosDoUsuarioIds, pageable);
+        } else {
+            return Page.empty(pageable);
         }
 
-        return Page.empty(pageable);
+        // CONVERSÃO IMPORTANTE: De Entidade (OS) para DTO (OsResponseDto)
+        return paginaOS.map(OsResponseDto::new);
     }
 
     // =================================================================================

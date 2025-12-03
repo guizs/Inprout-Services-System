@@ -7,8 +7,8 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.data.domain.Pageable;
 
-import java.awt.print.Pageable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,7 @@ public interface OsService {
      * Retorna uma lista com todas as Ordens de Serviço cadastradas.
      * @return Lista de entidades OS.
      */
-    List<OS> getAllOs();
+    List<OsResponseDto> getAllOs();
 
     /**
      * Atualiza uma Ordem de Serviço existente com base em seu ID.
@@ -74,8 +74,6 @@ public interface OsService {
 
 
     void processarLinhaDePlanilha(Map<String, Object> rowData);
-
-    List<OS> findAllWithDetails();
 
     List<OS> getOsByProjeto(String projeto);
 

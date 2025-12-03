@@ -30,8 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.springframework.data.domain.Pageable;
 
-import java.awt.print.Pageable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -210,46 +210,32 @@ public class OsServiceImpl implements OsService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OS> getAllOs() {
+    public List<OsResponseDto> getAllOs() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
 
-        String userEmail;
-        if (principal instanceof UserDetails) {
-            userEmail = ((UserDetails) principal).getUsername();
-        } else {
-            userEmail = principal.toString();
-        }
-
-        if ("anonymousUser".equals(userEmail)) {
-            return osRepository.findAllWithDetails();
-        }
+        if ("anonymousUser".equals(userEmail)) return Collections.emptyList();
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
 
         Role role = usuarioLogado.getRole();
+        List<OS> listaOS;
 
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return osRepository.findAllWithDetails();
+            listaOS = osRepository.findAllWithDetails(); // Chama método sem paginação
+        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
+            if (segmentos.isEmpty()) return Collections.emptyList();
+
+            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
+            // Certifique-se que criou este método no Repository
+            listaOS = osRepository.findAllListWithDetailsBySegmentoIds(ids);
+        } else {
+            return Collections.emptyList();
         }
 
-        if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return Collections.emptyList();
-            }
-            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
-                    .map(Segmento::getId)
-                    .collect(Collectors.toSet());
-
-            List<OS> todasAsOs = osRepository.findAllWithDetails();
-
-            return todasAsOs.stream()
-                    .filter(os -> os.getSegmento() != null && segmentosDoUsuarioIds.contains(os.getSegmento().getId()))
-                    .collect(Collectors.toList());
-        }
-
-        return Collections.emptyList();
+        return listaOS.stream().map(OsResponseDto::new).collect(Collectors.toList());
     }
 
     @Override
@@ -367,45 +353,30 @@ public class OsServiceImpl implements OsService {
     @Transactional(readOnly = true)
     public Page<OsResponseDto> findAllWithDetails(Pageable pageable) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
-        String userEmail;
-        if (principal instanceof UserDetails) {
-            userEmail = ((UserDetails) principal).getUsername();
-        } else {
-            userEmail = principal.toString();
-        }
+        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
 
         if ("anonymousUser".equals(userEmail)) {
             return Page.empty(pageable);
         }
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado."));
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
 
         Role role = usuarioLogado.getRole();
-
         Page<OS> paginaOS;
 
-        // LÓGICA DE FILTRO POR ROLE
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            // Admin vê tudo
             paginaOS = osRepository.findAllWithDetails(pageable);
         } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            // Gestor/Coordenador vê apenas seus segmentos
-            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return Page.empty(pageable);
-            }
-            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
-                    .map(Segmento::getId)
-                    .collect(Collectors.toSet());
+            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
+            if (segmentos.isEmpty()) return Page.empty(pageable);
 
-            paginaOS = osRepository.findBySegmentoIdIn(segmentosDoUsuarioIds, pageable);
+            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
+            paginaOS = osRepository.findBySegmentoIdIn(ids, pageable);
         } else {
             return Page.empty(pageable);
         }
 
-        // CONVERSÃO IMPORTANTE: De Entidade (OS) para DTO (OsResponseDto)
         return paginaOS.map(OsResponseDto::new);
     }
 
@@ -752,6 +723,15 @@ public class OsServiceImpl implements OsService {
         }
 
         return osRepository.findAllWithDetailsByIds(new ArrayList<>(affectedOsIds));
+    }
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+        for (int cellNum = row.getFirstCellNum(); cellNum < row.getLastCellNum(); cellNum++) {
+            Cell cell = row.getCell(cellNum, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell != null) return false;
+        }
+        return true;
     }
 
     /**

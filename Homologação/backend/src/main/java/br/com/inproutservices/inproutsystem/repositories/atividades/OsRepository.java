@@ -7,8 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.domain.Pageable;
 
-import java.awt.print.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -24,6 +24,14 @@ public interface OsRepository extends JpaRepository<OS, Long> {
             countQuery = "SELECT count(DISTINCT os) FROM OS os")
     Page<OS> findAllWithDetails(Pageable pageable);
 
+    @Query("SELECT DISTINCT os FROM OS os " +
+            "LEFT JOIN FETCH os.detalhes d " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH d.lancamentos l " +
+            "ORDER BY os.id DESC")
+    List<OS> findAllWithDetails();
+
     @Query(value = "SELECT DISTINCT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +
             "LEFT JOIN FETCH d.lpu " +
@@ -32,6 +40,14 @@ public interface OsRepository extends JpaRepository<OS, Long> {
             "WHERE os.segmento.id IN :segmentoIds",
             countQuery = "SELECT count(DISTINCT os) FROM OS os WHERE os.segmento.id IN :segmentoIds")
     Page<OS> findBySegmentoIdIn(@Param("segmentoIds") Set<Long> segmentoIds, Pageable pageable);
+
+    @Query("SELECT DISTINCT os FROM OS os " +
+            "LEFT JOIN FETCH os.detalhes d " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH d.lancamentos l " +
+            "WHERE os.segmento.id IN :ids")
+    List<OS> findAllListWithDetailsBySegmentoIds(@Param("ids") Set<Long> ids);
 
     @Query("SELECT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +

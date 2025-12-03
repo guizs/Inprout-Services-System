@@ -40,8 +40,6 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static br.com.inproutservices.inproutsystem.services.atividades.OsServiceImpl.isRowEmpty;
-
 @Service
 public class LancamentoServiceImpl implements LancamentoService {
 

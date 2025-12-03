@@ -2,11 +2,13 @@ package br.com.inproutservices.inproutsystem.repositories.atividades;
 
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.awt.print.Pageable;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -19,7 +21,15 @@ public interface OsRepository extends JpaRepository<OS, Long> {
             "LEFT JOIN FETCH d.lpu " +
             "LEFT JOIN FETCH os.segmento " +
             "LEFT JOIN FETCH d.lancamentos l")
-    List<OS> findAllWithDetails();
+    Page<OS> findAllWithDetails(Pageable pageable);
+
+    @Query("SELECT DISTINCT os FROM OS os " +
+            "LEFT JOIN FETCH os.detalhes d " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH os.segmento " +
+            "LEFT JOIN FETCH d.lancamentos l " +
+            "WHERE o.segmento.id IN :segmentoIds")
+    Page<OS> findBySegmentoIdIn(@Param("segmentoIds") Set<Long> segmentoIds, Pageable pageable);
 
     @Query("SELECT os FROM OS os " +
             "LEFT JOIN FETCH os.detalhes d " +

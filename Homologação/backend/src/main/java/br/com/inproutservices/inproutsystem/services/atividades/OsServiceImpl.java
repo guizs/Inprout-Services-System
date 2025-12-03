@@ -22,6 +22,7 @@ import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioReposit
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.apache.poi.ss.usermodel.DataFormatter;
 
+import java.awt.print.Pageable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -362,31 +364,50 @@ public class OsServiceImpl implements OsService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<OS> findAllWithDetails() {
-        List<OS> oss = osRepository.findAllWithDetails();
+    public Page<OS> findAllWithDetails(Pageable pageable) { // Aceita paginação
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-        if (oss.isEmpty()) {
-            return oss;
+        String userEmail;
+        if (principal instanceof UserDetails) {
+            userEmail = ((UserDetails) principal).getUsername();
+        } else {
+            userEmail = principal.toString();
         }
 
-        List<Long> osIds = oss.stream().map(OS::getId).collect(Collectors.toList());
-        return oss;
-    }
+        // Se for anônimo (caso raro em rotas protegidas), retorna vazio paginado
+        if ("anonymousUser".equals(userEmail)) {
+            return Page.empty(pageable);
+        }
 
-    public static boolean isRowEmpty(Row row) {
-        if (row == null) {
-            return true;
+        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado."));
+
+        Role role = usuarioLogado.getRole();
+
+        // CENÁRIO 1: ADMIN, CONTROLLER, ASSISTANT (Vê tudo)
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            // O Banco já retorna apenas a página solicitada (ex: 20 itens)
+            return osRepository.findAllWithDetails(pageable);
         }
-        if (row.getLastCellNum() <= 0) {
-            return true;
-        }
-        for (int cellNum = row.getFirstCellNum(); cellNum < row.getLastCellNum(); cellNum++) {
-            Cell cell = row.getCell(cellNum);
-            if (cell != null && cell.getCellType() != CellType.BLANK && !cell.toString().trim().isEmpty()) {
-                return false;
+
+        // CENÁRIO 2: MANAGER, COORDINATOR (Vê apenas seus segmentos)
+        if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            Set<Segmento> segmentosDoUsuario = usuarioLogado.getSegmentos();
+
+            if (segmentosDoUsuario.isEmpty()) {
+                return Page.empty(pageable);
             }
+
+            // Coleta apenas os IDs para passar ao SQL
+            Set<Long> segmentosDoUsuarioIds = segmentosDoUsuario.stream()
+                    .map(Segmento::getId)
+                    .collect(Collectors.toSet());
+
+            // Chama o novo método do repositório que filtra E pagina no banco
+            return osRepository.findBySegmentoIdIn(segmentosDoUsuarioIds, pageable);
         }
-        return true;
+
+        return Page.empty(pageable);
     }
 
     // =================================================================================
@@ -748,6 +769,7 @@ public class OsServiceImpl implements OsService {
         OsLpuDetalhe novoDetalhe = new OsLpuDetalhe();
         novoDetalhe.setOs(os);
         novoDetalhe.setLpu(lpu);
+        novoDetalhe.setDataCriacao(LocalDateTime.now());
 
         // Lógica de Geração de KEY (Cenário 1 vs Cenário 3)
         String keyPlanilha = dto.getKey();

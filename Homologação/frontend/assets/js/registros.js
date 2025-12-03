@@ -1111,6 +1111,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (userRole !== 'ADMIN' && userRole !== 'ASSISTANT') {
+        // Esconde botão "Modelo"
+        if (btnDownloadTemplate) btnDownloadTemplate.classList.add('d-none');
+
+        // Esconde botão "Importar"
+        if (btnImportar) btnImportar.classList.add('d-none');
+
+        // Esconde o Switch "Importar Legado" (encontra o container pai .form-check)
+        const switchLegado = document.getElementById('importLegado');
+        if (switchLegado) {
+            const switchContainer = switchLegado.closest('.form-check');
+            if (switchContainer) switchContainer.classList.add('d-none');
+        }
+    }
+
     if (userRole === 'MANAGER') {
         const containerBotoes = document.getElementById('botoes-acao');
         if (containerBotoes) {

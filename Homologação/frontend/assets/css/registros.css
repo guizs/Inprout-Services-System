@@ -405,54 +405,63 @@ body {
 }
 
 /* ========================================================== */
-/* ======== CUSTOMIZAÇÃO DO SWEETALERT2 (MODAL) ============ */
+/* ======== CUSTOMIZAÇÃO DO SWEETALERT2 (MODAL) - V2 ======== */
 /* ========================================================== */
 
-/* 1. Container Principal do Modal */
-div:where(.swal2-popup) {
+/* 1. Container Principal - Usando "body" antes para forçar a prioridade */
+body .swal2-popup {
     font-family: 'Inter', sans-serif !important;
-    border-radius: 12px !important; /* Padrão do sistema para cards/modais */
+    border-radius: 12px !important;
     padding: 2rem !important;
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
-    border: 1px solid #e2e8e4;
+    border: 1px solid #e2e8e4 !important;
+    background: #fff !important;
+    display: flex !important;
+    flex-direction: column;
 }
 
 /* 2. Título */
-div:where(.swal2-title) {
-    color: #4a665a !important; /* Cor dos títulos h1, h2, h3 do global.css */
+body .swal2-title {
+    color: #4a665a !important; /* Verde escuro do tema */
     font-size: 1.4rem !important;
     font-weight: 600 !important;
     padding-bottom: 1rem !important;
+    width: 100% !important;
 }
 
 /* 3. Conteúdo HTML (Labels e Textos) */
-div:where(.swal2-html-container) {
-    color: var(--text-color) !important;
+body .swal2-html-container {
+    color: #333 !important;
     font-size: 0.95rem !important;
     margin: 0 !important;
-    text-align: left !important; /* Alinha o conteúdo à esquerda como seus formulários */
+    text-align: left !important;
+    width: 100% !important;
 }
 
 /* 4. Inputs dentro do SweetAlert */
-div:where(.swal2-popup) .form-control {
+body .swal2-popup .form-control {
     border-radius: 8px !important;
     border: 1px solid #ccc !important;
     padding: 0.5rem 0.75rem !important;
     font-size: 0.9rem !important;
     box-shadow: none !important;
     transition: all 0.3s ease;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: block !important;
+    margin-bottom: 0 !important; /* O modal já dá espaçamento via HTML */
 }
 
-div:where(.swal2-popup) .form-control:focus {
-    border-color: #5ca98c !important; /* Cor de foco do sistema */
+body .swal2-popup .form-control:focus {
+    border-color: #5ca98c !important;
     box-shadow: 0 0 0 0.2rem rgba(92, 169, 140, 0.25) !important;
 }
 
 /* 5. Botão de Confirmar (Salvar) */
-div:where(.swal2-confirm) {
-    background-color: var(--accent-color) !important; /* #7da78a */
+body .swal2-confirm {
+    background-color: #7da78a !important; /* Verde acento */
     color: white !important;
-    border-radius: 50px !important; /* Padrão pílula do sistema */
+    border-radius: 50px !important;
     padding: 0.6rem 1.5rem !important;
     font-weight: 600 !important;
     font-size: 0.9rem !important;
@@ -461,29 +470,31 @@ div:where(.swal2-confirm) {
     outline: none !important;
 }
 
-div:where(.swal2-confirm):hover {
-    background-color: #5ca98c !important; /* Um tom levemente mais escuro/vivo */
+body .swal2-confirm:hover {
+    background-color: #5ca98c !important; /* Verde um pouco mais escuro */
     transform: translateY(-1px);
 }
 
 /* 6. Botão de Cancelar */
-div:where(.swal2-cancel) {
-    background-color: #e9ecef !important; /* Cinza claro bootstrap */
+body .swal2-cancel {
+    background-color: #e9ecef !important; /* Cinza claro */
     color: #333 !important;
     border-radius: 50px !important;
     padding: 0.6rem 1.5rem !important;
     font-weight: 500 !important;
     font-size: 0.9rem !important;
     border: 1px solid #ced4da !important;
-    margin-right: 10px; /* Espaço entre botões */
+    margin-right: 10px !important;
 }
 
-div:where(.swal2-cancel):hover {
+body .swal2-cancel:hover {
     background-color: #dde0e3 !important;
 }
 
-/* 7. Ajuste nas ações (botões) para ficarem alinhados */
-div:where(.swal2-actions) {
+/* 7. Container dos Botões */
+body .swal2-actions {
     margin-top: 1.5rem !important;
-    gap: 0.5rem;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    justify-content: flex-end !important; /* Alinha botões à direita */
 }

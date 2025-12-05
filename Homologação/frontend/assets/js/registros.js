@@ -1315,14 +1315,13 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('searchInput').addEventListener('input', renderizarTabelaComFiltro);
     adicionarListenersPaginacao();
     adicionarListenersDeAcoes();
-});
 
-window.abrirModalFinanceiro = async function (osId, nomeOs, materialAtual, transporteAtual) {
-    if (event) event.stopPropagation();
+    window.abrirModalFinanceiro = async function (osId, nomeOs, materialAtual, transporteAtual) {
+        if (event) event.stopPropagation();
 
-    const { value: formValues } = await Swal.fire({
-        title: `Valores Extras - OS ${nomeOs}`,
-        html: `
+        const { value: formValues } = await Swal.fire({
+            title: `Valores Extras - OS ${nomeOs}`,
+            html: `
                 <div class="text-start mb-3">
                     <label class="form-label fw-bold">Adicionar ao Material (R$)</label>
                     <div class="text-muted small mb-1">Atual: ${formatarMoeda(materialAtual)} (Valor será somado)</div>
@@ -1334,55 +1333,56 @@ window.abrirModalFinanceiro = async function (osId, nomeOs, materialAtual, trans
                     <input id="swal-input-transporte" type="number" step="0.01" class="form-control" placeholder="Ex: 50.00">
                 </div>
             `,
-        showCancelButton: true,
-        confirmButtonText: 'Salvar Adições', // Texto do botão mais claro
-        cancelButtonText: 'Cancelar',
-        preConfirm: () => {
-            return {
-                materialAdicional: document.getElementById('swal-input-material').value,
-                transporte: document.getElementById('swal-input-transporte').value
+            showCancelButton: true,
+            confirmButtonText: 'Salvar Adições',
+            cancelButtonText: 'Cancelar',
+            preConfirm: () => {
+                return {
+                    materialAdicional: document.getElementById('swal-input-material').value,
+                    transporte: document.getElementById('swal-input-transporte').value
+                }
+            }
+        });
+
+        if (formValues) {
+            try {
+                const payload = {};
+                if (formValues.materialAdicional) payload.materialAdicional = parseFloat(formValues.materialAdicional);
+                if (formValues.transporte) payload.transporte = parseFloat(formValues.transporte);
+
+                if (Object.keys(payload).length === 0) return;
+
+                // AGORA VAI FUNCIONAR: API_BASE_URL está visível aqui dentro
+                const response = await fetch(`${API_BASE_URL}/os/${osId}/valores-financeiros`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('token')
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) throw new Error('Erro ao atualizar valores');
+
+                const osAtualizada = await response.json();
+
+                Swal.fire('Sucesso!', 'Valores atualizados.', 'success');
+
+                // AGORA VAI FUNCIONAR: todasAsLinhas está visível aqui dentro
+                todasAsLinhas.forEach(linha => {
+                    if (linha.os.id === osId) {
+                        linha.os.custoTotalMateriais = osAtualizada.custoTotalMateriais;
+                        linha.os.transporte = osAtualizada.transporte;
+                    }
+                });
+
+                // AGORA VAI FUNCIONAR: renderizarTabelaComFiltro está visível aqui dentro
+                renderizarTabelaComFiltro();
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Erro', 'Não foi possível salvar os valores.', 'error');
             }
         }
-    });
-
-    if (formValues) {
-        try {
-            // Prepara payload (envia null se vazio para não alterar)
-            const payload = {};
-            if (formValues.materialAdicional) payload.materialAdicional = parseFloat(formValues.materialAdicional);
-            if (formValues.transporte) payload.transporte = parseFloat(formValues.transporte);
-
-            if (Object.keys(payload).length === 0) return; // Nada alterado
-
-            const response = await fetch(`${API_BASE_URL}/os/${osId}/valores-financeiros`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + localStorage.getItem('token')
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) throw new Error('Erro ao atualizar valores');
-
-            const osAtualizada = await response.json();
-
-            // Atualiza os dados locais para refletir na tela sem recarregar tudo
-            // (Aqui vamos fazer um reload simples da tabela para garantir consistência)
-            Swal.fire('Sucesso!', 'Valores atualizados.', 'success');
-
-            // Atualiza o objeto na memória global (todasAsLinhas)
-            todasAsLinhas.forEach(linha => {
-                if (linha.os.id === osId) {
-                    linha.os.custoTotalMateriais = osAtualizada.custoTotalMateriais;
-                    linha.os.transporte = osAtualizada.transporte;
-                }
-            });
-            renderizarTabelaComFiltro();
-
-        } catch (error) {
-            console.error(error);
-            Swal.fire('Erro', 'Não foi possível salvar os valores.', 'error');
-        }
-    }
-};
+    };
+});

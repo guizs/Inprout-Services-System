@@ -76,59 +76,70 @@
             </div>
         </div>
 
-        <ul class="nav nav-tabs mb-3" id="aprovacoesTab" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="atividades-tab" data-bs-toggle="tab"
-                    data-bs-target="#atividades-pane" type="button" role="tab" aria-controls="atividades-pane"
-                    aria-selected="true">
-                    <i class="bi bi-card-checklist me-1"></i> Aprovações de atividades
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="historico-atividades-tab" data-bs-toggle="tab"
-                    data-bs-target="#historico-atividades-pane" type="button" role="tab"
-                    aria-controls="historico-atividades-pane" aria-selected="false">
-                    <i class="bi bi-calendar-check me-1"></i> Histórico de atividades
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="cps-pendencias-tab" data-bs-toggle="tab"
-                    data-bs-target="#cps-pendencias-pane" type="button" role="tab">
-                    <i class="bi bi-currency-dollar me-1"></i> Aprovações CPS
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="cps-historico-tab" data-bs-toggle="tab"
-                    data-bs-target="#cps-historico-pane" type="button" role="tab">
-                    <i class="bi bi-receipt me-1"></i> Histório CPS
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link position-relative" id="complementares-tab" data-bs-toggle="tab"
-                    data-bs-target="#complementares-pane" type="button" role="tab">
-                    <i class="bi bi-plus-circle-dotted me-1"></i> Ativ. Complementares
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="historico-complementares-tab" data-bs-toggle="tab"
-                    data-bs-target="#historico-complementares-pane" type="button" role="tab">
-                    <i class="bi bi-hourglass-split me-1"></i> Histórico de Ativ. Complementares
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link position-relative" id="materiais-tab" data-bs-toggle="tab"
-                    data-bs-target="#materiais-pane" type="button" role="tab" aria-controls="materiais-pane">
-                    <i class="bi bi-box-seam me-1"></i> Aprovações de Materiais
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="historico-materiais-tab" data-bs-toggle="tab"
-                    data-bs-target="#historico-materiais-pane" type="button" role="tab"
-                    aria-controls="historico-materiais-pane">
-                    <i class="bi bi-archive me-1"></i> Histórico de Materiais
-                </button>
-            </li>
-        </ul>
+        <div class="tabs-wrapper-scroll d-flex align-items-center mb-3 position-relative">
+
+            <button class="btn btn-light btn-scroll-tab left d-none" id="btnScrollLeft">
+                <i class="bi bi-chevron-left"></i>
+            </button>
+
+            <div class="tabs-scroll-container flex-grow-1 overflow-hidden">
+                <ul class="nav nav-tabs border-bottom-0 flex-nowrap" id="aprovacoesTab" role="tablist"
+                    style="overflow-x: auto; scrollbar-width: none;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="atividades-tab" data-bs-toggle="tab"
+                            data-bs-target="#atividades-pane" type="button" role="tab">
+                            <i class="bi bi-card-checklist me-1"></i> Aprovações de atividades
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="historico-atividades-tab" data-bs-toggle="tab"
+                            data-bs-target="#historico-atividades-pane" type="button" role="tab">
+                            <i class="bi bi-calendar-check me-1"></i> Histórico de atividades
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="cps-pendencias-tab" data-bs-toggle="tab"
+                            data-bs-target="#cps-pendencias-pane" type="button" role="tab">
+                            <i class="bi bi-currency-dollar me-1"></i> Aprovações CPS
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="cps-historico-tab" data-bs-toggle="tab"
+                            data-bs-target="#cps-historico-pane" type="button" role="tab">
+                            <i class="bi bi-receipt me-1"></i> Histório CPS
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link position-relative" id="complementares-tab" data-bs-toggle="tab"
+                            data-bs-target="#complementares-pane" type="button" role="tab">
+                            <i class="bi bi-plus-circle-dotted me-1"></i> Ativ. Complementares
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="historico-complementares-tab" data-bs-toggle="tab"
+                            data-bs-target="#historico-complementares-pane" type="button" role="tab">
+                            <i class="bi bi-hourglass-split me-1"></i> Hist. Complementares
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link position-relative" id="materiais-tab" data-bs-toggle="tab"
+                            data-bs-target="#materiais-pane" type="button" role="tab">
+                            <i class="bi bi-box-seam me-1"></i> Aprovações Materiais
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="historico-materiais-tab" data-bs-toggle="tab"
+                            data-bs-target="#historico-materiais-pane" type="button" role="tab">
+                            <i class="bi bi-archive me-1"></i> Histórico Materiais
+                        </button>
+                    </li>
+                </ul>
+            </div>
+
+            <button class="btn btn-light btn-scroll-tab right" id="btnScrollRight">
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
 
         <div class="tab-content" id="aprovacoesTabContent">
 
@@ -431,17 +442,29 @@
                     <div class="modal-body">
                         <input type="hidden" id="cpsLancamentoIdAcao">
                         <input type="hidden" id="cpsAcaoCoordenador">
+
                         <div class="mb-3">
-                            <label class="form-label">Valor final para pagamento</label>
+                            <label class="form-label fw-bold">Valor final para pagamento</label>
                             <div class="input-group">
                                 <span class="input-group-text">R$</span>
                                 <input type="text" class="form-control" id="cpsValorPagamentoInput" required>
                             </div>
                         </div>
+
+                        <div class="mb-3" id="divCompetenciaCps">
+                            <label class="form-label fw-bold">Competência de Pagamento</label>
+                            <select class="form-select" id="cpsCompetenciaInput" required>
+                            </select>
+                            <div class="form-text small text-muted">
+                                <i class="bi bi-info-circle"></i> Até o dia 05, permite mês atual. Após dia 05, apenas
+                                mês seguinte.
+                            </div>
+                        </div>
+
                         <div class="mb-3">
-                            <label class="form-label">Justificativa</label>
+                            <label class="form-label">Justificativa / Observação</label>
                             <textarea class="form-control" id="cpsJustificativaInput" rows="3"
-                                placeholder="Obrigatório se o valor for alterado."></textarea>
+                                placeholder="Obrigatório em caso de recusa ou alteração de valor."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">

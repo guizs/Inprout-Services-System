@@ -1263,6 +1263,70 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // ==========================================================
+    // LÓGICA DE SCROLL DAS ABAS
+    // ==========================================================
+    const tabsList = document.getElementById('aprovacoesTab');
+    const btnLeft = document.getElementById('btnScrollLeft');
+    const btnRight = document.getElementById('btnScrollRight');
+
+    if (tabsList && btnLeft && btnRight) {
+
+        // Função para verificar visibilidade dos botões
+        const checkScrollButtons = () => {
+            // Margem de tolerância (1px) para evitar bugs de arredondamento de tela
+            const maxScrollLeft = tabsList.scrollWidth - tabsList.clientWidth - 1;
+
+            // Se o conteúdo cabe todo na tela, esconde tudo
+            if (tabsList.scrollWidth <= tabsList.clientWidth) {
+                btnLeft.classList.add('d-none');
+                btnRight.classList.add('d-none');
+            } else {
+                // Controla botão Esquerda
+                if (tabsList.scrollLeft <= 0) {
+                    btnLeft.classList.add('d-none');
+                } else {
+                    btnLeft.classList.remove('d-none');
+                }
+
+                // Controla botão Direita
+                if (tabsList.scrollLeft >= maxScrollLeft) {
+                    btnRight.classList.add('d-none');
+                } else {
+                    btnRight.classList.remove('d-none');
+                }
+            }
+        };
+
+        // Rolar para a ESQUERDA suavemente
+        btnLeft.addEventListener('click', () => {
+            tabsList.scrollBy({
+                left: -300, // Quantidade de pixels para rolar
+                behavior: 'smooth' // Mágica da suavidade
+            });
+            // Verifica os botões logo após iniciar e terminar o scroll
+            setTimeout(checkScrollButtons, 100);
+            setTimeout(checkScrollButtons, 500);
+        });
+
+        // Rolar para a DIREITA suavemente
+        btnRight.addEventListener('click', () => {
+            tabsList.scrollBy({
+                left: 300,
+                behavior: 'smooth'
+            });
+            setTimeout(checkScrollButtons, 100);
+            setTimeout(checkScrollButtons, 500);
+        });
+
+        // Eventos para recalcular a visibilidade das setas
+        tabsList.addEventListener('scroll', checkScrollButtons);
+        window.addEventListener('resize', checkScrollButtons);
+
+        // Inicia
+        checkScrollButtons();
+    }
+
     document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         const btn = document.getElementById('btnConfirmarRecusa');
@@ -1952,13 +2016,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         container.innerHTML = '';
 
-        // Filtro de segurança: Se for histórico, só mostra o que foi finalizado/pago
-        // (Caso a API traga sujeira, isso garante a visualização correta)
         let listaFiltrada = lista;
-        if (!isPendencia) {
-            // No histórico queremos ver tudo, principalmente o PAGO
-            // Se quiser filtrar algo específico no histórico, faça aqui
-        }
 
         if (!listaFiltrada.length) {
             msgDiv.classList.remove('d-none');
@@ -1966,13 +2024,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         msgDiv.classList.add('d-none');
 
+        // 1. Agrupamento e Cálculos Iniciais
         const grupos = listaFiltrada.reduce((acc, l) => {
             const id = l.os?.id || 0;
             if (!acc[id]) acc[id] = {
-                os: l.os?.os, projeto: l.os?.projeto,
-                totalOs: l.totalOs || 0, totalPago: l.totalPago || 0,
+                os: l.os?.os,
+                projeto: l.os?.projeto,
+                totalOs: l.totalOs || 0,
+                totalPago: l.totalPago || 0,
+                totalCps: l.valorCps || 0,
+                totalMat: l.os.custoTotalMateriais || 0,
+                totalAdiantado: 0,
                 itens: []
             };
+
+            acc[id].totalAdiantado += parseFloat(l.valorAdiantamento) || 0;
             acc[id].itens.push(l);
             return acc;
         }, {});
@@ -1986,50 +2052,78 @@ document.addEventListener('DOMContentLoaded', function () {
         Object.values(grupos).forEach((grp, idx) => {
             const uniqueId = `cps-${isPendencia ? 'pend' : 'hist'}-${idx}`;
 
-            // --- ORDENAÇÃO: Fechado sempre por último ---
             grp.itens.sort((a, b) => {
                 const peso = (status) => {
                     if (status === 'EM_ABERTO') return 1;
                     if (status === 'ALTERACAO_SOLICITADA') return 2;
-                    if (status === 'FECHADO') return 3; // Fica por baixo
-                    return 4; // PAGO e outros
+                    if (status === 'FECHADO') return 3;
+                    return 4;
                 };
                 return peso(a.statusPagamento) - peso(b.statusPagamento);
             });
 
-            // Header do Acordeão
+            // --- CÁLCULOS ---
+            const valorTotalCps = grp.totalCps;
+            const valorAdiantado = grp.totalAdiantado;
+            const saldoLiquido = valorTotalCps - valorAdiantado; // Agora chamado de PENDENTE
+            const valorPago = grp.totalPago;
+
+            const percentual = valorTotalCps > 0
+                ? (valorPago / valorTotalCps) * 100
+                : 0;
+
+            // --- HTML DO CABEÇALHO ATUALIZADO ---
             const htmlHeader = `
             <div class="header-content w-100 ps-2">
                 <div class="header-title-wrapper">
                     <span class="header-title-project">${grp.projeto || '-'}</span>
                     <span class="header-title-os">${grp.os || '-'}</span>
                 </div>
-                <div class="header-kpi-wrapper">
-                    <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatMoney(grp.totalOs)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label text-success">Pago</span><span class="kpi-value text-success">${formatMoney(grp.totalPago)}</span></div>
+                <div class="header-kpi-wrapper" style="gap: 1.5rem;">
+                    
+                    <div class="header-kpi">
+                        <span class="kpi-label">TOTAL CPS</span>
+                        <span class="kpi-value">${formatMoney(valorTotalCps)}</span>
+                    </div>
+                    
+                    <div class="header-kpi">
+                        <span class="kpi-label text-warning">ADIANTADO</span>
+                        <span class="kpi-value text-warning">${formatMoney(valorAdiantado)}</span>
+                    </div>
+
+                    <div class="header-kpi">
+                        <span class="kpi-label text-danger">PENDENTE</span> <span class="kpi-value text-danger">${formatMoney(saldoLiquido)}</span>
+                    </div>
+
+                    <div class="header-kpi">
+                        <span class="kpi-label text-success">PAGO</span>
+                        <span class="kpi-value text-success">${formatMoney(valorPago)}</span>
+                    </div>
+
+                    <div class="header-kpi border-start ps-3 d-flex flex-column justify-content-center">
+                        <span class="kpi-value" style="font-size: 1.1rem;">${percentual.toFixed(1)}%</span>
+                    </div>
+
                 </div>
                 <span class="badge bg-secondary header-badge ms-3">${grp.itens.length} item(s)</span>
             </div>
-        `;
+            `;
 
             const linhas = grp.itens.map(l => {
                 let btns = `<button class="btn btn-sm btn-outline-info" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
                 let showCheckbox = false;
 
                 if (isPendencia) {
-                    // Botões Coordenador
                     if (isCoordOrAdmin) {
                         if (l.statusPagamento === 'EM_ABERTO')
                             btns += ` <button class="btn btn-sm btn-outline-success" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
                         if (l.statusPagamento === 'FECHADO')
                             btns += ` <button class="btn btn-sm btn-outline-warning" onclick="abrirModalCpsValor(${l.id}, 'solicitar-alteracao')"><i class="bi bi-pencil-square"></i></button>`;
                     }
-                    // Botões Controller (Recusar apenas se Fechado ou Alt. Solicitada)
                     if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
                         btns += ` <button class="btn btn-sm btn-outline-danger" onclick="abrirModalCpsRecusar(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
                     }
 
-                    // Lógica do Checkbox
                     if (userRole === 'ADMIN') showCheckbox = true;
                     else if (userRole === 'COORDINATOR' && l.statusPagamento === 'EM_ABERTO') showCheckbox = true;
                     else if (userRole === 'CONTROLLER' && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) showCheckbox = true;
@@ -2042,18 +2136,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 const valOp = l.valor || 0;
                 const valPg = l.valorPagamento !== null ? l.valorPagamento : valOp;
 
-                // --- CORES DA LINHA (CSS Bootstrap) ---
                 let rowClass = '';
-                if (l.statusPagamento === 'FECHADO') rowClass = 'table-success'; // Verde Claro
-                else if (l.statusPagamento === 'ALTERACAO_SOLICITADA') rowClass = 'table-warning'; // Amarelo Claro
-                // Em Aberto fica branco (padrão)
+                if (l.statusPagamento === 'FECHADO') rowClass = 'table-success';
+                else if (l.statusPagamento === 'ALTERACAO_SOLICITADA') rowClass = 'table-warning';
 
                 return `
                 <tr class="${rowClass}">
                     ${checkHtml}
                     <td class="text-center bg-transparent">${btns}</td>
                     <td class="bg-transparent"><span class="badge text-bg-secondary bg-opacity-75 text-dark">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
-                    <td class="bg-transparent">${l.dataAtividade ? new Date(l.dataAtividade).toLocaleDateString('pt-BR') : '-'}</td>
+                    <td class="bg-transparent">${l.dataAtividade || '-'}</td>
                     <td class="bg-transparent">${l.detalhe?.site || '-'}</td>
                     <td class="bg-transparent">${l.detalhe?.lpu?.nomeLpu || '-'}</td>
                     <td class="bg-transparent">${l.prestador?.nome || '-'}</td>
@@ -2077,7 +2169,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="accordion-body p-0">
                         <div class="table-responsive">
                             <table class="table mb-0 align-middle small" style="border-collapse: collapse;">
-                                <thead class="table-light"><tr>${thCheck}<th class="text-center">Ações</th><th>Status</th><th>Data</th><th>Site</th><th>Item</th><th>Prestador</th><th>Gestor</th><th class="text-center">Valor</th><th>KEY</th></tr></thead>
+                                <thead class="table-light">
+                                    <tr>
+                                        ${thCheck}
+                                        <th class="text-center">Ações</th>
+                                        <th>Status</th>
+                                        <th>DATA DA ATIVIDADE</th>
+                                        <th>Site</th>
+                                        <th>Item</th>
+                                        <th>Prestador</th>
+                                        <th>Gestor</th>
+                                        <th class="text-center">Valor</th>
+                                        <th>KEY</th>
+                                    </tr>
+                                </thead>
                                 <tbody>${linhas}</tbody>
                             </table>
                         </div>

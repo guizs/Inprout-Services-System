@@ -436,3 +436,108 @@ body {
 .accordion-body tbody tr:last-child td {
     border-bottom: none;
 }
+
+/* ========================================================== */
+/* ======== ESTILOS PARA SCROLL HORIZONTAL DAS ABAS (V2) ==== */
+/* ========================================================== */
+
+.tabs-wrapper-scroll {
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    padding: 0 5px;
+    position: relative;
+    height: 75px; 
+}
+
+.tabs-scroll-container {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.tabs-wrapper-scroll .nav-link .badge {
+    left: auto !important;       /* Anula o comando que joga ela longe (start-100) */
+    right: 5px !important;       /* Fixa ela no cantinho direito DENTRO do botão */
+    top: 5px !important;         /* Ajuste fino da altura */
+    transform: none !important;  /* Remove a centralização que jogava ela para fora */
+}
+
+.tabs-wrapper-scroll .nav-tabs {
+    border-bottom: none;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-top: 25px !important; 
+    padding-bottom: 10px;
+    
+    align-items: flex-start;
+    height: 100%;
+}
+
+/* Esconde barra de rolagem no Chrome/Safari */
+.tabs-wrapper-scroll .nav-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+/* Estilo dos botões de seta */
+.btn-scroll-tab {
+    z-index: 10;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Sombra um pouco mais forte */
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    color: var(--accent-color); /* Já deixar na cor do tema */
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    position: absolute; /* Fixa a posição dentro do wrapper */
+    top: 55%;
+    transform: translateY(-50%);
+}
+
+.tabs-wrapper-scroll .nav-link {
+    padding-right: 35px !important; /* Espaço extra na direita do texto */
+    position: relative !important;
+}
+
+.btn-scroll-tab:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Posicionamento absoluto das setas nas pontas */
+.btn-scroll-tab.left { 
+    left: 0; 
+    margin-right: 0;
+}
+.btn-scroll-tab.right { 
+    right: 0; 
+    margin-left: 0;
+}
+
+/* Espaçamento para o conteúdo não ficar embaixo dos botões */
+.tabs-scroll-container {
+    margin: 0 35px; /* Espaço para as setas não cobrirem o texto */
+    width: calc(100% - 70px);
+}
+
+.nav-tabs .nav-item {
+    flex-shrink: 0;
+}
+
+.nav-tabs .nav-link {
+    white-space: nowrap;
+    margin-right: 5px;
+    /* Ajuste visual para o badge não ficar colado */
+    position: relative; 
+}

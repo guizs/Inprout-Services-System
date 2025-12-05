@@ -58,7 +58,9 @@ public record LancamentoResponseDTO(
         StatusPagamento statusPagamento,
         AutorSimpleDTO controllerPagador,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataPagamento,
-        @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia
+        @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia,
+        BigDecimal valorAdiantamento,
+        BigDecimal valorSolicitadoAdiantamento
 ) {
     // Construtor auxiliar que recebe a Entidade Lancamento
     public LancamentoResponseDTO(Lancamento lancamento) {
@@ -100,7 +102,9 @@ public record LancamentoResponseDTO(
                 lancamento.getStatusPagamento(),
                 (lancamento.getControllerPagador() != null) ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
                 lancamento.getDataPagamento(),
-                lancamento.getDataCompetencia()
+                lancamento.getDataCompetencia(),
+                lancamento.getValorAdiantamento(),
+                lancamento.getValorSolicitadoAdiantamento()
         );
     }
 

@@ -205,6 +205,78 @@ function recusarPrazoController(id) {
     dataLabel.textContent = 'Definir Novo Prazo (Obrigatório)';
 }
 
+window.abrirModalSolicitarAdiantamento = function (id, valorTotal, valorJaAdiantado) {
+    const modal = new bootstrap.Modal(document.getElementById('modalSolicitarAdiantamento'));
+
+    document.getElementById('adiantamentoLancamentoId').value = id;
+    document.getElementById('adiantamentoValorTotalDisplay').value = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorTotal);
+    document.getElementById('adiantamentoValorJaPagoDisplay').value = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorJaAdiantado);
+
+    const inputValor = document.getElementById('valorSolicitadoInput');
+    inputValor.value = '';
+
+    // Máscara de moeda simples no input
+    inputValor.oninput = function () {
+        let v = this.value.replace(/\D/g, '');
+        v = (v / 100).toFixed(2) + '';
+        v = v.replace(".", ",");
+        v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+        this.value = v;
+    };
+
+    modal.show();
+};
+
+// 2. Aprovar Adiantamento (Controller)
+window.aprovarAdiantamento = async function (id, valor) {
+    if (!confirm(`Confirmar o pagamento do adiantamento de R$ ${valor}?`)) return;
+
+    toggleLoader(true, '#cps-pendencias-pane');
+    try {
+        const userId = localStorage.getItem('usuarioId');
+        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/pagar-adiantamento`, {
+            method: 'POST',
+            body: JSON.stringify({ usuarioId: userId })
+        });
+
+        if (!response.ok) throw new Error("Erro ao processar pagamento.");
+
+        mostrarToast("Adiantamento pago com sucesso! Item retornou para 'Em Aberto'.", "success");
+
+        // Recarrega a lista
+        document.getElementById('btn-atualizar-cps').click();
+    } catch (error) {
+        mostrarToast(error.message, 'error');
+    } finally {
+        toggleLoader(false, '#cps-pendencias-pane');
+    }
+};
+
+// 3. Recusar Adiantamento (Controller)
+window.recusarAdiantamento = async function (id) {
+    const motivo = prompt("Motivo da recusa do adiantamento:");
+    if (motivo === null) return; // Cancelou
+    if (!motivo.trim()) { alert("O motivo é obrigatório."); return; }
+
+    toggleLoader(true, '#cps-pendencias-pane');
+    try {
+        const userId = localStorage.getItem('usuarioId');
+        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/recusar-adiantamento`, {
+            method: 'POST',
+            body: JSON.stringify({ usuarioId: userId, motivo: motivo })
+        });
+
+        if (!response.ok) throw new Error("Erro ao recusar.");
+
+        mostrarToast("Solicitação de adiantamento recusada.", "warning");
+        document.getElementById('btn-atualizar-cps').click();
+    } catch (error) {
+        mostrarToast(error.message, 'error');
+    } finally {
+        toggleLoader(false, '#cps-pendencias-pane');
+    }
+};
+
 // ==========================================================
 // LÓGICA PRINCIPAL DA PÁGINA
 // ==========================================================
@@ -1561,6 +1633,54 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    const formSolicitarAdiantamento = document.getElementById('formSolicitarAdiantamento');
+    if (formSolicitarAdiantamento) {
+        formSolicitarAdiantamento.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('adiantamentoLancamentoId').value;
+            // Converte "1.000,00" para 1000.00
+            const valorRaw = document.getElementById('valorSolicitadoInput').value;
+            const valor = parseFloat(valorRaw.replace(/\./g, '').replace(',', '.'));
+            const justificativa = document.getElementById('justificativaAdiantamentoInput').value;
+
+            if (!valor || valor <= 0) {
+                mostrarToast("Digite um valor válido maior que zero.", "warning");
+                return;
+            }
+
+            // Fecha o modal
+            const modalEl = document.getElementById('modalSolicitarAdiantamento');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+            toggleLoader(true, '#cps-pendencias-pane');
+
+            try {
+                const userId = localStorage.getItem('usuarioId');
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/solicitar-adiantamento`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        valor: valor,
+                        usuarioId: userId,
+                        justificativa: justificativa // Opcional, adicionei no seu backend service
+                    })
+                });
+
+                if (!response.ok) throw new Error((await response.json()).message || "Erro ao solicitar.");
+
+                mostrarToast("Solicitação de adiantamento enviada!", "success");
+                modalInstance.hide();
+
+                // Recarrega a lista
+                document.getElementById('btn-atualizar-cps').click();
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false, '#cps-pendencias-pane');
+            }
+        });
+    }
+
     document.getElementById('formComentarPrazo')?.addEventListener('submit', async function (event) {
         event.preventDefault();
         const btn = document.getElementById('btnEnviarComentario');
@@ -2285,18 +2405,45 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>`;
 
             const linhas = grp.itens.map(l => {
-                let btns = `<button class="btn btn-sm btn-outline-info" title="Ver Detalhes" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
+                let btns = `<button class="btn btn-sm btn-outline-info me-1" title="Ver Detalhes" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
                 let showRowCheckbox = false;
 
                 if (isPendencia) {
-                    if (isCoordOrAdmin && l.statusPagamento === 'EM_ABERTO') {
-                        btns += ` <button class="btn btn-sm btn-outline-success" title="Fechar Pagamento" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
-                        btns += ` <button class="btn btn-sm btn-outline-danger" title="Recusar (Voltar ao Gestor)" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
-                        showRowCheckbox = true;
+                    // === CENÁRIO 1: EM ABERTO (Coordenador pode fechar ou pedir adiantamento) ===
+                    if (l.statusPagamento === 'EM_ABERTO') {
+                        if (isCoordOrAdmin) {
+                            // Botão Fechar (Existente)
+                            btns += `<button class="btn btn-sm btn-outline-success me-1" title="Fechar Pagamento Total" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
+
+                            // Botão NOVO: Solicitar Adiantamento
+                            btns += `<button class="btn btn-sm btn-outline-primary me-1" title="Solicitar Adiantamento" onclick="abrirModalSolicitarAdiantamento(${l.id}, ${l.valor}, ${l.valorAdiantamento || 0})"><i class="bi bi-cash-stack"></i></button>`;
+
+                            // Botão Recusar (Existente)
+                            btns += `<button class="btn btn-sm btn-outline-danger" title="Recusar (Voltar ao Gestor)" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
+
+                            showRowCheckbox = true;
+                        } else {
+                            btns += `<span class="badge bg-light text-dark border">Aguardando Coord.</span>`;
+                        }
                     }
-                    if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
-                        btns += ` <button class="btn btn-sm btn-outline-danger" title="Devolver ao Coordenador" onclick="abrirModalCpsRecusarController(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
-                        showRowCheckbox = true;
+
+                    // === CENÁRIO 2: SOLICITAÇÃO DE ADIANTAMENTO (Controller aprova/recusa) ===
+                    else if (l.statusPagamento === 'SOLICITACAO_ADIANTAMENTO') {
+                        if (isControllerOrAdmin) {
+                            const valorSolicitadoFmt = formatMoney(l.valorSolicitadoAdiantamento);
+
+                            btns += `<button class="btn btn-sm btn-success me-1" title="Pagar Adiantamento (${valorSolicitadoFmt})" onclick="aprovarAdiantamento(${l.id}, ${l.valorSolicitadoAdiantamento})"><i class="bi bi-check-lg"></i> Pagar ${valorSolicitadoFmt}</button>`;
+
+                            btns += `<button class="btn btn-sm btn-danger" title="Recusar Adiantamento" onclick="recusarAdiantamento(${l.id})"><i class="bi bi-x-lg"></i></button>`;
+                        } else {
+                            btns += `<span class="badge bg-warning text-dark">Aguardando Controller<br>(Adiantamento)</span>`;
+                        }
+                    }
+
+                    // === CENÁRIO 3: FECHADO (Controller paga total) ===
+                    else if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
+                        btns += `<button class="btn btn-sm btn-outline-danger" title="Devolver ao Coordenador" onclick="abrirModalCpsRecusarController(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
+                        showRowCheckbox = true; // Permite seleção em lote para pagamento
                     }
                 }
 

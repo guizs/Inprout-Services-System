@@ -398,6 +398,13 @@
                             </div>
                         </div>
                         <div class="card-body">
+                            <div class="mb-3 position-relative">
+                                <input type="text" class="form-control ps-5" id="input-busca-cps-pendencias"
+                                    placeholder="Pesquisar por OS, Projeto, Prestador, Valor...">
+                                <i
+                                    class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                            </div>
+
                             <div class="accordion" id="accordionPendenciasCPS"></div>
                             <div id="msg-sem-pendencias-cps"
                                 class="alert alert-light text-center text-muted shadow-sm mt-3 d-none">
@@ -413,31 +420,18 @@
                 </div>
             </div>
 
-            <div class="tab-pane fade" id="cps-historico-pane" role="tabpanel" tabindex="0">
-                <div class="content-loader-container">
-                    <div class="card shadow-sm border-0">
-                        <div
-                            class="card-header bg-white p-3 border-bottom d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0 card-title-modern">
-                                <i class="bi bi-archive me-2"></i>Histórico de Pagamentos
-                            </h5>
-                            <button class="btn btn-sm btn-outline-success" id="btn-exportar-historico-cps">
-                                <i class="bi bi-file-earmark-excel"></i> Exportar
-                            </button>
-                        </div>
-                        <div class="card-body">
-                            <div class="accordion" id="accordionHistoricoCPS"></div>
-
-                            <p id="msg-sem-historico-cps" class="text-center text-muted p-4 d-none">
-                                Nenhum histórico encontrado com os filtros atuais.
-                            </p>
-                        </div>
-                    </div>
-                    <div class="overlay-loader d-none">
-                        <div class="spinner-border text-primary" role="status"><span
-                                class="visually-hidden">Carregando...</span></div>
-                    </div>
+            <div class="card-body">
+                <div class="mb-3 position-relative">
+                    <input type="text" class="form-control ps-5" id="input-busca-cps-historico"
+                        placeholder="Pesquisar histórico...">
+                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
                 </div>
+
+                <div class="accordion" id="accordionHistoricoCPS"></div>
+
+                <p id="msg-sem-historico-cps" class="text-center text-muted p-4 d-none">
+                    Nenhum histórico encontrado com os filtros atuais.
+                </p>
             </div>
         </div>
     </div>

@@ -395,6 +395,17 @@
                                     </button>
                                 </div>
 
+                                <div id="cps-acoes-lote-adiantamento-container" class="d-none ms-3 d-flex gap-2">
+                                    <button id="btn-pagar-adiantamento-lote" class="btn-acao-lote btn-lote-success">
+                                        <i class="bi bi-cash-stack me-1"></i> Pagar Adiantamentos (<span
+                                            id="contador-pagar-adiantamento">0</span>)
+                                    </button>
+                                    <button id="btn-recusar-adiantamento-lote" class="btn-acao-lote btn-lote-danger">
+                                        <i class="bi bi-x-circle me-1"></i> Recusar Adiantamentos (<span
+                                            id="contador-recusar-adiantamento">0</span>)
+                                    </button>
+                                </div>
+
                             </div>
                         </div>
                         <div class="card-body">
@@ -417,6 +428,62 @@
                         <div class="spinner-border text-primary" role="status"><span
                                 class="visually-hidden">Carregando...</span></div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalAprovarAdiantamento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-success">
+                        <i class="bi bi-cash-stack me-2"></i>Confirmar Pagamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="idAdiantamentoAprovar">
+                    <p class="mb-0">Confirmar o pagamento do adiantamento no valor de:</p>
+                    <h3 class="text-center text-success my-3" id="displayValorAdiantamento">R$ 0,00</h3>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle me-1"></i>
+                        O status do item voltará para "Em Aberto" após o pagamento.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="btnConfirmarAprovarAdiantamento">
+                        <i class="bi bi-check-lg me-1"></i> Confirmar Pagamento
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalRecusarAdiantamento" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">
+                        <i class="bi bi-x-circle me-2"></i>Recusar Adiantamento
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="idAdiantamentoRecusar">
+                    <p>Informe o motivo da recusa para o solicitante:</p>
+                    <div class="mb-3">
+                        <label for="motivoRecusaAdiantamento" class="form-label fw-bold">Motivo</label>
+                        <textarea class="form-control" id="motivoRecusaAdiantamento" rows="3"
+                            placeholder="Ex: Valor muito alto para esta etapa..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="btnConfirmarRecusaAdiantamento">
+                        <i class="bi bi-x-lg me-1"></i> Confirmar Recusa
+                    </button>
                 </div>
             </div>
         </div>

@@ -228,53 +228,28 @@ window.abrirModalSolicitarAdiantamento = function (id, valorTotal, valorJaAdiant
 };
 
 // 2. Aprovar Adiantamento (Controller)
-window.aprovarAdiantamento = async function (id, valor) {
-    if (!confirm(`Confirmar o pagamento do adiantamento de R$ ${valor}?`)) return;
+window.aprovarAdiantamento = function (id, valor) {
+    const modalEl = document.getElementById('modalAprovarAdiantamento');
+    const modal = new bootstrap.Modal(modalEl);
 
-    toggleLoader(true, '#cps-pendencias-pane');
-    try {
-        const userId = localStorage.getItem('usuarioId');
-        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/pagar-adiantamento`, {
-            method: 'POST',
-            body: JSON.stringify({ usuarioId: userId })
-        });
+    document.getElementById('idAdiantamentoAprovar').value = id;
 
-        if (!response.ok) throw new Error("Erro ao processar pagamento.");
+    // Formata o valor para exibição
+    const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+    document.getElementById('displayValorAdiantamento').textContent = valorFormatado;
 
-        mostrarToast("Adiantamento pago com sucesso! Item retornou para 'Em Aberto'.", "success");
-
-        // Recarrega a lista
-        document.getElementById('btn-atualizar-cps').click();
-    } catch (error) {
-        mostrarToast(error.message, 'error');
-    } finally {
-        toggleLoader(false, '#cps-pendencias-pane');
-    }
+    modal.show();
 };
 
 // 3. Recusar Adiantamento (Controller)
-window.recusarAdiantamento = async function (id) {
-    const motivo = prompt("Motivo da recusa do adiantamento:");
-    if (motivo === null) return; // Cancelou
-    if (!motivo.trim()) { alert("O motivo é obrigatório."); return; }
+window.recusarAdiantamento = function (id) {
+    const modalEl = document.getElementById('modalRecusarAdiantamento');
+    const modal = new bootstrap.Modal(modalEl);
 
-    toggleLoader(true, '#cps-pendencias-pane');
-    try {
-        const userId = localStorage.getItem('usuarioId');
-        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/recusar-adiantamento`, {
-            method: 'POST',
-            body: JSON.stringify({ usuarioId: userId, motivo: motivo })
-        });
+    document.getElementById('idAdiantamentoRecusar').value = id;
+    document.getElementById('motivoRecusaAdiantamento').value = ''; // Limpa o campo
 
-        if (!response.ok) throw new Error("Erro ao recusar.");
-
-        mostrarToast("Solicitação de adiantamento recusada.", "warning");
-        document.getElementById('btn-atualizar-cps').click();
-    } catch (error) {
-        mostrarToast(error.message, 'error');
-    } finally {
-        toggleLoader(false, '#cps-pendencias-pane');
-    }
+    modal.show();
 };
 
 // ==========================================================
@@ -2675,51 +2650,80 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Lógica de Botões de Lote ---
 
     function atualizarBotoesLoteCPS() {
-        const checkboxes = document.querySelectorAll('.cps-check:checked');
+        // Seleciona apenas os checkboxes VISÍVEIS na aba atual para evitar conflitos
+        // O painel ativo do CPS é o #cps-pendencias-pane
+        const paneCPS = document.getElementById('cps-pendencias-pane');
+        if (!paneCPS) return;
+
+        const checkboxes = paneCPS.querySelectorAll('.cps-check:checked');
         const total = checkboxes.length;
 
         const containerCoord = document.getElementById('cps-acoes-lote-coord-container');
         const containerController = document.getElementById('cps-acoes-lote-controller-container');
-        // >>> NOVO CONTAINER
-        const containerAdiantamento = document.getElementById('cps-acoes-lote-adiantamento-container');
+        const containerAdiantamento = document.getElementById('cps-acoes-lote-adiantamento-container'); // <--- ESTE É O NOVO CONTAINER
 
-        // Esconde tudo primeiro
+        // Esconde tudo primeiro para resetar o estado
         if (containerCoord) containerCoord.classList.add('d-none');
         if (containerController) containerController.classList.add('d-none');
         if (containerAdiantamento) containerAdiantamento.classList.add('d-none');
 
-        // Atualiza contadores visuais (Adicione os novos IDs se usar spans)
-        // ...
-
+        // Se nada selecionado, para por aqui
         if (total === 0) return;
 
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
         let temEmAberto = false;
         let temFechado = false;
-        let temAdiantamento = false; // >>> NOVO FLAG
+        let temAdiantamento = false;
 
+        // Verifica os status dos itens selecionados
         checkboxes.forEach(cb => {
             const status = cb.getAttribute('data-status');
             if (status === 'EM_ABERTO') temEmAberto = true;
             if (status === 'FECHADO' || status === 'ALTERACAO_SOLICITADA') temFechado = true;
-            if (status === 'SOLICITACAO_ADIANTAMENTO') temAdiantamento = true; // >>> CHECK
+            if (status === 'SOLICITACAO_ADIANTAMENTO') temAdiantamento = true;
         });
 
-        // ... (Regras Coord e Controller Fechado mantidas) ...
+        // Lógica de visibilidade baseada no PERFIL e nos STATUS selecionados
 
-        if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
-            if (temFechado) {
-                if (containerController) containerController.classList.remove('d-none');
+        // 1. Perfil COORDENADOR (Vê apenas EM_ABERTO)
+        if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole)) {
+            // Se tem itens em aberto e NÃO misturou com outros tipos
+            if (temEmAberto && !temFechado && !temAdiantamento) {
+                if (containerCoord) {
+                    containerCoord.classList.remove('d-none');
+                    // Atualiza contadores
+                    const spanFechar = document.getElementById('contador-fechar-cps');
+                    const spanRecusar = document.getElementById('contador-recusar-cps-coord');
+                    if (spanFechar) spanFechar.textContent = total;
+                    if (spanRecusar) spanRecusar.textContent = total;
+                }
             }
-            // >>> NOVA REGRA PARA ADIANTAMENTO
-            // Mostra se tem adiantamento selecionado E não misturou com fechados (para evitar confusão de botões)
-            if (temAdiantamento && !temFechado) {
+        }
+
+        // 2. Perfil CONTROLLER (Vê FECHADO e ADIANTAMENTO)
+        if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
+
+            // Cenário A: Pagamento Normal (FECHADO)
+            if (temFechado && !temEmAberto && !temAdiantamento) {
+                if (containerController) {
+                    containerController.classList.remove('d-none');
+                    const spanPagar = document.getElementById('contador-pagamento-cps');
+                    const spanDevolver = document.getElementById('contador-recusar-cps-controller');
+                    if (spanPagar) spanPagar.textContent = total;
+                    if (spanDevolver) spanDevolver.textContent = total;
+                }
+            }
+
+            // Cenário B: Adiantamento (SOLICITACAO_ADIANTAMENTO)
+            // IMPORTANTE: Aqui está a lógica que faltava para o seu problema
+            if (temAdiantamento && !temEmAberto && !temFechado) {
                 if (containerAdiantamento) {
                     containerAdiantamento.classList.remove('d-none');
-                    // Atualiza contadores dos botões novos
-                    document.getElementById('contador-pagar-adiantamento').textContent = total;
-                    document.getElementById('contador-recusar-adiantamento').textContent = total;
+                    const spanPagarAdiant = document.getElementById('contador-pagar-adiantamento');
+                    const spanRecusarAdiant = document.getElementById('contador-recusar-adiantamento');
+                    if (spanPagarAdiant) spanPagarAdiant.textContent = total;
+                    if (spanRecusarAdiant) spanRecusarAdiant.textContent = total;
                 }
             }
         }
@@ -3177,6 +3181,88 @@ document.addEventListener('DOMContentLoaded', function () {
                 // --- REMOVE LOADING ---
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = originalContent;
+            }
+        });
+    }
+
+    const btnAprovarAdiant = document.getElementById('btnConfirmarAprovarAdiantamento');
+    if (btnAprovarAdiant) {
+        btnAprovarAdiant.addEventListener('click', async function() {
+            const id = document.getElementById('idAdiantamentoAprovar').value;
+            const modalEl = document.getElementById('modalAprovarAdiantamento');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+            // Efeito de Loading no botão
+            const originalText = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
+            toggleLoader(true, '#cps-pendencias-pane');
+
+            try {
+                const userId = localStorage.getItem('usuarioId');
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/pagar-adiantamento`, {
+                    method: 'POST',
+                    body: JSON.stringify({ usuarioId: userId })
+                });
+                
+                if(!response.ok) throw new Error("Erro ao processar pagamento.");
+                
+                mostrarToast("Adiantamento pago com sucesso!", "success");
+                modalInstance.hide();
+                
+                // Recarrega a lista
+                document.getElementById('btn-atualizar-cps').click(); 
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false, '#cps-pendencias-pane');
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }
+        });
+    }
+
+    // --- LISTENER: CONFIRMAR RECUSA ADIANTAMENTO ---
+    const btnRecusarAdiant = document.getElementById('btnConfirmarRecusaAdiantamento');
+    if (btnRecusarAdiant) {
+        btnRecusarAdiant.addEventListener('click', async function() {
+            const id = document.getElementById('idAdiantamentoRecusar').value;
+            const motivo = document.getElementById('motivoRecusaAdiantamento').value.trim();
+            const modalEl = document.getElementById('modalRecusarAdiantamento');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+            if (!motivo) {
+                alert("O motivo é obrigatório.");
+                document.getElementById('motivoRecusaAdiantamento').focus();
+                return;
+            }
+
+            // Efeito de Loading no botão
+            const originalText = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
+            toggleLoader(true, '#cps-pendencias-pane');
+
+            try {
+                const userId = localStorage.getItem('usuarioId');
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/recusar-adiantamento`, {
+                    method: 'POST',
+                    body: JSON.stringify({ usuarioId: userId, motivo: motivo })
+                });
+                
+                if(!response.ok) throw new Error("Erro ao recusar.");
+                
+                mostrarToast("Solicitação recusada com sucesso.", "warning");
+                modalInstance.hide();
+                
+                // Recarrega a lista
+                document.getElementById('btn-atualizar-cps').click(); 
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false, '#cps-pendencias-pane');
+                this.disabled = false;
+                this.innerHTML = originalText;
             }
         });
     }

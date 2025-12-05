@@ -30,4 +30,17 @@ public class ControleCpsDTO {
             @NotEmpty List<Long> lancamentoIds,
             @NotNull Long coordenadorId
     ) {}
+
+    // --- NOVOS DTOs ADICIONADOS ---
+    public record AcaoRecusaCoordenadorLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
+            @NotNull Long coordenadorId,
+            @NotNull String justificativa
+    ) {}
+
+    public record AcaoRecusaControllerLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
+            @NotNull Long controllerId,
+            @NotNull String motivo
+    ) {}
 }

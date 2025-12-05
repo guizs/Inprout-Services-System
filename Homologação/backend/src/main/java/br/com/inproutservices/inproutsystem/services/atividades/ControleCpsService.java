@@ -45,4 +45,8 @@ public interface ControleCpsService {
     Lancamento recusarPeloController(ControleCpsDTO.AcaoRecusaControllerDTO dto);
 
     List<Lancamento> fecharParaPagamentoLote(ControleCpsDTO.AcaoCoordenadorLoteDTO dto);
+
+    List<Lancamento> recusarPagamentoLote(ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto);
+
+    List<Lancamento> recusarPeloControllerLote(ControleCpsDTO.AcaoRecusaControllerLoteDTO dto);
 }

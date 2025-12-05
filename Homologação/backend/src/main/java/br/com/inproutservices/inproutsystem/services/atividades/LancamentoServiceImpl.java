@@ -506,6 +506,14 @@ public class LancamentoServiceImpl implements LancamentoService {
         Lancamento lancamento = lancamentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
 
+        // --- NOVA TRAVA DE SEGURANÇA ---
+        // Se o statusPagamento não for nulo, significa que o item já foi aprovado pelo Controller
+        // e entrou no fluxo financeiro (mesmo que tenha sido recusado depois).
+        if (lancamento.getStatusPagamento() != null) {
+            throw new BusinessException("Não é possível excluir um lançamento que já entrou no fluxo de pagamento (CPS). Apenas edições são permitidas.");
+        }
+        // -------------------------------
+
         // Regra de Negócio: Permite exclusão apenas se for RASCUNHO ou RECUSADO
         if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RASCUNHO &&
                 lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR &&

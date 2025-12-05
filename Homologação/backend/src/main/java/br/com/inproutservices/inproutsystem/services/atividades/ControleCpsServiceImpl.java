@@ -7,6 +7,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
+import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
@@ -60,6 +61,84 @@ public class ControleCpsServiceImpl implements ControleCpsService {
             }
             lancamentoRepository.saveAll(lancamentosParaInicializar);
         }
+    }
+
+    @Override
+    @Transactional
+    public Lancamento recusarPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto) {
+        Usuario coordenador = getUsuario(dto.coordenadorId());
+        Lancamento lancamento = getLancamento(dto.lancamentoId());
+
+        if (lancamento.getStatusPagamento() != StatusPagamento.EM_ABERTO) {
+            throw new BusinessException("Apenas lançamentos 'EM ABERTO' podem ser recusados.");
+        }
+        if (dto.justificativa() == null || dto.justificativa().isBlank()) {
+            throw new BusinessException("A justificativa é obrigatória para recusar um pagamento.");
+        }
+
+        lancamento.setStatusPagamento(StatusPagamento.RECUSADO);
+
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_COORDENADOR);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        criarComentario(lancamento, coordenador, "Pagamento RECUSADO no CPS. Motivo: " + dto.justificativa());
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional
+    public List<Lancamento> recusarPagamentoLote(ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto) {
+        Usuario coordenador = getUsuario(dto.coordenadorId());
+
+        if (coordenador.getRole() != Role.COORDINATOR && coordenador.getRole() != Role.ADMIN) {
+            throw new BusinessException("Apenas Coordenadores ou Admins podem realizar esta ação.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(dto.lancamentoIds());
+        List<Lancamento> processados = new ArrayList<>();
+
+        for (Lancamento l : lancamentos) {
+            if (l.getStatusPagamento() == StatusPagamento.EM_ABERTO) {
+                l.setStatusPagamento(StatusPagamento.RECUSADO);
+                l.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_COORDENADOR);
+                l.setUltUpdate(LocalDateTime.now());
+
+                criarComentario(l, coordenador, "Pagamento RECUSADO em lote no CPS. Motivo: " + dto.justificativa());
+                processados.add(l);
+            }
+        }
+        return lancamentoRepository.saveAll(processados);
+    }
+
+    @Override
+    @Transactional
+    public List<Lancamento> recusarPeloControllerLote(ControleCpsDTO.AcaoRecusaControllerLoteDTO dto) {
+        Usuario controller = getUsuario(dto.controllerId());
+
+        if (controller.getRole() != Role.CONTROLLER && controller.getRole() != Role.ADMIN) {
+            throw new BusinessException("Apenas Controllers ou Admins podem realizar esta ação.");
+        }
+
+        List<Lancamento> lancamentos = lancamentoRepository.findAllById(dto.lancamentoIds());
+        List<Lancamento> processados = new ArrayList<>();
+
+        for (Lancamento l : lancamentos) {
+            // Controller só devolve itens que estão na fila dele
+            if (l.getStatusPagamento() == StatusPagamento.FECHADO || l.getStatusPagamento() == StatusPagamento.ALTERACAO_SOLICITADA) {
+
+                // --- ALTERAÇÃO PRINCIPAL ---
+                l.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_CONTROLLER);
+                l.setStatusPagamento(null); // Remove do fluxo CPS
+                // ---------------------------
+
+                l.setUltUpdate(LocalDateTime.now());
+
+                criarComentario(l, controller, "Pagamento recusado em lote pelo Controller (Devolvido ao Gestor). Motivo: " + dto.motivo());
+                processados.add(l);
+            }
+        }
+        return lancamentoRepository.saveAll(processados);
     }
 
     @Override
@@ -134,7 +213,6 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         return filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
     }
 
-    // ... (Métodos de ação mantidos iguais: fecharParaPagamento, recusarPagamento, etc.) ...
     @Override
     @Transactional
     public Lancamento fecharParaPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto) {
@@ -150,27 +228,6 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         lancamento.setUltUpdate(LocalDateTime.now());
 
         criarComentario(lancamento, coordenador, "Pagamento Fechado. " + justificativa);
-
-        return lancamentoRepository.save(lancamento);
-    }
-
-    @Override
-    @Transactional
-    public Lancamento recusarPagamento(ControleCpsDTO.AcaoCoordenadorDTO dto) {
-        Usuario coordenador = getUsuario(dto.coordenadorId());
-        Lancamento lancamento = getLancamento(dto.lancamentoId());
-
-        if (lancamento.getStatusPagamento() != StatusPagamento.EM_ABERTO) {
-            throw new BusinessException("Apenas lançamentos 'EM ABERTO' podem ser recusados.");
-        }
-        if (dto.justificativa() == null || dto.justificativa().isBlank()) {
-            throw new BusinessException("A justificativa é obrigatória para recusar um pagamento.");
-        }
-
-        lancamento.setStatusPagamento(StatusPagamento.RECUSADO);
-        lancamento.setUltUpdate(LocalDateTime.now());
-
-        criarComentario(lancamento, coordenador, "Pagamento RECUSADO. Motivo: " + dto.justificativa());
 
         return lancamentoRepository.save(lancamento);
     }
@@ -239,10 +296,17 @@ public class ControleCpsServiceImpl implements ControleCpsService {
             throw new BusinessException("Apenas lançamentos na fila do Controller podem ser devolvidos.");
         }
 
-        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        // --- ALTERAÇÃO PRINCIPAL ---
+        // Antes: lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO); (Voltava pro Coordenador)
+
+        // Agora: Volta para o Gestor
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.RECUSADO_CONTROLLER);
+        lancamento.setStatusPagamento(null); // Remove do fluxo CPS
+        // ---------------------------
+
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        criarComentario(lancamento, controller, "Pagamento devolvido. Motivo: " + dto.motivo());
+        criarComentario(lancamento, controller, "Pagamento recusado pelo Controller (Devolvido ao Gestor). Motivo: " + dto.motivo());
 
         return lancamentoRepository.save(lancamento);
     }

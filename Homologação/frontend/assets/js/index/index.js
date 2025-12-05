@@ -349,23 +349,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (nomeColuna === 'AÇÃO') {
                     let buttonsHtml = '';
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
+
+                        // --- BLOCO 1: MINHAS PENDÊNCIAS ---
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
+                            // Botão de Editar (Sempre visível para pendências)
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
-                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
-                        } else if (tbodyElement.id === 'tbody-lancamentos') {
+
+                            // Trava de Segurança: Só mostra excluir se NÃO tiver statusPagamento
+                            if (!lancamento.statusPagamento) {
+                                buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
+                            }
+
+                        } // <--- AQUI É O FECHAMENTO CORRETO DO BLOCO PENDÊNCIAS
+
+                        // --- BLOCO 2: RASCUNHOS ---
+                        else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
                             buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
+
+                            // --- BLOCO 3: PARALISADOS OU HISTÓRICO ---
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
-                            if (!projetosFinalizados.has(chaveProjetoAtual)) {
+                            if (typeof projetosFinalizados !== 'undefined' && !projetosFinalizados.has(chaveProjetoAtual)) {
                                 buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                             }
                         }
                     }
+
+                    // Botão de Comentários (Comum a todos ou conforme regra)
                     buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
+
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
+
                 } else {
+                    // --- Renderização das outras colunas ---
                     td.innerHTML = mapaDeCelulas[nomeColuna] || '';
+
                     if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                         aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                     }

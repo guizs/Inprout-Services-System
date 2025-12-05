@@ -204,4 +204,16 @@ public class ControleCpsController {
         // Reutiliza seu método existente de enriquecer com totais
         return ResponseEntity.ok(enriquecerComTotais(lancamentos));
     }
+
+    @PostMapping("/recusar-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> recusarPagamentoLote(@Valid @RequestBody ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.recusarPagamentoLote(dto);
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
+    }
+
+    @PostMapping("/recusar-controller-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> recusarPeloControllerLote(@Valid @RequestBody ControleCpsDTO.AcaoRecusaControllerLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.recusarPeloControllerLote(dto);
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
+    }
 }

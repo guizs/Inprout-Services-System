@@ -2487,40 +2487,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Lógica de Botões de Lote ---
 
     function atualizarBotoesLoteCPS() {
-        const selecionados = document.querySelectorAll('.cps-check:checked').length;
-        const containerBtn = document.getElementById('containerBotoesLote'); // Crie uma div com esse ID no seu HTML acima do acordeão
+        // 1. Conta quantos itens estão selecionados
+        const selecionados = document.querySelectorAll('.cps-check:checked');
+        const total = selecionados.length;
 
-        if (!containerBtn) return;
+        // 2. Seleciona os containers de botões que já existem no HTML
+        const containerCoord = document.getElementById('cps-acoes-lote-coord-container');
+        const containerController = document.getElementById('cps-acoes-lote-controller-container');
+        
+        // 3. Atualiza os contadores de texto dentro dos botões
+        ['contador-fechar-cps', 'contador-recusar-cps-coord', 'contador-pagamento-cps', 'contador-recusar-cps-controller'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = total;
+        });
 
-        if (selecionados > 0) {
-            const userRole = localStorage.getItem("role"); // Ajuste conforme sua auth
-            let html = `<span class="me-3 fw-bold text-primary">${selecionados} item(ns) selecionado(s)</span>`;
+        // 4. Reseta a visibilidade (esconde tudo primeiro)
+        if (containerCoord) containerCoord.classList.add('d-none');
+        if (containerController) containerController.classList.add('d-none');
 
-            // Lógica de botões baseada no papel
-            if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
-                html += `
-                <button class="btn btn-success btn-sm me-2" onclick="prepararAcaoLote('fechar')">
-                    <i class="bi bi-check-all"></i> Fechar Selecionados
-                </button>
-                <button class="btn btn-danger btn-sm me-2" onclick="prepararAcaoLote('recusar')">
-                    <i class="bi bi-x-circle"></i> Recusar Selecionados
-                </button>
-            `;
+        // 5. Se houver itens selecionados, mostra os botões adequados ao perfil
+        if (total > 0) {
+            const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+
+            // Lógica para Coordenadores/Gerentes/Admins (Ações de Fechamento/Recusa Inicial)
+            if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole)) {
+                if (containerCoord) containerCoord.classList.remove('d-none');
             }
 
-            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-                html += `
-                <button class="btn btn-warning btn-sm" onclick="prepararAcaoLote('recusar-controller')">
-                    <i class="bi bi-arrow-counterclockwise"></i> Devolver Selecionados
-                </button>
-            `;
+            // Lógica para Controllers/Admins (Ações de Pagamento/Devolução)
+            if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
+                if (containerController) containerController.classList.remove('d-none');
             }
 
-            containerBtn.innerHTML = html;
-            containerBtn.classList.remove('d-none');
-        } else {
-            containerBtn.classList.add('d-none');
-            containerBtn.innerHTML = '';
         }
     }
 

@@ -506,19 +506,19 @@ public class LancamentoServiceImpl implements LancamentoService {
         Lancamento lancamento = lancamentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
 
-        // --- NOVA TRAVA DE SEGURANÇA ---
-        // Se o statusPagamento não for nulo, significa que o item já foi aprovado pelo Controller
-        // e entrou no fluxo financeiro (mesmo que tenha sido recusado depois).
         if (lancamento.getStatusPagamento() != null) {
-            throw new BusinessException("Não é possível excluir um lançamento que já entrou no fluxo de pagamento (CPS). Apenas edições são permitidas.");
+            throw new BusinessException("Não é possível excluir um lançamento que já entrou no fluxo de pagamento (CPS).");
         }
-        // -------------------------------
 
-        // Regra de Negócio: Permite exclusão apenas se for RASCUNHO ou RECUSADO
+        if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.RECUSADO_CONTROLLER) {
+            throw new BusinessException("Não é possível excluir um lançamento que já passou pela aprovação do Controller e foi devolvido. Realize a correção e reenvie.");
+        }
+
+        // Regra original
         if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RASCUNHO &&
-                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR &&
-                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_CONTROLLER) {
-            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS, RECUSADOS POR COORDENADOR ou RECUSADOS POR CONTROLLER. Status atual: " + lancamento.getSituacaoAprovacao());
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR) {
+            // Note que removi RECUSADO_CONTROLLER da lista de permitidos acima
+            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS ou RECUSADOS POR COORDENADOR.");
         }
 
         lancamentoRepository.delete(lancamento);

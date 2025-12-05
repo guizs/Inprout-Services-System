@@ -356,7 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
 
                             // Trava de Segurança: Só mostra excluir se NÃO tiver statusPagamento
-                            if (!lancamento.statusPagamento) {
+                            if (!lancamento.statusPagamento && lancamento.situacaoAprovacao !== 'RECUSADO_CONTROLLER') {
                                 buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                             }
 

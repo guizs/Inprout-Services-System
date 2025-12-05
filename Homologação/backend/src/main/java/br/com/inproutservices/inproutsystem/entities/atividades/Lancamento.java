@@ -132,6 +132,9 @@ public class Lancamento {
     public Lancamento() {
     }
 
+    @Column(name = "data_competencia")
+    private LocalDate dataCompetencia;
+
     /**
      * Este método garante que a data de criação e a situação inicial
      * sejam definidas automaticamente ao criar um novo lançamento.
@@ -423,6 +426,14 @@ public class Lancamento {
 
     public void setStatus(StatusEtapa status) {
         this.status = status;
+    }
+
+    public LocalDate getDataCompetencia() {
+        return dataCompetencia;
+    }
+
+    public void setDataCompetencia(LocalDate dataCompetencia) {
+        this.dataCompetencia = dataCompetencia;
     }
 
     @Override

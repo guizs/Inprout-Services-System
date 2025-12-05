@@ -145,35 +145,28 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Transactional
     public List<Lancamento> fecharParaPagamentoLote(ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
         Usuario coordenador = getUsuario(dto.coordenadorId());
-
-        // Validação de Permissão (Opcional, mas recomendado)
-        if (coordenador.getRole() != Role.COORDINATOR && coordenador.getRole() != Role.ADMIN) {
-            throw new BusinessException("Usuário sem permissão para fechar pagamentos.");
-        }
-
         List<Lancamento> lancamentos = lancamentoRepository.findAllById(dto.lancamentoIds());
         List<Lancamento> processados = new ArrayList<>();
 
         for (Lancamento l : lancamentos) {
-            // Apenas itens EM_ABERTO podem ser fechados pelo coordenador
             if (l.getStatusPagamento() == StatusPagamento.EM_ABERTO) {
-
-                // Garante que o valor de pagamento esteja preenchido (usa o valor operacional se estiver nulo)
                 if (l.getValorPagamento() == null) {
                     l.setValorPagamento(l.getValor());
+                }
+
+                // Salva a competência
+                if (dto.competencia() != null) {
+                    l.setDataCompetencia(dto.competencia());
                 }
 
                 l.setStatusPagamento(StatusPagamento.FECHADO);
                 l.setUltUpdate(LocalDateTime.now());
 
-                // Adiciona comentário automático
                 String valorFormatado = String.format("R$ %.2f", l.getValorPagamento());
-                criarComentario(l, coordenador, "Pagamento Fechado em Lote. Valor confirmado: " + valorFormatado);
-
+                criarComentario(l, coordenador, "Pagamento Fechado em Lote. Valor: " + valorFormatado);
                 processados.add(l);
             }
         }
-
         return lancamentoRepository.saveAll(processados);
     }
 
@@ -220,14 +213,19 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         Lancamento lancamento = getLancamento(dto.lancamentoId());
 
         if (lancamento.getStatusPagamento() != StatusPagamento.EM_ABERTO) {
-            throw new BusinessException("Apenas lançamentos 'EM ABERTO' podem ser fechados para pagamento.");
+            throw new BusinessException("Apenas lançamentos 'EM ABERTO' podem ser fechados.");
+        }
+
+        // Salva a competência se enviada
+        if (dto.competencia() != null) {
+            lancamento.setDataCompetencia(dto.competencia());
         }
 
         String justificativa = registrarAlteracaoValor(lancamento, dto.valorPagamento(), dto.justificativa(), coordenador);
         lancamento.setStatusPagamento(StatusPagamento.FECHADO);
         lancamento.setUltUpdate(LocalDateTime.now());
 
-        criarComentario(lancamento, coordenador, "Pagamento Fechado. " + justificativa);
+        criarComentario(lancamento, coordenador, "Pagamento Fechado. Competência: " + (dto.competencia() != null ? dto.competencia() : "N/A") + ". " + justificativa);
 
         return lancamentoRepository.save(lancamento);
     }

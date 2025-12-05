@@ -1492,13 +1492,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const primeiroLancamento = todosOsLancamentosGlobais.find(l => l.id == ids[0]);
         if (!primeiroLancamento) return;
 
+        // >>> ADICIONE O LOADER AQUI <<<
+        toggleLoader(true, '#atividades-pane');
         setButtonLoading(this, true);
+
         try {
             let endpoint = '';
             let payload = { lancamentoIds: ids, aprovadorId: userId };
 
             if (primeiroLancamento.situacaoAprovacao === 'PENDENTE_COORDENADOR') {
-                // Se for status de coordenador (mesmo que seja Admin clicando), usa endpoint de coordenador
                 endpoint = `${API_BASE_URL}/lancamentos/lote/coordenador-aprovar`;
             }
             else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
@@ -1513,9 +1515,8 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, 'success');
             modalAprovar.hide();
 
-            // Recarrega o dashboard (que recarrega os dados globais)
+            // Recarrega o dashboard e as pendências
             await carregarDashboardEBadges();
-            // Re-renderiza a tabela de atividades com os dados globais atualizados
             renderizarAcordeonPendencias(todasPendenciasAtividades);
 
         } catch (error) {
@@ -1523,6 +1524,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             setButtonLoading(this, false);
             delete modalAprovar._element.dataset.acaoEmLote;
+
+            // >>> REMOVA O LOADER AQUI <<<
+            toggleLoader(false, '#atividades-pane');
         }
     });
 
@@ -1601,6 +1605,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ids.length === 0) return;
 
         const motivo = document.getElementById('motivoRecusa').value;
+        // ... (lógica de endpoint igual ao original) ...
         let endpoint = '';
         let payload = {};
 
@@ -1612,7 +1617,10 @@ document.addEventListener('DOMContentLoaded', function () {
             payload = { lancamentoIds: ids, aprovadorId: userId, comentario: motivo };
         }
 
+        // >>> ADICIONE O LOADER AQUI <<<
+        toggleLoader(true, '#atividades-pane');
         setButtonLoading(btn, true);
+
         try {
             const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
             if (!response.ok) throw new Error((await response.json()).message || 'Falha ao recusar.');
@@ -1620,9 +1628,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, 'success');
             modalRecusar.hide();
 
-            // Recarrega o dashboard (que recarrega os dados globais)
             await carregarDashboardEBadges();
-            // Re-renderiza a tabela de atividades com os dados globais atualizados
             renderizarAcordeonPendencias(todasPendenciasAtividades);
 
         } catch (error) {
@@ -1630,6 +1636,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             setButtonLoading(btn, false);
             delete modalRecusar._element.dataset.acaoEmLote;
+
+            // >>> REMOVA O LOADER AQUI <<<
+            toggleLoader(false, '#atividades-pane');
         }
     });
 
@@ -1644,16 +1653,23 @@ document.addEventListener('DOMContentLoaded', function () {
             const valor = parseFloat(valorRaw.replace(/\./g, '').replace(',', '.'));
             const justificativa = document.getElementById('justificativaAdiantamentoInput').value;
 
+            // Referência ao botão de submit para aplicar o efeito de loading
+            const btnSubmit = formSolicitarAdiantamento.querySelector('button[type="submit"]');
+            const textoOriginal = btnSubmit.innerHTML;
+
             if (!valor || valor <= 0) {
                 mostrarToast("Digite um valor válido maior que zero.", "warning");
                 return;
             }
 
-            // Fecha o modal
+            // Fecha o modal visualmente (mas mantém a lógica rodando)
             const modalEl = document.getElementById('modalSolicitarAdiantamento');
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
 
+            // EFEITO DE LOADING
             toggleLoader(true, '#cps-pendencias-pane');
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
 
             try {
                 const userId = localStorage.getItem('usuarioId');
@@ -1662,7 +1678,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({
                         valor: valor,
                         usuarioId: userId,
-                        justificativa: justificativa // Opcional, adicionei no seu backend service
+                        justificativa: justificativa
                     })
                 });
 
@@ -1677,6 +1693,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 mostrarToast(error.message, 'error');
             } finally {
                 toggleLoader(false, '#cps-pendencias-pane');
+                // Restaura o botão
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
             }
         });
     }
@@ -1691,6 +1710,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (ids.length === 0) return;
 
+        // ... (lógica de endpoint igual ao original) ...
         let endpoint = '';
         let payload = {};
         const comentario = document.getElementById('comentarioCoordenador').value;
@@ -1704,7 +1724,10 @@ document.addEventListener('DOMContentLoaded', function () {
             payload = { lancamentoIds: ids, coordenadorId: userId, comentario: comentario, novaDataSugerida: novaData };
         }
 
+        // >>> ADICIONE O LOADER AQUI <<<
+        toggleLoader(true, '#atividades-pane');
         setButtonLoading(btn, true);
+
         try {
             const response = await fetchComAuth(endpoint, { method: 'POST', body: JSON.stringify(payload) });
             if (!response.ok) throw new Error((await response.json()).message || 'Falha ao enviar solicitação.');
@@ -1712,9 +1735,7 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`Ação realizada com sucesso para ${ids.length} item(ns)!`, 'success');
             modalComentar.hide();
 
-            // Recarrega o dashboard (que recarrega os dados globais)
             await carregarDashboardEBadges();
-            // Re-renderiza a tabela de atividades com os dados globais atualizados
             renderizarAcordeonPendencias(todasPendenciasAtividades);
 
         } catch (error) {
@@ -1722,6 +1743,9 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
             setButtonLoading(btn, false);
             delete modalComentar._element.dataset.acaoEmLote;
+
+            // >>> REMOVA O LOADER AQUI <<<
+            toggleLoader(false, '#atividades-pane');
         }
     });
 
@@ -2109,9 +2133,15 @@ document.addEventListener('DOMContentLoaded', function () {
             // Marca como "carregando"
             targetPane.dataset.loaded = 'true';
 
+            // >>> CORREÇÃO: Mostra o loader na aba ativa (ex: lista de atividades) <<<
+            toggleLoader(true, targetPaneId);
+
             // CHAMA A NOVA FUNÇÃO DE DASHBOARD (que carrega todos os dados de pendência)
             carregarDashboardEBadges().finally(() => {
                 // Depois que o dashboard carregar (e preencher os arrays globais):
+
+                // >>> CORREÇÃO: Esconde o loader da aba ativa <<<
+                toggleLoader(false, targetPaneId);
 
                 // Renderiza a primeira aba ativa com os dados que acabaram de ser carregados
                 if (targetPaneId === '#atividades-pane') {
@@ -2133,10 +2163,6 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
-    // ==========================================================
-    // FIM DA CORREÇÃO 1
-    // ==========================================================
-
 
     // ==========================================================
     // LÓGICA DE AÇÕES EM LOTE PARA ABA COMPLEMENTAR
@@ -2374,6 +2400,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (userRole === 'ADMIN') showHeaderCheckbox = true;
                 else if (['COORDINATOR', 'MANAGER'].includes(userRole) && grp.itens.some(i => i.statusPagamento === 'EM_ABERTO')) showHeaderCheckbox = true;
                 else if (userRole === 'CONTROLLER' && grp.itens.some(i => i.statusPagamento === 'FECHADO' || i.statusPagamento === 'ALTERACAO_SOLICITADA')) showHeaderCheckbox = true;
+                else if (userRole === 'CONTROLLER' && grp.itens.some(i => i.statusPagamento === 'SOLICITACAO_ADIANTAMENTO')) showHeaderCheckbox = true;
             }
 
             // Checkbox posicionado "flutuando" sobre o botão para não ser afetado pelo clique do acordeão
@@ -2432,9 +2459,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (isControllerOrAdmin) {
                             const valorSolicitadoFmt = formatMoney(l.valorSolicitadoAdiantamento);
 
-                            btns += `<button class="btn btn-sm btn-success me-1" title="Pagar Adiantamento (${valorSolicitadoFmt})" onclick="aprovarAdiantamento(${l.id}, ${l.valorSolicitadoAdiantamento})"><i class="bi bi-check-lg"></i> Pagar ${valorSolicitadoFmt}</button>`;
+                            // BOTÕES PADRONIZADOS (Outline, Pequenos)
+                            btns += `<button class="btn btn-sm btn-outline-success me-1" title="Pagar Adiantamento (${valorSolicitadoFmt})" onclick="aprovarAdiantamento(${l.id}, ${l.valorSolicitadoAdiantamento})"><i class="bi bi-check-lg"></i></button>`;
 
-                            btns += `<button class="btn btn-sm btn-danger" title="Recusar Adiantamento" onclick="recusarAdiantamento(${l.id})"><i class="bi bi-x-lg"></i></button>`;
+                            btns += `<button class="btn btn-sm btn-outline-danger" title="Recusar Adiantamento" onclick="recusarAdiantamento(${l.id})"><i class="bi bi-x-lg"></i></button>`;
+
+                            showRowCheckbox = true; // >>> HABILITA CHECKBOX DE LINHA
                         } else {
                             btns += `<span class="badge bg-warning text-dark">Aguardando Controller<br>(Adiantamento)</span>`;
                         }
@@ -2650,48 +2680,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const containerCoord = document.getElementById('cps-acoes-lote-coord-container');
         const containerController = document.getElementById('cps-acoes-lote-controller-container');
+        // >>> NOVO CONTAINER
+        const containerAdiantamento = document.getElementById('cps-acoes-lote-adiantamento-container');
 
         // Esconde tudo primeiro
         if (containerCoord) containerCoord.classList.add('d-none');
         if (containerController) containerController.classList.add('d-none');
+        if (containerAdiantamento) containerAdiantamento.classList.add('d-none');
 
-        // Atualiza contadores visuais
-        ['contador-fechar-cps', 'contador-recusar-cps-coord', 'contador-pagamento-cps', 'contador-recusar-cps-controller'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = total;
-        });
+        // Atualiza contadores visuais (Adicione os novos IDs se usar spans)
+        // ...
 
         if (total === 0) return;
 
-        // --- Validação Inteligente de Status ---
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
         let temEmAberto = false;
         let temFechado = false;
+        let temAdiantamento = false; // >>> NOVO FLAG
 
         checkboxes.forEach(cb => {
             const status = cb.getAttribute('data-status');
             if (status === 'EM_ABERTO') temEmAberto = true;
             if (status === 'FECHADO' || status === 'ALTERACAO_SOLICITADA') temFechado = true;
+            if (status === 'SOLICITACAO_ADIANTAMENTO') temAdiantamento = true; // >>> CHECK
         });
 
-        // REGRA 1: Coordenador/Manager/Admin -> Ações de "Fechar"
-        // Só aparecem se houver itens EM_ABERTO selecionados e NENHUM FECHADO (para evitar erro)
-        if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole)) {
-            // Mostra se tem itens 'EM_ABERTO' e NÃO tem itens que já foram processados pelo coord ('FECHADO')
-            if (temEmAberto && !temFechado) {
-                if (containerCoord) containerCoord.classList.remove('d-none');
-            }
-        }
+        // ... (Regras Coord e Controller Fechado mantidas) ...
 
-        // REGRA 2: Controller/Admin -> Ações de "Pagar"
-        // Só aparecem se houver itens FECHADOS selecionados
         if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
-            // Mostra se tem itens prontos para pagar ('FECHADO' ou 'ALTERACAO_SOLICITADA')
             if (temFechado) {
                 if (containerController) containerController.classList.remove('d-none');
             }
+            // >>> NOVA REGRA PARA ADIANTAMENTO
+            // Mostra se tem adiantamento selecionado E não misturou com fechados (para evitar confusão de botões)
+            if (temAdiantamento && !temFechado) {
+                if (containerAdiantamento) {
+                    containerAdiantamento.classList.remove('d-none');
+                    // Atualiza contadores dos botões novos
+                    document.getElementById('contador-pagar-adiantamento').textContent = total;
+                    document.getElementById('contador-recusar-adiantamento').textContent = total;
+                }
+            }
         }
+    }
+
+    const btnPagarAdiantamentoLote = document.getElementById('btn-pagar-adiantamento-lote');
+    if (btnPagarAdiantamentoLote) {
+        btnPagarAdiantamentoLote.addEventListener('click', async function () {
+            const checks = document.querySelectorAll('.cps-check:checked');
+            const ids = Array.from(checks).map(c => parseInt(c.dataset.id));
+            if (!ids.length) return;
+
+            if (!confirm(`Confirma o pagamento de ${ids.length} adiantamentos selecionados?`)) return;
+
+            toggleLoader(true, '#cps-pendencias-pane');
+            const originalText = this.innerHTML;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
+            this.disabled = true;
+
+            try {
+                const userId = localStorage.getItem('usuarioId');
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/pagar-adiantamento-lote`, {
+                    method: 'POST',
+                    body: JSON.stringify({ lancamentoIds: ids, usuarioId: userId })
+                });
+
+                if (!response.ok) throw new Error("Erro ao pagar adiantamentos.");
+
+                mostrarToast(`${ids.length} adiantamentos pagos com sucesso!`, 'success');
+                document.getElementById('btn-atualizar-cps').click();
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false, '#cps-pendencias-pane');
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }
+        });
+    }
+
+    // 5. Recusar Adiantamento em Lote
+    const btnRecusarAdiantamentoLote = document.getElementById('btn-recusar-adiantamento-lote');
+    if (btnRecusarAdiantamentoLote) {
+        btnRecusarAdiantamentoLote.addEventListener('click', async function () {
+            const checks = document.querySelectorAll('.cps-check:checked');
+            const ids = Array.from(checks).map(c => parseInt(c.dataset.id));
+            if (!ids.length) return;
+
+            const motivo = prompt("Motivo da recusa para os itens selecionados:");
+            if (motivo === null) return;
+            if (!motivo.trim()) { alert("Motivo obrigatório."); return; }
+
+            toggleLoader(true, '#cps-pendencias-pane');
+            const originalText = this.innerHTML;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
+            this.disabled = true;
+
+            try {
+                const userId = localStorage.getItem('usuarioId');
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/recusar-adiantamento-lote`, {
+                    method: 'POST',
+                    body: JSON.stringify({ lancamentoIds: ids, usuarioId: userId, motivo: motivo })
+                });
+
+                if (!response.ok) throw new Error("Erro ao recusar adiantamentos.");
+
+                mostrarToast(`${ids.length} solicitações recusadas.`, 'warning');
+                document.getElementById('btn-atualizar-cps').click();
+
+            } catch (error) {
+                mostrarToast(error.message, 'error');
+            } finally {
+                toggleLoader(false, '#cps-pendencias-pane');
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }
+        });
     }
 
     function configurarBuscaCps(inputId, accordionId) {

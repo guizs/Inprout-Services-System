@@ -49,4 +49,12 @@ public interface ControleCpsService {
     List<Lancamento> recusarPagamentoLote(ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto);
 
     List<Lancamento> recusarPeloControllerLote(ControleCpsDTO.AcaoRecusaControllerLoteDTO dto);
+
+    Lancamento solicitarAdiantamento(Long lancamentoId, BigDecimal valor, Long usuarioId);
+
+    Lancamento aprovarAdiantamento(Long lancamentoId, Long controllerId);
+
+    Lancamento recusarAdiantamento(Long lancamentoId, Long controllerId, String motivo);
+
 }
+

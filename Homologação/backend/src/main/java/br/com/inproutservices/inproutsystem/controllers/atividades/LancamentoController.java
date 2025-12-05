@@ -117,12 +117,33 @@ public class LancamentoController {
             BigDecimal valorPendente = valorPendenteMap.getOrDefault(osId, BigDecimal.ZERO);
 
             return new LancamentoResponseDTO(
-                    dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
-                    dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
-                    dto.dataCriacao(), dto.dataPrazo(), dto.dataPrazoProposta(), dto.comentarios(), dto.equipe(), dto.vistoria(),
-                    dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
-                    dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
-                    dto.planoDocumentacao(), dto.status(), dto.situacao(),
+                    dto.id(),
+                    dto.os(),
+                    dto.detalhe(),
+                    dto.prestador(),
+                    dto.etapa(),
+                    dto.manager(),
+                    dto.valor(),
+                    dto.situacaoAprovacao(),
+                    dto.dataAtividade(),
+                    dto.detalheDiario(),
+                    dto.dataCriacao(),
+                    dto.dataPrazo(),
+                    dto.dataPrazoProposta(),
+                    dto.comentarios(),
+                    dto.equipe(),
+                    dto.vistoria(),
+                    dto.planoVistoria(),
+                    dto.desmobilizacao(),
+                    dto.planoDesmobilizacao(),
+                    dto.instalacao(),
+                    dto.planoInstalacao(),
+                    dto.ativacao(),
+                    dto.planoAtivacao(),
+                    dto.documentacao(),
+                    dto.planoDocumentacao(),
+                    dto.status(),
+                    dto.situacao(),
                     totalOs,
                     valorCps,
                     valorPendente,
@@ -131,7 +152,9 @@ public class LancamentoController {
                     dto.statusPagamento(),
                     dto.controllerPagador(),
                     dto.dataPagamento(),
-                    dto.dataCompetencia() // <--- CAMPO ADICIONADO (Correção do erro)
+                    dto.dataCompetencia(),
+                    dto.valorAdiantamento(),
+                    dto.valorSolicitadoAdiantamento()
             );
         }).collect(Collectors.toList());
     }
@@ -373,9 +396,12 @@ public class LancamentoController {
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
 
-    @PostMapping("/{id}/coordenador/adiantamento")
+    @PostMapping("/{id}/solicitar-adiantamento")
     public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamentoCoordenador(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        Long coordenadorId = Long.valueOf(payload.get("coordenadorId").toString());
+
+        // CORREÇÃO: O JavaScript envia "usuarioId", então devemos ler "usuarioId" aqui
+        Long coordenadorId = Long.valueOf(payload.get("usuarioId").toString());
+
         BigDecimal valor = new BigDecimal(payload.get("valor").toString());
         String justificativa = (String) payload.get("justificativa");
 

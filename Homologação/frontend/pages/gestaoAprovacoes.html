@@ -419,20 +419,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="card-body">
-                <div class="mb-3 position-relative">
-                    <input type="text" class="form-control ps-5" id="input-busca-cps-historico"
-                        placeholder="Pesquisar histórico...">
-                    <i class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-                </div>
-
-                <div class="accordion" id="accordionHistoricoCPS"></div>
-
-                <p id="msg-sem-historico-cps" class="text-center text-muted p-4 d-none">
-                    Nenhum histórico encontrado com os filtros atuais.
-                </p>
-            </div>
         </div>
     </div>
     <div class="modal fade" id="modalAlterarValorCPS" tabindex="-1" aria-hidden="true">
@@ -853,24 +839,23 @@
 
                         <div class="alert alert-info small">
                             <i class="bi bi-info-circle me-1"></i>
-                            O valor solicitado será enviado para aprovação do Controller. Se aprovado, o item retornará
-                            para "Em Aberto" para futuros pagamentos.
+                            O valor solicitado será enviado para aprovação.
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Valor Total do Item</label>
+                            <label class="form-label fw-bold"> Valor total de cps do lançamento </label>
                             <input type="text" class="form-control" id="adiantamentoValorTotalDisplay" readonly
                                 disabled>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Já Adiantado</label>
+                            <label class="form-label fw-bold">Já adiantado</label>
                             <input type="text" class="form-control" id="adiantamentoValorJaPagoDisplay" readonly
                                 disabled>
                         </div>
 
                         <div class="mb-3">
-                            <label for="valorSolicitadoInput" class="form-label fw-bold text-primary">Valor a Solicitar
+                            <label for="valorSolicitadoInput" class="form-label fw-bold text-primary">Solicitar:
                                 (R$)</label>
                             <input type="text" class="form-control form-control-lg" id="valorSolicitadoInput"
                                 placeholder="0,00" required>
@@ -878,13 +863,13 @@
 
                         <div class="mb-3">
                             <label for="justificativaAdiantamentoInput" class="form-label">Justificativa
-                                (Opcional)</label>
+                                (Obrigatório)</label>
                             <textarea class="form-control" id="justificativaAdiantamentoInput" rows="2"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Enviar Solicitação</button>
+                        <button type="submit" class="btn btn-primary">Enviar solicitação</button>
                     </div>
                 </form>
             </div>

@@ -172,7 +172,9 @@ public class ControleCpsController {
                     l.getStatusPagamento(),
                     l.getControllerPagador() != null ? new LancamentoResponseDTO.AutorSimpleDTO(l.getControllerPagador()) : null,
                     l.getDataPagamento(),
-                    l.getDataCompetencia()
+                    l.getDataCompetencia(),
+                    l.getValorAdiantamento(),
+                    l.getValorSolicitadoAdiantamento()
             );
         }).collect(Collectors.toList());
     }

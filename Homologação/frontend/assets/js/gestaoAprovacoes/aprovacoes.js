@@ -39,6 +39,44 @@ function aprovarLancamento(id) {
     modalAprovar.show();
 }
 
+function gerarOpcoesCompetencia() {
+    const select = document.getElementById('cpsCompetenciaInput');
+    if (!select) return;
+
+    select.innerHTML = ''; // Limpa opções anteriores
+
+    const hoje = new Date();
+    const diaAtual = hoje.getDate();
+
+    // REGRA DO DIA 05:
+    // Se hoje <= 5, a lista começa no mês ATUAL.
+    // Se hoje > 5, a lista começa no PRÓXIMO mês.
+    let dataBase = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+
+    if (diaAtual > 5) {
+        dataBase.setMonth(dataBase.getMonth() + 1);
+    }
+
+    const mesesNomes = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+    // Gera opções para os próximos 5 anos (60 meses)
+    for (let i = 0; i < 60; i++) {
+        const mes = dataBase.getMonth();
+        const ano = dataBase.getFullYear();
+
+        // Valor que vai para o banco (YYYY-MM-DD)
+        const valor = `${ano}-${String(mes + 1).padStart(2, '0')}-01`;
+        // Texto que aparece para o usuário
+        const texto = `${mesesNomes[mes]}/${ano}`;
+
+        const option = new Option(texto, valor);
+        select.add(option);
+
+        // Avança para o próximo mês
+        dataBase.setMonth(dataBase.getMonth() + 1);
+    }
+}
+
 function comentarLancamento(id) {
     if (!modalComentar) return;
     document.getElementById('comentarLancamentoId').value = id;
@@ -2013,31 +2051,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const msgDiv = document.getElementById(msgVazioId);
 
         if (!container || !msgDiv) return;
-
         container.innerHTML = '';
 
-        let listaFiltrada = lista;
-
-        if (!listaFiltrada.length) {
+        if (!lista || lista.length === 0) {
             msgDiv.classList.remove('d-none');
             return;
         }
         msgDiv.classList.add('d-none');
 
-        // 1. Agrupamento e Cálculos Iniciais
-        const grupos = listaFiltrada.reduce((acc, l) => {
+        // Agrupamento por OS
+        const grupos = lista.reduce((acc, l) => {
             const id = l.os?.id || 0;
             if (!acc[id]) acc[id] = {
                 os: l.os?.os,
                 projeto: l.os?.projeto,
-                totalOs: l.totalOs || 0,
-                totalPago: l.totalPago || 0,
                 totalCps: l.valorCps || 0,
-                totalMat: l.os.custoTotalMateriais || 0,
+                totalPago: l.totalPago || 0,
                 totalAdiantado: 0,
                 itens: []
             };
-
             acc[id].totalAdiantado += parseFloat(l.valorAdiantamento) || 0;
             acc[id].itens.push(l);
             return acc;
@@ -2046,33 +2078,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
         const isControllerOrAdmin = ['CONTROLLER', 'ADMIN'].includes(userRole);
         const isCoordOrAdmin = ['COORDINATOR', 'ADMIN'].includes(userRole);
-
         const formatMoney = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
         Object.values(grupos).forEach((grp, idx) => {
             const uniqueId = `cps-${isPendencia ? 'pend' : 'hist'}-${idx}`;
 
+            // Ordenação interna
             grp.itens.sort((a, b) => {
-                const peso = (status) => {
-                    if (status === 'EM_ABERTO') return 1;
-                    if (status === 'ALTERACAO_SOLICITADA') return 2;
-                    if (status === 'FECHADO') return 3;
-                    return 4;
-                };
+                const peso = (s) => s === 'EM_ABERTO' ? 1 : (s === 'FECHADO' ? 2 : 3);
                 return peso(a.statusPagamento) - peso(b.statusPagamento);
             });
 
-            // --- CÁLCULOS ---
+            // Cálculos do Cabeçalho
             const valorTotalCps = grp.totalCps;
             const valorAdiantado = grp.totalAdiantado;
-            const saldoLiquido = valorTotalCps - valorAdiantado; // Agora chamado de PENDENTE
+            const saldoPendente = valorTotalCps - valorAdiantado;
             const valorPago = grp.totalPago;
+            const percentual = valorTotalCps > 0 ? (valorPago / valorTotalCps) * 100 : 0;
 
-            const percentual = valorTotalCps > 0
-                ? (valorPago / valorTotalCps) * 100
-                : 0;
-
-            // --- HTML DO CABEÇALHO ATUALIZADO ---
             const htmlHeader = `
             <div class="header-content w-100 ps-2">
                 <div class="header-title-wrapper">
@@ -2080,65 +2103,48 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span class="header-title-os">${grp.os || '-'}</span>
                 </div>
                 <div class="header-kpi-wrapper" style="gap: 1.5rem;">
-                    
-                    <div class="header-kpi">
-                        <span class="kpi-label">TOTAL CPS</span>
-                        <span class="kpi-value">${formatMoney(valorTotalCps)}</span>
-                    </div>
-                    
-                    <div class="header-kpi">
-                        <span class="kpi-label text-warning">ADIANTADO</span>
-                        <span class="kpi-value text-warning">${formatMoney(valorAdiantado)}</span>
-                    </div>
-
-                    <div class="header-kpi">
-                        <span class="kpi-label text-danger">PENDENTE</span> <span class="kpi-value text-danger">${formatMoney(saldoLiquido)}</span>
-                    </div>
-
-                    <div class="header-kpi">
-                        <span class="kpi-label text-success">PAGO</span>
-                        <span class="kpi-value text-success">${formatMoney(valorPago)}</span>
-                    </div>
-
+                    <div class="header-kpi"><span class="kpi-label">TOTAL CPS</span><span class="kpi-value">${formatMoney(valorTotalCps)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label text-warning">ADIANTADO</span><span class="kpi-value text-warning">${formatMoney(valorAdiantado)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label text-danger">PENDENTE</span><span class="kpi-value text-danger">${formatMoney(saldoPendente)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label text-success">PAGO</span><span class="kpi-value text-success">${formatMoney(valorPago)}</span></div>
                     <div class="header-kpi border-start ps-3 d-flex flex-column justify-content-center">
                         <span class="kpi-value" style="font-size: 1.1rem;">${percentual.toFixed(1)}%</span>
                     </div>
-
                 </div>
                 <span class="badge bg-secondary header-badge ms-3">${grp.itens.length} item(s)</span>
-            </div>
-            `;
+            </div>`;
 
             const linhas = grp.itens.map(l => {
-                let btns = `<button class="btn btn-sm btn-outline-info" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
+                let btns = `<button class="btn btn-sm btn-outline-info" title="Ver Detalhes" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
                 let showCheckbox = false;
 
                 if (isPendencia) {
-                    if (isCoordOrAdmin) {
-                        if (l.statusPagamento === 'EM_ABERTO')
-                            btns += ` <button class="btn btn-sm btn-outline-success" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
-                        if (l.statusPagamento === 'FECHADO')
-                            btns += ` <button class="btn btn-sm btn-outline-warning" onclick="abrirModalCpsValor(${l.id}, 'solicitar-alteracao')"><i class="bi bi-pencil-square"></i></button>`;
-                    }
-                    if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
-                        btns += ` <button class="btn btn-sm btn-outline-danger" onclick="abrirModalCpsRecusar(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
+                    // --- AÇÕES DO COORDENADOR ---
+                    if (isCoordOrAdmin && l.statusPagamento === 'EM_ABERTO') {
+                        // Fechar (Abre modal com valor e competência)
+                        btns += ` <button class="btn btn-sm btn-outline-success" title="Fechar Pagamento" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
+                        // Recusar (Abre modal, volta pro Gestor)
+                        btns += ` <button class="btn btn-sm btn-outline-danger" title="Recusar (Voltar ao Gestor)" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
                     }
 
+                    // --- AÇÕES DO CONTROLLER ---
+                    if (isControllerOrAdmin && l.statusPagamento === 'FECHADO') {
+                        // Devolver ao Coordenador (Recusar fechamento)
+                        btns += ` <button class="btn btn-sm btn-outline-danger" title="Devolver ao Coordenador" onclick="abrirModalCpsRecusarController(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
+                    }
+
+                    // Lógica do Checkbox para Lote
                     if (userRole === 'ADMIN') showCheckbox = true;
                     else if (userRole === 'COORDINATOR' && l.statusPagamento === 'EM_ABERTO') showCheckbox = true;
-                    else if (userRole === 'CONTROLLER' && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) showCheckbox = true;
+                    else if (userRole === 'CONTROLLER' && l.statusPagamento === 'FECHADO') showCheckbox = true;
                 }
 
                 const checkHtml = showCheckbox
                     ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}"></td>`
                     : (isPendencia ? '<td></td>' : '');
 
-                const valOp = l.valor || 0;
-                const valPg = l.valorPagamento !== null ? l.valorPagamento : valOp;
-
-                let rowClass = '';
-                if (l.statusPagamento === 'FECHADO') rowClass = 'table-success';
-                else if (l.statusPagamento === 'ALTERACAO_SOLICITADA') rowClass = 'table-warning';
+                const valPg = l.valorPagamento !== null ? l.valorPagamento : l.valor;
+                const rowClass = l.statusPagamento === 'FECHADO' ? 'table-success' : '';
 
                 return `
                 <tr class="${rowClass}">
@@ -2152,8 +2158,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="bg-transparent">${l.manager?.nome || '-'}</td>
                     <td class="text-center bg-transparent fw-bold">${formatMoney(valPg)}</td>
                     <td class="bg-transparent"><small>${l.detalhe?.key || '-'}</small></td>
-                </tr>
-            `;
+                </tr>`;
             }).join('');
 
             const thCheck = isPendencia ? '<th><i class="bi bi-check-all"></i></th>' : '';
@@ -2168,7 +2173,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div id="c-${uniqueId}" class="accordion-collapse collapse">
                     <div class="accordion-body p-0">
                         <div class="table-responsive">
-                            <table class="table mb-0 align-middle small" style="border-collapse: collapse;">
+                            <table class="table mb-0 align-middle small">
                                 <thead class="table-light">
                                     <tr>
                                         ${thCheck}
@@ -2188,8 +2193,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                     </div>
                 </div>
-            </div>
-        `);
+            </div>`);
         });
 
         if (isPendencia) atualizarBotoesLoteCPS();
@@ -2199,10 +2203,67 @@ document.addEventListener('DOMContentLoaded', function () {
     window.abrirModalCpsValor = function (id, acao) {
         const l = dadosCpsGlobais.find(x => x.id == id);
         if (!l) return;
+
+        // Prepara os campos ocultos
         document.getElementById('cpsLancamentoIdAcao').value = id;
         document.getElementById('cpsAcaoCoordenador').value = acao;
+
+        // Elementos da UI do modal
+        const btnConfirmar = document.getElementById('btnConfirmarAcaoCPS');
+        const divCompetencia = document.getElementById('divCompetenciaCps');
+        const inputValor = document.getElementById('cpsValorPagamentoInput');
+        const inputJustificativa = document.getElementById('cpsJustificativaInput');
+        const modalTitle = document.querySelector('#modalAlterarValorCPS .modal-title');
+
+        // Reseta validações visuais do bootstrap
+        document.getElementById('formAlterarValorCPS').classList.remove('was-validated');
+
+        if (acao === 'recusar') {
+            // --- MODO RECUSA (Volta ao Gestor) ---
+            modalTitle.innerHTML = '<i class="bi bi-x-circle text-danger me-2"></i>Recusar Pagamento (Voltar ao Gestor)';
+
+            // Estilo do botão
+            btnConfirmar.classList.remove('btn-success');
+            btnConfirmar.classList.add('btn-danger');
+            btnConfirmar.textContent = "Confirmar Recusa";
+
+            // Esconde campo de competência (não faz sentido na recusa)
+            divCompetencia.style.display = 'none';
+            document.getElementById('cpsCompetenciaInput').required = false;
+
+            // Trava o valor (não importa na recusa)
+            inputValor.disabled = true;
+
+            // Justificativa OBRIGATÓRIA
+            inputJustificativa.required = true;
+            inputJustificativa.placeholder = "Descreva o motivo da recusa para o gestor corrigir...";
+
+        } else {
+            // --- MODO FECHAR (Vai pro Controller) ---
+            modalTitle.innerHTML = '<i class="bi bi-check-circle text-success me-2"></i>Fechar Pagamento';
+
+            // Estilo do botão
+            btnConfirmar.classList.remove('btn-danger');
+            btnConfirmar.classList.add('btn-success');
+            btnConfirmar.textContent = "Confirmar Fechamento";
+
+            // Mostra e gera a lista de competências
+            divCompetencia.style.display = 'block';
+            gerarOpcoesCompetencia(); // Gera a lista com a regra do dia 05
+            document.getElementById('cpsCompetenciaInput').required = true;
+
+            // Libera edição do valor
+            inputValor.disabled = false;
+
+            // Justificativa opcional
+            inputJustificativa.required = false;
+            inputJustificativa.placeholder = "Observações opcionais...";
+        }
+
+        // Preenche o valor atual
         const val = l.valorPagamento !== null ? l.valorPagamento : l.valor;
-        document.getElementById('cpsValorPagamentoInput').value = val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        inputValor.value = val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
         modalAlterarValorCPS.show();
     };
 
@@ -2267,41 +2328,63 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Listeners de Submit ---
 
     // 1. Submit Fechar/Alterar Valor (Individual)
-    const formAlterarValor = document.getElementById('formAlterarValorCPS');
-    if (formAlterarValor) {
-        formAlterarValor.addEventListener('submit', async (e) => {
+    const formAlterarValorCPS = document.getElementById('formAlterarValorCPS');
+    if (formAlterarValorCPS) {
+        formAlterarValorCPS.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Validação manual do formulário
+            if (!formAlterarValorCPS.checkValidity()) {
+                e.stopPropagation();
+                formAlterarValorCPS.classList.add('was-validated');
+                return;
+            }
+
             const btn = document.getElementById('btnConfirmarAcaoCPS');
             const id = parseInt(document.getElementById('cpsLancamentoIdAcao').value);
             const acao = document.getElementById('cpsAcaoCoordenador').value;
             const valor = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
             const just = document.getElementById('cpsJustificativaInput').value;
+            const competencia = document.getElementById('cpsCompetenciaInput').value; // YYYY-MM-DD
 
-            const endpoint = acao === 'fechar' ? '/controle-cps/fechar' : '/controle-cps/solicitar-alteracao';
+            let endpoint = '';
+            let payload = { lancamentoId: id, coordenadorId: userId, observacao: just }; // Payload base
+
+            if (acao === 'recusar') {
+                // Endpoint de recusa (volta para o gestor)
+                endpoint = '/controle-cps/coordenador-rejeitar'; // Endpoint existente no seu backend
+                // Payload de recusa usa 'comentario' no DTO, então adaptamos:
+                payload = { lancamentoId: id, coordenadorId: userId, comentario: just };
+            } else {
+                // Endpoint de fechamento
+                endpoint = '/controle-cps/fechar';
+                payload.valorPagamento = valor;
+                payload.competencia = competencia; // Envia a competência selecionada
+                // obs: precisa garantir que seu DTO no Java receba 'competencia'
+            }
 
             btn.disabled = true;
             try {
                 const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, {
                     method: 'POST',
-                    body: JSON.stringify({ lancamentoId: id, coordenadorId: userId, valorPagamento: valor, justificativa: just })
+                    body: JSON.stringify(payload)
                 });
-                if (!res.ok) throw new Error((await res.json()).message);
+                if (!res.ok) throw new Error((await res.json()).message || 'Erro na operação');
 
-                mostrarToast('Status atualizado!', 'success');
+                mostrarToast(acao === 'recusar' ? 'Devolvido ao Gestor!' : 'Pagamento Fechado!', 'success');
                 modalAlterarValorCPS.hide();
 
-                // --- ATUALIZAÇÃO LOCAL ---
-                // Encontra o item na lista global e atualiza
+                // Atualização Local Rápida
                 const item = dadosCpsGlobais.find(i => i.id === id);
                 if (item) {
                     if (acao === 'fechar') {
                         item.statusPagamento = 'FECHADO';
                         item.valorPagamento = valor;
                     } else {
-                        item.statusPagamento = 'ALTERACAO_SOLICITADA';
+                        // Se recusou, remove da lista pois volta pro gestor
+                        dadosCpsGlobais = dadosCpsGlobais.filter(i => i.id !== id);
                     }
                 }
-                // Redesenha a tabela instantaneamente
                 renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
 
             } catch (err) {
@@ -2319,22 +2402,40 @@ document.addEventListener('DOMContentLoaded', function () {
             const ids = Array.from(checks).map(c => parseInt(c.dataset.id));
             if (!ids.length) return;
 
-            if (!confirm(`Fechar ${ids.length} pagamentos?`)) return;
+            // 1. Calcula a competência padrão AUTOMATICAMENTE (Regra do dia 05)
+            const hoje = new Date();
+            let dataBase = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            if (hoje.getDate() > 5) {
+                dataBase.setMonth(dataBase.getMonth() + 1);
+            }
+
+            const mesesNomes = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+            const textoComp = `${mesesNomes[dataBase.getMonth()]}/${dataBase.getFullYear()}`;
+            // Formato YYYY-MM-01 para o banco
+            const valorComp = `${dataBase.getFullYear()}-${String(dataBase.getMonth() + 1).padStart(2, '0')}-01`;
+
+            // 2. Confirmação com o usuário
+            if (!confirm(`Confirma o fechamento de ${ids.length} pagamentos para a competência ${textoComp}?`)) return;
 
             this.disabled = true;
-            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span>`;
+            this.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Processando...`;
 
             try {
                 const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/fechar-lote`, {
                     method: 'POST',
-                    body: JSON.stringify({ lancamentoIds: ids, coordenadorId: userId })
+                    // Adiciona a competência calculada no payload
+                    body: JSON.stringify({
+                        lancamentoIds: ids,
+                        coordenadorId: userId,
+                        competencia: valorComp
+                    })
                 });
 
                 if (!res.ok) throw new Error("Erro ao processar lote.");
 
                 mostrarToast('Lote fechado com sucesso!', 'success');
 
-                // --- ATUALIZAÇÃO LOCAL ---
+                // Atualização Local
                 ids.forEach(id => {
                     const item = dadosCpsGlobais.find(i => i.id === id);
                     if (item) item.statusPagamento = 'FECHADO';

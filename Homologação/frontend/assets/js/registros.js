@@ -1,3 +1,10 @@
+const formatarMoeda = (valor) => {
+    if (valor === null || valor === undefined || isNaN(Number(valor))) {
+        return 'R$ 0,00';
+    }
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+};
+
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
@@ -120,6 +127,28 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Erro:', error);
             accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados.</div>`;
         }
+    }
+
+    const btnSortOS = document.getElementById('btnSortOS');
+    if (btnSortOS) {
+        btnSortOS.addEventListener('click', () => {
+            // 1. Inverte a direção
+            osSortDirection = osSortDirection === 'asc' ? 'desc' : 'asc';
+
+            // 2. Atualiza o ícone visualmente
+            const icon = btnSortOS.querySelector('i');
+            if (icon) {
+                icon.classList.remove('bi-sort-down', 'bi-sort-up');
+                if (osSortDirection === 'asc') {
+                    icon.classList.add('bi-sort-down'); // A-Z
+                } else {
+                    icon.classList.add('bi-sort-up');   // Z-A
+                }
+            }
+
+            // 3. Re-renderiza a tabela (a função renderizarTabelaComFiltro já usa a variável osSortDirection)
+            renderizarTabelaComFiltro();
+        });
     }
 
     async function carregarPaginasRestantesProgressivamente(totalPaginasBackend) {

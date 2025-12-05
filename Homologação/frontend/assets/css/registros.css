@@ -403,3 +403,87 @@ body {
         /* Remove o auto para ficar fixo ao lado do título */
     }
 }
+
+/* ========================================================== */
+/* ======== CUSTOMIZAÇÃO DO SWEETALERT2 (MODAL) ============ */
+/* ========================================================== */
+
+/* 1. Container Principal do Modal */
+div:where(.swal2-popup) {
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 12px !important; /* Padrão do sistema para cards/modais */
+    padding: 2rem !important;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid #e2e8e4;
+}
+
+/* 2. Título */
+div:where(.swal2-title) {
+    color: #4a665a !important; /* Cor dos títulos h1, h2, h3 do global.css */
+    font-size: 1.4rem !important;
+    font-weight: 600 !important;
+    padding-bottom: 1rem !important;
+}
+
+/* 3. Conteúdo HTML (Labels e Textos) */
+div:where(.swal2-html-container) {
+    color: var(--text-color) !important;
+    font-size: 0.95rem !important;
+    margin: 0 !important;
+    text-align: left !important; /* Alinha o conteúdo à esquerda como seus formulários */
+}
+
+/* 4. Inputs dentro do SweetAlert */
+div:where(.swal2-popup) .form-control {
+    border-radius: 8px !important;
+    border: 1px solid #ccc !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+    box-shadow: none !important;
+    transition: all 0.3s ease;
+}
+
+div:where(.swal2-popup) .form-control:focus {
+    border-color: #5ca98c !important; /* Cor de foco do sistema */
+    box-shadow: 0 0 0 0.2rem rgba(92, 169, 140, 0.25) !important;
+}
+
+/* 5. Botão de Confirmar (Salvar) */
+div:where(.swal2-confirm) {
+    background-color: var(--accent-color) !important; /* #7da78a */
+    color: white !important;
+    border-radius: 50px !important; /* Padrão pílula do sistema */
+    padding: 0.6rem 1.5rem !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+    border: none !important;
+    outline: none !important;
+}
+
+div:where(.swal2-confirm):hover {
+    background-color: #5ca98c !important; /* Um tom levemente mais escuro/vivo */
+    transform: translateY(-1px);
+}
+
+/* 6. Botão de Cancelar */
+div:where(.swal2-cancel) {
+    background-color: #e9ecef !important; /* Cinza claro bootstrap */
+    color: #333 !important;
+    border-radius: 50px !important;
+    padding: 0.6rem 1.5rem !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    border: 1px solid #ced4da !important;
+    margin-right: 10px; /* Espaço entre botões */
+}
+
+div:where(.swal2-cancel):hover {
+    background-color: #dde0e3 !important;
+}
+
+/* 7. Ajuste nas ações (botões) para ficarem alinhados */
+div:where(.swal2-actions) {
+    margin-top: 1.5rem !important;
+    gap: 0.5rem;
+}

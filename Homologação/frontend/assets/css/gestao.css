@@ -328,7 +328,8 @@ body {
 }
 
 .accordion-header .accordion-button.header-selected {
-    background-color: #e9ecef !important; /* Mesma cor de quando está aberto */
+    background-color: #e9ecef !important;
+    /* Mesma cor de quando está aberto */
     color: #000 !important;
 }
 
@@ -447,7 +448,7 @@ body {
     border-radius: 8px 8px 0 0;
     padding: 0 5px;
     position: relative;
-    height: 75px; 
+    height: 75px;
 }
 
 .tabs-scroll-container {
@@ -457,10 +458,14 @@ body {
 }
 
 .tabs-wrapper-scroll .nav-link .badge {
-    left: auto !important;       /* Anula o comando que joga ela longe (start-100) */
-    right: 5px !important;       /* Fixa ela no cantinho direito DENTRO do botão */
-    top: 5px !important;         /* Ajuste fino da altura */
-    transform: none !important;  /* Remove a centralização que jogava ela para fora */
+    left: auto !important;
+    /* Anula o comando que joga ela longe (start-100) */
+    right: 5px !important;
+    /* Fixa ela no cantinho direito DENTRO do botão */
+    top: 5px !important;
+    /* Ajuste fino da altura */
+    transform: none !important;
+    /* Remove a centralização que jogava ela para fora */
 }
 
 .tabs-wrapper-scroll .nav-tabs {
@@ -470,9 +475,9 @@ body {
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    padding-top: 25px !important; 
+    padding-top: 25px !important;
     padding-bottom: 10px;
-    
+
     align-items: flex-start;
     height: 100%;
 }
@@ -492,19 +497,83 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.15); /* Sombra um pouco mais forte */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    /* Sombra um pouco mais forte */
     background-color: #fff;
     border: 1px solid #dee2e6;
-    color: var(--accent-color); /* Já deixar na cor do tema */
+    color: var(--accent-color);
+    /* Já deixar na cor do tema */
     transition: all 0.3s ease;
     flex-shrink: 0;
-    position: absolute; /* Fixa a posição dentro do wrapper */
+    position: absolute;
+    /* Fixa a posição dentro do wrapper */
     top: 55%;
     transform: translateY(-50%);
 }
 
+/* ========================================================== */
+/* ======== NOVOS CARDS DE KPI NO CABEÇALHO (ESTILO INDEX) == */
+/* ========================================================== */
+
+.kpi-header-wrapper {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-left: auto;
+    /* Empurra para a direita */
+    margin-right: 1rem;
+    /* Espaço do botão de ação */
+}
+
+.card-kpi-header {
+    min-width: 140px;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    border: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+    transition: transform 0.2s;
+}
+
+.card-kpi-header:hover {
+    transform: translateY(-2px);
+}
+
+.card-kpi-header .kpi-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-kpi-header .kpi-value {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: #333;
+}
+
+/* Cores Específicas (Baseadas no Index) */
+.card-kpi-info {
+    background-color: #e3f2fd;
+    /* Azul claro */
+    border-left: 4px solid #64b5f6;
+}
+
+.card-kpi-success {
+    background-color: #e8f5e9;
+    /* Verde claro */
+    border-left: 4px solid #81c784;
+}
+
 .tabs-wrapper-scroll .nav-link {
-    padding-right: 35px !important; /* Espaço extra na direita do texto */
+    padding-right: 35px !important;
+    /* Espaço extra na direita do texto */
     position: relative !important;
 }
 
@@ -512,22 +581,24 @@ body {
     background-color: var(--accent-color);
     color: #fff;
     transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 /* Posicionamento absoluto das setas nas pontas */
-.btn-scroll-tab.left { 
-    left: 0; 
+.btn-scroll-tab.left {
+    left: 0;
     margin-right: 0;
 }
-.btn-scroll-tab.right { 
-    right: 0; 
+
+.btn-scroll-tab.right {
+    right: 0;
     margin-left: 0;
 }
 
 /* Espaçamento para o conteúdo não ficar embaixo dos botões */
 .tabs-scroll-container {
-    margin: 0 35px; /* Espaço para as setas não cobrirem o texto */
+    margin: 0 35px;
+    /* Espaço para as setas não cobrirem o texto */
     width: calc(100% - 70px);
 }
 
@@ -539,5 +610,5 @@ body {
     white-space: nowrap;
     margin-right: 5px;
     /* Ajuste visual para o badge não ficar colado */
-    position: relative; 
+    position: relative;
 }

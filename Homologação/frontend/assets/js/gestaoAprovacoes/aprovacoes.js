@@ -2208,6 +2208,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Variáveis Globais do CPS
     let choicesCpsPrestador = null; // Inicializa como null para controle
     let dadosCpsGlobais = [];
+    let dadosCpsHistorico = [];
 
     // Elementos DOM (Garante que pegamos apenas se existirem)
     const tabCPSPendencias = document.getElementById('cps-pendencias-tab');
@@ -2274,13 +2275,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Carregar Pendências CPS ---
     async function carregarPendenciasCPS() {
-        toggleLoader(true, '#cps-pendencias-pane'); // Helper global
+        toggleLoader(true, '#cps-pendencias-pane');
+
+        // CHAMA A NOVA FUNÇÃO AQUI:
+        atualizarHeaderKpiCPS();
+
         try {
             const res = await fetchComAuth(`${API_BASE_URL}/controle-cps`, { headers: { 'X-User-ID': userId } });
             if (!res.ok) throw new Error('Erro ao buscar pendências CPS');
             dadosCpsGlobais = await res.json();
 
-            // Chama renderização passando o ID correto da aba de pendências
             renderizarAcordeonCPS(dadosCpsGlobais, 'accordionPendenciasCPS', 'msg-sem-pendencias-cps', true);
         } catch (error) {
             console.error(error);
@@ -2292,31 +2296,104 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Carregar Histórico CPS ---
     async function carregarHistoricoCPS() {
-        toggleLoader(true, '#cps-historico-pane'); // Helper global
+        toggleLoader(true, '#cps-historico-pane');
 
-        const mes = filtroCpsMes.value.split('-');
+        atualizarHeaderKpiCPS();
+
+        // Pega valores dos filtros (reutilizando os filtros da aba pendências por enquanto, ou crie novos IDs se preferir filtros independentes)
+        const mes = document.getElementById('cps-filtro-mes-ref').value.split('-');
         const inicio = `${mes[0]}-${mes[1]}-01`;
+        // Ultimo dia do mes
         const fim = new Date(mes[0], mes[1], 0).toISOString().split('T')[0];
 
         const params = new URLSearchParams({
             inicio: inicio, fim: fim,
-            segmentoId: filtroCpsSegmento.value,
-            prestadorId: filtroCpsPrestador.value
+            segmentoId: document.getElementById('cps-filtro-segmento').value,
+            prestadorId: document.getElementById('cps-filtro-prestador').value
         });
 
         try {
-            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, { headers: { 'X-User-ID': userId } });
+            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, { headers: { 'X-User-ID': localStorage.getItem('usuarioId') } });
             if (!res.ok) throw new Error('Erro ao buscar histórico CPS');
+
             const dados = await res.json();
 
-            // CORREÇÃO: Passa os IDs corretos da aba de Histórico (verifique se seu HTML tem esses IDs)
+            // 1. SALVA NA VARIÁVEL GLOBAL PARA EXPORTAÇÃO
+            dadosCpsHistorico = dados;
+
+            // 2. Renderiza
             renderizarAcordeonCPS(dados, 'accordionHistoricoCPS', 'msg-sem-historico-cps', false);
+
         } catch (error) {
             console.error(error);
             mostrarToast(error.message, 'error');
         } finally {
             toggleLoader(false, '#cps-historico-pane');
         }
+    }
+
+    function exportarCpsExcel(dados, nomeArquivo) {
+        if (!dados || dados.length === 0) {
+            mostrarToast("Não há dados para exportar.", "warning");
+            return;
+        }
+
+        // Cabeçalho do Excel
+        const headers = [
+            "Status Pagamento", "Competência", "Data Atividade",
+            "OS", "Site", "Projeto", "Segmento", "Contrato",
+            "Prestador", "Código Prestador", "Gestor",
+            "Valor Total (R$)", "Valor Adiantado (R$)", "Valor Pago (R$)",
+            "Status Aprovação", "Key"
+        ];
+
+        // Mapeamento das linhas
+        const rows = dados.map(l => [
+            (l.statusPagamento || '').replace(/_/g, ' '),
+            l.dataCompetencia || '-',
+            l.dataAtividade ? l.dataAtividade.split('-').reverse().join('/') : '-',
+            l.os?.os || '',
+            l.detalhe?.site || '',
+            l.os?.projeto || '',
+            l.os?.segmento?.nome || '',
+            l.detalhe?.contrato || '',
+            l.prestador?.nome || '',
+            l.prestador?.codigoPrestador || '',
+            l.manager?.nome || '',
+            l.valor || 0,
+            l.valorAdiantamento || 0,
+            l.valorPagamento || 0,
+            (l.situacaoAprovacao || '').replace(/_/g, ' '),
+            l.detalhe?.key || ''
+        ]);
+
+        // Criação da Planilha
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+
+        // Ajuste de largura das colunas (opcional, visual)
+        ws['!cols'] = headers.map(() => ({ wch: 20 }));
+
+        XLSX.utils.book_append_sheet(wb, ws, "Relatorio CPS");
+        XLSX.writeFile(wb, `${nomeArquivo}.xlsx`);
+    }
+
+    // --- Listeners dos Botões de Exportar ---
+
+    const btnExportPendencias = document.getElementById('btn-exportar-cps-pendencias');
+    if (btnExportPendencias) {
+        btnExportPendencias.addEventListener('click', () => {
+            // Exporta o que está na tela de pendências
+            exportarCpsExcel(dadosCpsGlobais, "CPS_Pendencias");
+        });
+    }
+
+    const btnExportHistorico = document.getElementById('btn-exportar-cps-historico');
+    if (btnExportHistorico) {
+        btnExportHistorico.addEventListener('click', () => {
+            // Exporta o que está na tela de histórico
+            exportarCpsExcel(dadosCpsHistorico, "CPS_Historico");
+        });
     }
 
     // --- Renderização Genérica CORRIGIDA ---
@@ -2590,6 +2667,57 @@ document.addEventListener('DOMContentLoaded', function () {
 
         modalRecusarCPS.show();
     };
+
+    async function atualizarHeaderKpiCPS() {
+        // 1. Seleciona todos os elementos de valor (pode haver mais de um se estivermos nas duas abas)
+        const elsTotal = document.querySelectorAll('.kpi-cps-total-mes-value');
+        const elsPago = document.querySelectorAll('.kpi-cps-total-pago-value');
+
+        if (elsTotal.length === 0) return; // Nada para atualizar
+
+        // 2. Pega os filtros
+        const mesVal = document.getElementById('cps-filtro-mes-ref').value;
+        const segmentoId = document.getElementById('cps-filtro-segmento').value;
+        const prestadorId = document.getElementById('cps-filtro-prestador').value;
+
+        if (!mesVal) return;
+
+        const [ano, mes] = mesVal.split('-');
+        const dataInicio = `${ano}-${mes}-01`;
+        const ultimoDia = new Date(ano, mes, 0).getDate();
+        const dataFim = `${ano}-${mes}-${ultimoDia}`;
+
+        const params = new URLSearchParams({
+            inicio: dataInicio,
+            fim: dataFim,
+            segmentoId: segmentoId || '',
+            prestadorId: prestadorId || ''
+        });
+
+        try {
+            // 3. Mostra "..." enquanto carrega
+            elsTotal.forEach(el => el.textContent = "...");
+            elsPago.forEach(el => el.textContent = "...");
+
+            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/dashboard?${params}`, {
+                headers: { 'X-User-ID': localStorage.getItem('usuarioId') }
+            });
+
+            if (!response.ok) throw new Error('Erro ao carregar KPIs');
+
+            const dados = await response.json();
+            const formatar = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+            // 4. Atualiza todos os elementos na tela (Pendências e Histórico)
+            elsTotal.forEach(el => el.textContent = formatar(dados.valorTotal));
+            elsPago.forEach(el => el.textContent = formatar(dados.valorTotalPago));
+
+        } catch (error) {
+            console.error("Erro KPIs:", error);
+            elsTotal.forEach(el => el.textContent = "-");
+            elsPago.forEach(el => el.textContent = "-");
+        }
+    }
 
 
 
@@ -3187,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const btnAprovarAdiant = document.getElementById('btnConfirmarAprovarAdiantamento');
     if (btnAprovarAdiant) {
-        btnAprovarAdiant.addEventListener('click', async function() {
+        btnAprovarAdiant.addEventListener('click', async function () {
             const id = document.getElementById('idAdiantamentoAprovar').value;
             const modalEl = document.getElementById('modalAprovarAdiantamento');
             const modalInstance = bootstrap.Modal.getInstance(modalEl);
@@ -3204,14 +3332,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: 'POST',
                     body: JSON.stringify({ usuarioId: userId })
                 });
-                
-                if(!response.ok) throw new Error("Erro ao processar pagamento.");
-                
+
+                if (!response.ok) throw new Error("Erro ao processar pagamento.");
+
                 mostrarToast("Adiantamento pago com sucesso!", "success");
                 modalInstance.hide();
-                
+
                 // Recarrega a lista
-                document.getElementById('btn-atualizar-cps').click(); 
+                document.getElementById('btn-atualizar-cps').click();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -3225,7 +3353,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- LISTENER: CONFIRMAR RECUSA ADIANTAMENTO ---
     const btnRecusarAdiant = document.getElementById('btnConfirmarRecusaAdiantamento');
     if (btnRecusarAdiant) {
-        btnRecusarAdiant.addEventListener('click', async function() {
+        btnRecusarAdiant.addEventListener('click', async function () {
             const id = document.getElementById('idAdiantamentoRecusar').value;
             const motivo = document.getElementById('motivoRecusaAdiantamento').value.trim();
             const modalEl = document.getElementById('modalRecusarAdiantamento');
@@ -3249,14 +3377,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     method: 'POST',
                     body: JSON.stringify({ usuarioId: userId, motivo: motivo })
                 });
-                
-                if(!response.ok) throw new Error("Erro ao recusar.");
-                
+
+                if (!response.ok) throw new Error("Erro ao recusar.");
+
                 mostrarToast("Solicitação recusada com sucesso.", "warning");
                 modalInstance.hide();
-                
+
                 // Recarrega a lista
-                document.getElementById('btn-atualizar-cps').click(); 
+                document.getElementById('btn-atualizar-cps').click();
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {

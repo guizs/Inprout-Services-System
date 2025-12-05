@@ -495,6 +495,47 @@ public class LancamentoServiceImpl implements LancamentoService {
     }
 
     @Override
+    @Transactional
+    public Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa) {
+        Lancamento lancamento = getLancamentoById(lancamentoId);
+        Usuario coordenador = usuarioRepository.findById(coordenadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Coordenador não encontrado com ID: " + coordenadorId));
+
+        // 1. Validação
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR) {
+            throw new BusinessException("Apenas lançamentos pendentes do Coordenador podem receber solicitação de adiantamento.");
+        }
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("O valor do adiantamento deve ser maior que zero.");
+        }
+        if (justificativa == null || justificativa.isBlank()) {
+            throw new BusinessException("A justificativa é obrigatória para solicitar adiantamento.");
+        }
+        // Opcional: Validar se o adiantamento não é maior que o valor total
+        if (lancamento.getValor() != null && valor.compareTo(lancamento.getValor()) > 0) {
+            throw new BusinessException("O valor do adiantamento não pode ser maior que o valor total da atividade.");
+        }
+
+        // 2. Atualiza dados
+        lancamento.setValorSolicitadoAdiantamento(valor);
+
+        // Move para o Controller, que é quem paga
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_CONTROLLER);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // 3. Adiciona Comentário de Auditoria
+        Comentario comentario = new Comentario();
+        comentario.setLancamento(lancamento);
+        comentario.setAutor(coordenador);
+        comentario.setTexto("SOLICITAÇÃO DE ADIANTAMENTO: " +
+                String.format("R$ %.2f", valor) +
+                ". Justificativa: " + justificativa);
+        lancamento.getComentarios().add(comentario);
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim) {
         return lancamentoRepository.countLancamentosPorDiaEGestor(dataInicio, dataFim);

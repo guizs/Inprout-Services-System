@@ -72,4 +72,6 @@ public interface LancamentoService {
     void deletarLancamento(Long id);
     List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador();
     List<String> importarLegadoCps(MultipartFile file) throws IOException;
+
+    Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa);
 }

@@ -147,17 +147,29 @@ public class ControleCpsServiceImpl implements ControleCpsService {
         Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
 
-        // Validações básicas
-        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR &&
-                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.EM_ABERTO) { // Assumindo mapeamento
-            // Ajuste conforme seu fluxo exato de "Em Aberto"
+        // Validação: Só pode pedir adiantamento se estiver EM_ABERTO (na mão do Coordenador)
+        if (lancamento.getStatusPagamento() != StatusPagamento.EM_ABERTO) {
+            throw new BusinessException("Apenas lançamentos com status de pagamento 'EM ABERTO' podem receber solicitação de adiantamento.");
         }
 
-        lancamento.setValorSolicitadoAdiantamento(valor);
-        lancamento.setSituacaoAprovacao(SituacaoAprovacao.SOLICITACAO_ADIANTAMENTO); // Manda pro Controller
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("O valor do adiantamento deve ser maior que zero.");
+        }
 
-        // Opcional: Adicionar log/comentário automático
-        // comentarioService.adicionar(lancamento, usuarioId, "Solicitou adiantamento de " + valor);
+        // Opcional: Validar se o valor solicitado não ultrapassa o valor total do item
+        // if (valor.compareTo(lancamento.getValor()) > 0) { ... }
+
+        lancamento.setValorSolicitadoAdiantamento(valor);
+
+        // --- ALTERAÇÃO 2: Muda apenas o StatusPagamento ---
+        // A SituacaoAprovacao continua 'APROVADO', então não some dos relatórios.
+        lancamento.setStatusPagamento(StatusPagamento.SOLICITACAO_ADIANTAMENTO);
+
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // Log
+        Usuario solicitante = getUsuario(usuarioId);
+        criarComentario(lancamento, solicitante, "Solicitou adiantamento de R$ " + String.format("%.2f", valor));
 
         return lancamentoRepository.save(lancamento);
     }
@@ -167,20 +179,28 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     public Lancamento aprovarAdiantamento(Long lancamentoId, Long controllerId) {
         Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
+        Usuario controller = getUsuario(controllerId);
 
-        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.SOLICITACAO_ADIANTAMENTO) {
-            throw new BusinessException("Este item não tem solicitação de adiantamento pendente.");
+        // Validação
+        if (lancamento.getStatusPagamento() != StatusPagamento.SOLICITACAO_ADIANTAMENTO) {
+            throw new BusinessException("Este item não está aguardando pagamento de adiantamento.");
         }
 
-        BigDecimal valorParaAdiantar = lancamento.getValorSolicitadoAdiantamento();
+        BigDecimal valorSolicitado = lancamento.getValorSolicitadoAdiantamento();
         BigDecimal adiantadoAtual = lancamento.getValorAdiantamento() != null ? lancamento.getValorAdiantamento() : BigDecimal.ZERO;
 
-        // Soma o novo adiantamento ao que já existia (se houver)
-        lancamento.setValorAdiantamento(adiantadoAtual.add(valorParaAdiantar));
+        // 1. Consolida o valor
+        lancamento.setValorAdiantamento(adiantadoAtual.add(valorSolicitado));
 
-        // Limpa a solicitação e devolve para a fila do Coordenador (para pedir mais ou fechar o total)
+        // 2. Limpa a solicitação
         lancamento.setValorSolicitadoAdiantamento(null);
-        lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+
+        // 3. Retorna o status para EM_ABERTO (volta para o Coordenador fechar o restante depois)
+        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // Log
+        criarComentario(lancamento, controller, "Adiantamento de R$ " + String.format("%.2f", valorSolicitado) + " PAGO.");
 
         return lancamentoRepository.save(lancamento);
     }
@@ -190,10 +210,21 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     public Lancamento recusarAdiantamento(Long lancamentoId, Long controllerId, String motivo) {
         Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
+        Usuario controller = getUsuario(controllerId);
 
-        // Limpa a solicitação e devolve para o Coordenador
+        if (lancamento.getStatusPagamento() != StatusPagamento.SOLICITACAO_ADIANTAMENTO) {
+            throw new BusinessException("Este item não está aguardando adiantamento.");
+        }
+
+        // 1. Limpa a solicitação
         lancamento.setValorSolicitadoAdiantamento(null);
-        lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+
+        // 2. Retorna para EM_ABERTO (volta para o Coordenador)
+        lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // Log
+        criarComentario(lancamento, controller, "Solicitação de adiantamento RECUSADA. Motivo: " + motivo);
 
         return lancamentoRepository.save(lancamento);
     }
@@ -230,12 +261,14 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional
     public List<Lancamento> getFilaControleCps(Long usuarioId) {
-        inicializarStatusPagamento();
+        inicializarStatusPagamento(); // Garante que itens APROVADOS tenham status inicial
 
+        // --- ALTERAÇÃO 1: Adicionar SOLICITACAO_ADIANTAMENTO na lista de status da fila ---
         List<StatusPagamento> statusFila = List.of(
                 StatusPagamento.EM_ABERTO,
                 StatusPagamento.FECHADO,
-                StatusPagamento.ALTERACAO_SOLICITADA
+                StatusPagamento.ALTERACAO_SOLICITADA,
+                StatusPagamento.SOLICITACAO_ADIANTAMENTO // <--- NOVO: Controller precisa ver isso
         );
 
         Usuario usuario = getUsuario(usuarioId);
@@ -255,8 +288,6 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
         return List.of();
     }
-
-    // ... (Outros métodos mantidos iguais até o filtrarLancamentos) ...
 
     @Override
     public List<Lancamento> getHistoricoControleCps(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {

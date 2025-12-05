@@ -10,6 +10,7 @@ const modalAprovarMaterial = document.getElementById('modalAprovarMaterial') ? n
 const modalRecusarMaterial = document.getElementById('modalRecusarMaterial') ? new bootstrap.Modal(document.getElementById('modalRecusarMaterial')) : null;
 const modalAprovarComplementar = document.getElementById('modalAprovarComplementar') ? new bootstrap.Modal(document.getElementById('modalAprovarComplementar')) : null;
 const modalRecusarComplementar = document.getElementById('modalRecusarComplementar') ? new bootstrap.Modal(document.getElementById('modalRecusarComplementar')) : null;
+const modalAdiantamento = document.getElementById('modalSolicitarAdiantamento') ? new bootstrap.Modal(document.getElementById('modalSolicitarAdiantamento')) : null;
 
 // Variáveis Globais
 let todosOsLancamentosGlobais = [];
@@ -1216,6 +1217,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // FIM DA CORREÇÃO 1
     // ==========================================================
 
+
+    const inputValorAdiantamento = document.getElementById('valorAdiantamentoInput');
+    if (inputValorAdiantamento) {
+        inputValorAdiantamento.addEventListener('input', function (e) {
+            let value = e.target.value.replace(/\D/g, '');
+            value = (Number(value) / 100).toFixed(2) + '';
+            e.target.value = value.replace('.', ',');
+        });
+    }
 
     async function carregarDashboardEBadges() {
         // Mostra o loader no container do dashboard

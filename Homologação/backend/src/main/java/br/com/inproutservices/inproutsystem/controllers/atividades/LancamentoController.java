@@ -372,4 +372,14 @@ public class LancamentoController {
         Lancamento lancamentoAtualizado = lancamentoService.registrarAdiantamento(id, valorAdiantamento);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
+
+    @PostMapping("/{id}/coordenador/adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamentoCoordenador(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long coordenadorId = Long.valueOf(payload.get("coordenadorId").toString());
+        BigDecimal valor = new BigDecimal(payload.get("valor").toString());
+        String justificativa = (String) payload.get("justificativa");
+
+        Lancamento lancamento = lancamentoService.solicitarAdiantamentoCoordenador(id, coordenadorId, valor, justificativa);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
+    }
 }

@@ -856,6 +856,40 @@
         </div>
     </div>
 
+    <div class="modal fade" id="modalAcaoLoteCPS" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalLote">Confirmar Ação em Lote</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="textoModalLote">Tem certeza que deseja processar os itens selecionados?</p>
+
+                    <div class="mb-3">
+                        <label for="motivoLoteInput" class="form-label fw-bold">Comentário / Justificativa:</label>
+                        <textarea class="form-control" id="motivoLoteInput" rows="3"
+                            placeholder="Digite uma observação..."></textarea>
+                        <div id="avisoMotivo" class="form-text text-danger d-none">* A justificativa é obrigatória para
+                            recusas.</div>
+                    </div>
+
+                    <div class="alert alert-warning d-flex align-items-center mt-3" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2"></i>
+                        <div id="resumoLote">
+                            Você selecionou <strong>0</strong> itens.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnConfirmarLote"
+                        onclick="executarAcaoLote()">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="modal fade" id="modalMinhaConta" tabindex="-1" aria-labelledby="modalMinhaContaLabel">
         <div class="modal-dialog modal-md modal-dialog-centered">
             <div class="modal-content">

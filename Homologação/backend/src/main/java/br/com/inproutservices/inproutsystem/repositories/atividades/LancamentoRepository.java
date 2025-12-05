@@ -206,4 +206,7 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     List<Lancamento> findByStatusPagamentoInAndOsSegmentoIn(@Param("statuses") List<StatusPagamento> statuses, @Param("segmentos") Set<Segmento> segmentos);
 
     List<Lancamento> findAllByEtapaDetalhadaId(Long etapaDetalhadaId);
+
+    @Query("SELECT l FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o WHERE o.id IN :osIds")
+    List<Lancamento> findByOsIdIn(@Param("osIds") List<Long> osIds);
 }

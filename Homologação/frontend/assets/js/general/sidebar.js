@@ -32,12 +32,6 @@ fetch(sidebarPath)
             const linkCps = document.querySelector('#sidebar a[href="cps.html"]');
             if (linkCps) linkCps.setAttribute('href', 'pages/cps.html');
 
-            // --- INÍCIO DA CORREÇÃO (COM VERIFICAÇÃO DE SEGURANÇA) ---
-            // Adiciona a correção de caminho para a nova página apenas se o elemento existir
-            const linkControleCps = document.querySelector('#sidebar a[href="controle-cps.html"]');
-            linkControleCps.setAttribute('href', 'pages/controle-cps.html');
-            // --- FIM DA CORREÇÃO ---
-
             const linkCms = document.querySelector('#sidebar a[href="cms.html"]');
             if (linkCms) linkCms.setAttribute('href', 'pages/cms.html');
             

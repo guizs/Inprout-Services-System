@@ -29,6 +29,8 @@ let todosHistoricoMateriais = [];
 let todasPendenciasComplementares = [];
 let todoHistoricoComplementares = [];
 let todasPendenciasAtividades = [];
+let acaoLoteAtual = '';
+let idsLoteSelecionados = [];
 
 const API_BASE_URL = 'http://localhost:8080';
 
@@ -520,6 +522,124 @@ document.addEventListener('DOMContentLoaded', function () {
         // Adiciona todos os itens do acordeão ao container de uma só vez
         accordionContainer.appendChild(frag);
     }
+
+    function prepararAcaoLote(tipoAcao) {
+        // 1. Coletar IDs selecionados
+        const checkboxes = document.querySelectorAll('.cps-check:checked');
+        idsLoteSelecionados = Array.from(checkboxes).map(cb => parseInt(cb.getAttribute('data-id')));
+
+        if (idsLoteSelecionados.length === 0) {
+            alert("Nenhum item selecionado!");
+            return;
+        }
+
+        // 2. Configurar o Modal com base na ação
+        acaoLoteAtual = tipoAcao;
+        const modalEl = document.getElementById('modalAcaoLoteCPS');
+        const modal = new bootstrap.Modal(modalEl);
+
+        const titulo = document.getElementById('tituloModalLote');
+        const texto = document.getElementById('textoModalLote');
+        const btn = document.getElementById('btnConfirmarLote');
+        const inputMotivo = document.getElementById('motivoLoteInput');
+        const avisoMotivo = document.getElementById('avisoMotivo');
+        const resumo = document.getElementById('resumoLote');
+
+        // Limpa campo
+        inputMotivo.value = '';
+        avisoMotivo.classList.add('d-none');
+
+        // Configuração Visual
+        resumo.innerHTML = `Você selecionou <strong>${idsLoteSelecionados.length}</strong> itens para esta ação.`;
+
+        if (tipoAcao === 'fechar') {
+            titulo.textContent = "Confirmar Fechamento em Lote";
+            titulo.className = "modal-title text-success";
+            texto.textContent = "Deseja fechar todos os itens selecionados para pagamento?";
+            btn.textContent = "Sim, Fechar";
+            btn.className = "btn btn-success";
+            // Para fechar, motivo não costuma ser obrigatório, mas deixamos disponível
+        }
+        else if (tipoAcao === 'recusar' || tipoAcao === 'recusar-controller') {
+            titulo.textContent = "Confirmar Recusa em Lote";
+            titulo.className = "modal-title text-danger";
+            texto.textContent = "Deseja recusar/devolver os itens selecionados?";
+            btn.textContent = "Sim, Recusar";
+            btn.className = "btn btn-danger";
+            // Aviso que motivo é obrigatório
+            avisoMotivo.classList.remove('d-none');
+        }
+
+        // 3. Exibir o Modal
+        modal.show();
+    }
+
+    /**
+     * Função executada ao clicar em "Confirmar" dentro do Modal
+     */
+    async function executarAcaoLote() {
+        const motivo = document.getElementById('motivoLoteInput').value.trim();
+        const modalEl = document.getElementById('modalAcaoLoteCPS');
+        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+        // Validação de Motivo para Recusas
+        if ((acaoLoteAtual.includes('recusar')) && !motivo) {
+            alert("Para recusar, é obrigatório informar uma justificativa.");
+            return;
+        }
+
+        // Define endpoint e corpo baseado na ação
+        let url = '';
+        let body = {};
+        const usuarioId = localStorage.getItem("usuarioId"); // Ajuste conforme seu auth
+
+        if (acaoLoteAtual === 'fechar') {
+            url = `${API_BASE_URL}/controle-cps/fechar-lote`;
+            body = {
+                lancamentoIds: idsLoteSelecionados,
+                coordenadorId: usuarioId
+            };
+        } else if (acaoLoteAtual === 'recusar') {
+            url = `${API_BASE_URL}/controle-cps/recusar-lote`;
+            body = {
+                lancamentoIds: idsLoteSelecionados,
+                coordenadorId: usuarioId,
+                motivo: motivo
+            };
+        } else if (acaoLoteAtual === 'recusar-controller') {
+            url = `${API_BASE_URL}/controle-cps/recusar-controller-lote`;
+            body = {
+                lancamentoIds: idsLoteSelecionados,
+                controllerId: usuarioId,
+                motivo: motivo
+            };
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-ID': usuarioId
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+                alert("Ação em lote realizada com sucesso!");
+                modalInstance.hide();
+                carregarPendenciasCPS(); // Recarrega a tela
+            } else {
+                const err = await response.text();
+                alert("Erro ao processar lote: " + err);
+            }
+        } catch (error) {
+            console.error(error);
+            alert("Erro de conexão ao tentar processar lote.");
+        }
+    }
+
+
 
     function renderizarCardsDashboard(todosLancamentos, pendenciasPorCoordenador, pendenciasMateriaisCount, pendenciasComplementaresCount) {
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -2119,107 +2239,180 @@ document.addEventListener('DOMContentLoaded', function () {
             const valorPago = grp.totalPago;
             const percentual = valorTotalCps > 0 ? (valorPago / valorTotalCps) * 100 : 0;
 
-            const htmlHeader = `
-            <div class="header-content w-100 ps-2">
-                <div class="header-title-wrapper">
-                    <span class="header-title-project">${grp.projeto || '-'}</span>
-                    <span class="header-title-os">${grp.os || '-'}</span>
-                </div>
-                <div class="header-kpi-wrapper" style="gap: 1.5rem;">
-                    <div class="header-kpi"><span class="kpi-label">TOTAL CPS</span><span class="kpi-value">${formatMoney(valorTotalCps)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label text-warning">ADIANTADO</span><span class="kpi-value text-warning">${formatMoney(valorAdiantado)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label text-danger">PENDENTE</span><span class="kpi-value text-danger">${formatMoney(saldoPendente)}</span></div>
-                    <div class="header-kpi"><span class="kpi-label text-success">PAGO</span><span class="kpi-value text-success">${formatMoney(valorPago)}</span></div>
-                    <div class="header-kpi border-start ps-3 d-flex flex-column justify-content-center">
-                        <span class="kpi-value" style="font-size: 1.1rem;">${percentual.toFixed(1)}%</span>
-                    </div>
-                </div>
-                <span class="badge bg-secondary header-badge ms-3">${grp.itens.length} item(s)</span>
-            </div>`;
+            // Define se deve mostrar o checkbox de "Selecionar Todos" no cabeçalho
+            let showHeaderCheckbox = false;
+            if (isPendencia) {
+                // Se for Admin, sempre pode. Se não, verifica se há itens na situação correta para o papel
+                if (userRole === 'ADMIN') showHeaderCheckbox = true;
+                else if (userRole === 'COORDINATOR' && grp.itens.some(i => i.statusPagamento === 'EM_ABERTO')) showHeaderCheckbox = true;
+                else if (userRole === 'CONTROLLER' && grp.itens.some(i => i.statusPagamento === 'FECHADO' || i.statusPagamento === 'ALTERACAO_SOLICITADA')) showHeaderCheckbox = true;
+            }
 
+            const checkboxHeaderHtml = showHeaderCheckbox ? `
+            <div class="position-absolute top-50 start-0 translate-middle-y ms-3" style="z-index: 5;">
+                <input class="form-check-input cps-select-all shadow-sm" type="checkbox" 
+                       data-target-body="collapse-${uniqueId}" 
+                       style="cursor: pointer; margin: 0;">
+            </div>` : '';
+
+            // Adiciona padding extra se tiver checkbox para o texto não ficar por cima
+            const paddingLeft = showHeaderCheckbox ? 'ps-5' : 'ps-3';
+
+            // Conteúdo do botão do acordeão
+            const headerContentHtml = `
+        <div class="header-content w-100">
+            <div class="header-title-wrapper">
+                <span class="header-title-project">${grp.projeto || '-'}</span>
+                <span class="header-title-os">${grp.os || '-'}</span>
+            </div>
+            <div class="header-kpi-wrapper" style="gap: 1.5rem;">
+                <div class="header-kpi"><span class="kpi-label">TOTAL CPS</span><span class="kpi-value">${formatMoney(valorTotalCps)}</span></div>
+                <div class="header-kpi"><span class="kpi-label text-warning">ADIANTADO</span><span class="kpi-value text-warning">${formatMoney(valorAdiantado)}</span></div>
+                <div class="header-kpi"><span class="kpi-label text-danger">PENDENTE</span><span class="kpi-value text-danger">${formatMoney(saldoPendente)}</span></div>
+                <div class="header-kpi"><span class="kpi-label text-success">PAGO</span><span class="kpi-value text-success">${formatMoney(valorPago)}</span></div>
+                <div class="header-kpi border-start ps-3 d-flex flex-column justify-content-center">
+                    <span class="kpi-value" style="font-size: 1.1rem;">${percentual.toFixed(1)}%</span>
+                </div>
+            </div>
+            <span class="badge bg-secondary header-badge ms-3">${grp.itens.length} item(s)</span>
+        </div>`;
+
+            // Geração das linhas da tabela
             const linhas = grp.itens.map(l => {
                 let btns = `<button class="btn btn-sm btn-outline-info" title="Ver Detalhes" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
-                let showCheckbox = false;
+                let showRowCheckbox = false;
 
                 if (isPendencia) {
-                    // --- AÇÕES DO COORDENADOR ---
+                    // Regras de botões e checkboxes por linha
                     if (isCoordOrAdmin && l.statusPagamento === 'EM_ABERTO') {
                         btns += ` <button class="btn btn-sm btn-outline-success" title="Fechar Pagamento" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
                         btns += ` <button class="btn btn-sm btn-outline-danger" title="Recusar (Voltar ao Gestor)" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
-                        showCheckbox = true; // Habilita checkbox para lote de Coordenador
+                        showRowCheckbox = true;
                     }
-
-                    // --- AÇÕES DO CONTROLLER ---
                     if (isControllerOrAdmin && (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA')) {
-                        // CORREÇÃO: A função abrirModalCpsRecusarController será definida no escopo global abaixo
                         btns += ` <button class="btn btn-sm btn-outline-danger" title="Devolver ao Coordenador" onclick="abrirModalCpsRecusarController(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
-                        showCheckbox = true; // Habilita checkbox para lote de Controller
+                        showRowCheckbox = true;
                     }
-
-
-                    // Lógica do Checkbox para Lote
-                    if (userRole === 'ADMIN') showCheckbox = true;
-                    else if (userRole === 'COORDINATOR' && l.statusPagamento === 'EM_ABERTO') showCheckbox = true;
-                    else if (userRole === 'CONTROLLER' && l.statusPagamento === 'FECHADO') showCheckbox = true;
                 }
 
-                const checkHtml = showCheckbox
+                const checkHtml = showRowCheckbox
                     ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}"></td>`
                     : (isPendencia ? '<td></td>' : '');
 
                 const valPg = l.valorPagamento !== null ? l.valorPagamento : l.valor;
                 const rowClass = l.statusPagamento === 'FECHADO' ? 'table-success' : '';
-
-                let compTexto = '-';
-                if (l.dataCompetencia) {
-                    compTexto = l.dataCompetencia;
-                }
+                const compTexto = l.dataCompetencia || '-';
 
                 return `
-                <tr class="${rowClass}">
-                    ${checkHtml}
-                    <td class="text-center bg-transparent">${btns}</td>
-                    <td class="bg-transparent"><span class="badge text-bg-secondary bg-opacity-75 text-dark">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
-                    <td class="bg-transparent">${l.dataAtividade || '-'}</td>
-                    
-                    <td class="bg-transparent text-center fw-bold text-primary">${compTexto}</td> 
-                    
-                    <td class="bg-transparent">${l.detalhe?.site || '-'}</td>
-                    <td class="bg-transparent">${l.detalhe?.lpu?.nomeLpu || '-'}</td>
-                    <td class="bg-transparent">${l.prestador?.nome || '-'}</td>
-                    <td class="bg-transparent">${l.manager?.nome || '-'}</td>
-                    <td class="text-center bg-transparent fw-bold">${formatMoney(valPg)}</td>
-                    <td class="bg-transparent"><small>${l.detalhe?.key || '-'}</small></td>
-                </tr>`;
+            <tr class="${rowClass}">
+                ${checkHtml}
+                <td class="text-center bg-transparent">${btns}</td>
+                <td class="bg-transparent"><span class="badge text-bg-secondary bg-opacity-75 text-dark">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
+                <td class="bg-transparent">${l.dataAtividade || '-'}</td>
+                <td class="bg-transparent text-center fw-bold text-primary">${compTexto}</td> 
+                <td class="bg-transparent">${l.detalhe?.site || '-'}</td>
+                <td class="bg-transparent">${l.detalhe?.lpu?.nomeLpu || '-'}</td>
+                <td class="bg-transparent">${l.prestador?.nome || '-'}</td>
+                <td class="bg-transparent">${l.manager?.nome || '-'}</td>
+                <td class="text-center bg-transparent fw-bold">${formatMoney(valPg)}</td>
+                <td class="bg-transparent"><small>${l.detalhe?.key || '-'}</small></td>
+            </tr>`;
             }).join('');
 
             const thCheck = isPendencia ? '<th><i class="bi bi-check-all"></i></th>' : '';
 
+            // Montagem da estrutura do Accordion Bootstrap
             container.insertAdjacentHTML('beforeend', `
-            <div class="accordion-item border mb-2">
-                <div class="table-responsive">
-                    <table class="table mb-0 align-middle small">
-                        <thead class="table-light">
-                            <tr>
-                                ${thCheck}
-                                <th class="text-center">Ações</th>
-                                <th>Status</th>
-                                <th>DATA DA ATIVIDADE</th>
-                                <th>COMPETÊNCIA</th> <th>Site</th>
-                                <th>Item</th>
-                                <th>Prestador</th>
-                                <th>Gestor</th>
-                                <th class="text-center">Valor</th>
-                                <th>KEY</th>
-                            </tr>
-                        </thead>
-                        <tbody>${linhas}</tbody>
-                    </table>
+        <div class="accordion-item border mb-2">
+            <h2 class="accordion-header position-relative" id="heading-${uniqueId}">
+                ${checkboxHeaderHtml}
+                <button class="accordion-button collapsed ${paddingLeft}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}" aria-expanded="false" aria-controls="collapse-${uniqueId}">
+                    ${headerContentHtml}
+                </button>
+            </h2>
+            <div id="collapse-${uniqueId}" class="accordion-collapse collapse" aria-labelledby="heading-${uniqueId}" data-bs-parent="#${containerId}">
+                <div class="accordion-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0 align-middle small table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    ${thCheck}
+                                    <th class="text-center">Ações</th>
+                                    <th>Status</th>
+                                    <th>DATA DA ATIVIDADE</th>
+                                    <th>COMPETÊNCIA</th> 
+                                    <th>Site</th>
+                                    <th>Item</th>
+                                    <th>Prestador</th>
+                                    <th>Gestor</th>
+                                    <th class="text-center">Valor</th>
+                                    <th>KEY</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-${uniqueId}">${linhas}</tbody>
+                        </table>
+                    </div>
                 </div>
-                </div>`);
+            </div>
+        </div>`);
         });
 
         if (isPendencia) atualizarBotoesLoteCPS();
+    }
+
+    const accordionPendenciasCPS = document.getElementById('accordionPendenciasCPS');
+    if (accordionPendenciasCPS) {
+
+        // 1. Impede que o clique no checkbox do cabeçalho abra/feche o acordeão
+        accordionPendenciasCPS.addEventListener('click', (e) => {
+            if (e.target.classList.contains('cps-select-all')) {
+                e.stopPropagation();
+            }
+        });
+
+        // 2. Lógica de seleção (Change)
+        accordionPendenciasCPS.addEventListener('change', (e) => {
+            const target = e.target;
+
+            // CASO 1: Clicou no "Selecionar Todos" do cabeçalho
+            if (target.classList.contains('cps-select-all')) {
+                const isChecked = target.checked;
+                const targetBodyId = target.dataset.targetBody; // ID do corpo do acordeão (ex: collapse-cps-pend-0)
+
+                // Busca apenas os checkboxes dentro DESTE grupo específico
+                const checkboxesNoGrupo = document.querySelectorAll(`#${targetBodyId} .cps-check`);
+
+                checkboxesNoGrupo.forEach(cb => {
+                    cb.checked = isChecked;
+                    // Opcional: Adicionar classe visual na linha
+                    const tr = cb.closest('tr');
+                    if (tr) isChecked ? tr.classList.add('table-active') : tr.classList.remove('table-active');
+                });
+
+                atualizarBotoesLoteCPS();
+            }
+
+            // CASO 2: Clicou em um checkbox de linha individual
+            else if (target.classList.contains('cps-check')) {
+                // Opcional: Atualizar visual da linha
+                const tr = target.closest('tr');
+                if (tr) target.checked ? tr.classList.add('table-active') : tr.classList.remove('table-active');
+
+                // Verifica se todos estão marcados para atualizar o checkbox do cabeçalho (opcional, mas recomendado)
+                const tbody = target.closest('tbody');
+                const accordionItem = target.closest('.accordion-item');
+                const headerCheckbox = accordionItem ? accordionItem.querySelector('.cps-select-all') : null;
+
+                if (headerCheckbox && tbody) {
+                    const totalChecks = tbody.querySelectorAll('.cps-check').length;
+                    const totalChecked = tbody.querySelectorAll('.cps-check:checked').length;
+                    headerCheckbox.checked = totalChecks > 0 && totalChecks === totalChecked;
+                    headerCheckbox.indeterminate = totalChecked > 0 && totalChecked < totalChecks;
+                }
+
+                atualizarBotoesLoteCPS();
+            }
+        });
     }
 
     window.abrirModalCpsRecusarController = function (id) {
@@ -2294,42 +2487,40 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Lógica de Botões de Lote ---
 
     function atualizarBotoesLoteCPS() {
-        const containerCoord = document.getElementById('cps-acoes-lote-coord-container');
-        const containerController = document.getElementById('cps-acoes-lote-controller-container');
+        const selecionados = document.querySelectorAll('.cps-check:checked').length;
+        const containerBtn = document.getElementById('containerBotoesLote'); // Crie uma div com esse ID no seu HTML acima do acordeão
 
-        // Contadores
-        const cntFechar = document.getElementById('contador-fechar-cps');
-        const cntRecusarCoord = document.getElementById('contador-recusar-cps-coord');
-        const cntPagar = document.getElementById('contador-pagamento-cps');
-        const cntRecusarController = document.getElementById('contador-recusar-cps-controller');
+        if (!containerBtn) return;
 
-        if (containerCoord) containerCoord.classList.add('d-none');
-        if (containerController) containerController.classList.add('d-none');
+        if (selecionados > 0) {
+            const userRole = localStorage.getItem("role"); // Ajuste conforme sua auth
+            let html = `<span class="me-3 fw-bold text-primary">${selecionados} item(ns) selecionado(s)</span>`;
 
-        const checks = document.querySelectorAll('.cps-check:checked');
-        if (checks.length === 0) return;
-
-        const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-        const ids = Array.from(checks).map(c => c.dataset.id);
-        const itensSelecionados = dadosCpsGlobais.filter(i => ids.includes(String(i.id)));
-
-        const todosEmAberto = itensSelecionados.every(i => i.statusPagamento === 'EM_ABERTO');
-        const todosParaController = itensSelecionados.every(i => i.statusPagamento === 'FECHADO' || i.statusPagamento === 'ALTERACAO_SOLICITADA');
-
-        if ((userRole === 'COORDINATOR' || userRole === 'ADMIN') && todosEmAberto) {
-            if (containerCoord) {
-                containerCoord.classList.remove('d-none');
-                if (cntFechar) cntFechar.textContent = checks.length;
-                if (cntRecusarCoord) cntRecusarCoord.textContent = checks.length; // Atualiza contador do novo botão
+            // Lógica de botões baseada no papel
+            if (userRole === 'COORDINATOR' || userRole === 'ADMIN') {
+                html += `
+                <button class="btn btn-success btn-sm me-2" onclick="prepararAcaoLote('fechar')">
+                    <i class="bi bi-check-all"></i> Fechar Selecionados
+                </button>
+                <button class="btn btn-danger btn-sm me-2" onclick="prepararAcaoLote('recusar')">
+                    <i class="bi bi-x-circle"></i> Recusar Selecionados
+                </button>
+            `;
             }
-        }
 
-        if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') && todosParaController) {
-            if (containerController) {
-                containerController.classList.remove('d-none');
-                if (cntPagar) cntPagar.textContent = checks.length;
-                if (cntRecusarController) cntRecusarController.textContent = checks.length; // Atualiza contador do novo botão
+            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+                html += `
+                <button class="btn btn-warning btn-sm" onclick="prepararAcaoLote('recusar-controller')">
+                    <i class="bi bi-arrow-counterclockwise"></i> Devolver Selecionados
+                </button>
+            `;
             }
+
+            containerBtn.innerHTML = html;
+            containerBtn.classList.remove('d-none');
+        } else {
+            containerBtn.classList.add('d-none');
+            containerBtn.innerHTML = '';
         }
     }
 

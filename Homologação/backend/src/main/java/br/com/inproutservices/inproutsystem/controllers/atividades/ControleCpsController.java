@@ -35,8 +35,8 @@ public class ControleCpsController {
     private final LancamentoRepository lancamentoRepository;
 
     public ControleCpsController(ControleCpsService controleCpsService,
-                                  OsLpuDetalheRepository osLpuDetalheRepository,
-                                  LancamentoRepository lancamentoRepository) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository,
+                                 LancamentoRepository lancamentoRepository) {
         this.controleCpsService = controleCpsService;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
         this.lancamentoRepository = lancamentoRepository;
@@ -104,10 +104,12 @@ public class ControleCpsController {
                 .map(l -> l.getOs().getId())
                 .collect(Collectors.toSet());
 
+        // Busca detalhes da LPU para total da OS
         List<OsLpuDetalhe> detalhes = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds));
 
-        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
-        List<Lancamento> aprovados = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds));
+        // --- CORREÇÃO: Busca TODOS os lançamentos da OS, não só os 'Aprovados' ---
+        // Isso garante que se um item estiver PAGO mas com status de aprovação diferente, ele seja contabilizado
+        List<Lancamento> todosLancamentosDaOs = lancamentoRepository.findByOsIdIn(new ArrayList<>(osIds));
 
         Map<Long, BigDecimal> totalOsMap = detalhes.stream()
                 .collect(Collectors.groupingBy(
@@ -116,20 +118,23 @@ public class ControleCpsController {
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // Total CPS (Operacional Aprovado)
-        Map<Long, BigDecimal> totalCpsMap = aprovados.stream()
+        // Total CPS (Apenas o que está de fato APROVADO operacionalmente)
+        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
+        Map<Long, BigDecimal> totalCpsMap = todosLancamentosDaOs.stream()
+                .filter(l -> statusAprovado.contains(l.getSituacaoAprovacao()))
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
                         Collectors.mapping(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // --- NOVO CÁLCULO: Total Já Pago ---
-        Map<Long, BigDecimal> totalPagoMap = aprovados.stream()
+        // --- CORREÇÃO NO CÁLCULO DE PAGO ---
+        // Filtra puramente pelo StatusPagamento == PAGO, ignorando a SituacaoAprovacao
+        Map<Long, BigDecimal> totalPagoMap = todosLancamentosDaOs.stream()
                 .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
-                        Collectors.mapping(l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO,
+                        Collectors.mapping(l -> l.getValorPagamento() != null ? l.getValorPagamento() : (l.getValor() != null ? l.getValor() : BigDecimal.ZERO),
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
@@ -138,7 +143,7 @@ public class ControleCpsController {
             BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
             BigDecimal valorCps = totalCpsMap.getOrDefault(osId, BigDecimal.ZERO);
             BigDecimal valorPendente = BigDecimal.ZERO;
-            BigDecimal totalPago = totalPagoMap.getOrDefault(osId, BigDecimal.ZERO); // Pega o valor pago
+            BigDecimal totalPago = totalPagoMap.getOrDefault(osId, BigDecimal.ZERO);
 
             return new LancamentoResponseDTO(
                     l.getId(),
@@ -166,7 +171,8 @@ public class ControleCpsController {
                     l.getValorPagamento(),
                     l.getStatusPagamento(),
                     l.getControllerPagador() != null ? new LancamentoResponseDTO.AutorSimpleDTO(l.getControllerPagador()) : null,
-                    l.getDataPagamento()
+                    l.getDataPagamento(),
+                    l.getDataCompetencia()
             );
         }).collect(Collectors.toList());
     }

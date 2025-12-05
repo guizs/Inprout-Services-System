@@ -143,6 +143,63 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
     @Override
     @Transactional
+    public Lancamento solicitarAdiantamento(Long lancamentoId, BigDecimal valor, Long usuarioId) {
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
+
+        // Validações básicas
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.PENDENTE_COORDENADOR &&
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.EM_ABERTO) { // Assumindo mapeamento
+            // Ajuste conforme seu fluxo exato de "Em Aberto"
+        }
+
+        lancamento.setValorSolicitadoAdiantamento(valor);
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.SOLICITACAO_ADIANTAMENTO); // Manda pro Controller
+
+        // Opcional: Adicionar log/comentário automático
+        // comentarioService.adicionar(lancamento, usuarioId, "Solicitou adiantamento de " + valor);
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional
+    public Lancamento aprovarAdiantamento(Long lancamentoId, Long controllerId) {
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
+
+        if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.SOLICITACAO_ADIANTAMENTO) {
+            throw new BusinessException("Este item não tem solicitação de adiantamento pendente.");
+        }
+
+        BigDecimal valorParaAdiantar = lancamento.getValorSolicitadoAdiantamento();
+        BigDecimal adiantadoAtual = lancamento.getValorAdiantamento() != null ? lancamento.getValorAdiantamento() : BigDecimal.ZERO;
+
+        // Soma o novo adiantamento ao que já existia (se houver)
+        lancamento.setValorAdiantamento(adiantadoAtual.add(valorParaAdiantar));
+
+        // Limpa a solicitação e devolve para a fila do Coordenador (para pedir mais ou fechar o total)
+        lancamento.setValorSolicitadoAdiantamento(null);
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional
+    public Lancamento recusarAdiantamento(Long lancamentoId, Long controllerId, String motivo) {
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado"));
+
+        // Limpa a solicitação e devolve para o Coordenador
+        lancamento.setValorSolicitadoAdiantamento(null);
+        lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional
     public List<Lancamento> fecharParaPagamentoLote(ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
         Usuario coordenador = getUsuario(dto.coordenadorId());
         List<Lancamento> lancamentos = lancamentoRepository.findAllById(dto.lancamentoIds());

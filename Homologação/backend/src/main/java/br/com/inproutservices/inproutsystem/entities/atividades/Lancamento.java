@@ -135,6 +135,9 @@ public class Lancamento {
     @Column(name = "data_competencia")
     private LocalDate dataCompetencia;
 
+    @Column(name = "valor_solicitado_adiantamento")
+    private BigDecimal valorSolicitadoAdiantamento;
+
     /**
      * Este método garante que a data de criação e a situação inicial
      * sejam definidas automaticamente ao criar um novo lançamento.
@@ -297,6 +300,14 @@ public class Lancamento {
 
     public void setVistoria(String vistoria) {
         this.vistoria = vistoria;
+    }
+
+    public BigDecimal getValorSolicitadoAdiantamento() {
+        return valorSolicitadoAdiantamento;
+    }
+
+    public void setValorSolicitadoAdiantamento(BigDecimal valorSolicitadoAdiantamento) {
+        this.valorSolicitadoAdiantamento = valorSolicitadoAdiantamento;
     }
 
     public LocalDate getPlanoVistoria() {

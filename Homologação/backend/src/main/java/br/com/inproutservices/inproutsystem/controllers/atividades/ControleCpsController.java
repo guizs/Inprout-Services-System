@@ -190,6 +190,29 @@ public class ControleCpsController {
         return ResponseEntity.ok(dashboard);
     }
 
+    @PostMapping("/{id}/solicitar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        BigDecimal valor = new BigDecimal(payload.get("valor").toString());
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        Lancamento l = controleCpsService.solicitarAdiantamento(id, valor, usuarioId);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @PostMapping("/{id}/pagar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> pagarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long controllerId = Long.valueOf(payload.get("usuarioId").toString());
+        Lancamento l = controleCpsService.aprovarAdiantamento(id, controllerId);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @PostMapping("/{id}/recusar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> recusarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long controllerId = Long.valueOf(payload.get("usuarioId").toString());
+        String motivo = (String) payload.get("motivo");
+        Lancamento l = controleCpsService.recusarAdiantamento(id, controllerId, motivo);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
     @GetMapping("/historico")
     public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoControleCps(
             @RequestHeader("X-User-ID") Long usuarioId,

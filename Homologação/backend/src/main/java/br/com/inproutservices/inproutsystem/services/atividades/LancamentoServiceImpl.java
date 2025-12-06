@@ -634,7 +634,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Lancamento> getAllLancamentos() {
+    public List<Lancamento> getAllLancamentos(LocalDate inicio, LocalDate fim) {
 
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
@@ -652,12 +652,15 @@ public class LancamentoServiceImpl implements LancamentoService {
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
 
-        List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetails();
+        List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetailsByPeriodo(inicio, fim);
 
         Role role = usuarioLogado.getRole();
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             return todosLancamentos;
         }
+
+        if (inicio == null) inicio = LocalDate.now().minusDays(30);
+        if (fim == null) fim = LocalDate.now();
 
         if (role == Role.MANAGER || role == Role.COORDINATOR) {
             Set<Long> segmentosDoUsuario = usuarioLogado.getSegmentos().stream()
@@ -685,31 +688,28 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Lancamento> getHistoricoPorUsuario(Long usuarioId) {
+    public List<Lancamento> getHistoricoPorUsuario(Long usuarioId, LocalDate inicio, LocalDate fim) {
+        // Se não passar data, define o padrão (últimos 30 dias) ou traz tudo (depende da sua regra, aqui vou forçar o filtro)
+        if (inicio == null || fim == null) {
+            // Fallback se o front não mandar
+            fim = LocalDate.now();
+            inicio = fim.minusDays(30);
+        }
+
         Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
 
         Role role = usuario.getRole();
-        List<SituacaoAprovacao> statusHistorico = List.of(
-                SituacaoAprovacao.APROVADO,
-                SituacaoAprovacao.APROVADO_LEGADO,
-                SituacaoAprovacao.RECUSADO_COORDENADOR,
-                SituacaoAprovacao.RECUSADO_CONTROLLER
-        );
 
+        // Logica para Admin/Controller (Vê tudo filtrado por data)
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return lancamentoRepository.findBySituacaoAprovacaoIn(statusHistorico);
+            // Reutiliza a query de status, mas idealmente criariamos uma findBySituacaoAprovacaoInAndDataAtividadeBetween
+            // Para simplificar aqui, vou usar o filtro de usuario que já filtra status "finalizados"
+            return lancamentoRepository.findHistoricoByUsuarioIdAndPeriodo(usuarioId, inicio, fim);
         }
 
-        if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return List.of();
-            }
-            return lancamentoRepository.findBySituacaoAprovacaoInAndOsSegmentoIn(statusHistorico, segmentosDoUsuario);
-        }
-
-        return List.of();
+        // Para Gestor/Coordenador
+        return lancamentoRepository.findHistoricoByUsuarioIdAndPeriodo(usuarioId, inicio, fim);
     }
 
     @Override

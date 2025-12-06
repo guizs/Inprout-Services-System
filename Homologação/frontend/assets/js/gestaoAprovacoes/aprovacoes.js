@@ -33,6 +33,76 @@ let todasPendenciasAtividades = [];
 let acaoLoteAtual = '';
 let idsLoteSelecionados = [];
 
+// Variáveis de Controle de Data
+let dataFimHistorico = new Date(); // Hoje
+let dataInicioHistorico = new Date();
+dataInicioHistorico.setDate(dataFimHistorico.getDate() - 30); // 30 dias atrás
+
+// Função auxiliar para formatar YYYY-MM-DD
+const formatarISO = (d) => d.toISOString().split('T')[0];
+
+async function carregarDadosHistoricoAtividades(append = false) {
+    if (!tbodyHistorico) return;
+
+    // Se não for append (primeira carga), reseta as datas
+    if (!append) {
+        dataFimHistorico = new Date();
+        dataInicioHistorico = new Date();
+        dataInicioHistorico.setDate(dataFimHistorico.getDate() - 30);
+        todosHistoricoAtividades = []; // Limpa lista global (se existir essa variável no seu código)
+    }
+
+    toggleLoader(true, '#historico-atividades-pane');
+    const btnCarregarMais = document.getElementById('btn-carregar-mais-historico');
+    if (btnCarregarMais) btnCarregarMais.disabled = true;
+
+    try {
+        const params = new URLSearchParams({
+            inicio: formatarISO(dataInicioHistorico),
+            fim: formatarISO(dataFimHistorico)
+        });
+
+        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}?${params}`);
+        if (!response.ok) throw new Error('Falha ao carregar histórico.');
+
+        const novosDados = await response.json();
+
+        if (!append) {
+            // Primeira carga: substitui tudo
+            todosHistoricoAtividades = novosDados; // Assumindo que você usa essa variável para renderizar
+        } else {
+            // Carregar mais: adiciona ao final
+            todosHistoricoAtividades = [...todosHistoricoAtividades, ...novosDados];
+        }
+
+        renderizarTabelaHistorico(todosHistoricoAtividades);
+
+        if (novosDados.length === 0 && append) {
+            mostrarToast("Não há mais registros no período anterior.", "warning");
+        }
+
+    } catch (error) {
+        console.error(error);
+        mostrarToast('Erro ao carregar histórico.', 'error');
+    } finally {
+        toggleLoader(false, '#historico-atividades-pane');
+        if (btnCarregarMais) btnCarregarMais.disabled = false;
+    }
+}
+
+// Listener do Botão
+document.getElementById('btn-carregar-mais-historico')?.addEventListener('click', () => {
+    // Recua a janela de tempo: O novo Fim é o antigo Inicio - 1 dia
+    dataFimHistorico = new Date(dataInicioHistorico);
+    dataFimHistorico.setDate(dataFimHistorico.getDate() - 1);
+
+    // O novo Inicio é Fim - 30 dias
+    dataInicioHistorico = new Date(dataFimHistorico);
+    dataInicioHistorico.setDate(dataInicioHistorico.getDate() - 30);
+
+    carregarDadosHistoricoAtividades(true); // true = append
+});
+
 const API_BASE_URL = 'http://localhost:8080';
 
 // Funções para abrir modais
@@ -2204,17 +2274,26 @@ document.addEventListener('DOMContentLoaded', function () {
     // ==========================================================
 
     // Variáveis Globais do CPS
-    let choicesCpsPrestador = null; // Inicializa como null para controle
+    // Variáveis Globais do CPS
+    let choicesCpsPrestador = null;
+    let choicesCpsHistPrestador = null; // Novo: Choices para o histórico
     let dadosCpsGlobais = [];
     let dadosCpsHistorico = [];
 
-    // Elementos DOM (Garante que pegamos apenas se existirem)
+    // Elementos DOM (Pendências)
     const tabCPSPendencias = document.getElementById('cps-pendencias-tab');
-    const tabCPSHistorico = document.getElementById('cps-historico-tab');
     const filtroCpsMes = document.getElementById('cps-filtro-mes-ref');
     const filtroCpsSegmento = document.getElementById('cps-filtro-segmento');
     const filtroCpsPrestador = document.getElementById('cps-filtro-prestador');
+
+    // Elementos DOM (Histórico) - ADICIONADOS
+    const tabCPSHistorico = document.getElementById('cps-historico-tab');
+    const filtroCpsHistMes = document.getElementById('cps-hist-filtro-mes-ref');
+    const filtroCpsHistSegmento = document.getElementById('cps-hist-filtro-segmento');
+    const filtroCpsHistPrestador = document.getElementById('cps-hist-filtro-prestador');
+
     const btnAtualizarCps = document.getElementById('btn-atualizar-cps');
+    const btnAtualizarHistCps = document.getElementById('btn-atualizar-historico-cps'); // Botão de filtrar do histórico
 
     // Modais CPS
     const modalAlterarValorCPS = new bootstrap.Modal(document.getElementById('modalAlterarValorCPS'));
@@ -2222,13 +2301,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // --- Inicialização dos Filtros CPS ---
     function initFiltrosCPS() {
-        // 1. Evita erro de null se os elementos não existirem na tela
-        if (!filtroCpsMes || !filtroCpsSegmento || !filtroCpsPrestador) return;
+        const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        const hoje = new Date();
 
-        // 2. Popula Mês (apenas se estiver vazio para evitar refazer)
-        if (filtroCpsMes.options.length === 0) {
-            const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-            const hoje = new Date();
+        // 1. Popula Mês (Pendências)
+        if (filtroCpsMes && filtroCpsMes.options.length === 0) {
             for (let i = 0; i < 12; i++) {
                 const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
                 const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -2237,35 +2314,67 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // 3. Carrega Segmentos e Prestadores (apenas se estiverem vazios)
-        if (filtroCpsSegmento.options.length <= 1) {
+        // 2. Popula Mês (Histórico) - CORREÇÃO AQUI
+        if (filtroCpsHistMes && filtroCpsHistMes.options.length === 0) {
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+                const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const txt = `${nomesMeses[d.getMonth()]}/${d.getFullYear()}`;
+                filtroCpsHistMes.add(new Option(txt, val, i === 0, i === 0));
+            }
+        }
+
+        // 3. Carrega Segmentos e Prestadores (Para ambas as abas)
+        // Verificamos se algum dos selects principais está vazio para evitar chamadas duplicadas
+        const precisaCarregar = (filtroCpsSegmento && filtroCpsSegmento.options.length <= 1) ||
+            (filtroCpsHistSegmento && filtroCpsHistSegmento.options.length <= 1);
+
+        if (precisaCarregar) {
             Promise.all([
                 fetchComAuth(`${API_BASE_URL}/segmentos`),
                 fetchComAuth(`${API_BASE_URL}/index/prestadores`)
             ]).then(async ([resSeg, resPrest]) => {
-                // Limpa antes de adicionar
-                filtroCpsSegmento.innerHTML = '<option value="">Todos</option>';
-                filtroCpsPrestador.innerHTML = '<option value="">Todos</option>';
 
                 if (resSeg.ok) {
                     const segs = await resSeg.json();
-                    segs.forEach(s => filtroCpsSegmento.add(new Option(s.nome, s.id)));
-                }
-                if (resPrest.ok) {
-                    const prests = await resPrest.json();
-                    prests.forEach(p => filtroCpsPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+                    // Popula Pendências
+                    if (filtroCpsSegmento) {
+                        filtroCpsSegmento.innerHTML = '<option value="">Todos</option>';
+                        segs.forEach(s => filtroCpsSegmento.add(new Option(s.nome, s.id)));
+                    }
+                    // Popula Histórico
+                    if (filtroCpsHistSegmento) {
+                        filtroCpsHistSegmento.innerHTML = '<option value="">Todos</option>';
+                        segs.forEach(s => filtroCpsHistSegmento.add(new Option(s.nome, s.id)));
+                    }
                 }
 
-                // 4. Correção do erro "Choices already initialised"
-                if (typeof Choices !== 'undefined') {
-                    if (choicesCpsPrestador) {
-                        choicesCpsPrestador.destroy(); // Destrói a instância anterior se existir
+                if (resPrest.ok) {
+                    const prests = await resPrest.json();
+
+                    // Popula Pendências
+                    if (filtroCpsPrestador) {
+                        filtroCpsPrestador.innerHTML = '<option value="">Todos</option>';
+                        prests.forEach(p => filtroCpsPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+
+                        // Choices JS Pendências
+                        if (typeof Choices !== 'undefined') {
+                            if (choicesCpsPrestador) choicesCpsPrestador.destroy();
+                            choicesCpsPrestador = new Choices(filtroCpsPrestador, { searchEnabled: true, itemSelectText: '', shouldSort: false });
+                        }
                     }
-                    choicesCpsPrestador = new Choices(filtroCpsPrestador, {
-                        searchEnabled: true,
-                        itemSelectText: '',
-                        shouldSort: false
-                    });
+
+                    // Popula Histórico
+                    if (filtroCpsHistPrestador) {
+                        filtroCpsHistPrestador.innerHTML = '<option value="">Todos</option>';
+                        prests.forEach(p => filtroCpsHistPrestador.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
+
+                        // Choices JS Histórico
+                        if (typeof Choices !== 'undefined') {
+                            if (choicesCpsHistPrestador) choicesCpsHistPrestador.destroy();
+                            choicesCpsHistPrestador = new Choices(filtroCpsHistPrestador, { searchEnabled: true, itemSelectText: '', shouldSort: false });
+                        }
+                    }
                 }
             });
         }
@@ -3221,6 +3330,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    if (btnAtualizarHistCps) {
+        btnAtualizarHistCps.addEventListener('click', () => {
+            carregarHistoricoCPS();
+        });
+    }
+
     // Botão: Devolver Selecionados (CONTROLLER)
     const btnRecusarLoteController = document.getElementById('btn-recusar-selecionados-cps-controller');
     if (btnRecusarLoteController) {
@@ -3439,7 +3554,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Validação básica
         if (!mesVal) {
-            mostrarNotificacao('Por favor, selecione um mês de referência.', 'warning');
+            // CORREÇÃO AQUI: De mostrarNotificacao para mostrarToast
+            mostrarToast('Por favor, selecione um mês de referência.', 'warning');
             return;
         }
 
@@ -3456,8 +3572,6 @@ document.addEventListener('DOMContentLoaded', function () {
             fim: dataFim,
             segmentoId: segmentoId || '',
             prestadorId: prestadorId || '',
-            // O backend pega o gestorId automaticamente pelo Token se for Gestor, 
-            // ou passa null se for Admin/Controller vendo tudo.
         });
 
         // 4. Feedback Visual no Botão
@@ -3468,7 +3582,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         try {
             // 5. Chamada ao Endpoint de Exportação
-            // Endpoint baseado no ControleCpsController.java
             const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/exportar?${params}`, {
                 method: 'GET',
                 headers: {
@@ -3485,17 +3598,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `Relatorio_Historico_CPS_${mesVal}.xlsx`; // Nome do arquivo
+            a.download = `Relatorio_Historico_CPS_${mesVal}.xlsx`;
             document.body.appendChild(a);
             a.click();
             a.remove();
             window.URL.revokeObjectURL(url);
 
-            mostrarNotificacao('Relatório exportado com sucesso!', 'success');
+            // CORREÇÃO AQUI: De mostrarNotificacao para mostrarToast
+            mostrarToast('Relatório exportado com sucesso!', 'success');
 
         } catch (error) {
             console.error('Erro ao exportar:', error);
-            mostrarNotificacao('Erro ao exportar relatório. Tente novamente.', 'danger');
+            // CORREÇÃO AQUI: De mostrarNotificacao para mostrarToast
+            mostrarToast('Erro ao exportar relatório. Tente novamente.', 'danger');
         } finally {
             // 7. Restaurar Botão
             btn.innerHTML = conteudoOriginal;

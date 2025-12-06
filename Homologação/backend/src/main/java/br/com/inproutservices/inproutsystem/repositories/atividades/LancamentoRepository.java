@@ -237,4 +237,35 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             @Param("dataCorte") LocalDate dataCorte,
             @Param("segmentos") Set<Segmento> segmentos
     );
+
+    @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH d.os " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.etapaDetalhada ed " +
+            "LEFT JOIN FETCH ed.etapa " +
+            "LEFT JOIN FETCH l.manager " +
+            "LEFT JOIN l.comentarios c " +
+            "WHERE l.situacaoAprovacao NOT IN ('RASCUNHO', 'PENDENTE_COORDENADOR', 'PENDENTE_CONTROLLER', 'AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO') " +
+            "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId) " +
+            "AND l.dataAtividade BETWEEN :inicio AND :fim " + // <--- FILTRO DE DATA
+            "ORDER BY l.dataAtividade DESC")
+    List<Lancamento> findHistoricoByUsuarioIdAndPeriodo(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    // Query para a Listagem Geral (Index)
+    @Query("SELECT DISTINCT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH d.lpu " +
+            "LEFT JOIN FETCH o.segmento " +
+            "LEFT JOIN FETCH l.manager " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.etapaDetalhada ed " +
+            "LEFT JOIN FETCH ed.etapa " +
+            "LEFT JOIN FETCH l.comentarios c " +
+            "LEFT JOIN FETCH c.autor " +
+            "WHERE l.dataAtividade BETWEEN :inicio AND :fim " + // <--- FILTRO DE DATA
+            "ORDER BY l.dataAtividade DESC")
+    List<Lancamento> findAllWithDetailsByPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 }

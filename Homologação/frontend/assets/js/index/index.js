@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
     const searchInput = document.getElementById('searchInput');
+    let indexDataFim = new Date();
+    let indexDataInicio = new Date();
+    indexDataInicio.setDate(indexDataFim.getDate() - 30);
 
     let sortConfig = {
         key: 'dataAtividade', // Coluna padrão para ordenação
@@ -443,7 +446,13 @@ document.addEventListener('DOMContentLoaded', () => {
         return dadosFiltrados;
     }
 
-    async function carregarLancamentos() {
+    async function carregarLancamentos(append = false) {
+        if (!append) {
+            indexDataFim = new Date();
+            indexDataInicio = new Date();
+            indexDataInicio.setDate(indexDataFim.getDate() - 30);
+            todosLancamentos = [];
+        }
         toggleLoader(true);
         try {
             const response = await fetchComAuth('http://localhost:8080/lancamentos');

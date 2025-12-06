@@ -197,8 +197,11 @@ public class LancamentoController {
     // ==========================================================
 
     @GetMapping
-    public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos() {
-        List<Lancamento> lancamentos = lancamentoService.getAllLancamentos();
+    public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        List<Lancamento> lancamentos = lancamentoService.getAllLancamentos(inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(lancamentos);
         return ResponseEntity.ok(dtosAtualizados);
     }
@@ -211,8 +214,12 @@ public class LancamentoController {
     }
 
     @GetMapping("/historico/{usuarioId}")
-    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoPorUsuario(@PathVariable Long usuarioId) {
-        List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId);
+    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoPorUsuario(
+            @PathVariable Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId, inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(historico);
         return ResponseEntity.ok(dtosAtualizados);
     }
@@ -408,4 +415,6 @@ public class LancamentoController {
         Lancamento lancamento = lancamentoService.solicitarAdiantamentoCoordenador(id, coordenadorId, valor, justificativa);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
+
+
 }

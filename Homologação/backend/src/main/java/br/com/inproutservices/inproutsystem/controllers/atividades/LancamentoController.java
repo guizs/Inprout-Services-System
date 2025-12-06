@@ -219,6 +219,7 @@ public class LancamentoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
     ) {
+        // Agora repassa as datas para o serviço
         List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId, inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(historico);
         return ResponseEntity.ok(dtosAtualizados);

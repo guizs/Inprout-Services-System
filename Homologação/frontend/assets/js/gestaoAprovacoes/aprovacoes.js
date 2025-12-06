@@ -32,11 +32,9 @@ let todoHistoricoComplementares = [];
 let todasPendenciasAtividades = [];
 let acaoLoteAtual = '';
 let idsLoteSelecionados = [];
-
-// Variáveis de Controle de Data
-let dataFimHistorico = new Date(); // Hoje
-let dataInicioHistorico = new Date();
-dataInicioHistorico.setDate(dataFimHistorico.getDate() - 30); // 30 dias atrás
+let histDataFim = new Date();
+let histDataInicio = new Date();
+histDataInicio.setDate(histDataFim.getDate() - 30);
 
 // Função auxiliar para formatar YYYY-MM-DD
 const formatarISO = (d) => d.toISOString().split('T')[0];
@@ -92,15 +90,19 @@ async function carregarDadosHistoricoAtividades(append = false) {
 
 // Listener do Botão
 document.getElementById('btn-carregar-mais-historico')?.addEventListener('click', () => {
-    // Recua a janela de tempo: O novo Fim é o antigo Inicio - 1 dia
-    dataFimHistorico = new Date(dataInicioHistorico);
-    dataFimHistorico.setDate(dataFimHistorico.getDate() - 1);
+    // Recua a janela: Novo Fim = Antigo Inicio - 1 dia
+    histDataFim = new Date(histDataInicio);
+    histDataFim.setDate(histDataFim.getDate() - 1);
 
-    // O novo Inicio é Fim - 30 dias
-    dataInicioHistorico = new Date(dataFimHistorico);
-    dataInicioHistorico.setDate(dataInicioHistorico.getDate() - 30);
+    // Novo Inicio = Novo Fim - 30 dias
+    histDataInicio = new Date(histDataFim);
+    histDataInicio.setDate(histDataInicio.getDate() - 30);
 
-    carregarDadosHistoricoAtividades(true); // true = append
+    carregarHistoricoCPS(true); // true = modo append
+});
+
+document.getElementById('btn-atualizar-historico-cps')?.addEventListener('click', () => {
+    carregarHistoricoCPS(false); // false = reset e recarrega últimos 30 dias
 });
 
 const API_BASE_URL = 'http://localhost:8080';
@@ -2402,41 +2404,97 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Carregar Histórico CPS ---
-    async function carregarHistoricoCPS() {
+    async function carregarHistoricoCPS(append = false) {
         toggleLoader(true, '#cps-historico-pane');
-
         atualizarHeaderKpiCPS();
 
-        // Pega valores dos filtros (reutilizando os filtros da aba pendências por enquanto, ou crie novos IDs se preferir filtros independentes)
-        const mes = document.getElementById('cps-filtro-mes-ref').value.split('-');
-        const inicio = `${mes[0]}-${mes[1]}-01`;
-        // Ultimo dia do mes
-        const fim = new Date(mes[0], mes[1], 0).toISOString().split('T')[0];
+        const btnCarregar = document.getElementById('btn-carregar-mais-historico-cps');
+        const accordion = document.getElementById('accordionHistoricoCPS');
+        const msgSem = document.getElementById('msg-sem-historico-cps');
+
+        if (btnCarregar) btnCarregar.disabled = true;
+
+        // Se NÃO for append (é uma nova filtragem), reseta datas e limpa lista
+        if (!append) {
+            cpsHistDataFim = new Date();
+            cpsHistDataInicio = new Date();
+            cpsHistDataInicio.setDate(cpsHistDataFim.getDate() - 30);
+            dadosCpsHistorico = []; // Limpa array global
+            if (accordion) accordion.innerHTML = '';
+        }
+
+        // Formata datas para API (YYYY-MM-DD)
+        const inicioStr = cpsHistDataInicio.toISOString().split('T')[0];
+        const fimStr = cpsHistDataFim.toISOString().split('T')[0];
+
+        // Pega filtros extras
+        const segmentoId = document.getElementById('cps-hist-filtro-segmento')?.value || '';
+        const prestadorId = document.getElementById('cps-hist-filtro-prestador')?.value || '';
 
         const params = new URLSearchParams({
-            inicio: inicio, fim: fim,
-            segmentoId: document.getElementById('cps-filtro-segmento').value,
-            prestadorId: document.getElementById('cps-filtro-prestador').value
+            inicio: inicioStr,
+            fim: fimStr,
+            segmentoId: segmentoId,
+            prestadorId: prestadorId
         });
 
         try {
-            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, { headers: { 'X-User-ID': localStorage.getItem('usuarioId') } });
+            // Chama endpoint de histórico (AJUSTE A ROTA SE NECESSÁRIO, deve ser /lancamentos/historico/{id} ou /controle-cps/historico)
+            // Vou usar a rota que vi no seu código anterior:
+            const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, {
+                headers: { 'X-User-ID': localStorage.getItem('usuarioId') }
+            });
+
             if (!res.ok) throw new Error('Erro ao buscar histórico CPS');
 
-            const dados = await res.json();
+            const novosDados = await res.json();
 
-            // 1. SALVA NA VARIÁVEL GLOBAL PARA EXPORTAÇÃO
-            dadosCpsHistorico = dados;
+            if (novosDados.length === 0) {
+                if (!append && msgSem) msgSem.classList.remove('d-none');
+                if (append) mostrarToast("Não há mais registros no período anterior.", "warning");
+            } else {
+                if (msgSem) msgSem.classList.add('d-none');
 
-            // 2. Renderiza
-            renderizarAcordeonCPS(dados, 'accordionHistoricoCPS', 'msg-sem-historico-cps', false);
+                // Concatena ou substitui
+                if (append) {
+                    dadosCpsHistorico = [...dadosCpsHistorico, ...novosDados];
+                } else {
+                    dadosCpsHistorico = novosDados;
+                }
+
+                // Renderiza (passa a lista completa acumulada)
+                renderizarAcordeonCPS(dadosCpsHistorico, 'accordionHistoricoCPS', 'msg-sem-historico-cps', false);
+            }
 
         } catch (error) {
             console.error(error);
             mostrarToast(error.message, 'error');
         } finally {
             toggleLoader(false, '#cps-historico-pane');
+            if (btnCarregar) btnCarregar.disabled = false;
         }
+    }
+
+    // LISTENER DO NOVO BOTÃO (Coloque isso junto com os outros listeners, no final do arquivo)
+    const btnMaisCps = document.getElementById('btn-carregar-mais-historico-cps');
+    if (btnMaisCps) {
+        btnMaisCps.addEventListener('click', () => {
+            // Recua a janela de tempo 30 dias para trás
+            cpsHistDataFim = new Date(cpsHistDataInicio);
+            cpsHistDataFim.setDate(cpsHistDataFim.getDate() - 1);
+
+            cpsHistDataInicio = new Date(cpsHistDataFim);
+            cpsHistDataInicio.setDate(cpsHistDataInicio.getDate() - 30);
+
+            carregarHistoricoCPS(true); // true = append
+        });
+    }
+
+    // Atualiza também o botão de filtrar normal para resetar a busca
+    if (btnAtualizarHistCps) {
+        btnAtualizarHistCps.addEventListener('click', () => {
+            carregarHistoricoCPS(false); // false = reset
+        });
     }
 
     function exportarCpsExcel(dados, nomeArquivo) {

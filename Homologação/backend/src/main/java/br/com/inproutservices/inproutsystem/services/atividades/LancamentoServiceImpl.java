@@ -689,26 +689,13 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Override
     @Transactional(readOnly = true)
     public List<Lancamento> getHistoricoPorUsuario(Long usuarioId, LocalDate inicio, LocalDate fim) {
-        // Se não passar data, define o padrão (últimos 30 dias) ou traz tudo (depende da sua regra, aqui vou forçar o filtro)
-        if (inicio == null || fim == null) {
-            // Fallback se o front não mandar
-            fim = LocalDate.now();
-            inicio = fim.minusDays(30);
-        }
+        // Se não vier datas, define o padrão: Hoje e 30 dias atrás
+        if (fim == null) fim = LocalDate.now();
+        if (inicio == null) inicio = fim.minusDays(30);
 
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
 
-        Role role = usuario.getRole();
-
-        // Logica para Admin/Controller (Vê tudo filtrado por data)
-        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            // Reutiliza a query de status, mas idealmente criariamos uma findBySituacaoAprovacaoInAndDataAtividadeBetween
-            // Para simplificar aqui, vou usar o filtro de usuario que já filtra status "finalizados"
-            return lancamentoRepository.findHistoricoByUsuarioIdAndPeriodo(usuarioId, inicio, fim);
-        }
-
-        // Para Gestor/Coordenador
         return lancamentoRepository.findHistoricoByUsuarioIdAndPeriodo(usuarioId, inicio, fim);
     }
 

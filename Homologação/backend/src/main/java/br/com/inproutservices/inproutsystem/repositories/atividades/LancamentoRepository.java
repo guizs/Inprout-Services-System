@@ -249,9 +249,13 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "LEFT JOIN l.comentarios c " +
             "WHERE l.situacaoAprovacao NOT IN ('RASCUNHO', 'PENDENTE_COORDENADOR', 'PENDENTE_CONTROLLER', 'AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO') " +
             "AND (l.manager.id = :usuarioId OR c.autor.id = :usuarioId) " +
-            "AND l.dataAtividade BETWEEN :inicio AND :fim " + // <--- FILTRO DE DATA
+            "AND l.dataAtividade BETWEEN :inicio AND :fim " +
             "ORDER BY l.dataAtividade DESC")
-    List<Lancamento> findHistoricoByUsuarioIdAndPeriodo(@Param("usuarioId") Long usuarioId, @Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+    List<Lancamento> findHistoricoByUsuarioIdAndPeriodo(
+            @Param("usuarioId") Long usuarioId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim
+    );
 
     // Query para a Listagem Geral (Index)
     @Query("SELECT DISTINCT l FROM Lancamento l " +

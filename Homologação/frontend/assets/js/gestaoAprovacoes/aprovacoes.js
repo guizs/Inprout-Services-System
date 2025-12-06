@@ -3431,6 +3431,86 @@ document.addEventListener('DOMContentLoaded', function () {
         carregarPendenciasCPS();
     }
 
+    async function exportarRelatorioHistorico() {
+        // 1. Pegar os filtros da tela de Histórico
+        const mesVal = document.getElementById('cps-hist-filtro-mes-ref').value;
+        const segmentoId = document.getElementById('cps-hist-filtro-segmento').value;
+        const prestadorId = document.getElementById('cps-hist-filtro-prestador').value;
+
+        // Validação básica
+        if (!mesVal) {
+            mostrarNotificacao('Por favor, selecione um mês de referência.', 'warning');
+            return;
+        }
+
+        // 2. Preparar as datas (Inicio e Fim do Mês)
+        const [ano, mes] = mesVal.split('-');
+        const dataInicio = `${ano}-${mes}-01`;
+        // Pega o último dia do mês selecionado
+        const ultimoDia = new Date(ano, mes, 0).getDate();
+        const dataFim = `${ano}-${mes}-${ultimoDia}`;
+
+        // 3. Montar Query Params
+        const params = new URLSearchParams({
+            inicio: dataInicio,
+            fim: dataFim,
+            segmentoId: segmentoId || '',
+            prestadorId: prestadorId || '',
+            // O backend pega o gestorId automaticamente pelo Token se for Gestor, 
+            // ou passa null se for Admin/Controller vendo tudo.
+        });
+
+        // 4. Feedback Visual no Botão
+        const btn = document.getElementById('btn-exportar-historico-cps');
+        const conteudoOriginal = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Gerando...';
+        btn.disabled = true;
+
+        try {
+            // 5. Chamada ao Endpoint de Exportação
+            // Endpoint baseado no ControleCpsController.java
+            const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/exportar?${params}`, {
+                method: 'GET',
+                headers: {
+                    'X-User-ID': localStorage.getItem('usuarioId')
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Falha na geração do relatório.');
+            }
+
+            // 6. Download do Arquivo (Blob)
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Relatorio_Historico_CPS_${mesVal}.xlsx`; // Nome do arquivo
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            mostrarNotificacao('Relatório exportado com sucesso!', 'success');
+
+        } catch (error) {
+            console.error('Erro ao exportar:', error);
+            mostrarNotificacao('Erro ao exportar relatório. Tente novamente.', 'danger');
+        } finally {
+            // 7. Restaurar Botão
+            btn.innerHTML = conteudoOriginal;
+            btn.disabled = false;
+        }
+    }
+
+    const btnExportarHist = document.getElementById('btn-exportar-historico-cps');
+    if (btnExportarHist) {
+        btnExportarHist.addEventListener('click', (e) => {
+            e.preventDefault();
+            exportarRelatorioHistorico(); // Chama a função que acabamos de criar
+        });
+    }
+
     configurarBuscaCps('input-busca-pendencias', 'accordionPendencias');
     configurarBuscaCps('input-busca-historico', 'accordionHistorico');
 

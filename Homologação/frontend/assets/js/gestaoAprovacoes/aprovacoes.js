@@ -52,8 +52,6 @@ function gerarOpcoesCompetencia() {
     const diaAtual = hoje.getDate();
 
     // REGRA DO DIA 05:
-    // Se hoje <= 5, a lista começa no mês ATUAL.
-    // Se hoje > 5, a lista começa no PRÓXIMO mês.
     let dataBase = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
 
     if (diaAtual > 5) {

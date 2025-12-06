@@ -1565,6 +1565,8 @@ document.addEventListener('DOMContentLoaded', () => {
         modalSolicitarComplementarEl.addEventListener('show.bs.modal', async () => {
             form.reset();
 
+            document.getElementById('siteComplementar').value = '';
+
             // Inicializa o Choices.js APENAS para a LPU
             if (!choicesLPU) {
                 choicesLPU = new Choices(selectLPUComplementar, {
@@ -1634,6 +1636,19 @@ document.addEventListener('DOMContentLoaded', () => {
         selectOSComplementar.addEventListener('change', async () => {
             const osCodigo = selectOSComplementar.value;
             if (!osCodigo) return;
+
+            // --- CÓDIGO NOVO PARA PREENCHER O SITE ---
+            const inputSite = document.getElementById('siteComplementar');
+            // Busca o objeto completo da OS na lista carregada anteriormente
+            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigo);
+
+            if (osSelecionada && osSelecionada.detalhes && osSelecionada.detalhes.length > 0) {
+                // Pega o site do primeiro detalhe da OS (geralmente é o mesmo para toda a OS)
+                inputSite.value = osSelecionada.detalhes[0].site || '-';
+            } else {
+                inputSite.value = '';
+            }
+            // --- FIM DO CÓDIGO NOVO ---
 
             // Atualiza o select de Projeto se necessário
             const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];

@@ -209,4 +209,32 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     @Query("SELECT l FROM Lancamento l JOIN l.osLpuDetalhe d JOIN d.os o WHERE o.id IN :osIds")
     List<Lancamento> findByOsIdIn(@Param("osIds") List<Long> osIds);
+
+    @Query("SELECT l FROM Lancamento l " +
+            "LEFT JOIN FETCH l.osLpuDetalhe d " +
+            "LEFT JOIN FETCH d.os o " +
+            "LEFT JOIN FETCH o.segmento " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.manager " +
+            "WHERE l.statusPagamento IN :statuses " +
+            "AND l.dataAtividade > :dataCorte " +
+            "AND (l.valor IS NOT NULL AND l.valor <> 0)")
+    List<Lancamento> findFilaCpsAdmin(
+            @Param("statuses") List<StatusPagamento> statuses,
+            @Param("dataCorte") LocalDate dataCorte
+    );
+
+    @Query("SELECT l FROM Lancamento l " +
+            "JOIN l.osLpuDetalhe d JOIN d.os o " +
+            "LEFT JOIN FETCH l.prestador " +
+            "LEFT JOIN FETCH l.manager " +
+            "WHERE l.statusPagamento IN :statuses " +
+            "AND l.dataAtividade > :dataCorte " +
+            "AND (l.valor IS NOT NULL AND l.valor <> 0) " +
+            "AND o.segmento IN :segmentos")
+    List<Lancamento> findFilaCpsCoordinator(
+            @Param("statuses") List<StatusPagamento> statuses,
+            @Param("dataCorte") LocalDate dataCorte,
+            @Param("segmentos") Set<Segmento> segmentos
+    );
 }

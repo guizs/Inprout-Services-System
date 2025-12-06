@@ -52,12 +52,34 @@ public class ControleCpsServiceImpl implements ControleCpsService {
 
     @Transactional
     public void inicializarStatusPagamento() {
-        // (Mantém o código existente...)
-        List<Lancamento> lancamentosParaInicializar = lancamentoRepository.findBySituacaoAprovacaoAndStatusPagamentoIsNull(br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO);
+        List<Lancamento> lancamentosParaInicializar = lancamentoRepository.findBySituacaoAprovacaoAndStatusPagamentoIsNull(SituacaoAprovacao.APROVADO);
+
         if (!lancamentosParaInicializar.isEmpty()) {
+
+            // --- NOVA LÓGICA DE DATA DE CORTE (DIA 6) ---
+            LocalDate hoje = LocalDate.now();
+            LocalDate competenciaPadrao;
+
+            // Se hoje for dia 6 ou mais, a competência já vira para o próximo mês
+            if (hoje.getDayOfMonth() >= 6) {
+                competenciaPadrao = hoje.plusMonths(1).withDayOfMonth(1);
+            } else {
+                // Se for dia 1, 2, 3, 4 ou 5, mantém a competência no mês atual
+                competenciaPadrao = hoje.withDayOfMonth(1);
+            }
+            // ---------------------------------------------
+
             for (Lancamento lancamento : lancamentosParaInicializar) {
                 lancamento.setStatusPagamento(StatusPagamento.EM_ABERTO);
                 lancamento.setValorPagamento(lancamento.getValor());
+
+                BigDecimal valorBase = lancamento.getValor() != null ? lancamento.getValor() : BigDecimal.ZERO;
+                lancamento.setValorPagamento(valorBase);
+
+                // Preenche Competência Automaticamente com a regra do dia 6
+                if (lancamento.getDataCompetencia() == null) {
+                    lancamento.setDataCompetencia(competenciaPadrao);
+                }
             }
             lancamentoRepository.saveAll(lancamentosParaInicializar);
         }
@@ -261,21 +283,24 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional
     public List<Lancamento> getFilaControleCps(Long usuarioId) {
-        inicializarStatusPagamento(); // Garante que itens APROVADOS tenham status inicial
+        inicializarStatusPagamento(); // Garante inicialização e competência
 
-        // --- ALTERAÇÃO 1: Adicionar SOLICITACAO_ADIANTAMENTO na lista de status da fila ---
         List<StatusPagamento> statusFila = List.of(
                 StatusPagamento.EM_ABERTO,
                 StatusPagamento.FECHADO,
                 StatusPagamento.ALTERACAO_SOLICITADA,
-                StatusPagamento.SOLICITACAO_ADIANTAMENTO // <--- NOVO: Controller precisa ver isso
+                StatusPagamento.SOLICITACAO_ADIANTAMENTO
         );
 
         Usuario usuario = getUsuario(usuarioId);
         Role role = usuario.getRole();
 
+        // --- NOVA REGRA: Data de Corte (Depois de 11/2025 -> > 30/11/2025) ---
+        LocalDate dataCorte = LocalDate.of(2025, 11, 30);
+
         if (role == Role.ADMIN || role == Role.CONTROLLER) {
-            return lancamentoRepository.findByStatusPagamentoIn(statusFila);
+            // Usa o novo método com filtros de data e valor
+            return lancamentoRepository.findFilaCpsAdmin(statusFila, dataCorte);
         }
 
         if (role == Role.COORDINATOR || role == Role.MANAGER) {
@@ -283,7 +308,8 @@ public class ControleCpsServiceImpl implements ControleCpsService {
             if (segmentos.isEmpty()) {
                 return List.of();
             }
-            return lancamentoRepository.findByStatusPagamentoInAndOsSegmentoIn(statusFila, segmentos);
+            // Usa o novo método com filtros de data, valor e segmento
+            return lancamentoRepository.findFilaCpsCoordinator(statusFila, dataCorte, segmentos);
         }
 
         return List.of();
@@ -427,79 +453,86 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional(readOnly = true)
     public DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+        // 1. Reutiliza a lógica de filtragem que já existe no método filtrarLancamentos (ou similar)
+        // Isso garante que os KPIs batam exatamente com o que aparece na lista
+        List<Lancamento> lancamentosFiltrados = filtrarLancamentosParaDashboard(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
 
-        // 1. Buscar TODOS os lançamentos (a filtragem fina será feita no stream)
-        List<Lancamento> base;
+        // 2. Cálculos
+        BigDecimal totalCps = BigDecimal.ZERO;
+        BigDecimal totalPago = BigDecimal.ZERO;
+        BigDecimal totalAdiantado = BigDecimal.ZERO;
 
-        // Se tiver regra de segmento por usuário no futuro, aplique aqui.
-        // Por enquanto, pegamos tudo e filtramos abaixo.
-        base = lancamentoRepository.findAll();
+        for (Lancamento l : lancamentosFiltrados) {
+            // Valor Base do Item (Total CPS)
+            BigDecimal valorItem = l.getValor() != null ? l.getValor() : BigDecimal.ZERO;
+            totalCps = totalCps.add(valorItem);
 
-        // 2. Filtra para obter o escopo da CPS (Aprovados no período)
-        List<Lancamento> lancamentosDaCps = base.stream()
-                // Regra 1: Deve estar APROVADO operacionalmente
-                .filter(l -> l.getSituacaoAprovacao() == br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO ||
-                        l.getSituacaoAprovacao() == br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao.APROVADO_CPS_LEGADO)
-                // Regra 2: Filtro de Data (Baseado na ATIVIDADE/COMPETÊNCIA)
-                .filter(l -> {
-                    if (l.getDataAtividade() == null) return false;
-                    boolean afterInicio = (inicio == null) || !l.getDataAtividade().isBefore(inicio);
-                    boolean beforeFim = (fim == null) || !l.getDataAtividade().isAfter(fim);
-                    return afterInicio && beforeFim;
-                })
-                // Regra 3: Filtros opcionais (Segmento, Gestor, Prestador)
-                .filter(l -> segmentoId == null || (l.getOs().getSegmento() != null && l.getOs().getSegmento().getId().equals(segmentoId)))
-                .filter(l -> gestorId == null || (l.getManager() != null && l.getManager().getId().equals(gestorId)))
-                .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
-                .collect(Collectors.toList());
+            // Valor Adiantado
+            BigDecimal adiantadoItem = l.getValorAdiantamento() != null ? l.getValorAdiantamento() : BigDecimal.ZERO;
+            totalAdiantado = totalAdiantado.add(adiantadoItem);
 
-        // 3. Cálculo do Valor TOTAL DA CPS (Soma do campo 'valor' original)
-        BigDecimal totalCps = lancamentosDaCps.stream()
-                .map(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            // Valor Pago (Considera o valorPagamento se o status for PAGO, senão é 0)
+            if (l.getStatusPagamento() == StatusPagamento.PAGO) {
+                // Se já foi pago, usamos o valor final pago (que pode ser diferente do valor original)
+                BigDecimal pagoItem = l.getValorPagamento() != null ? l.getValorPagamento() : valorItem;
+                totalPago = totalPago.add(pagoItem);
+            }
+        }
 
-        // 4. Cálculo do Valor JÁ PAGO (Soma do campo 'valorPagamento' apenas onde statusPagamento == PAGO)
-        BigDecimal totalPago = lancamentosDaCps.stream()
-                .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
-                .map(l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // 3. Cálculo do Pendente
+        // Fórmula: Pendente = Total CPS - (O que já foi pago + O que foi adiantado)
+        // Nota: Se o item foi totalmente pago, ele contribui para TotalCPS e TotalPago, logo Pendente tende a 0.
+        BigDecimal totalPendente = totalCps.subtract(totalPago).subtract(totalAdiantado);
 
-        // 5. Agrupamento por Segmento (Baseado no Valor da CPS)
-        Map<String, BigDecimal> porSegmento = lancamentosDaCps.stream()
+        // Evitar números negativos por arredondamento ou inconsistência de dados legados
+        if (totalPendente.compareTo(BigDecimal.ZERO) < 0) {
+            totalPendente = BigDecimal.ZERO;
+        }
+
+        // 4. Quantidade
+        Long quantidadeItens = (long) lancamentosFiltrados.size();
+
+        // 5. Agrupamento por Segmento (Mantido do original)
+        Map<String, BigDecimal> porSegmento = lancamentosFiltrados.stream()
                 .filter(l -> l.getOs() != null && l.getOs().getSegmento() != null)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getSegmento().getNome(),
                         Collectors.mapping(
-                                l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO, // Soma o valor da CPS
+                                l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
                         )
                 ));
 
         List<ValoresPorSegmentoDTO> listaSegmentos = porSegmento.entrySet().stream()
                 .map(e -> new ValoresPorSegmentoDTO(e.getKey(), e.getValue()))
-                .sorted(java.util.Comparator.comparing(ValoresPorSegmentoDTO::segmentoNome)) // Ordena alfabeticamente
+                .sorted(java.util.Comparator.comparing(ValoresPorSegmentoDTO::segmentoNome))
                 .collect(Collectors.toList());
 
-        return new DashboardCpsDTO(totalCps, totalPago, listaSegmentos);
+        return new DashboardCpsDTO(totalCps, totalPago, totalAdiantado, totalPendente, quantidadeItens, listaSegmentos);
     }
 
-    // --- CORREÇÃO APLICADA AQUI ---
     private List<Lancamento> filtrarLancamentos(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
         Usuario usuario = getUsuario(usuarioId);
         List<Lancamento> base;
 
+        // Regra de visibilidade baseada no perfil
         if (usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ADMIN) {
             base = lancamentoRepository.findAll();
+        } else if (usuario.getRole() == Role.COORDINATOR || usuario.getRole() == Role.MANAGER) {
+            Set<Segmento> segmentos = usuario.getSegmentos();
+            if (segmentos.isEmpty()) {
+                return List.of();
+            }
+            base = lancamentoRepository.findByOsSegmentoIn(segmentos);
         } else {
-            base = lancamentoRepository.findAll(); // Idealmente filtraria por segmento aqui no futuro
+            return List.of();
         }
 
         return base.stream()
+                // O Histórico mostra apenas itens PAGOS ou RECUSADOS pelo Controller
                 .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO || l.getStatusPagamento() == StatusPagamento.RECUSADO)
                 .filter(l -> {
-                    // --- FIX: PROTEÇÃO CONTRA DATA NULA ---
+                    // Filtro de Data
                     LocalDate dataRef = null;
                     if (l.getDataPagamento() != null) {
                         dataRef = l.getDataPagamento().toLocalDate();
@@ -507,7 +540,42 @@ public class ControleCpsServiceImpl implements ControleCpsService {
                         dataRef = l.getDataAtividade();
                     }
 
-                    // Se não tiver nenhuma data, ignora este lançamento no filtro de data
+                    if (dataRef == null) return false;
+
+                    boolean afterInicio = (inicio == null) || !dataRef.isBefore(inicio);
+                    boolean beforeFim = (fim == null) || !dataRef.isAfter(fim);
+                    return afterInicio && beforeFim;
+                })
+                // Filtros opcionais (Segmento, Gestor, Prestador)
+                .filter(l -> segmentoId == null || (l.getOs().getSegmento() != null && l.getOs().getSegmento().getId().equals(segmentoId)))
+                .filter(l -> gestorId == null || (l.getManager() != null && l.getManager().getId().equals(gestorId)))
+                .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
+                .collect(Collectors.toList());
+    }
+
+    // MANTENHA TAMBÉM O MÉTODO NOVO DO DASHBOARD (RESPONSÁVEL PELOS KPIs)
+    private List<Lancamento> filtrarLancamentosParaDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
+        Usuario usuario = getUsuario(usuarioId);
+        List<Lancamento> base;
+
+        if (usuario.getRole() == Role.CONTROLLER || usuario.getRole() == Role.ADMIN) {
+            base = lancamentoRepository.findAll();
+        } else if (usuario.getRole() == Role.COORDINATOR || usuario.getRole() == Role.MANAGER) {
+            Set<Segmento> segmentos = usuario.getSegmentos();
+            if (segmentos.isEmpty()) {
+                return List.of();
+            }
+            base = lancamentoRepository.findByOsSegmentoIn(segmentos);
+        } else {
+            return List.of();
+        }
+
+        return base.stream()
+                // Regra base do CPS: Deve estar aprovado operacionalmente
+                .filter(l -> l.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO ||
+                        l.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO_CPS_LEGADO)
+                .filter(l -> {
+                    LocalDate dataRef = l.getDataAtividade();
                     if (dataRef == null) return false;
 
                     boolean afterInicio = (inicio == null) || !dataRef.isBefore(inicio);
@@ -519,5 +587,4 @@ public class ControleCpsServiceImpl implements ControleCpsService {
                 .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
                 .collect(Collectors.toList());
     }
-    // --- FIM DA CORREÇÃO ---
 }

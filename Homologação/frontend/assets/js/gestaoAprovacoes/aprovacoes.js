@@ -2667,13 +2667,16 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     async function atualizarHeaderKpiCPS() {
-        // 1. Seleciona todos os elementos de valor (pode haver mais de um se estivermos nas duas abas)
+        // 1. Seleciona todos os elementos de valor na tela
         const elsTotal = document.querySelectorAll('.kpi-cps-total-mes-value');
+        const elsAdiantado = document.querySelectorAll('.kpi-cps-total-adiantado-value'); // Novo
+        const elsPendente = document.querySelectorAll('.kpi-cps-total-pendente-value');   // Novo
         const elsPago = document.querySelectorAll('.kpi-cps-total-pago-value');
+        const elsQtd = document.querySelectorAll('.kpi-cps-qtd-itens-value');             // Novo
 
-        if (elsTotal.length === 0) return; // Nada para atualizar
+        if (elsTotal.length === 0) return;
 
-        // 2. Pega os filtros
+        // 2. Pega os filtros atuais da tela
         const mesVal = document.getElementById('cps-filtro-mes-ref').value;
         const segmentoId = document.getElementById('cps-filtro-segmento').value;
         const prestadorId = document.getElementById('cps-filtro-prestador').value;
@@ -2692,11 +2695,15 @@ document.addEventListener('DOMContentLoaded', function () {
             prestadorId: prestadorId || ''
         });
 
-        try {
-            // 3. Mostra "..." enquanto carrega
-            elsTotal.forEach(el => el.textContent = "...");
-            elsPago.forEach(el => el.textContent = "...");
+        // Função helper para definir texto de carregamento
+        const setLoading = (text) => {
+            [elsTotal, elsAdiantado, elsPendente, elsPago, elsQtd].forEach(nodeList => {
+                nodeList.forEach(el => el.textContent = text);
+            });
+        };
+        setLoading("...");
 
+        try {
             const response = await fetchComAuth(`${API_BASE_URL}/controle-cps/dashboard?${params}`, {
                 headers: { 'X-User-ID': localStorage.getItem('usuarioId') }
             });
@@ -2706,18 +2713,18 @@ document.addEventListener('DOMContentLoaded', function () {
             const dados = await response.json();
             const formatar = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
-            // 4. Atualiza todos os elementos na tela (Pendências e Histórico)
+            // 4. Atualiza os valores na tela
             elsTotal.forEach(el => el.textContent = formatar(dados.valorTotal));
+            elsAdiantado.forEach(el => el.textContent = formatar(dados.valorTotalAdiantado));
+            elsPendente.forEach(el => el.textContent = formatar(dados.valorTotalPendente));
             elsPago.forEach(el => el.textContent = formatar(dados.valorTotalPago));
+            elsQtd.forEach(el => el.textContent = dados.quantidadeItens || 0);
 
         } catch (error) {
             console.error("Erro KPIs:", error);
-            elsTotal.forEach(el => el.textContent = "-");
-            elsPago.forEach(el => el.textContent = "-");
+            setLoading("-");
         }
     }
-
-
 
     // --- Handlers de Ação Globais ---
     window.abrirModalCpsValor = function (id, acao) {
@@ -3426,4 +3433,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     configurarBuscaCps('input-busca-pendencias', 'accordionPendencias');
     configurarBuscaCps('input-busca-historico', 'accordionHistorico');
+
+    document.getElementById('btn-exportar-historico-cps')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Chame sua função de exportação aqui, passando os filtros do histórico
+        exportarRelatorioHistorico();
+    });
 });

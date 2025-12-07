@@ -251,6 +251,10 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, "success");
 
             modalAprovar.hide();
+
+            const histPane = document.getElementById('historico-atividades-pane');
+            if (histPane) histPane.dataset.loaded = 'false';
+
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
@@ -289,6 +293,11 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, "success");
 
             modalRecusar.hide();
+
+            const histPane = document.getElementById('historico-atividades-pane');
+            if(histPane) histPane.dataset.loaded = 'false';
+
+
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
@@ -336,6 +345,9 @@ document.addEventListener('DOMContentLoaded', function () {
             mostrarToast("Ação de prazo realizada com sucesso!", "success");
 
             modalComentar.hide();
+            const histPane = document.getElementById('historico-atividades-pane');
+            if(histPane) histPane.dataset.loaded = 'false';
+            
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
@@ -555,7 +567,9 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Filtros e Histórico
-    document.getElementById('filtro-historico-status')?.addEventListener('change', async () => { await carregarDadosHistoricoAtividades(); });
+    document.getElementById('filtro-historico-status')?.addEventListener('change', () => {
+        renderizarTabelaHistorico(window.todosHistoricoAtividades);
+    });
     document.getElementById('btn-carregar-mais-historico')?.addEventListener('click', () => {
         window.histDataFim.setDate(window.histDataFim.getDate() - 1);
         window.histDataInicio.setDate(window.histDataInicio.getDate() - 30);

@@ -230,7 +230,7 @@ function renderizarAcordeonPendencias(dados) {
         const bodyRowsHTML = grupo.linhas.map(lancamento => {
             const cellsHTML = colunasParaRenderizar.map(header => {
                 
-                // === LÓGICA DE AÇÕES DO BACKUP ===
+                // === LÓGICA DE AÇÕES ===
                 if (header === 'AÇÕES') {
                     let acoesHtml = '';
                     
@@ -259,8 +259,12 @@ function renderizarAcordeonPendencias(dados) {
                             `;
                         }
                     }
+
+                    const btnComentarios = `<button class="btn btn-sm btn-info text-white" onclick="verComentarios(${lancamento.id})" title="Ver Comentários"><i class="bi bi-chat-left-text"></i></button>`;
                     
-                    return `<td class="text-center text-nowrap">${acoesHtml || '—'}</td>`;
+                    acoesHtml += btnComentarios;
+                    
+                    return `<td class="text-center text-nowrap"><div class="d-flex justify-content-center gap-1">${acoesHtml || '—'}</div></td>`;
                 }
 
                 const func = dataMapping[header]; 

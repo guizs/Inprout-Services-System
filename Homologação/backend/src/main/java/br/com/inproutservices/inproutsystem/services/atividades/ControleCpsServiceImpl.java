@@ -15,9 +15,13 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRe
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -551,6 +555,65 @@ public class ControleCpsServiceImpl implements ControleCpsService {
                 .filter(l -> gestorId == null || (l.getManager() != null && l.getManager().getId().equals(gestorId)))
                 .filter(l -> prestadorId == null || (l.getPrestador() != null && l.getPrestador().getId().equals(prestadorId)))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public byte[] exportarRelatorioExcel(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
+        // 1. Reutiliza o filtro existente para pegar os dados
+        List<Lancamento> dados = filtrarLancamentos(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("Histórico CPS");
+
+            // Cabeçalho
+            Row headerRow = sheet.createRow(0);
+            String[] colunas = {"Data Atividade", "Status Pagamento", "OS", "Site", "Projeto", "Segmento", "Prestador", "Gestor", "Valor Total (R$)", "Valor Pago (R$)", "Competência"};
+
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font font = workbook.createFont();
+            font.setBold(true);
+            headerStyle.setFont(font);
+
+            for (int i = 0; i < colunas.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(colunas[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // Dados
+            int rowIdx = 1;
+            for (Lancamento l : dados) {
+                Row row = sheet.createRow(rowIdx++);
+
+                row.createCell(0).setCellValue(l.getDataAtividade() != null ? l.getDataAtividade().toString() : "");
+                row.createCell(1).setCellValue(l.getStatusPagamento() != null ? l.getStatusPagamento().name() : "");
+                row.createCell(2).setCellValue(l.getOs() != null ? l.getOs().getOs() : "");
+                row.createCell(3).setCellValue(l.getOsLpuDetalhe() != null ? l.getOsLpuDetalhe().getSite() : "");
+                row.createCell(4).setCellValue(l.getOs() != null ? l.getOs().getProjeto() : "");
+                row.createCell(5).setCellValue(l.getOs() != null && l.getOs().getSegmento() != null ? l.getOs().getSegmento().getNome() : "");
+                row.createCell(6).setCellValue(l.getPrestador() != null ? l.getPrestador().getPrestador() : "");
+                row.createCell(7).setCellValue(l.getManager() != null ? l.getManager().getNome() : "");
+
+                // Valores numéricos
+                double valTotal = l.getValor() != null ? l.getValor().doubleValue() : 0.0;
+                double valPago = l.getValorPagamento() != null ? l.getValorPagamento().doubleValue() : valTotal;
+
+                row.createCell(8).setCellValue(valTotal);
+                row.createCell(9).setCellValue(valPago);
+                row.createCell(10).setCellValue(l.getDataCompetencia() != null ? l.getDataCompetencia().toString() : "");
+            }
+
+            // Auto-size columns
+            for(int i=0; i<colunas.length; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+
+        } catch (IOException e) {
+            throw new BusinessException("Erro ao gerar arquivo Excel: " + e.getMessage());
+        }
     }
 
     // MANTENHA TAMBÉM O MÉTODO NOVO DO DASHBOARD (RESPONSÁVEL PELOS KPIs)

@@ -56,5 +56,7 @@ public interface ControleCpsService {
 
     Lancamento recusarAdiantamento(Long lancamentoId, Long controllerId, String motivo);
 
+    byte[] exportarRelatorioExcel(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
+
 }
 

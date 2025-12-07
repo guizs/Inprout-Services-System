@@ -105,7 +105,7 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="cps-historico-tab" data-bs-toggle="tab"
                             data-bs-target="#cps-historico-pane" type="button" role="tab">
-                            <i class="bi bi-receipt me-1"></i> Histório CPS
+                            <i class="bi bi-receipt me-1"></i> Histórico CPS
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
@@ -366,11 +366,51 @@
                         </div>
                     </div>
 
+                    <div id="cps-acoes-lote-coord-container"
+                        class="alert alert-info d-flex align-items-center justify-content-between p-2 mb-2 d-none">
+                        <span><i class="bi bi-check-circle-fill me-2"></i>Coordenador: Itens selecionados.</span>
+                        <div>
+                            <button class="btn btn-sm btn-success me-2" id="btn-fechar-selecionados-cps"><i
+                                    class="bi bi-check-lg"></i> Fechar (<span
+                                    id="contador-fechar-cps">0</span>)</button>
+                            <button class="btn btn-sm btn-danger" id="btn-recusar-selecionados-cps-coord"><i
+                                    class="bi bi-x-lg"></i> Recusar (<span
+                                    id="contador-recusar-cps-coord">0</span>)</button>
+                        </div>
+                    </div>
+
+                    <div id="cps-acoes-lote-controller-container"
+                        class="alert alert-warning d-flex align-items-center justify-content-between p-2 mb-2 d-none">
+                        <span><i class="bi bi-exclamation-triangle-fill me-2"></i>Controller:
+                            Pagamento/Devolução.</span>
+                        <div>
+                            <button class="btn btn-sm btn-success me-2" id="btn-pagar-selecionados-cps"><i
+                                    class="bi bi-cash-stack"></i> Pagar (<span
+                                    id="contador-pagamento-cps">0</span>)</button>
+                            <button class="btn btn-sm btn-danger" id="btn-recusar-selecionados-cps-controller"><i
+                                    class="bi bi-arrow-counterclockwise"></i> Devolver (<span
+                                    id="contador-recusar-cps-controller">0</span>)</button>
+                        </div>
+                    </div>
+
+                    <div id="cps-acoes-lote-adiantamento-container"
+                        class="alert alert-primary d-flex align-items-center justify-content-between p-2 mb-2 d-none">
+                        <span><i class="bi bi-cash-coin me-2"></i>Controller: Adiantamentos.</span>
+                        <div>
+                            <button class="btn btn-sm btn-success me-2" id="btn-pagar-adiantamento-lote"><i
+                                    class="bi bi-check-lg"></i> Pagar (<span
+                                    id="contador-pagar-adiantamento">0</span>)</button>
+                            <button class="btn btn-sm btn-danger" id="btn-recusar-adiantamento-lote"><i
+                                    class="bi bi-x-lg"></i> Recusar (<span
+                                    id="contador-recusar-adiantamento">0</span>)</button>
+                        </div>
+                    </div>
+
                     <div class="card shadow-sm border-0">
                         <div class="card-header bg-white p-3 border-bottom d-flex align-items-center flex-wrap gap-2">
 
                             <h5 class="mb-0 card-title-modern text-nowrap me-3">
-                                <i class="bi bi-receipt me-2"></i>Histórico de Pagamentos
+                                <i class="bi bi-receipt me-2"></i>Pagamentos Pendentes
                             </h5>
 
                             <div class="kpi-header-wrapper d-none d-md-flex ms-auto gap-2">
@@ -465,48 +505,22 @@
                 </div>
 
                 <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white p-3 border-bottom d-flex align-items-center justify-content-between">
+                    <div
+                        class="card-header bg-white p-3 border-bottom d-flex align-items-center justify-content-between">
                         <h5 class="mb-0 card-title-modern"><i class="bi bi-clock-history me-2"></i>Histórico Recente
                         </h5>
-                        
+
                         <div class="kpi-header-wrapper d-none d-md-flex ms-auto gap-2">
-                            <div class="card-kpi-header card-kpi-info" style="min-width: 120px;">
-                                <span class="kpi-title">Total CPS</span>
-                                <span class="kpi-value kpi-cps-hist-total-mes-value">R$ 0,00</span>
-                            </div>
-
-                            <div class="card-kpi-header"
-                                style="min-width: 120px; border-left: 4px solid #ffc107; background-color: #fff3cd;">
-                                <span class="kpi-title">Adiantado</span>
-                                <span class="kpi-value kpi-cps-hist-total-adiantado-value">R$ 0,00</span>
-                            </div>
-
-                            <div class="card-kpi-header"
-                                style="min-width: 120px; border-left: 4px solid #dc3545; background-color: #f8d7da;">
-                                <span class="kpi-title">Pendente</span>
-                                <span class="kpi-value kpi-cps-hist-total-pendente-value">R$ 0,00</span>
-                            </div>
-
-                            <div class="card-kpi-header card-kpi-success" style="min-width: 120px;">
-                                <span class="kpi-title">Total Pago</span>
-                                <span class="kpi-value kpi-cps-hist-total-pago-value">R$ 0,00</span>
-                            </div>
-
-                            <div class="card-kpi-header bg-light border"
-                                style="min-width: 80px; border-left: 4px solid #6c757d !important;">
-                                <span class="kpi-title">Itens</span>
-                                <span class="kpi-value kpi-cps-hist-qtd-itens-value">0</span>
-                            </div>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="mb-3 position-relative">
-                                <input type="text" class="form-control ps-5" id="input-busca-cps-historico"
-                                    placeholder="Pesquisar por OS, Projeto, Prestador, Valor...">
-                                <i
-                                    class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
-                            </div>
-                        
+                            <input type="text" class="form-control ps-5" id="input-busca-cps-historico"
+                                placeholder="Pesquisar por OS, Projeto, Prestador, Valor...">
+                            <i
+                                class="bi bi-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
+                        </div>
+
                         <div class="accordion" id="accordionHistoricoCPS"></div>
 
                         <div id="msg-sem-historico-cps"
@@ -889,173 +903,6 @@
             </div>
         </div>
 
-        <div class="modal fade" id="modalDetalheDiario" tabindex="-1" aria-labelledby="modalDetalheDiarioLabel"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="modalDetalheDiarioLabel"><i class="bi bi-text-left me-2"></i>Detalhe
-                            Diário Completo</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                    </div>
-                    <div class="modal-body" id="modalDetalheDiarioBody" style="white-space: pre-wrap;">
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalEditarLancamento" tabindex="-1" aria-labelledby="modalEditarLancamentoLabel"
-            aria-hidden="true">
-            <div class="modal-dialog modal-xl modal-dialog-centered">
-                <div class="modal-content">
-                    <form id="formEditarLancamento" novalidate>
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="modalEditarLancamentoLabel">
-                                <i class="bi bi-pencil-fill"></i> Editar Lançamento
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-
-                        <div class="modal-body">
-                            <input type="hidden" id="idLancamentoEditar">
-
-                            <h6 class="section-title">Dados Gerais</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">Ordem de Serviço (OS)</label>
-                                    <input type="text" class="form-control" id="osDisplay_editar" readonly>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="dataAtividade_editar" class="form-label">Data da Atividade</label>
-                                    <input type="date" class="form-control" id="dataAtividade_editar" required>
-                                </div>
-                            </div>
-
-                            <h6 class="section-title">Responsáveis e Detalhes</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-6">
-                                    <label for="prestadorId_editar" class="form-label">Prestador</label>
-                                    <select class="form-select" id="prestadorId_editar" required>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="equipe_editar" class="form-label">Equipe</label>
-                                    <input type="text" class="form-control" id="equipe_editar">
-                                </div>
-                            </div>
-
-                            <h6 class="section-title">Execução e Status</h6>
-                            <div class="row g-3 mb-3">
-                                <div class="col-md-4">
-                                    <label for="etapaDetalhadaId_editar" class="form-label">Etapa Detalhada</label>
-                                    <select class="form-select" id="etapaDetalhadaId_editar" required>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="status_editar" class="form-label">Status</label>
-                                    <select class="form-select" id="status_editar">
-                                        <option>Aguardando documentação</option>
-                                        <option>Paralisado</option>
-                                        <option>Em andamento</option>
-                                        <option>Finalizado</option>
-                                        <option>Não iniciado</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4">
-                                    <label for="valor_editar" class="form-label">Valor da Atividade</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text">R$</span>
-                                        <input type="text" class="form-control" id="valor_editar" inputmode="numeric" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="detalheDiario_editar" class="form-label">Detalhe Diário</label>
-                                <textarea class="form-control" id="detalheDiario_editar" rows="2" required></textarea>
-                            </div>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                <i class="bi bi-x-circle"></i> Cancelar
-                            </button>
-                            <button type="submit" class="btn btn-success" id="btnSalvarEdicao">
-                                <i class="bi bi-check-circle"></i> Salvar Alterações
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalSolicitarAdiantamento" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <form id="formSolicitarAdiantamento">
-                        <div class="modal-header">
-                            <h5 class="modal-title text-primary">
-                                <i class="bi bi-cash-stack me-2"></i>Solicitar Adiantamento
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <input type="hidden" id="adiantamentoLancamentoId">
-
-                            <div class="alert alert-info small">
-                                <i class="bi bi-info-circle me-1"></i>
-                                O valor solicitado será enviado para aprovação.
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold"> Valor total de cps do lançamento </label>
-                                <input type="text" class="form-control" id="adiantamentoValorTotalDisplay" readonly
-                                    disabled>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Adiantado</label>
-                                <input type="text" class="form-control" id="adiantamentoValorJaPagoDisplay" readonly
-                                    disabled>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="valorSolicitadoInput" class="form-label fw-bold text-primary">Solicitar:
-                                    (R$)</label>
-                                <input type="text" class="form-control form-control-lg" id="valorSolicitadoInput"
-                                    placeholder="0,00" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="justificativaAdiantamentoInput" class="form-label">Justificativa
-                                    (Obrigatório)</label>
-                                <textarea class="form-control" id="justificativaAdiantamentoInput" rows="2"></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Enviar solicitação</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="toast-container position-fixed bottom-0 end-0 p-3">
-            <div id="toastMensagem" class="toast align-items-center border-0" role="alert" aria-live="assertive"
-                aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body" id="toastTexto">
-                    </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                        aria-label="Fechar"></button>
-                </div>
-            </div>
-        </div>
-
         <div class="modal fade" id="modalAcaoLoteCPS" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -1164,12 +1011,20 @@
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
         <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-        <script src="../assets/js/general/global.js?v=2.2"></script>
         <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-        <script src="../assets/js/general/sidebar.js?v=2.2"></script>
-        <script src="../assets/js/gestaoAprovacoes/aprovacoes.js?v=2.2"></script>
 
+        <script src="../assets/js/general/global.js"></script>
+        <script src="../assets/js/general/sidebar.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-state.js"></script>
+
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-atividades.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-materiais.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-complementares.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-cps.js"></script>
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-dashboard.js"></script>
+
+        <script src="../assets/js/gestaoAprovacoes/aprovacoes-main.js"></script>
 </body>
 
 </html>

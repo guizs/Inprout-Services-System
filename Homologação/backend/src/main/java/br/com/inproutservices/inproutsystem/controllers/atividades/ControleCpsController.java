@@ -12,7 +12,10 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalhe
 import br.com.inproutservices.inproutsystem.services.atividades.ControleCpsService;
 import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -213,6 +216,26 @@ public class ControleCpsController {
         String motivo = (String) payload.get("motivo");
         Lancamento l = controleCpsService.recusarAdiantamento(id, controllerId, motivo);
         return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @GetMapping("/exportar")
+    public ResponseEntity<ByteArrayResource> exportarRelatorioCps(
+            @RequestHeader("X-User-ID") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            @RequestParam(required = false) Long segmentoId,
+            @RequestParam(required = false) Long gestorId,
+            @RequestParam(required = false) Long prestadorId
+    ) {
+        byte[] dadosExcel = controleCpsService.exportarRelatorioExcel(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+
+        ByteArrayResource resource = new ByteArrayResource(dadosExcel);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=relatorio_cps.xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(dadosExcel.length)
+                .body(resource);
     }
 
     @GetMapping("/historico")

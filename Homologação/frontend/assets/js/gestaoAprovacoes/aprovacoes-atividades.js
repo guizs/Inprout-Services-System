@@ -1,6 +1,44 @@
 // ==========================================================
-// LÓGICA DE ATIVIDADES E HISTÓRICO DE ATIVIDADES
+// 2. LÓGICA DE ATIVIDADES E HISTÓRICO (aprovacoes-atividades.js)
 // ==========================================================
+
+async function carregarDadosAtividades() {
+    toggleLoader(true, '#atividades-pane');
+    try {
+        const [responseGeral, responseHistorico, responsePendenciasAtiv] = await Promise.all([
+            fetchComAuth(`${API_BASE_URL}/lancamentos`),
+            fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
+            fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`)
+        ]);
+
+        if (!responseGeral.ok || !responseHistorico.ok || !responsePendenciasAtiv.ok) {
+            throw new Error('Falha ao carregar dados de atividades.');
+        }
+
+        window.todosOsLancamentosGlobais = await responseGeral.json();
+        const historicoParaExibir = await responseHistorico.json();
+        window.todasPendenciasAtividades = await responsePendenciasAtiv.json();
+
+        renderizarTabelaHistorico(historicoParaExibir);
+        renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+
+        // Atualiza Título da Tabela conforme Role (do backup)
+        const tituloEl = document.getElementById('titulo-tabela');
+        if (tituloEl) {
+            if (userRole === 'COORDINATOR') {
+                tituloEl.innerHTML = '<i class="bi bi-clock-history me-2"></i> Pendências';
+            } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+                tituloEl.innerHTML = '<i class="bi bi-shield-check me-2"></i> Pendências do Controller';
+            }
+        }
+
+    } catch (error) {
+        console.error(error);
+        mostrarToast('Falha ao carregar os dados de atividades.', 'error');
+    } finally {
+        toggleLoader(false, '#atividades-pane');
+    }
+}
 
 async function carregarDadosHistoricoAtividades(append = false) {
     const tbodyHistorico = document.getElementById('tbody-historico');
@@ -49,44 +87,6 @@ async function carregarDadosHistoricoAtividades(append = false) {
     }
 }
 
-async function carregarDadosAtividades() {
-    toggleLoader(true, '#atividades-pane');
-    toggleLoader(true, '#historico-atividades-pane');
-    try {
-        const [responseGeral, responseHistorico, responsePendenciasAtiv] = await Promise.all([
-            fetchComAuth(`${API_BASE_URL}/lancamentos`),
-            fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}`),
-            fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`)
-        ]);
-
-        if (!responseGeral.ok || !responseHistorico.ok || !responsePendenciasAtiv.ok) {
-            throw new Error('Falha ao carregar dados de atividades.');
-        }
-
-        window.todosOsLancamentosGlobais = await responseGeral.json();
-        const historicoParaExibir = await responseHistorico.json();
-        window.todasPendenciasAtividades = await responsePendenciasAtiv.json();
-
-        renderizarTabelaHistorico(historicoParaExibir);
-        renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-
-        if (userRole === 'COORDINATOR') {
-            document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-clock-history me-2"></i> Pendências';
-        } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-            document.getElementById('titulo-tabela').innerHTML = '<i class="bi bi-shield-check me-2"></i> Pendências do Controller';
-        }
-
-    } catch (error) {
-        console.error('Falha ao buscar dados de atividades:', error);
-        mostrarToast('Falha ao carregar os dados da página de atividades.', 'error');
-        const accordionContainer = document.getElementById('accordion-pendencias');
-        if (accordionContainer) accordionContainer.innerHTML = `<div class="alert alert-danger">Falha ao carregar dados.</div>`;
-    } finally {
-        toggleLoader(false, '#atividades-pane');
-        toggleLoader(false, '#historico-atividades-pane');
-    }
-}
-
 function renderizarAcordeonPendencias(dados) {
     const accordionContainer = document.getElementById('accordion-pendencias');
     if (!accordionContainer) return;
@@ -98,6 +98,7 @@ function renderizarAcordeonPendencias(dados) {
         return;
     }
 
+    // Agrupa por OS
     const agrupadoPorOS = dados.reduce((acc, lancamento) => {
         const osId = lancamento.os.id;
         if (!acc[osId]) {
@@ -119,7 +120,6 @@ function renderizarAcordeonPendencias(dados) {
     const grupos = Object.values(agrupadoPorOS);
     const frag = document.createDocumentFragment();
 
-    // Mapeamento de colunas
     const colunas = [
         "AÇÕES", "PRAZO AÇÃO", "STATUS APROVAÇÃO", "DATA ATIVIDADE", "OS", "SITE", "VALOR DA ATIVIDADE", "CONTRATO", "SEGMENTO", "PROJETO",
         "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE",
@@ -184,9 +184,9 @@ function renderizarAcordeonPendencias(dados) {
 
         const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
-        // KPIs
+        // KPIs (Ajustado conforme o backup)
         const valorTotalOS = grupo.totalOs || 0;
-        const valorTotalCPS = grupo.valorCps || 0; 
+        const valorTotalCPS = grupo.valorCps || 0;
         const custoTotalMateriais = grupo.custoTotalMateriais || 0;
         const valorCpsLegado = dadosOS.valorCpsLegado || 0;
         const valorTransporte = dadosOS.transporte || 0;
@@ -206,7 +206,7 @@ function renderizarAcordeonPendencias(dados) {
 
         const headerHTML = `
         <h2 class="accordion-header position-relative" id="heading-${uniqueId}">
-            <div class="position-absolute top-50 start-0 translate-middle-y ms-3" style="z-index: 5;">
+            <div class="position-absolute top-50 start-0 translate-middle-y ms-3 check-container-header" style="z-index: 5;">
                 <input class="form-check-input selecionar-todos-acordeon shadow-sm" type="checkbox" 
                        data-target-body="collapse-${uniqueId}" 
                        style="cursor: pointer; margin: 0;">
@@ -229,9 +229,44 @@ function renderizarAcordeonPendencias(dados) {
 
         const bodyRowsHTML = grupo.linhas.map(lancamento => {
             const cellsHTML = colunasParaRenderizar.map(header => {
+                
+                // === LÓGICA DE AÇÕES DO BACKUP ===
+                if (header === 'AÇÕES') {
+                    let acoesHtml = '';
+                    
+                    if ((userRole === 'COORDINATOR' || userRole === 'MANAGER') && lancamento.situacaoAprovacao === 'PENDENTE_COORDENADOR') {
+                        acoesHtml = `
+                            <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamento(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button>
+                            <button class="btn btn-sm btn-outline-danger me-1" onclick="recusarLancamento(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="comentarLancamento(${lancamento.id})" title="Solicitar Prazo"><i class="bi bi-clock-history"></i></button>
+                        `;
+                    }
+                    else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+                        if (lancamento.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
+                            acoesHtml = `
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>
+                            `;
+                        } else if (lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
+                            acoesHtml = `
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarPrazoController(${lancamento.id})" title="Aprovar Prazo"><i class="bi bi-calendar-check"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="recusarPrazoController(${lancamento.id})" title="Recusar Prazo"><i class="bi bi-calendar-x"></i></button>
+                            `;
+                        } else if (lancamento.situacaoAprovacao === 'PRAZO_VENCIDO') {
+                             acoesHtml = `
+                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar (Vencido)"><i class="bi bi-check-lg"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar (Vencido)"><i class="bi bi-x-lg"></i></button>
+                            `;
+                        }
+                    }
+                    
+                    return `<td class="text-center text-nowrap">${acoesHtml || '—'}</td>`;
+                }
+
                 const func = dataMapping[header]; 
                 const valor = func ? func(lancamento) : '-'; 
                 let classes = ''; 
+                // Cores de status
                 if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
                     classes += ' status-cell';
                     if (valor === 'OK') classes += ' status-ok';
@@ -244,34 +279,7 @@ function renderizarAcordeonPendencias(dados) {
                 return `<td class="${classes}">${valor}</td>`;
             }).join('');
             
-            // AÇÕES DA LINHA
-            let btns = `<button class="btn btn-sm btn-outline-info me-1" title="Ver Detalhes" onclick="verComentarios(${lancamento.id})"><i class="bi bi-eye"></i></button>`;
-            if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-                if (lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
-                    btns += `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarPrazoController(${lancamento.id})" title="Aprovar Prazo"><i class="bi bi-calendar-check"></i></button>`;
-                    btns += `<button class="btn btn-sm btn-outline-danger" onclick="recusarPrazoController(${lancamento.id})" title="Recusar Prazo"><i class="bi bi-calendar-x"></i></button>`;
-                } else {
-                    btns += `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button>`;
-                    btns += `<button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>`;
-                }
-            } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
-                 if (lancamento.situacaoAprovacao === 'PENDENTE_COORDENADOR') {
-                     btns += `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamento(${lancamento.id})"><i class="bi bi-check-lg"></i></button>`;
-                     btns += `<button class="btn btn-sm btn-outline-danger me-1" onclick="recusarLancamento(${lancamento.id})"><i class="bi bi-x-lg"></i></button>`;
-                     btns += `<button class="btn btn-sm btn-outline-warning" onclick="comentarLancamento(${lancamento.id})" title="Solicitar Prazo"><i class="bi bi-clock-history"></i></button>`;
-                 }
-            }
-
-            // Substitui a coluna "AÇÕES" pelo HTML gerado
-            // Nota: O índice 0 é 'AÇÕES', então fazemos um replace na string gerada ou inserimos antes
-            // Como já geramos as células acima, vamos substituir a primeira célula que é a de ações vazia (do dataMapping)
-            // Mas o dataMapping retornou vazio para AÇÕES. 
-            // Vamos reinserir:
-            
-            // Recria a linha com checkbox e botões corretos
-            const cellsHTMLWithButtons = cellsHTML.replace('<td></td>', `<td><div class="d-flex">${btns}</div></td>`); 
-
-            return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTMLWithButtons}</tr>`;
+            return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
         }).join('');
 
         const bodyHTML = `
@@ -302,9 +310,7 @@ function renderizarTabelaHistorico(dados) {
     const theadHistorico = document.getElementById('thead-historico');
     if (!tbodyHistorico) return;
 
-    let sortConfig = { key: 'dataAtividade', direction: 'desc' };
-    
-    // Filtro simples em memória
+    // Filtro em memória
     const statusFiltrado = document.getElementById('filtro-historico-status')?.value || 'todos';
     let dadosFiltrados = statusFiltrado === 'todos' ? dados : dados.filter(l => l.situacaoAprovacao === statusFiltrado);
 
@@ -353,12 +359,50 @@ function renderizarTabelaHistorico(dados) {
     });
 }
 
-// Funções de Ação Unitária (chamadas pelo HTML)
-window.aprovarLancamento = aprovarLancamento;
-window.recusarLancamento = recusarLancamento;
-window.comentarLancamento = comentarLancamento;
-window.aprovarLancamentoController = aprovarLancamentoController;
-window.recusarLancamentoController = recusarLancamentoController;
-window.aprovarPrazoController = aprovarPrazoController;
-window.recusarPrazoController = recusarPrazoController;
-window.verComentarios = verComentarios;
+function atualizarEstadoAcoesLote() {
+    const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
+    const container = document.getElementById('acoes-lote-container');
+    if (!container) return;
+    
+    container.classList.toggle('d-none', checkboxes.length === 0);
+    
+    if (checkboxes.length > 0) {
+        // Atualiza contadores
+        const total = checkboxes.length;
+        document.getElementById('contador-aprovacao').textContent = total;
+        document.getElementById('contador-recusa').textContent = total;
+        document.getElementById('contador-prazo').textContent = total;
+        
+        // Verifica consistência dos status
+        const ids = Array.from(checkboxes).map(c => c.dataset.id);
+        const lancs = window.todosOsLancamentosGlobais.filter(l => ids.includes(String(l.id)));
+        const status = lancs[0]?.situacaoAprovacao;
+        const allSame = lancs.every(l => l.situacaoAprovacao === status);
+        
+        const btnAprovar = document.getElementById('btn-aprovar-selecionados');
+        const btnRecusar = document.getElementById('btn-recusar-selecionados');
+        const btnPrazo = document.getElementById('btn-solicitar-prazo-selecionados');
+        
+        [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'none');
+        
+        if (allSame) {
+            // Regra de Coordenador/Manager
+            if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole) && status === 'PENDENTE_COORDENADOR') {
+                [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'inline-block');
+            } 
+            // Regra de Controller/Admin
+            else if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
+                if (status === 'PENDENTE_CONTROLLER') {
+                    [btnAprovar, btnRecusar].forEach(btn => btn.style.display = 'inline-block');
+                } else if (status === 'AGUARDANDO_EXTENSAO_PRAZO' || status === 'PRAZO_VENCIDO') {
+                    // Para prazo, botões especiais
+                    btnAprovar.style.display = 'inline-block';
+                    btnAprovar.innerHTML = `<i class="bi bi-calendar-check"></i> Aprovar Prazo (${total})`;
+                    
+                    btnRecusar.style.display = 'inline-block';
+                    btnRecusar.innerHTML = `<i class="bi bi-calendar-x"></i> Recusar Prazo (${total})`;
+                }
+            }
+        }
+    }
+}

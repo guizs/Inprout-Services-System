@@ -1,236 +1,724 @@
-document.addEventListener('DOMContentLoaded', function () {
-    // --- 1. Configuração de Visibilidade por Role ---
-    configurarVisibilidadePorRole();
+// ==========================================================
+// 3. LÓGICA PRINCIPAL (aprovacoes-main.js)
+// ==========================================================
 
-    // --- 2. Inicialização dos Listeners de Abas ---
+document.addEventListener('DOMContentLoaded', function () {
+    configurarVisibilidadePorRole();
+    initScrollAbas();
+
+    // 1. Inicializa o Calendário (Flatpickr)
+    const campoNovaData = document.getElementById('novaDataProposta');
+    if (campoNovaData) {
+        flatpickr(campoNovaData, {
+            locale: "pt",
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            allowInput: false,
+            minDate: "today"
+        });
+    }
+
+    // 2. Carregamento Inicial
+    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
+    if (primeiraAba) {
+        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
+        toggleLoader(true, targetPaneId);
+
+        carregarDashboardEBadges().finally(() => {
+            toggleLoader(false, targetPaneId);
+            // Renderiza a aba ativa inicialmente
+            if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+            else if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
+            else if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            else if (targetPaneId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+        });
+    }
+
+    // 3. Listeners de Troca de Abas
     const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');
     tabElements.forEach(tabEl => {
         tabEl.addEventListener('show.bs.tab', function (event) {
             const targetPaneId = event.target.getAttribute('data-bs-target');
             const targetPane = document.querySelector(targetPaneId);
 
-            if (targetPaneId === '#atividades-pane') {
-                renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-            } else if (targetPaneId === '#materiais-pane') {
-                renderizarTabelaPendentesMateriais();
-            } else if (targetPaneId === '#complementares-pane') {
-                renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            // Abas de Pendências (usam dados globais já carregados)
+            if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+            else if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
+            else if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+
+            // Abas de Histórico (carregam sob demanda)
+            else if (targetPaneId === '#historico-atividades-pane' && targetPane.dataset.loaded !== 'true') {
+                carregarDadosHistoricoAtividades().finally(() => { targetPane.dataset.loaded = 'true'; });
+            } else if (targetPaneId === '#historico-materiais-pane' && targetPane.dataset.loaded !== 'true') {
+                carregarDadosHistoricoMateriais().finally(() => { targetPane.dataset.loaded = 'true'; });
+            } else if (targetPaneId === '#historico-complementares-pane' && targetPane.dataset.loaded !== 'true') {
+                carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loaded = 'true'; });
             }
-            // Abas de Histórico e CPS
-            else if (targetPaneId === '#historico-atividades-pane') {
-                if (targetPane.dataset.loaded !== 'true') carregarDadosHistoricoAtividades().finally(() => { targetPane.dataset.loaded = 'true'; });
-            } else if (targetPaneId === '#historico-materiais-pane') {
-                if (targetPane.dataset.loaded !== 'true') carregarDadosHistoricoMateriais().finally(() => { targetPane.dataset.loaded = 'true'; });
-            } else if (targetPaneId === '#historico-complementares-pane') {
-                if (targetPane.dataset.loaded !== 'true') carregarDadosHistoricoComplementares().finally(() => { targetPane.dataset.loaded = 'true'; });
-            } else if (targetPaneId === '#cps-pendencias-pane') {
-                initFiltrosCPS();
-                carregarPendenciasCPS();
-            } else if (targetPaneId === '#cps-historico-pane') {
-                initFiltrosCPS();
-                carregarHistoricoCPS();
-            }
+            // Abas CPS (possuem lógica própria)
+            else if (targetPaneId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+            else if (targetPaneId === '#cps-historico-pane') { initFiltrosCPS(); carregarHistoricoCPS(); }
         });
     });
 
-    // --- 3. Carregamento Inicial (Dashboard) ---
-    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
-    if (primeiraAba) {
-        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
-        toggleLoader(true, targetPaneId);
-        
-        carregarDashboardEBadges().finally(() => {
-            toggleLoader(false, targetPaneId);
-            // Renderiza a aba ativa com os dados frescos
-            if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-            if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
-            if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
-        });
-    }
-
-    // --- 4. Listeners para Ações em Lote (Atividades) ---
+    // 4. Lógica de Checkbox (Atividades)
     const accordionPendencias = document.getElementById('accordion-pendencias');
     if (accordionPendencias) {
-        // Seleção de linhas
+        // Bloqueia propagação do clique no header para não fechar o acordeão ao clicar no checkbox
+        accordionPendencias.addEventListener('click', (e) => {
+            if (e.target.closest('.check-container-header')) {
+                e.stopPropagation();
+            }
+        });
+
         accordionPendencias.addEventListener('change', (e) => {
-            if (e.target.classList.contains('linha-checkbox')) {
-                // Atualiza estilo da linha
-                const tr = e.target.closest('tr');
-                if(tr) e.target.checked ? tr.classList.add('table-active') : tr.classList.remove('table-active');
-                atualizarEstadoAcoesLote();
-            } else if (e.target.classList.contains('selecionar-todos-acordeon')) {
-                // Selecionar Todos do Grupo
-                const isChecked = e.target.checked;
-                const targetBodyId = e.target.dataset.targetBody;
-                document.querySelectorAll(`#${targetBodyId} .linha-checkbox`).forEach(cb => {
+            const target = e.target;
+
+            // 1. Clicou em "Selecionar Todos" de um grupo (Projeto/OS)
+            if (target.classList.contains('selecionar-todos-acordeon')) {
+                const isChecked = target.checked;
+                const targetBodyId = target.dataset.targetBody; // Ex: collapse-ID-0
+
+                // Marca/Desmarca todos os filhos desse grupo
+                const filhos = document.querySelectorAll(`#${targetBodyId} .linha-checkbox`);
+                filhos.forEach(cb => {
                     cb.checked = isChecked;
                     const tr = cb.closest('tr');
-                    if(tr) isChecked ? tr.classList.add('table-active') : tr.classList.remove('table-active');
+                    if (tr) tr.classList.toggle('table-active', isChecked);
                 });
+
+                // Estiliza o botão do acordeão
+                const btnAcordeon = target.closest('.accordion-header').querySelector('.accordion-button');
+                if (btnAcordeon) {
+                    isChecked ? btnAcordeon.classList.add('header-selected') : btnAcordeon.classList.remove('header-selected');
+                }
+
+                atualizarEstadoAcoesLote();
+            }
+
+            // 2. Clicou em um checkbox individual de linha
+            else if (target.classList.contains('linha-checkbox')) {
+                const tr = target.closest('tr');
+                if (tr) tr.classList.toggle('table-active', target.checked);
+
+                // Lógica para atualizar o "Selecionar Todos" do pai se todos estiverem marcados
+                // (Opcional, mas melhora a UX)
+                const accordionItem = target.closest('.accordion-item');
+                if (accordionItem) {
+                    const paiCheck = accordionItem.querySelector('.selecionar-todos-acordeon');
+                    const todosFilhos = accordionItem.querySelectorAll('.linha-checkbox');
+                    const todosMarcados = Array.from(todosFilhos).every(c => c.checked);
+                    const algumMarcado = Array.from(todosFilhos).some(c => c.checked);
+
+                    if (paiCheck) {
+                        paiCheck.checked = todosMarcados;
+                        paiCheck.indeterminate = algumMarcado && !todosMarcados;
+                    }
+                }
+
                 atualizarEstadoAcoesLote();
             }
         });
-        // Bloqueio de propagação de clique
-        accordionPendencias.addEventListener('click', (e) => {
-            if (e.target.closest('.check-container-header')) e.stopPropagation();
-        });
     }
 
-    // Botões de Ação em Lote (Atividades)
+    // 5. Botões de Ação em Lote (Atividades)
     document.getElementById('btn-aprovar-selecionados')?.addEventListener('click', () => {
-        if(modalAprovar) { modalAprovar._element.dataset.acaoEmLote = 'true'; aprovarLancamento(null); }
-    });
-    document.getElementById('btn-recusar-selecionados')?.addEventListener('click', () => {
-         const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
-         if(checkboxes.length === 0) return;
-         
-         const firstId = checkboxes[0].dataset.id;
-         const lanc = window.todosOsLancamentosGlobais.find(l => l.id == firstId);
-         
-         if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') && (lanc.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || lanc.situacaoAprovacao === 'PRAZO_VENCIDO')) {
-             if(modalComentar) { modalComentar._element.dataset.acaoEmLote = 'true'; recusarPrazoController(null); }
-         } else {
-             if(modalRecusar) { modalRecusar._element.dataset.acaoEmLote = 'true'; recusarLancamento(null); }
-         }
+        // Marca o modal como lote
+        if (modalAprovar) {
+            modalAprovar._element.dataset.acaoEmLote = 'true';
+
+            // Texto dinâmico do modal
+            const checks = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
+            const modalBody = modalAprovar._element.querySelector('.modal-body p');
+            if (modalBody) modalBody.innerHTML = `Você está prestes a aprovar <b>${checks.length}</b> itens selecionados.<br>Deseja continuar?`;
+
+            modalAprovar.show();
+        }
     });
 
-    // --- 5. Listeners para CPS ---
-    const accordionCPS = document.getElementById('accordionPendenciasCPS');
-    if (accordionCPS) {
-        accordionCPS.addEventListener('change', (e) => {
-            if (e.target.classList.contains('cps-check')) {
-                // Lógica de atualização dos botões de lote CPS está em aprovacoes-cps.js
-                // Mas precisamos chamar a função. Vamos garantir que ela seja acessível ou usar evento customizado.
-                if (typeof atualizarBotoesLoteCPS === 'function') atualizarBotoesLoteCPS();
-            } else if (e.target.classList.contains('cps-select-all')) {
-                const isChecked = e.target.checked;
-                const targetBodyId = e.target.dataset.targetBody;
-                document.querySelectorAll(`#${targetBodyId} .cps-check`).forEach(cb => cb.checked = isChecked);
-                if (typeof atualizarBotoesLoteCPS === 'function') atualizarBotoesLoteCPS();
+    document.getElementById('btn-recusar-selecionados')?.addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
+        if (checkboxes.length === 0) return;
+
+        // Verifica o status do primeiro item para saber qual modal abrir (Recusa ou Prazo)
+        const firstId = checkboxes[0].dataset.id;
+        const lanc = window.todosOsLancamentosGlobais.find(l => l.id == firstId);
+
+        if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') &&
+            (lanc.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || lanc.situacaoAprovacao === 'PRAZO_VENCIDO')) {
+            // Controller Recusando Prazo -> Abre Modal de Comentário/Novo Prazo
+            if (modalComentar) {
+                modalComentar._element.dataset.acaoEmLote = 'true';
+
+                // Ajusta textos
+                const title = modalComentar._element.querySelector('.modal-title');
+                if (title) title.innerHTML = '<i class="bi bi-calendar-x-fill text-danger me-2"></i>Recusar Prazo em Lote';
+
+                modalComentar.show();
             }
-        });
-        accordionCPS.addEventListener('click', (e) => {
-            if (e.target.closest('.check-container-header') || e.target.classList.contains('cps-select-all')) e.stopPropagation();
+        } else {
+            // Recusa Normal (Coordenador ou Controller devolvendo)
+            if (modalRecusar) {
+                modalRecusar._element.dataset.acaoEmLote = 'true';
+                document.getElementById('motivoRecusa').value = ''; // Limpa
+
+                const title = modalRecusar._element.querySelector('.modal-title');
+                if (title) title.innerHTML = '<i class="bi bi-x-circle-fill text-danger me-2"></i>Recusar em Lote';
+
+                modalRecusar.show();
+            }
+        }
+    });
+
+    document.getElementById('btn-solicitar-prazo-selecionados')?.addEventListener('click', () => {
+        if (modalComentar) {
+            modalComentar._element.dataset.acaoEmLote = 'true';
+            document.getElementById('comentarioCoordenador').value = '';
+            document.getElementById('novaDataProposta').value = '';
+
+            const title = modalComentar._element.querySelector('.modal-title');
+            if (title) title.innerHTML = '<i class="bi bi-clock-history text-warning me-2"></i>Solicitar Prazo em Lote';
+
+            modalComentar.show();
+        }
+    });
+
+    // 6. Lógica de Checkbox (Complementares)
+    const painelComplementar = document.getElementById('complementares-pane');
+    if (painelComplementar) {
+        painelComplementar.addEventListener('change', (e) => {
+            const target = e.target;
+            const cbTodos = document.getElementById('selecionar-todos-complementar');
+
+            if (target.classList.contains('linha-checkbox-complementar')) {
+                target.closest('tr')?.classList.toggle('table-active', target.checked);
+                const total = document.querySelectorAll('.linha-checkbox-complementar').length;
+                const checked = document.querySelectorAll('.linha-checkbox-complementar:checked').length;
+                cbTodos.checked = total > 0 && checked === total;
+                cbTodos.indeterminate = checked > 0 && checked < total;
+            } else if (target.id === 'selecionar-todos-complementar') {
+                document.querySelectorAll('.linha-checkbox-complementar').forEach(cb => {
+                    cb.checked = target.checked;
+                    cb.closest('tr')?.classList.toggle('table-active', target.checked);
+                });
+            }
+            atualizarEstadoAcoesLoteComplementar();
         });
     }
 
-    // Listeners dos Botões de Ação CPS (Lote)
-    document.getElementById('btn-fechar-selecionados-cps')?.addEventListener('click', () => {
-        document.getElementById('cpsAcaoCoordenador').value = 'fechar';
-        modalAlterarValorCPS._element.dataset.acaoEmLote = 'true';
-        // ... (configuração visual do modal, ver código original)
-        // Simplificando aqui, a lógica completa de UI deve estar em aprovacoes-cps.js ou aqui
-        const modalTitle = document.querySelector('#modalAlterarValorCPS .modal-title');
-        const btnConfirmar = document.getElementById('btnConfirmarAcaoCPS');
-        const divCompetencia = document.getElementById('divCompetenciaCps');
-        const inputValor = document.getElementById('cpsValorPagamentoInput');
-        const inputJustificativa = document.getElementById('cpsJustificativaInput');
-
-        modalTitle.innerHTML = '<i class="bi bi-check-all text-success me-2"></i>Fechar Lote';
-        btnConfirmar.className = 'btn btn-success';
-        btnConfirmar.textContent = "Confirmar Fechamento em Lote";
-        divCompetencia.style.display = 'block';
-        gerarOpcoesCompetencia();
-        document.getElementById('cpsCompetenciaInput').required = true;
-        inputValor.disabled = true; 
-        inputValor.value = 'Manter Original';
-        inputJustificativa.required = false;
-        inputJustificativa.placeholder = "Observação para o lote (opcional)...";
-        modalAlterarValorCPS.show();
+    // Botões de Ação em Lote (Complementares)
+    document.getElementById('btn-aprovar-selecionados-complementar')?.addEventListener('click', () => {
+        if (modalAprovarComplementar) { modalAprovarComplementar._element.dataset.acaoEmLote = 'true'; modalAprovarComplementar.show(); }
+    });
+    document.getElementById('btn-recusar-selecionados-complementar')?.addEventListener('click', () => {
+        if (modalRecusarComplementar) { modalRecusarComplementar._element.dataset.acaoEmLote = 'true'; recusarComplementar(null); }
     });
 
-    // --- 6. Listeners de Submit dos Modais ---
-    
-    // Aprovar Lançamento (Individual/Lote)
-    document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function() {
+
+    // =================================================================
+    // HANDLERS DE SUBMIT (ATIVIDADES)
+    // =================================================================
+
+    document.getElementById('btnConfirmarAprovacao')?.addEventListener('click', async function () {
         const isLote = modalAprovar._element.dataset.acaoEmLote === 'true';
-        const ids = isLote 
+        const ids = isLote
             ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id)
             : [document.getElementById('aprovarLancamentoId').value];
-        
+
         if (ids.length === 0) return;
-        
-        // Determina endpoint
-        const lanc = window.todosOsLancamentosGlobais.find(l => l.id == ids[0]);
+
+        let lanc = window.todosOsLancamentosGlobais.find(l => l.id == ids[0]);
+        if (!lanc && window.todasPendenciasAtividades) lanc = window.todasPendenciasAtividades.find(l => l.id == ids[0]);
+        if (!lanc && window.todosHistoricoAtividades) lanc = window.todosHistoricoAtividades.find(l => l.id == ids[0]);
+
+        if (!lanc) {
+            mostrarToast("Erro: Dados do lançamento não encontrados em memória.", "error");
+            return;
+        }
+
         let endpoint = '';
         if (lanc.situacaoAprovacao === 'PENDENTE_COORDENADOR') endpoint = '/lancamentos/lote/coordenador-aprovar';
         else if (lanc.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') endpoint = '/lancamentos/lote/prazo/aprovar';
         else endpoint = '/lancamentos/lote/controller-aprovar';
 
+        toggleLoader(true, '#atividades-pane');
         setButtonLoading(this, true);
         try {
-            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ lancamentoIds: ids, aprovadorId: userId }) });
-            mostrarToast("Aprovado com sucesso!", "success");
+            const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ lancamentoIds: ids, aprovadorId: userId, controllerId: userId }) });
+            if (!res.ok) throw new Error("Erro ao aprovar.");
+
+            // --- TOAST DE SUCESSO ---
+            mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, "success");
+
             modalAprovar.hide();
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-        } catch(e) { mostrarToast(e.message, 'error'); } 
-        finally { setButtonLoading(this, false); delete modalAprovar._element.dataset.acaoEmLote; }
+        } catch (e) {
+            // --- TOAST DE ERRO ---
+            mostrarToast(e.message, 'error');
+        }
+        finally { setButtonLoading(this, false); delete modalAprovar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
     });
 
-    // Outros submits (Recusar, Comentar, etc) devem ser migrados da mesma forma.
-    
-    // --- 7. Inicialização do Scroll de Abas ---
-    initScrollAbas();
+    document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const btn = document.getElementById('btnConfirmarRecusa');
+        const isAcaoEmLote = modalRecusar._element.dataset.acaoEmLote === 'true';
+        const ids = isAcaoEmLote ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id) : [document.getElementById('recusarLancamentoId').value];
+
+        if (ids.length === 0) return;
+        const motivo = document.getElementById('motivoRecusa').value;
+
+        let endpoint = '';
+        let payload = {};
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+            endpoint = '/lancamentos/lote/controller-rejeitar';
+            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: motivo };
+        } else {
+            endpoint = '/lancamentos/lote/coordenador-rejeitar';
+            payload = { lancamentoIds: ids, aprovadorId: userId, comentario: motivo };
+        }
+
+        toggleLoader(true, '#atividades-pane');
+        setButtonLoading(btn, true);
+        try {
+            const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
+            if (!res.ok) throw new Error("Erro ao recusar.");
+
+            // --- TOAST DE SUCESSO ---
+            mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, "success");
+
+            modalRecusar.hide();
+            await carregarDashboardEBadges();
+            renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+        } catch (e) {
+            // --- TOAST DE ERRO ---
+            mostrarToast(e.message, 'error');
+        }
+        finally { setButtonLoading(btn, false); delete modalRecusar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
+    });
+
+    document.getElementById('formComentarPrazo')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const btn = document.getElementById('btnEnviarComentario');
+        const isAcaoEmLote = modalComentar._element.dataset.acaoEmLote === 'true';
+        const ids = isAcaoEmLote ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id) : [document.getElementById('comentarLancamentoId').value];
+
+        const comentario = document.getElementById('comentarioCoordenador').value;
+        const novaData = document.getElementById('novaDataProposta').value;
+
+        // Validação da Data
+        if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
+            if (!novaData && document.querySelector('label[for="novaDataProposta"]').textContent.includes('Obrigatório')) {
+                mostrarToast("Por favor, defina o novo prazo.", "warning"); return;
+            }
+        } else {
+            if (!novaData) { mostrarToast("Por favor, selecione uma data para o prazo.", "warning"); return; }
+        }
+
+        let endpoint = '';
+        let payload = {};
+        if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+            endpoint = '/lancamentos/lote/prazo/rejeitar';
+            payload = { lancamentoIds: ids, controllerId: userId, motivoRejeicao: comentario, novaDataPrazo: novaData };
+        } else {
+            endpoint = '/lancamentos/lote/coordenador-solicitar-prazo';
+            payload = { lancamentoIds: ids, coordenadorId: userId, comentario: comentario, novaDataSugerida: novaData };
+        }
+
+        toggleLoader(true, '#atividades-pane');
+        setButtonLoading(btn, true);
+        try {
+            const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
+            if (!res.ok) throw new Error("Erro ao processar solicitação de prazo.");
+
+            // --- TOAST DE SUCESSO ---
+            mostrarToast("Ação de prazo realizada com sucesso!", "success");
+
+            modalComentar.hide();
+            await carregarDashboardEBadges();
+            renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+        } catch (e) {
+            // --- TOAST DE ERRO ---
+            mostrarToast(e.message, 'error');
+        }
+        finally { setButtonLoading(btn, false); delete modalComentar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
+    });
+
+    // =================================================================
+    // HANDLERS DE SUBMIT (MATERIAIS)
+    // =================================================================
+
+    document.getElementById('btnConfirmarAprovacaoMaterial')?.addEventListener('click', async function () {
+        const id = this.dataset.id;
+        const endpoint = userRole === 'COORDINATOR' ? `/solicitacoes/${id}/coordenador/aprovar` : `/solicitacoes/${id}/controller/aprovar`;
+
+        toggleLoader(true, '#materiais-pane');
+        setButtonLoading(this, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ aprovadorId: userId }) });
+            mostrarToast('Solicitação de material aprovada!', 'success');
+            modalAprovarMaterial.hide();
+            await carregarDashboardEBadges();
+            renderizarTabelaPendentesMateriais();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(this, false); toggleLoader(false, '#materiais-pane'); }
+    });
+
+    document.getElementById('formRecusarMaterial')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const id = this.dataset.id;
+        const motivo = document.getElementById('motivoRecusaMaterial').value;
+        const btn = document.getElementById('btnConfirmarRecusaMaterial');
+        const endpoint = userRole === 'COORDINATOR' ? `/solicitacoes/${id}/coordenador/rejeitar` : `/solicitacoes/${id}/controller/rejeitar`;
+
+        toggleLoader(true, '#materiais-pane');
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ aprovadorId: userId, observacao: motivo }) });
+            mostrarToast('Solicitação de material recusada.', 'success');
+            modalRecusarMaterial.hide();
+            await carregarDashboardEBadges();
+            renderizarTabelaPendentesMateriais();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(btn, false); toggleLoader(false, '#materiais-pane'); }
+    });
+
+    // =================================================================
+    // HANDLERS DE SUBMIT (COMPLEMENTARES)
+    // =================================================================
+
+    document.getElementById('btnConfirmarAprovacaoComplementar')?.addEventListener('click', async function () {
+        const isLote = modalAprovarComplementar._element.dataset.acaoEmLote === 'true';
+        const ids = isLote
+            ? Array.from(document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked')).map(cb => cb.dataset.id)
+            : [this.dataset.id];
+
+        if (ids.length === 0) return;
+        const endpoint = userRole === 'COORDINATOR' ? '/solicitacoes-complementares/lote/coordenador/aprovar' : '/solicitacoes-complementares/lote/controller/aprovar';
+
+        toggleLoader(true, '#complementares-pane');
+        setButtonLoading(this, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ solicitacaoIds: ids, aprovadorId: userId }) });
+            mostrarToast(`${ids.length} solicitação(ões) aprovada(s)!`, 'success');
+            modalAprovarComplementar.hide();
+            await carregarDashboardEBadges();
+            renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(this, false); delete modalAprovarComplementar._element.dataset.acaoEmLote; toggleLoader(false, '#complementares-pane'); }
+    });
+
+    document.getElementById('formRecusarComplementar')?.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        const btn = document.getElementById('btnConfirmarRecusaComplementar');
+        const isLote = modalRecusarComplementar._element.dataset.acaoEmLote === 'true';
+        const ids = isLote
+            ? Array.from(document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked')).map(cb => cb.dataset.id)
+            : [this.dataset.id];
+        const motivo = document.getElementById('motivoRecusaComplementar').value;
+
+        if (ids.length === 0) return;
+        const endpoint = userRole === 'COORDINATOR' ? '/solicitacoes-complementares/lote/coordenador/rejeitar' : '/solicitacoes-complementares/lote/controller/rejeitar';
+
+        toggleLoader(true, '#complementares-pane');
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ solicitacaoIds: ids, aprovadorId: userId, motivo: motivo }) });
+            mostrarToast(`${ids.length} solicitação(ões) recusada(s).`, 'success');
+            modalRecusarComplementar.hide();
+            await carregarDashboardEBadges();
+            renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(btn, false); delete modalRecusarComplementar._element.dataset.acaoEmLote; toggleLoader(false, '#complementares-pane'); }
+    });
+
+    // =================================================================
+    // HANDLERS DE SUBMIT (CPS)
+    // =================================================================
+
+    // 1. Fechar / Recusar (Coordenador)
+    document.getElementById('formAlterarValorCPS')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnConfirmarAcaoCPS');
+        const acao = document.getElementById('cpsAcaoCoordenador').value;
+        const just = document.getElementById('cpsJustificativaInput').value;
+        const competencia = document.getElementById('cpsCompetenciaInput').value;
+        const isLote = modalAlterarValorCPS._element.dataset.acaoEmLote === 'true';
+
+        let ids = isLote
+            ? Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id))
+            : [parseInt(document.getElementById('cpsLancamentoIdAcao').value)];
+
+        if (ids.length === 0) return;
+
+        let endpoint = acao === 'recusar'
+            ? (isLote ? '/controle-cps/recusar-lote' : '/controle-cps/recusar')
+            : (isLote ? '/controle-cps/fechar-lote' : '/controle-cps/fechar');
+
+        let payload = {};
+        if (acao === 'recusar') {
+            payload = isLote
+                ? { lancamentoIds: ids, coordenadorId: userId, justificativa: just }
+                : { lancamentoId: ids[0], coordenadorId: userId, valorPagamento: 0, justificativa: just };
+        } else {
+            if (isLote) payload = { lancamentoIds: ids, coordenadorId: userId, competencia: competencia };
+            else {
+                const valor = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
+                payload = { lancamentoId: ids[0], coordenadorId: userId, valorPagamento: valor, justificativa: just, competencia: competencia };
+            }
+        }
+
+        toggleLoader(true, '#cps-pendencias-pane');
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
+            mostrarToast("Ação CPS realizada com sucesso!", "success");
+            modalAlterarValorCPS.hide();
+            await carregarPendenciasCPS();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(btn, false); toggleLoader(false, '#cps-pendencias-pane'); }
+    });
+
+    // 2. Recusar/Devolver (Controller)
+    document.getElementById('formRecusarCPS')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.querySelector('#formRecusarCPS button[type="submit"]');
+        const motivo = document.getElementById('cpsMotivoRecusaInput').value;
+        const isLote = modalRecusarCPS._element.dataset.acaoEmLote === 'true';
+
+        let ids = isLote
+            ? Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id))
+            : [parseInt(document.getElementById('cpsLancamentoIdRecusar').value)];
+
+        const endpoint = isLote ? '/controle-cps/recusar-controller-lote' : '/controle-cps/recusar-controller';
+        const payload = isLote
+            ? { lancamentoIds: ids, controllerId: userId, motivo: motivo }
+            : { lancamentoId: ids[0], controllerId: userId, motivo: motivo };
+
+        toggleLoader(true, '#cps-pendencias-pane');
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
+            mostrarToast("Item(ns) devolvido(s) ao Gestor.", "success");
+            modalRecusarCPS.hide();
+            await carregarPendenciasCPS();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(btn, false); toggleLoader(false, '#cps-pendencias-pane'); }
+    });
+
+    // 3. Pagar Adiantamento
+    document.getElementById('btnConfirmarAprovarAdiantamento')?.addEventListener('click', async function () {
+        const id = document.getElementById('idAdiantamentoAprovar').value;
+        toggleLoader(true, '#cps-pendencias-pane');
+        setButtonLoading(this, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/pagar-adiantamento`, { method: 'POST', body: JSON.stringify({ usuarioId: userId }) });
+            mostrarToast("Adiantamento pago!", "success");
+            modalAprovarAdiantamento.hide();
+            await carregarPendenciasCPS();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(this, false); toggleLoader(false, '#cps-pendencias-pane'); }
+    });
+
+    // 4. Recusar Adiantamento
+    document.getElementById('btnConfirmarRecusaAdiantamento')?.addEventListener('click', async function () {
+        const id = document.getElementById('idAdiantamentoRecusar').value;
+        const motivo = document.getElementById('motivoRecusaAdiantamento').value;
+        if (!motivo) { mostrarToast("Motivo obrigatório.", "warning"); return; }
+
+        toggleLoader(true, '#cps-pendencias-pane');
+        setButtonLoading(this, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/recusar-adiantamento`, { method: 'POST', body: JSON.stringify({ usuarioId: userId, motivo: motivo }) });
+            mostrarToast("Adiantamento recusado.", "warning");
+            modalRecusarAdiantamento.hide();
+            await carregarPendenciasCPS();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(this, false); toggleLoader(false, '#cps-pendencias-pane'); }
+    });
+
+    // 5. Pagar em Lote (Controller)
+    document.getElementById('btn-pagar-selecionados-cps')?.addEventListener('click', async function () {
+        const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id));
+        if (ids.length === 0) return;
+
+        toggleLoader(true, '#cps-pendencias-pane');
+        const btn = this;
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}/controle-cps/pagar-lote`, { method: 'POST', body: JSON.stringify({ lancamentoIds: ids, controllerId: userId }) });
+            mostrarToast("Pagamentos realizados!", "success");
+            await carregarPendenciasCPS();
+        } catch (e) { mostrarToast(e.message, 'error'); }
+        finally { setButtonLoading(btn, false); toggleLoader(false, '#cps-pendencias-pane'); }
+    });
+
+    // Filtros e Histórico
+    document.getElementById('filtro-historico-status')?.addEventListener('change', async () => { await carregarDadosHistoricoAtividades(); });
+    document.getElementById('btn-carregar-mais-historico')?.addEventListener('click', () => {
+        window.histDataFim.setDate(window.histDataFim.getDate() - 1);
+        window.histDataInicio.setDate(window.histDataInicio.getDate() - 30);
+        carregarDadosHistoricoAtividades(true);
+    });
 });
 
-function configurarVisibilidadePorRole() {
-    // Mesma lógica do arquivo original para esconder/mostrar abas e botões
-    const navs = ['nav-item-minhas-pendencias', 'nav-item-lancamentos', 'nav-item-pendentes', 'nav-item-paralisados', 'nav-item-historico'];
-    navs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = 'block'; });
+async function carregarDashboardEBadges() {
+    toggleLoader(true, '.overview-card');
+    try {
+        const [resGeral, resPendAtiv, resPendCoord, resPendMat, resPendCompl] = await Promise.all([
+            fetchComAuth(`${API_BASE_URL}/lancamentos`),
+            fetchComAuth(`${API_BASE_URL}/lancamentos/pendentes/${userId}`),
+            fetchComAuth(`${API_BASE_URL}/lancamentos/pendencias-por-coordenador`),
+            fetchComAuth(`${API_BASE_URL}/solicitacoes/pendentes`, { headers: { 'X-User-Role': userRole, 'X-User-ID': userId } }),
+            fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/pendentes`, { headers: { 'X-User-Role': userRole, 'X-User-ID': userId } })
+        ]);
 
-    // Regras específicas (Manager, Coordinator, Controller)
+        if (!resGeral.ok) throw new Error('Falha no dashboard.');
+
+        window.todosOsLancamentosGlobais = await resGeral.json();
+        window.todasPendenciasAtividades = await resPendAtiv.json();
+        const pendenciasPorCoordenador = await resPendCoord.json();
+        window.todasPendenciasMateriais = await resPendMat.json();
+        window.todasPendenciasComplementares = await resPendCompl.json();
+
+        renderizarCardsDashboard(window.todosOsLancamentosGlobais, pendenciasPorCoordenador, window.todasPendenciasMateriais.length, window.todasPendenciasComplementares.length);
+        atualizarBadge('#materiais-tab', window.todasPendenciasMateriais.length);
+        atualizarBadge('#complementares-tab', window.todasPendenciasComplementares.length);
+
+    } catch (e) { console.error(e); }
+    finally { toggleLoader(false, '.overview-card'); }
+}
+
+function atualizarBadge(selector, count) {
+    const tab = document.querySelector(selector);
+    if (!tab) return;
+    let badge = tab.querySelector('.badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
+        tab.appendChild(badge);
+    }
+    badge.textContent = count > 9 ? '9+' : count;
+    badge.style.display = count > 0 ? '' : 'none';
+}
+
+function configurarVisibilidadePorRole() {
     if (userRole === 'MANAGER') {
         ['atividades-tab', 'materiais-tab', 'complementares-tab', 'cps-pendencias-tab', 'cps-historico-tab'].forEach(id => {
             const el = document.getElementById(id);
-            if(el) { el.parentElement.style.display = 'none'; }
+            if (el) el.parentElement.style.display = 'none';
         });
-        // Ativa histórico
         const histTab = document.getElementById('historico-atividades-tab');
-        if(histTab) new bootstrap.Tab(histTab).show();
+        if (histTab) new bootstrap.Tab(histTab).show();
+    }
+}
+
+function initScrollAbas() {
+    const list = document.getElementById('aprovacoesTab');
+    const left = document.getElementById('btnScrollLeft');
+    const right = document.getElementById('btnScrollRight');
+    if (list && left && right) {
+        left.addEventListener('click', () => list.scrollBy({ left: -300, behavior: 'smooth' }));
+        right.addEventListener('click', () => list.scrollBy({ left: 300, behavior: 'smooth' }));
     }
 }
 
 function atualizarEstadoAcoesLote() {
-    const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
-    const container = document.getElementById('acoes-lote-container');
-    if (!container) return;
-    
-    container.classList.toggle('d-none', checkboxes.length === 0);
-    if (checkboxes.length > 0) {
-        document.getElementById('contador-aprovacao').textContent = checkboxes.length;
-        document.getElementById('contador-recusa').textContent = checkboxes.length;
-        document.getElementById('contador-prazo').textContent = checkboxes.length;
-        
-        // Verifica se pode mostrar os botões (mesmo status)
-        const ids = Array.from(checkboxes).map(c => c.dataset.id);
-        const lancs = window.todosOsLancamentosGlobais.filter(l => ids.includes(String(l.id)));
-        const status = lancs[0]?.situacaoAprovacao;
-        const allSame = lancs.every(l => l.situacaoAprovacao === status);
-        
-        const btns = ['btn-aprovar-selecionados', 'btn-recusar-selecionados', 'btn-solicitar-prazo-selecionados'];
-        btns.forEach(id => document.getElementById(id).style.display = 'none');
-        
-        if (allSame) {
-            // Lógica de exibição de botões baseada no status e role (igual ao original)
-            if (['COORDINATOR', 'ADMIN'].includes(userRole) && status === 'PENDENTE_COORDENADOR') {
-                btns.forEach(id => document.getElementById(id).style.display = 'inline-block');
-            } else if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
-                if (status === 'PENDENTE_CONTROLLER') {
-                    document.getElementById('btn-aprovar-selecionados').style.display = 'inline-block';
-                    document.getElementById('btn-recusar-selecionados').style.display = 'inline-block';
+    // 1. Pega todos os checkboxes marcados na tabela de atividades
+    const checkboxesSelecionados = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
+    const totalSelecionado = checkboxesSelecionados.length;
+
+    // 2. Elementos da UI
+    const acoesContainer = document.getElementById('acoes-lote-container');
+    const contadorAprov = document.getElementById('contador-aprovacao');
+    const contadorRecusa = document.getElementById('contador-recusa');
+    const contadorPrazo = document.getElementById('contador-prazo');
+
+    const btnAprovar = document.getElementById('btn-aprovar-selecionados');
+    const btnRecusar = document.getElementById('btn-recusar-selecionados');
+    const btnPrazo = document.getElementById('btn-solicitar-prazo-selecionados');
+
+    if (!acoesContainer) return;
+
+    // 3. Se nada selecionado, esconde tudo
+    acoesContainer.classList.toggle('d-none', totalSelecionado === 0);
+    if (totalSelecionado === 0) return;
+
+    // 4. Atualiza os contadores visuais
+    if (contadorAprov) contadorAprov.textContent = totalSelecionado;
+    if (contadorRecusa) contadorRecusa.textContent = totalSelecionado;
+    if (contadorPrazo) contadorPrazo.textContent = totalSelecionado;
+
+    // 5. Validação de Consistência (Todos devem ter o mesmo status)
+    // Recupera os objetos de lançamento baseados nos IDs selecionados
+    const idsSelecionados = Array.from(checkboxesSelecionados).map(cb => cb.dataset.id);
+    // Procura na lista global OU na lista de pendências (fallback de segurança)
+    const lancamentosSelecionados = window.todosOsLancamentosGlobais.filter(l => idsSelecionados.includes(String(l.id)));
+
+    // Se por algum motivo a lista global estiver vazia, tenta usar a lista local da aba
+    if (lancamentosSelecionados.length === 0 && window.todasPendenciasAtividades) {
+        const temp = window.todasPendenciasAtividades.filter(l => idsSelecionados.includes(String(l.id)));
+        lancamentosSelecionados.push(...temp);
+    }
+
+    if (lancamentosSelecionados.length === 0) return; // Erro de segurança
+
+    const primeiroStatus = lancamentosSelecionados[0].situacaoAprovacao;
+    const todosMesmoStatus = lancamentosSelecionados.every(l => l.situacaoAprovacao === primeiroStatus);
+
+    // 6. Reseta visibilidade dos botões
+    [btnAprovar, btnRecusar, btnPrazo].forEach(btn => {
+        if (btn) btn.style.display = 'none';
+    });
+
+    // 7. Lógica de Exibição por Perfil e Status
+    if (todosMesmoStatus) {
+
+        // --- PERFIL COORDENADOR / MANAGER ---
+        if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole)) {
+            if (primeiroStatus === 'PENDENTE_COORDENADOR') {
+                if (btnAprovar) btnAprovar.style.display = 'inline-block';
+                if (btnRecusar) btnRecusar.style.display = 'inline-block';
+                if (btnPrazo) btnPrazo.style.display = 'inline-block';
+            }
+        }
+
+        // --- PERFIL CONTROLLER ---
+        if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
+            // Caso 1: Pendente Normal
+            if (primeiroStatus === 'PENDENTE_CONTROLLER') {
+                if (btnAprovar) {
+                    btnAprovar.style.display = 'inline-block';
+                    btnAprovar.innerHTML = `<i class="bi bi-check-lg"></i> Aprovar (${totalSelecionado})`;
+                }
+                if (btnRecusar) {
+                    btnRecusar.style.display = 'inline-block';
+                    btnRecusar.innerHTML = `<i class="bi bi-x-lg"></i> Recusar (${totalSelecionado})`;
+                }
+            }
+            // Caso 2: Prazo (Solicitação ou Vencido)
+            else if (['AGUARDANDO_EXTENSAO_PRAZO', 'PRAZO_VENCIDO'].includes(primeiroStatus)) {
+                if (btnAprovar) {
+                    btnAprovar.style.display = 'inline-block';
+                    btnAprovar.innerHTML = `<i class="bi bi-calendar-check"></i> Aprovar Prazo (${totalSelecionado})`;
+                }
+                if (btnRecusar) {
+                    btnRecusar.style.display = 'inline-block';
+                    btnRecusar.innerHTML = `<i class="bi bi-calendar-x"></i> Recusar Prazo (${totalSelecionado})`;
                 }
             }
         }
     }
 }
 
-function initScrollAbas() {
-    const tabsList = document.getElementById('aprovacoesTab');
-    const btnLeft = document.getElementById('btnScrollLeft');
-    const btnRight = document.getElementById('btnScrollRight');
-    if(tabsList && btnLeft && btnRight) {
-        btnLeft.addEventListener('click', () => tabsList.scrollBy({ left: -300, behavior: 'smooth' }));
-        btnRight.addEventListener('click', () => tabsList.scrollBy({ left: 300, behavior: 'smooth' }));
+function atualizarEstadoAcoesLoteComplementar() {
+    const container = document.getElementById('acoes-lote-container-complementar');
+    const checkboxes = document.querySelectorAll('#tbody-pendentes-complementares .linha-checkbox-complementar:checked');
+    if (!container) return;
+    container.classList.toggle('d-none', checkboxes.length === 0);
+    if (checkboxes.length > 0) {
+        document.getElementById('contador-aprovacao-complementar').textContent = checkboxes.length;
+        document.getElementById('contador-recusa-complementar').textContent = checkboxes.length;
     }
 }

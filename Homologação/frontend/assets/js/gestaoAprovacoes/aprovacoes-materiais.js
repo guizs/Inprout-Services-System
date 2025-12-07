@@ -82,78 +82,53 @@ function renderizarTabelaPendentesMateriais() {
     const tbody = document.getElementById('tbody-pendentes-materiais');
     if (!tbody) return;
 
-    const filtroSegmento = document.getElementById('filtro-segmento-materiais');
-    const filtroId = filtroSegmento ? filtroSegmento.value : 'todos';
-    
-    const solicitacoes = filtroId === 'todos'
+    const filtroSegmentoId = document.getElementById('filtro-segmento-materiais')?.value || 'todos';
+    const solicitacoes = filtroSegmentoId === 'todos'
         ? window.todasPendenciasMateriais
-        : window.todasPendenciasMateriais.filter(s => s.os.segmento && s.os.segmento.id == filtroId);
+        : window.todasPendenciasMateriais.filter(s => s.os.segmento && s.os.segmento.id == filtroSegmentoId);
 
-    const thead = tbody.previousElementSibling;
-    thead.innerHTML = '';
     tbody.innerHTML = '';
-
-    let colunasHtml = `
-        <th>Ações</th>
-        <th>Data Solicitação</th>
-        <th>Solicitante</th>
-        <th>OS</th>
-        <th>Segmento</th>
-        <th>LPU</th>
-        <th>Item Solicitado</th>
-        <th class="text-center">Unidade</th>
-        <th class="text-center">Qtd. Solicitada</th>
-        <th class="text-center">Qtd. em Estoque</th>
-        <th>Justificativa</th>
-    `;
-    if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
-        colunasHtml += '<th>Status</th>';
-    }
-    thead.innerHTML = `<tr>${colunasHtml}</tr>`;
-
-    const colspan = userRole === 'CONTROLLER' ? 12 : 11;
+    
     if (!solicitacoes || solicitacoes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
         return;
     }
 
     solicitacoes.forEach(s => {
         const item = s.itens[0];
         if (!item) return;
-
         const tr = document.createElement('tr');
+        
         let acoesHtml = '';
         let statusHtml = '';
 
         if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             if (s.status === 'PENDENTE_CONTROLLER') {
-                acoesHtml = `
-            <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
-            <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
+                acoesHtml = `<button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
+                             <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
                 statusHtml = `<span class="badge rounded-pill text-bg-warning">PENDENTE CONTROLLER</span>`;
             } else {
                 acoesHtml = `—`;
                 statusHtml = `<span class="badge rounded-pill text-bg-info">PENDENTE COORDENADOR</span>`;
             }
         } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
-            acoesHtml = `
-        <button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
-        <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
+            acoesHtml = `<button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
+                         <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
         }
 
         tr.innerHTML = `
-            <td data-label="Ações" class="text-center">${acoesHtml}</td>
-            <td data-label="Data">${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
-            <td data-label="Solicitante">${s.nomeSolicitante || 'N/A'}</td>
-            <td data-label="OS">${s.os.os}</td>
-            <td data-label="Segmento">${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
-            <td data-label="LPU">${s.lpu.codigoLpu}</td>
-            <td data-label="Item Solicitado">${item.material.descricao}</td>
-            <td data-label="Unidade" class="text-center">${item.material.unidadeMedida}</td>
-            <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
-            <td data-label="Qtd. em Estoque" class="text-center">${item.material.saldoFisico}</td>
-            <td data-label="Justificativa">${s.justificativa || ''}</td>
-            ${(userRole === 'CONTROLLER' || userRole === 'ADMIN') ? `<td data-label="Status">${statusHtml}</td>` : ''}
+            <td class="text-center">${acoesHtml}</td>
+            <td>${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
+            <td>${s.nomeSolicitante || 'N/A'}</td>
+            <td>${s.os.os}</td>
+            <td>${s.os.segmento ? s.os.segmento.nome : 'N/A'}</td>
+            <td>${s.lpu.codigoLpu}</td>
+            <td>${item.material.descricao}</td>
+            <td class="text-center">${item.material.unidadeMedida}</td>
+            <td class="text-center">${item.quantidadeSolicitada}</td>
+            <td class="text-center">${item.material.saldoFisico}</td>
+            <td>${s.justificativa || ''}</td>
+            ${(userRole === 'CONTROLLER' || userRole === 'ADMIN') ? `<td>${statusHtml}</td>` : ''}
         `;
         tbody.appendChild(tr);
     });

@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const API_BASE_URL = 'http://localhost:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
+    let linhasIniciais = [];
     let isCarregandoTudo = true;
 
     // Variáveis de estado para a paginação
@@ -53,11 +54,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Definição das colunas da tabela
     const colunasCompletas = ["OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", "LPU", "LOTE", "BOQ", "PO", "ITEM", "OBJETO CONTRATADO", "UNIDADE", "QUANTIDADE", "VALOR TOTAL OS", "OBSERVAÇÕES", "DATA PO", "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "FATURAMENTO", "SOLICIT ID FAT", "RECEB ID FAT", "ID FATURAMENTO", "DATA FAT INPROUT", "SOLICIT FS PORTAL", "DATA FS", "NUM FS", "GATE", "GATE ID", "DATA CRIAÇÃO OS", "KEY"];
     const colunasGestor = [
-        "HISTÓRICO", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL", 
+        "HISTÓRICO", "OS", "SITE", "CONTRATO", "SEGMENTO", "PROJETO", "GESTOR TIM", "REGIONAL",
         "LPU", "OBJETO CONTRATADO", "QUANTIDADE", // Adicionado "OBJETO CONTRATADO"
-        "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO", 
-        "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO", 
-        "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR", 
+        "VISTORIA", "PLANO VISTORIA", "DESMOBILIZAÇÃO", "PLANO DESMOBILIZAÇÃO", "INSTALAÇÃO",
+        "PLANO INSTALAÇÃO", "ATIVAÇÃO", "PLANO ATIVAÇÃO", "DOCUMENTAÇÃO", "PLANO DOCUMENTAÇÃO",
+        "ETAPA GERAL", "ETAPA DETALHADA", "STATUS", "DETALHE DIÁRIO", "CÓD. PRESTADOR", "PRESTADOR",
         "VALOR", "GESTOR", "SITUAÇÃO", "DATA ATIVIDADE", "KEY"
     ];
 
@@ -106,15 +107,15 @@ document.addEventListener('DOMContentLoaded', function () {
     async function inicializarPagina() {
         const accordionContainer = document.getElementById('accordion-registros');
 
-        // Loader de tela cheia apenas para os primeiros 10 (para ser rápido)
+        // Loader inicial rápido
         accordionContainer.innerHTML = `
             <div class="text-center p-5">
                 <div class="spinner-border text-success" role="status"></div>
-                <p class="mt-2 text-muted">Iniciando...</p>
+                <p class="mt-2 text-muted">Carregando registros recentes...</p>
             </div>`;
 
         try {
-            // 1. Carrega a PRIMEIRA página (rápida, só 10 itens)
+            // 1. Carrega apenas os 10 primeiros (rápido)
             const response = await fetchComAuth(`${API_BASE_URL}/os?page=0&size=10`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
@@ -122,17 +123,58 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error('Erro inicial');
             const data = await response.json();
 
-            // Renderiza os primeiros 10
+            // Salva esses 10 como "linhas iniciais" para exibir quando não houver busca
             processarEAdicionarDados(data.content || [], true);
+            linhasIniciais = [...todasAsLinhas]; // Faz uma cópia dos 10 primeiros
+
+            // Renderiza a tela inicial
             renderizarTabelaComFiltro();
 
-            // 2. Inicia o loop para buscar o restante (Progressivo)
-            // Passamos o total de páginas que a API informou
-            carregarPaginasRestantesProgressivamente(data.totalPages);
+            // 2. Dispara a carga total em background (silenciosa)
+            carregarTudoSilenciosamente();
 
         } catch (error) {
             console.error('Erro:', error);
             accordionContainer.innerHTML = `<div class="alert alert-danger">Erro ao carregar dados.</div>`;
+        }
+    }
+
+    async function carregarTudoSilenciosamente() {
+        try {
+            // Mostra o indicador de "Sincronizando" na barra de busca
+            const loadingBadge = document.getElementById('loading-indicator-busca');
+            if (loadingBadge) loadingBadge.classList.remove('d-none');
+
+            // Busca TUDO de uma vez (usando o parâmetro completo=true que vi no seu código)
+            // Se o backend não suportar 'completo=true', mude para size=99999
+            const response = await fetchComAuth(`${API_BASE_URL}/os?completo=true`, {
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+            });
+
+            if (response.ok) {
+                const json = await response.json();
+                const todosDados = json.content || json;
+
+                // Atualiza a lista global com TUDO o que veio
+                processarEAdicionarDados(todosDados, true);
+
+                // IMPORTANTE: Não chamamos renderizarTabelaComFiltro() aqui!
+                // O usuário só vai ver esses dados se ele digitar algo na busca.
+
+                console.log(`Carga de fundo finalizada. Total de registros: ${todasAsLinhas.length}`);
+            }
+
+        } catch (err) {
+            console.error("Erro no carregamento:", err);
+        } finally {
+            isCarregandoTudo = false;
+            const loadingBadge = document.getElementById('loading-indicator-busca');
+            if (loadingBadge) loadingBadge.classList.add('d-none');
+
+            // Opcional: Se o usuário já tinha digitado algo enquanto carregava, atualizamos agora
+            if (document.getElementById('searchInput').value.trim() !== "") {
+                renderizarTabelaComFiltro();
+            }
         }
     }
 
@@ -385,7 +427,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // --- DEFINIÇÃO DE COLUNAS DA TABELA INTERNA ---
         const headersVisiveis = [...headers];
-        if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
+        // CORREÇÃO: Adicionado MANAGER e COORDINATOR para verem a coluna
+        if (['ADMIN', 'ASSISTANT', 'MANAGER', 'COORDINATOR'].includes(userRole)) {
             headersVisiveis.push("AÇÕES");
         }
         headersVisiveis.unshift("HISTÓRICO");
@@ -403,10 +446,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (header === "AÇÕES") {
                     let btnEditar = '';
-                    if (userRole === 'ADMIN' || userRole === 'ASSISTANT' || userRole === 'COORDINATOR') {
+                    if (['ADMIN', 'ASSISTANT', 'COORDINATOR', 'MANAGER'].includes(userRole)) {
                         btnEditar = detalheId ? `<button class="btn btn-sm btn-outline-primary btn-edit-detalhe" data-id="${detalheId}" title="Editar"><i class="bi bi-pencil-fill"></i></button>` : '';
                     }
-                    const btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir"><i class="bi bi-trash-fill"></i></button>`;
+
+                    // CORREÇÃO: Exibe o botão excluir APENAS para Admin/Assistant
+                    let btnExcluir = '';
+                    if (['ADMIN', 'ASSISTANT'].includes(userRole)) {
+                        btnExcluir = `<button class="btn btn-sm btn-outline-danger btn-delete-registro" data-id="${detalheId}" title="Excluir"><i class="bi bi-trash-fill"></i></button>`;
+                    }
+
                     return `<td><div class="d-flex justify-content-center gap-2">${btnEditar} ${btnExcluir}</div></td>`;
                 }
 
@@ -521,20 +570,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderizarTabelaComFiltro() {
         const termoBusca = document.getElementById('searchInput').value.toLowerCase().trim();
-        const infoBuscaContainer = document.getElementById('info-busca-container'); // Elemento para avisos de busca
+        const infoBuscaContainer = document.getElementById('info-busca-container');
 
-        // Lógica de Aviso de Carregamento na Busca
+        // Feedback visual se ainda estiver carregando o background
         if (termoBusca.length > 0 && isCarregandoTudo) {
-            // Se o usuário está buscando e ainda estamos carregando o resto...
             if (infoBuscaContainer) {
-                infoBuscaContainer.innerHTML = `<span class="badge bg-warning text-dark"><div class="spinner-border spinner-border-sm" role="status"></div> Buscando nos dados carregados (o restante está chegando)...</span>`;
+                infoBuscaContainer.innerHTML = `<span class="badge bg-warning text-dark"><div class="spinner-border spinner-border-sm" role="status"></div> Buscando em dados parciais...</span>`;
             }
         } else if (infoBuscaContainer) {
             infoBuscaContainer.innerHTML = '';
         }
 
+        let listaBase;
+
+        // LÓGICA NOVA:
+        if (termoBusca === "") {
+            // Se NÃO tem busca, mostra apenas os 10 iniciais (limpo e rápido)
+            listaBase = linhasIniciais;
+        } else {
+            // Se TEM busca, procura em TUDO (que foi carregado em background)
+            listaBase = todasAsLinhas;
+        }
+
         const linhasFiltradas = termoBusca
-            ? todasAsLinhas.filter(linhaData => {
+            ? listaBase.filter(linhaData => {
                 const textoPesquisavel = [
                     get(linhaData, 'os.os', ''),
                     get(linhaData, 'detalhe.site', ''),
@@ -546,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ].join(' ').toLowerCase();
                 return textoPesquisavel.includes(termoBusca);
             })
-            : todasAsLinhas;
+            : listaBase;
 
         const agrupado = Object.values(linhasFiltradas.reduce((acc, linha) => {
             const chaveGrupo = `${get(linha, 'os.projeto', 'Sem Projeto')} / ${get(linha, 'os.os', 'Sem OS')}`;

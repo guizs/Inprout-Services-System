@@ -267,4 +267,4 @@ window.recusarMaterial = recusarMaterial;
 window.aprovarComplementar = aprovarComplementar;
 window.recusarComplementar = recusarComplementar;
 window.verComentarios = verComentarios;
-window.mostrarToast = mostrarToast; // <--- AGORA O TOAST É GLOBAL
+window.mostrarToast = mostrarToast;

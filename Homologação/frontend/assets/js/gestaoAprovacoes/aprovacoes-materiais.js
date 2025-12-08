@@ -204,19 +204,3 @@ function renderizarTabelaHistoricoMateriais() {
         tbody.appendChild(tr);
     });
 }
-
-// Handlers do Modal
-window.aprovarMaterial = function(id) {
-    if (!modalAprovarMaterial) return;
-    const btn = document.getElementById('btnConfirmarAprovacaoMaterial');
-    btn.dataset.id = id;
-    modalAprovarMaterial.show();
-};
-
-window.recusarMaterial = function(id) {
-    if (!modalRecusarMaterial) return;
-    const form = document.getElementById('formRecusarMaterial');
-    form.dataset.id = id;
-    form.reset();
-    modalRecusarMaterial.show();
-};

@@ -334,10 +334,9 @@ public class LancamentoController {
 
     @GetMapping("/cps/relatorio")
     public ResponseEntity<CpsResponseDTO> getRelatorioCps(
-            @RequestParam("dataInicio") String dataInicioStr,
-            @RequestParam("dataFim") String dataFimStr) {
-        LocalDate dataInicio = LocalDate.parse(dataInicioStr, DateTimeFormatter.ISO_LOCAL_DATE);
-        LocalDate dataFim = LocalDate.parse(dataFimStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim
+    ) {
         CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
         return ResponseEntity.ok(relatorio);
     }

@@ -636,8 +636,11 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Transactional(readOnly = true)
     public List<Lancamento> getAllLancamentos(LocalDate inicio, LocalDate fim) {
 
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        // --- CORREÇÃO: Definir padrão aqui, ANTES da consulta ---
+        if (inicio == null) inicio = LocalDate.now().minusDays(90);
+        if (fim == null) fim = LocalDate.now();
 
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String userEmail;
         if (principal instanceof UserDetails) {
             userEmail = ((UserDetails) principal).getUsername();
@@ -646,12 +649,14 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
-            return lancamentoRepository.findAllWithDetails();
+            // Se for anônimo (não deveria acontecer se protegido), retorna lista vazia
+            return List.of();
         }
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
 
+        // Busca com as datas já garantidas
         List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetailsByPeriodo(inicio, fim);
 
         Role role = usuarioLogado.getRole();
@@ -659,16 +664,14 @@ public class LancamentoServiceImpl implements LancamentoService {
             return todosLancamentos;
         }
 
-        if (inicio == null) inicio = LocalDate.now().minusDays(30);
-        if (fim == null) fim = LocalDate.now();
-
+        // Filtra para Managers e Coordinators
         if (role == Role.MANAGER || role == Role.COORDINATOR) {
             Set<Long> segmentosDoUsuario = usuarioLogado.getSegmentos().stream()
                     .map(Segmento::getId)
                     .collect(Collectors.toSet());
 
             if (segmentosDoUsuario.isEmpty()) {
-                return List.of(); // Retorna lista vazia se o usuário não tem segmentos
+                return List.of();
             }
 
             return todosLancamentos.stream()

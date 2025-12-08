@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const segmentSelectFilter = document.getElementById('segment-select-filter');
     const modalAdiantamentoEl = document.getElementById('modalAdiantamento');
     const modalAdiantamento = new bootstrap.Modal(modalAdiantamentoEl);
-    
+
     // Elementos da nova funcionalidade de importação
     const importContainer = document.getElementById('import-container');
     const btnImportarLegado = document.getElementById('btn-importar-legado');
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             segmentGridContainer.innerHTML = '<p class="text-muted w-100 text-center">Nenhum valor por segmento no período.</p>';
         }
     }
-    
+
     function renderSegmentFilter(segmentos) {
         segmentSelectFilter.innerHTML = '<option value="todos" selected>Todos os Segmentos</option>';
         if (segmentos) {
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderLancamentosTable(lancamentos) {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-        const mostrarAcoes = userRole !== 'COORDINATOR';
+        const mostrarAcoes = userRole !== 'COORDINATOR'; // Mantendo sua lógica original de permissão
         let sortConfig = { key: 'dataAtividade', direction: 'desc' };
 
         function sortData() {
@@ -190,11 +190,26 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBody.innerHTML = '';
             if (lancamentos && lancamentos.length > 0) {
                 lancamentos.forEach(lanc => {
+                    // --- NOVA LÓGICA DE CORES E BLOQUEIO ---
+                    const isPago = lanc.statusPagamento === 'FECHADO';
+                    const isAdiantado = (parseFloat(lanc.valorAdiantamento) || 0) > 0;
+
+                    let rowClass = '';
+                    if (isPago) {
+                        rowClass = 'table-success'; // Verde Claro
+                    } else if (isAdiantado) {
+                        rowClass = 'table-warning'; // Amarelo Claro
+                    }
+
                     const acoesCell = mostrarAcoes ? `<td>
-                        <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
-                        <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
+                        ${exibirBotoesNestaLinha ? `
+                            <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
+                            <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
+                        ` : (isPago ? '<span class="badge bg-success">Pago</span>' : (isAdiantado ? '<span class="badge bg-warning text-dark">Adiantado</span>' : '-'))}
                     </td>` : '';
-                    tableBody.innerHTML += `<tr>
+
+                    // Adicionei a rowClass na TR
+                    tableBody.innerHTML += `<tr class="${rowClass}">
                         <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
                         <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td>
                         <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.prestador || 'N/A'}</td>
@@ -333,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupRoleBasedUI() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
         if (userRole === 'ADMIN' || userRole === 'ASSISTANT') {
-            if(importContainer) importContainer.style.display = 'block';
+            if (importContainer) importContainer.style.display = 'block';
         }
     }
 
@@ -506,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-        
+
         segmentSelectFilter.addEventListener('change', () => {
             renderTable(segmentSelectFilter.value);
         });

@@ -253,14 +253,10 @@ function renderizarAcordeonPendencias(dados) {
 
             <div class="kpi-divider"></div>
 
-            <div class="kpi-group kpi-forecast-group">
+            <div class="kpi-group"> <div class="header-kpi">
+                    <span class="kpi-label">Previsão CPS</span> <span class="kpi-value">${formatarMoeda(previsaoCps)}</span> </div>
                 <div class="header-kpi">
-                    <span class="kpi-label text-primary">Previsão CPS</span>
-                    <span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span>
-                </div>
-                <div class="header-kpi">
-                    <span class="kpi-label text-primary">% Previsto</span>
-                    <span class="kpi-value ${classeCorPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
+                    <span class="kpi-label">% Previsto</span> <span class="kpi-value ${classeCorPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
                 </div>
             </div>
         </div>`;

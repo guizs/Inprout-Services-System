@@ -41,7 +41,7 @@ function initFiltrosCPS() {
     const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     const hoje = new Date();
     const selects = [document.getElementById('cps-filtro-mes-ref'), document.getElementById('cps-hist-filtro-mes-ref')];
-    
+
     selects.forEach(sel => {
         if (sel && sel.options.length === 0) {
             for (let i = 0; i < 12; i++) {
@@ -64,13 +64,13 @@ function initFiltrosCPS() {
             if (resSeg.ok) {
                 const segs = await resSeg.json();
                 selectsSeg.forEach(sel => {
-                    if(sel) { sel.innerHTML = '<option value="">Todos</option>'; segs.forEach(s => sel.add(new Option(s.nome, s.id))); }
+                    if (sel) { sel.innerHTML = '<option value="">Todos</option>'; segs.forEach(s => sel.add(new Option(s.nome, s.id))); }
                 });
             }
             if (resPrest.ok) {
                 const prests = await resPrest.json();
                 selectsPrest.forEach((sel, i) => {
-                    if(sel) {
+                    if (sel) {
                         sel.innerHTML = '<option value="">Todos</option>';
                         prests.forEach(p => sel.add(new Option(`${p.codigoPrestador} - ${p.prestador}`, p.id)));
                         if (typeof Choices !== 'undefined') {
@@ -114,7 +114,7 @@ async function carregarHistoricoCPS(append = false) {
         window.cpsHistDataInicio.setDate(window.cpsHistDataFim.getDate() - 30);
         window.dadosCpsHistorico = [];
         const acc = document.getElementById('accordionHistoricoCPS');
-        if(acc) acc.innerHTML = '';
+        if (acc) acc.innerHTML = '';
     }
 
     const params = new URLSearchParams({
@@ -128,12 +128,12 @@ async function carregarHistoricoCPS(append = false) {
         const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/historico?${params}`, { headers: { 'X-User-ID': userId } });
         if (!res.ok) throw new Error('Erro ao buscar histórico.');
         const novos = await res.json();
-        
+
         if (novos.length === 0 && append) mostrarToast("Sem mais registros.", "warning");
-        
+
         window.dadosCpsHistorico = append ? [...window.dadosCpsHistorico, ...novos] : novos;
         renderizarAcordeonCPS(window.dadosCpsHistorico, 'accordionHistoricoCPS', 'msg-sem-historico-cps', false);
-        
+
     } catch (error) {
         mostrarToast(error.message, 'error');
     } finally {
@@ -158,17 +158,17 @@ async function atualizarHeaderKpiCPS() {
 
     try {
         const res = await fetchComAuth(`${API_BASE_URL}/controle-cps/dashboard?${params}`, { headers: { 'X-User-ID': userId } });
-        if(res.ok) {
+        if (res.ok) {
             const d = await res.json();
             const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-            
+
             document.querySelectorAll('.kpi-cps-total-mes-value').forEach(e => e.textContent = fmt(d.valorTotal));
             document.querySelectorAll('.kpi-cps-total-adiantado-value').forEach(e => e.textContent = fmt(d.valorTotalAdiantado));
             document.querySelectorAll('.kpi-cps-total-pendente-value').forEach(e => e.textContent = fmt(d.valorTotalPendente));
             document.querySelectorAll('.kpi-cps-total-pago-value').forEach(e => e.textContent = fmt(d.valorTotalPago));
             document.querySelectorAll('.kpi-cps-qtd-itens-value').forEach(e => e.textContent = d.quantidadeItens || 0);
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
 }
 
 // ==========================================================
@@ -180,7 +180,7 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
     const msgDiv = document.getElementById(msgVazioId);
     if (!container) return;
     container.innerHTML = '';
-    
+
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
     // FILTRAGEM DE VISIBILIDADE
@@ -215,9 +215,9 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
     Object.values(grupos).forEach((grp, idx) => {
         const uid = `cps-${isPendencia ? 'pend' : 'hist'}-${idx}`;
         grp.itens.sort((a, b) => (a.statusPagamento === 'EM_ABERTO' ? -1 : 1));
-        
+
         const percentual = grp.totalCps > 0 ? (grp.totalPago / grp.totalCps) * 100 : 0;
-        const liquido = grp.totalCps - grp.totalAdiantado; 
+        const liquido = grp.totalCps - grp.totalAdiantado;
 
         let showHeaderCheck = false;
         if (isPendencia) {
@@ -248,12 +248,29 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
             let btns = `<button class="btn btn-sm btn-outline-info me-1" title="Ver" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
             let showRowCheck = false;
 
+            // --- LÓGICA DE CORES E ESTADOS ---
+            const isAdiantado = (parseFloat(l.valorAdiantamento) || 0) > 0;
+            const isPago = l.statusPagamento === 'FECHADO';
+
+            // Define a classe da linha baseada no estado
+            let rowClass = '';
+            if (isPago) {
+                rowClass = 'table-success'; // Verde claro (Bootstrap)
+            } else if (isAdiantado) {
+                rowClass = 'table-warning'; // Amarelo claro (Bootstrap)
+            }
+
             if (isPendencia) {
+                // COORDENADOR: Só mostra botões se estiver EM ABERTO e NÃO tiver sido Adiantado/Pago
                 if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole) && l.statusPagamento === 'EM_ABERTO') {
-                    btns += `<button class="btn btn-sm btn-outline-success me-1" title="Fechar" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
-                    btns += `<button class="btn btn-sm btn-outline-primary me-1" title="Adiantar" onclick="abrirModalSolicitarAdiantamento(${l.id}, ${l.valor}, ${l.valorAdiantamento || 0})"><i class="bi bi-cash-stack"></i></button>`;
-                    btns += `<button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
-                    showRowCheck = true;
+
+                    // AQUI A MÁGICA: Se já foi adiantado (amarelo), não mostra os botões de ação
+                    if (!isAdiantado) {
+                        btns += `<button class="btn btn-sm btn-outline-success me-1" title="Fechar" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
+                        btns += `<button class="btn btn-sm btn-outline-primary me-1" title="Adiantar" onclick="abrirModalSolicitarAdiantamento(${l.id}, ${l.valor}, ${l.valorAdiantamento || 0})"><i class="bi bi-cash-stack"></i></button>`;
+                        btns += `<button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="abrirModalCpsValor(${l.id}, 'recusar')"><i class="bi bi-x-circle"></i></button>`;
+                        showRowCheck = true;
+                    }
                 }
                 else if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
                     if (l.statusPagamento === 'SOLICITACAO_ADIANTAMENTO') {
@@ -268,9 +285,9 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
             }
 
             const checkHtml = showRowCheck ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}" data-status="${l.statusPagamento}"></td>` : (isPendencia ? '<td></td>' : '');
-            
+
             return `
-            <tr class="${l.statusPagamento === 'FECHADO' ? 'table-success' : ''}">
+            <tr class="${rowClass}">
                 ${checkHtml}
                 <td class="text-center bg-transparent">${btns}</td>
                 <td class="bg-transparent"><span class="badge text-bg-secondary">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
@@ -324,8 +341,8 @@ function registrarEventosCps() {
         chk.addEventListener('change', e => {
             const target = document.getElementById(e.target.dataset.targetBody);
             const accItem = e.target.closest('.accordion-item');
-            if(accItem) e.target.checked ? accItem.classList.add('cps-selected') : accItem.classList.remove('cps-selected');
-            if(target) target.querySelectorAll('.cps-check').forEach(c => c.checked = e.target.checked);
+            if (accItem) e.target.checked ? accItem.classList.add('cps-selected') : accItem.classList.remove('cps-selected');
+            if (target) target.querySelectorAll('.cps-check').forEach(c => c.checked = e.target.checked);
             atualizarBotoesLoteCPS();
         });
     });
@@ -393,12 +410,12 @@ function atualizarBotoesLoteCPS() {
     }
 }
 
-window.executarAcaoLote = function(acao) {
+window.executarAcaoLote = function (acao) {
     const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id));
     if (!ids.length) return;
 
-    if(typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'true';
-    if(typeof modalRecusarCPS !== 'undefined') modalRecusarCPS._element.dataset.acaoEmLote = 'true';
+    if (typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'true';
+    if (typeof modalRecusarCPS !== 'undefined') modalRecusarCPS._element.dataset.acaoEmLote = 'true';
 
     // 1. COORDENADOR: FECHAR
     if (acao === 'fechar') {
@@ -415,7 +432,7 @@ window.executarAcaoLote = function(acao) {
         btn.textContent = "Confirmar Lote";
         modalAlterarValorCPS.show();
     }
-    
+
     // 2. COORDENADOR: ADIANTAR LOTE
     else if (acao === 'solicitarAdiantamento') {
         const m = new bootstrap.Modal(document.getElementById('modalSolicitarAdiantamento'));
@@ -449,20 +466,20 @@ window.executarAcaoLote = function(acao) {
         const titulo = acao === 'pagarController' ? 'Pagar CPS' : 'Pagar Adiantamentos';
         document.getElementById('modalGenericoTitulo').innerText = titulo;
         document.getElementById('modalGenericoTexto').innerText = `Confirma o pagamento de ${ids.length} itens selecionados?`;
-        
+
         const btn = document.getElementById('btnGenericoConfirmar');
         const novoBtn = btn.cloneNode(true);
         btn.parentNode.replaceChild(novoBtn, btn);
-        
+
         novoBtn.addEventListener('click', () => {
             const url = acao === 'pagarController' ? '/controle-cps/pagar-lote' : '/lancamentos/pagar-adiantamento-lote';
             const body = acao === 'pagarController' ? { lancamentoIds: ids, controllerId: localStorage.getItem('usuarioId') } : { lancamentoIds: ids, usuarioId: localStorage.getItem('usuarioId') };
             processarAcaoControllerDireta(url, body, m);
         });
-        
+
         m.show();
     }
-    
+
     // 5. CONTROLLER: DEVOLVER
     else if (acao === 'recusarController') {
         const modal = modalRecusarCPS;
@@ -486,14 +503,14 @@ async function processarAcaoControllerDireta(endpoint, body, modalInstance) {
     setLoading(btn, true);
     try {
         const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(body) });
-        if(res.ok) {
+        if (res.ok) {
             mostrarToast("Sucesso!", "success");
-            if(modalInstance) modalInstance.hide();
+            if (modalInstance) modalInstance.hide();
             carregarPendenciasCPS();
         } else {
             throw new Error(await res.text());
         }
-    } catch(e) { mostrarToast(e.message, "error"); }
+    } catch (e) { mostrarToast(e.message, "error"); }
     finally { setLoading(btn, false); }
 }
 
@@ -528,10 +545,10 @@ document.getElementById('formSolicitarAdiantamento').addEventListener('submit', 
                 method: 'POST',
                 body: JSON.stringify({ valor: valor, usuarioId: uId, justificativa: just })
             });
-            if(!res.ok) throw new Error("Erro na solicitação.");
+            if (!res.ok) throw new Error("Erro na solicitação.");
             mostrarToast("Solicitação enviada!", "success");
         }
-        
+
         bootstrap.Modal.getInstance(document.getElementById('modalSolicitarAdiantamento')).hide();
         carregarPendenciasCPS();
     } catch (e) {
@@ -573,12 +590,12 @@ if (btnConfRecAdiant) {
                     method: 'POST',
                     body: JSON.stringify({ usuarioId: uId, motivo: motivo })
                 });
-                if(!res.ok) throw new Error("Erro");
+                if (!res.ok) throw new Error("Erro");
                 mostrarToast("Recusado!", "success");
             }
             modalInstance.hide();
             carregarPendenciasCPS();
-        } catch(e) { mostrarToast(e.message, "error"); }
+        } catch (e) { mostrarToast(e.message, "error"); }
         finally { setLoading(btnConfRecAdiant, false); delete modalEl.dataset.acaoEmLote; }
     });
 }
@@ -633,9 +650,9 @@ document.getElementById('formAlterarValorCPS').addEventListener('submit', async 
     } else {
         url = isLote ? '/controle-cps/fechar-lote' : '/controle-cps/fechar';
         const val = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
-        body = { 
-            lancamentoIds: ids, lancamentoId: ids[0], 
-            coordenadorId: uId, 
+        body = {
+            lancamentoIds: ids, lancamentoId: ids[0],
+            coordenadorId: uId,
             competencia: document.getElementById('cpsCompetenciaInput').value,
             valorPagamento: isLote ? null : val,
             justificativa: document.getElementById('cpsJustificativaInput').value
@@ -644,20 +661,20 @@ document.getElementById('formAlterarValorCPS').addEventListener('submit', async 
 
     try {
         const res = await fetchComAuth(`${API_BASE_URL}${url}`, { method: 'POST', body: JSON.stringify(body) });
-        if(res.ok) {
+        if (res.ok) {
             mostrarToast("Ação realizada!", "success");
             modalAlterarValorCPS.hide();
             carregarPendenciasCPS();
         } else {
             throw new Error((await res.json()).message || "Erro");
         }
-    } catch(err) { mostrarToast(err.message, "error"); }
+    } catch (err) { mostrarToast(err.message, "error"); }
     finally { setLoading(btn, false); }
 });
 
 // Listener Recusa Controller (Submit do Modal)
 const formRecu = document.getElementById('formRecusarCPS');
-if(formRecu) {
+if (formRecu) {
     formRecu.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = formRecu.querySelector('button[type="submit"]');
@@ -668,20 +685,20 @@ if(formRecu) {
         const motivo = document.getElementById('cpsMotivoRecusaInput').value;
 
         const url = isLote ? '/controle-cps/recusar-controller-lote' : '/controle-cps/recusar-controller';
-        
+
         // Payload adaptado para os endpoints diferentes
-        const payload = isLote 
+        const payload = isLote
             ? { lancamentoIds: ids, controllerId: localStorage.getItem('usuarioId'), motivo: motivo }
             : { lancamentoId: ids[0], controllerId: localStorage.getItem('usuarioId'), motivo: motivo };
 
         try {
             const res = await fetchComAuth(`${API_BASE_URL}${url}`, { method: 'POST', body: JSON.stringify(payload) });
-            if(res.ok) {
+            if (res.ok) {
                 mostrarToast("Devolvido!", "success");
                 modalRecusarCPS.hide();
                 carregarPendenciasCPS();
             } else throw new Error("Erro.");
-        } catch(err) { mostrarToast(err.message, "error"); }
+        } catch (err) { mostrarToast(err.message, "error"); }
         finally { setLoading(btn, false); }
     });
 }
@@ -696,7 +713,7 @@ window.abrirModalCpsValor = function (id, acao) {
 
     document.getElementById('cpsLancamentoIdAcao').value = id;
     document.getElementById('cpsAcaoCoordenador').value = acao;
-    if(typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'false';
+    if (typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'false';
 
     const btn = document.getElementById('btnConfirmarAcaoCPS');
     const inputJust = document.getElementById('cpsJustificativaInput');
@@ -707,7 +724,7 @@ window.abrirModalCpsValor = function (id, acao) {
     // Reset UI
     inputVal.disabled = false;
     document.querySelector('#modalAlterarValorCPS .modal-title').innerText = acao === 'recusar' ? 'Recusar Pagamento' : 'Fechar Pagamento';
-    
+
     // PREENCHE O VALOR PRIMEIRO
     const val = l.valorPagamento !== null ? l.valorPagamento : l.valor;
     inputVal.value = val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
@@ -717,7 +734,7 @@ window.abrirModalCpsValor = function (id, acao) {
         btn.textContent = "Confirmar Recusa";
         divComp.style.display = 'none';
         document.getElementById('cpsCompetenciaInput').required = false;
-        inputVal.disabled = true; 
+        inputVal.disabled = true;
         inputJust.required = true;
     } else {
         btn.className = 'btn btn-success';
@@ -733,7 +750,7 @@ window.abrirModalCpsValor = function (id, acao) {
 
 window.abrirModalCpsRecusarController = function (id) {
     document.getElementById('cpsLancamentoIdRecusar').value = id;
-    if(typeof modalRecusarCPS !== 'undefined') {
+    if (typeof modalRecusarCPS !== 'undefined') {
         modalRecusarCPS._element.dataset.acaoEmLote = 'false';
         document.getElementById('cpsMotivoRecusaInput').value = '';
         modalRecusarCPS.show();
@@ -799,7 +816,7 @@ function configurarBuscaCps(inputId, accordionId) {
             if (!visivel) {
                 const linhas = item.querySelectorAll('tbody tr');
                 linhas.forEach(tr => {
-                    if (tr.innerText.toLowerCase().includes(termo)) { tr.classList.remove('d-none'); visivel = true; } 
+                    if (tr.innerText.toLowerCase().includes(termo)) { tr.classList.remove('d-none'); visivel = true; }
                     else { tr.classList.add('d-none'); }
                 });
             } else { item.querySelectorAll('tbody tr').forEach(tr => tr.classList.remove('d-none')); }

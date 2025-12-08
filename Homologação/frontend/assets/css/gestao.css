@@ -41,7 +41,7 @@ body {
 }
 
 .custom-scroll {
-    max-height: calc(100vh - px);
+    max-height: calc(100vh - 250px);
     overflow-y: auto;
     border: 1px solid #ccc;
     border-radius: 8px;
@@ -369,33 +369,6 @@ body {
     color: #212529;
 }
 
-.header-kpi-wrapper {
-    display: flex;
-    gap: 2rem;
-    margin-left: auto;
-    /* Empurra para a direita */
-    text-align: right;
-}
-
-.header-kpi {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-}
-
-.kpi-label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    color: #6c757d;
-    font-weight: 600;
-}
-
-.kpi-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #212529;
-}
-
 /* Badge no cabeçalho */
 .header-badge {
     margin-left: 1rem;
@@ -436,6 +409,74 @@ body {
 
 .accordion-body tbody tr:last-child td {
     border-bottom: none;
+}
+
+/* ========================================================== */
+/* ======== MELHORIAS NO HEADER DO ACORDEÃO (KPIs) ========== */
+/* ========================================================== */
+
+/* Container Principal dos KPIs no Header */
+.header-kpi-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem; /* Espaço entre grupos */
+    margin-left: auto;
+    background-color: transparent;
+}
+
+/* Grupos de Informação (Separados por Divider) */
+.kpi-group {
+    display: flex;
+    gap: 1.2rem; /* Espaço entre itens do mesmo grupo */
+    align-items: flex-end;
+}
+
+/* Divisor Vertical Elegante */
+.kpi-divider {
+    width: 1px;
+    height: 30px;
+    background-color: #cfd8dc; /* Cinza suave */
+    margin: 0 0.5rem;
+    align-self: center;
+}
+
+/* Estilização da Previsão (Destaque) */
+.kpi-forecast-group .kpi-label {
+    color: #0d6efd; /* Azul Primary Bootstrap */
+    font-weight: 700;
+    opacity: 0.9;
+}
+
+.kpi-forecast-group .kpi-value {
+    color: #0d6efd;
+    font-weight: 800;
+}
+
+/* Ajuste Geral dos Labels e Values */
+.header-kpi {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.1;
+}
+
+.kpi-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: #6c757d; /* Cinza médio */
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.kpi-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #343a40; /* Cinza escuro */
+}
+
+/* Animação suave para hover */
+.accordion-button:hover .header-kpi-wrapper {
+    opacity: 1;
 }
 
 /* ========================================================== */
@@ -611,4 +652,19 @@ body {
     margin-right: 5px;
     /* Ajuste visual para o badge não ficar colado */
     position: relative;
+}
+
+.detalhe-diario-truncate {
+    max-width: 250px; /* Ajuste este valor conforme necessário */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    color: #495057;
+    transition: color 0.2s;
+}
+
+.detalhe-diario-truncate:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
 }

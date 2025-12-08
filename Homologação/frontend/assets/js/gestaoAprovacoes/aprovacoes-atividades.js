@@ -48,7 +48,7 @@ async function carregarDadosHistoricoAtividades(append = false) {
         window.histDataFim = new Date();
         window.histDataInicio = new Date();
         window.histDataInicio.setDate(window.histDataFim.getDate() - 30);
-        window.todosHistoricoAtividades = []; 
+        window.todosHistoricoAtividades = [];
     }
 
     toggleLoader(true, '#historico-atividades-pane');
@@ -87,14 +87,20 @@ async function carregarDadosHistoricoAtividades(append = false) {
     }
 }
 
+function getClassePorcentagem(valor) {
+    if (valor > 34) return 'text-danger fw-bold'; // > 34% (Vermelho)
+    if (valor >= 20) return 'text-warning fw-bold'; // 20% a 34% (Amarelo)
+    return 'text-success fw-bold'; // < 20% (Verde)
+}
+
 function renderizarAcordeonPendencias(dados) {
     const accordionContainer = document.getElementById('accordion-pendencias');
     if (!accordionContainer) return;
 
-    accordionContainer.innerHTML = ''; 
+    accordionContainer.innerHTML = '';
 
     if (!dados || dados.length === 0) {
-        accordionContainer.innerHTML = `<div class="text-center p-4 text-muted">Nenhuma pendência encontrada para seu perfil.</div>`;
+        accordionContainer.innerHTML = `<div class="text-center p-5 text-muted"><i class="bi bi-clipboard-check display-4 mb-3 d-block opacity-50"></i>Nenhuma pendência encontrada para seu perfil.</div>`;
         return;
     }
 
@@ -157,14 +163,23 @@ function renderizarAcordeonPendencias(dados) {
         "ETAPA GERAL": (lancamento) => get(lancamento, 'etapa.codigoGeral', '') + ' - ' + get(lancamento, 'etapa.nomeGeral', ''),
         "ETAPA DETALHADA": (lancamento) => get(lancamento, 'etapa.indiceDetalhado', '') + ' - ' + get(lancamento, 'etapa.nomeDetalhado', ''),
         "STATUS": (lancamento) => get(lancamento, 'status'), "SITUAÇÃO": (lancamento) => get(lancamento, 'situacao'),
-        "DETALHE DIÁRIO": (lancamento) => get(lancamento, 'detalheDiario'), "CÓD. PRESTADOR": (lancamento) => get(lancamento, 'prestador.codigo'),
+
+        // --- CORREÇÃO: Exibe o texto truncado e clica para ver ---
+        "DETALHE DIÁRIO": (lancamento) => {
+            const texto = get(lancamento, 'detalheDiario', '');
+            if (!texto) return '-';
+            // Usa classe CSS para cortar o texto (ellipsis)
+            return `<div class="detalhe-diario-truncate" onclick="verDetalheDiario(${lancamento.id})" title="Clique para ler completo">${texto}</div>`;
+        },
+
+        "CÓD. PRESTADOR": (lancamento) => get(lancamento, 'prestador.codigo'),
         "PRESTADOR": (lancamento) => get(lancamento, 'prestador.nome'), "GESTOR": (lancamento) => get(lancamento, 'manager.nome'),
     };
 
     grupos.forEach((grupo, index) => {
         const uniqueId = `${grupo.id}-${index}`;
         const item = document.createElement('div');
-        item.className = 'accordion-item';
+        item.className = 'accordion-item shadow-sm border-0 mb-3';
 
         const isVencido = grupo.linhas.some(lancamento => {
             const dataPrazo = lancamento.dataPrazo ? parseDataBrasileira(lancamento.dataPrazo) : null;
@@ -179,29 +194,75 @@ function renderizarAcordeonPendencias(dados) {
         let tituloOS = grupo.os;
         if (isComplementar) {
             const lpu = get(primeiroLancamento, 'detalhe.lpu.nomeLpu', '');
-            tituloOS = `${grupo.os} (Complementar: ${lpu})`;
+            tituloOS = `${grupo.os} <span class="badge bg-info text-dark ms-2">Complementar: ${lpu}</span>`;
         }
 
         const buttonClass = isVencido ? 'accordion-button collapsed accordion-button-vencido' : 'accordion-button collapsed';
 
-        // KPIs (Ajustado conforme o backup)
+        // --- CÁLCULOS DE KPI E PREVISÃO ---
         const valorTotalOS = grupo.totalOs || 0;
         const valorTotalCPS = grupo.valorCps || 0;
         const custoTotalMateriais = grupo.custoTotalMateriais || 0;
         const valorCpsLegado = dadosOS.valorCpsLegado || 0;
         const valorTransporte = dadosOS.transporte || 0;
-        const percentual = valorTotalOS > 0
-            ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado + valorTransporte) / valorTotalOS) * 100
-            : 0;
+
+        const totalPendenteGrupo = grupo.linhas.reduce((acc, l) => acc + (l.valor || 0), 0);
+
+        const totalConsumidoAtual = valorTotalCPS + custoTotalMateriais + valorCpsLegado + valorTransporte;
+
+        const previsaoCps = valorTotalCPS + totalPendenteGrupo;
+        const totalPrevisto = totalConsumidoAtual + totalPendenteGrupo;
+
+        const percentualAtual = valorTotalOS > 0 ? (totalConsumidoAtual / valorTotalOS) * 100 : 0;
+        const percentualPrevisto = valorTotalOS > 0 ? (totalPrevisto / valorTotalOS) * 100 : 0;
+
+        // --- APLICAÇÃO DAS CORES NOS PERCENTUAIS ---
+        const classeCorAtual = getClassePorcentagem(percentualAtual);
+        const classeCorPrevisto = getClassePorcentagem(percentualPrevisto);
 
         let kpiHTML = `
         <div class="header-kpi-wrapper">
-            <div class="header-kpi"><span class="kpi-label">Total OS</span><span class="kpi-value">${formatarMoeda(valorTotalOS)}</span></div>
-            ${valorCpsLegado > 0 ? `<div class="header-kpi"><span class="kpi-label text-warning">Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>` : ''}
-            <div class="header-kpi"><span class="kpi-label">CPS</span><span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span></div>
-            <div class="header-kpi"><span class="kpi-label">Material</span><span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span></div>
-            <div class="header-kpi"><span class="kpi-label">Transp.</span><span class="kpi-value">${formatarMoeda(valorTransporte)}</span></div>
-            <div class="header-kpi"><span class="kpi-label">%</span><span class="kpi-value kpi-percentage">${percentual.toFixed(2)}%</span></div>
+            <div class="kpi-group">
+                <div class="header-kpi">
+                    <span class="kpi-label">Total OS</span>
+                    <span class="kpi-value text-dark">${formatarMoeda(valorTotalOS)}</span>
+                </div>
+                ${valorCpsLegado > 0 ? `<div class="header-kpi"><span class="kpi-label text-warning">Legado</span><span class="kpi-value text-warning">${formatarMoeda(valorCpsLegado)}</span></div>` : ''}
+            </div>
+
+            <div class="kpi-divider"></div>
+
+            <div class="kpi-group">
+                <div class="header-kpi">
+                    <span class="kpi-label">CPS Atual</span>
+                    <span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span>
+                </div>
+                <div class="header-kpi">
+                    <span class="kpi-label">Material</span>
+                    <span class="kpi-value">${formatarMoeda(custoTotalMateriais)}</span>
+                </div>
+                <div class="header-kpi">
+                    <span class="kpi-label">Transp.</span>
+                    <span class="kpi-value">${formatarMoeda(valorTransporte)}</span>
+                </div>
+                <div class="header-kpi">
+                    <span class="kpi-label">% Atual</span>
+                    <span class="kpi-value ${classeCorAtual}">${percentualAtual.toFixed(2)}%</span>
+                </div>
+            </div>
+
+            <div class="kpi-divider"></div>
+
+            <div class="kpi-group kpi-forecast-group">
+                <div class="header-kpi">
+                    <span class="kpi-label text-primary">Previsão CPS</span>
+                    <span class="kpi-value text-primary">${formatarMoeda(previsaoCps)}</span>
+                </div>
+                <div class="header-kpi">
+                    <span class="kpi-label text-primary">% Previsto</span>
+                    <span class="kpi-value ${classeCorPrevisto}">${percentualPrevisto.toFixed(2)}%</span>
+                </div>
+            </div>
         </div>`;
 
         const headerHTML = `
@@ -211,78 +272,61 @@ function renderizarAcordeonPendencias(dados) {
                        data-target-body="collapse-${uniqueId}" 
                        style="cursor: pointer; margin: 0;">
             </div>
-            <button class="${buttonClass}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
-                <div class="header-content w-100 ps-5"> <div class="header-title-wrapper">
-                        <span class="header-title-project">${grupo.projeto}</span>
-                        <span class="header-title-os">${tituloOS}</span>
+            <button class="${buttonClass} py-3" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${uniqueId}">
+                <div class="header-content w-100 ps-5 d-flex align-items-center justify-content-between"> 
+                    <div class="header-title-wrapper" style="min-width: 200px;">
+                        <span class="header-title-project text-muted small">${grupo.projeto}</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="header-title-os h6 mb-0">${tituloOS}</span>
+                            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2 py-1" style="font-size: 0.7em;">
+                                <i class="bi bi-layers-fill me-1"></i>${grupo.linhas.length} itens
+                            </span>
+                        </div>
                     </div>
                     ${kpiHTML}
-                    <span class="badge bg-primary header-badge">${grupo.linhas.length} itens pendentes</span>
                 </div>
             </button>
         </h2>`;
 
-        let colunasParaRenderizar = [...colunas]; 
+        let colunasParaRenderizar = [...colunas];
         if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             colunasParaRenderizar = colunasParaRenderizar.filter(c => c !== "PRAZO AÇÃO");
         }
 
         const bodyRowsHTML = grupo.linhas.map(lancamento => {
             const cellsHTML = colunasParaRenderizar.map(header => {
-                
-                // === LÓGICA DE AÇÕES ===
                 if (header === 'AÇÕES') {
+                    // ... (lógica de botões mantida - omitida para brevidade)
                     let acoesHtml = '';
-                    
                     if ((userRole === 'COORDINATOR' || userRole === 'MANAGER') && lancamento.situacaoAprovacao === 'PENDENTE_COORDENADOR') {
-                        acoesHtml = `
-                            <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamento(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button>
-                            <button class="btn btn-sm btn-outline-danger me-1" onclick="recusarLancamento(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>
-                            <button class="btn btn-sm btn-outline-warning" onclick="comentarLancamento(${lancamento.id})" title="Solicitar Prazo"><i class="bi bi-clock-history"></i></button>
-                        `;
-                    }
-                    else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
+                        acoesHtml = `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamento(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button><button class="btn btn-sm btn-outline-danger me-1" onclick="recusarLancamento(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button><button class="btn btn-sm btn-outline-warning" onclick="comentarLancamento(${lancamento.id})" title="Solicitar Prazo"><i class="bi bi-clock-history"></i></button>`;
+                    } else if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
                         if (lancamento.situacaoAprovacao === 'PENDENTE_CONTROLLER') {
-                            acoesHtml = `
-                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>
-                            `;
+                            acoesHtml = `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar"><i class="bi bi-check-lg"></i></button><button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar"><i class="bi bi-x-lg"></i></button>`;
                         } else if (lancamento.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO') {
-                            acoesHtml = `
-                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarPrazoController(${lancamento.id})" title="Aprovar Prazo"><i class="bi bi-calendar-check"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="recusarPrazoController(${lancamento.id})" title="Recusar Prazo"><i class="bi bi-calendar-x"></i></button>
-                            `;
+                            acoesHtml = `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarPrazoController(${lancamento.id})" title="Aprovar Prazo"><i class="bi bi-calendar-check"></i></button><button class="btn btn-sm btn-outline-danger" onclick="recusarPrazoController(${lancamento.id})" title="Recusar Prazo"><i class="bi bi-calendar-x"></i></button>`;
                         } else if (lancamento.situacaoAprovacao === 'PRAZO_VENCIDO') {
-                             acoesHtml = `
-                                <button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar (Vencido)"><i class="bi bi-check-lg"></i></button>
-                                <button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar (Vencido)"><i class="bi bi-x-lg"></i></button>
-                            `;
+                            acoesHtml = `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarLancamentoController(${lancamento.id})" title="Aprovar (Vencido)"><i class="bi bi-check-lg"></i></button><button class="btn btn-sm btn-outline-danger" onclick="recusarLancamentoController(${lancamento.id})" title="Recusar (Vencido)"><i class="bi bi-x-lg"></i></button>`;
                         }
                     }
-
                     const btnComentarios = `<button class="btn btn-sm btn-info text-white" onclick="verComentarios(${lancamento.id})" title="Ver Comentários"><i class="bi bi-chat-left-text"></i></button>`;
-                    
                     acoesHtml += btnComentarios;
-                    
                     return `<td class="text-center text-nowrap"><div class="d-flex justify-content-center gap-1">${acoesHtml || '—'}</div></td>`;
                 }
 
-                const func = dataMapping[header]; 
-                const valor = func ? func(lancamento) : '-'; 
-                let classes = ''; 
-                // Cores de status
+                const func = dataMapping[header];
+                const valor = func ? func(lancamento) : '-';
+                let classes = '';
                 if (["VISTORIA", "DESMOBILIZAÇÃO", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO"].includes(header)) {
                     classes += ' status-cell';
                     if (valor === 'OK') classes += ' status-ok';
                     else if (valor === 'NOK') classes += ' status-nok';
                     else if (valor === 'N/A') classes += ' status-na';
                 }
-                if (header === "DETALHE DIÁRIO") {
-                    classes += ' detalhe-diario-cell';
-                }
+
                 return `<td class="${classes}">${valor}</td>`;
             }).join('');
-            
+
             return `<tr data-id="${lancamento.id}"><td><input type="checkbox" class="form-check-input linha-checkbox" data-id="${lancamento.id}"></td>${cellsHTML}</tr>`;
         }).join('');
 
@@ -290,7 +334,7 @@ function renderizarAcordeonPendencias(dados) {
         <div id="collapse-${uniqueId}" class="accordion-collapse collapse">
             <div class="accordion-body">
                 <div class="table-responsive">
-                    <table class="table modern-table table-sm">
+                    <table class="table modern-table table-sm table-hover mb-0">
                         <thead>
                             <tr>
                                 <th></th> ${colunasParaRenderizar.map(c => `<th>${c}</th>`).join('')} </tr>
@@ -309,6 +353,25 @@ function renderizarAcordeonPendencias(dados) {
     accordionContainer.appendChild(frag);
 }
 
+function verDetalheDiario(id) {
+    const lancamento = window.todosOsLancamentosGlobais.find(l => l.id == id);
+    if (!lancamento) return;
+
+    const texto = lancamento.detalheDiario || 'Nenhum detalhe informado.';
+
+    // Atualiza o corpo do modal
+    const modalBody = document.getElementById('conteudoDetalheDiario');
+    if (modalBody) {
+        // Converte quebras de linha em <br> se necessário, ou usa white-space: pre-wrap no CSS
+        modalBody.innerText = texto;
+        modalBody.style.whiteSpace = 'pre-wrap'; // Mantém formatação
+    }
+
+    // Abre o modal
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalheDiario'));
+    modal.show();
+}
+
 function renderizarTabelaHistorico(dados) {
     const tbodyHistorico = document.getElementById('tbody-historico');
     const theadHistorico = document.getElementById('thead-historico');
@@ -320,9 +383,9 @@ function renderizarTabelaHistorico(dados) {
 
     // Ordenação
     dadosFiltrados.sort((a, b) => {
-         const dateA = a.dataAtividade ? new Date(a.dataAtividade.split('/').reverse().join('-')) : new Date(0);
-         const dateB = b.dataAtividade ? new Date(b.dataAtividade.split('/').reverse().join('-')) : new Date(0);
-         return dateB - dateA;
+        const dateA = a.dataAtividade ? new Date(a.dataAtividade.split('/').reverse().join('-')) : new Date(0);
+        const dateB = b.dataAtividade ? new Date(b.dataAtividade.split('/').reverse().join('-')) : new Date(0);
+        return dateB - dateA;
     });
 
     const colunasHeaders = [
@@ -367,33 +430,33 @@ function atualizarEstadoAcoesLote() {
     const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
     const container = document.getElementById('acoes-lote-container');
     if (!container) return;
-    
+
     container.classList.toggle('d-none', checkboxes.length === 0);
-    
+
     if (checkboxes.length > 0) {
         // Atualiza contadores
         const total = checkboxes.length;
         document.getElementById('contador-aprovacao').textContent = total;
         document.getElementById('contador-recusa').textContent = total;
         document.getElementById('contador-prazo').textContent = total;
-        
+
         // Verifica consistência dos status
         const ids = Array.from(checkboxes).map(c => c.dataset.id);
         const lancs = window.todosOsLancamentosGlobais.filter(l => ids.includes(String(l.id)));
         const status = lancs[0]?.situacaoAprovacao;
         const allSame = lancs.every(l => l.situacaoAprovacao === status);
-        
+
         const btnAprovar = document.getElementById('btn-aprovar-selecionados');
         const btnRecusar = document.getElementById('btn-recusar-selecionados');
         const btnPrazo = document.getElementById('btn-solicitar-prazo-selecionados');
-        
+
         [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'none');
-        
+
         if (allSame) {
             // Regra de Coordenador/Manager
             if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole) && status === 'PENDENTE_COORDENADOR') {
                 [btnAprovar, btnRecusar, btnPrazo].forEach(btn => btn.style.display = 'inline-block');
-            } 
+            }
             // Regra de Controller/Admin
             else if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
                 if (status === 'PENDENTE_CONTROLLER') {
@@ -402,7 +465,7 @@ function atualizarEstadoAcoesLote() {
                     // Para prazo, botões especiais
                     btnAprovar.style.display = 'inline-block';
                     btnAprovar.innerHTML = `<i class="bi bi-calendar-check"></i> Aprovar Prazo (${total})`;
-                    
+
                     btnRecusar.style.display = 'inline-block';
                     btnRecusar.innerHTML = `<i class="bi bi-calendar-x"></i> Recusar Prazo (${total})`;
                 }

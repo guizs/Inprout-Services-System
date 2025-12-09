@@ -4,12 +4,14 @@ import br.com.inproutservices.inproutsystem.dtos.materiais.AprovacaoRejeicaoDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoRequestDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.materiais.Solicitacao;
+import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.services.materiais.SolicitacaoService;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import br.com.inproutservices.inproutsystem.repositories.materiais.SolicitacaoRepository;
+import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,15 +31,18 @@ public class SolicitacaoController {
     private final OsService osService;
     private final UsuarioRepository usuarioRepository;
     private final SolicitacaoRepository solicitacaoRepository;
+    private final ComentarioRepository comentarioRepository;
 
     public SolicitacaoController(SolicitacaoService solicitacaoService,
                                  OsService osService,
                                  UsuarioRepository usuarioRepository,
-                                 SolicitacaoRepository solicitacaoRepository) {
+                                 SolicitacaoRepository solicitacaoRepository,
+                                 ComentarioRepository comentarioRepository) {
         this.solicitacaoService = solicitacaoService;
         this.osService = osService;
         this.usuarioRepository = usuarioRepository;
         this.solicitacaoRepository = solicitacaoRepository;
+        this.comentarioRepository = comentarioRepository;
     }
 
     @PostMapping
@@ -51,7 +56,7 @@ public class SolicitacaoController {
             osService.atualizarValoresFinanceiros(dto.osId(), null, valorTransporte);
         }
 
-        // 3. Lógica de Auto-Aprovação e Histórico (Admin/Controller)
+        // 3. Lógica de Auto-Aprovação e Comentário (Admin/Controller)
         Usuario solicitante = usuarioRepository.findById(dto.idSolicitante())
                 .orElseThrow(() -> new EntityNotFoundException("Solicitante não encontrado"));
 
@@ -64,26 +69,27 @@ public class SolicitacaoController {
                         .map(item -> {
                             BigDecimal custo = item.getMaterial().getCustoMedioPonderado();
                             if (custo == null) custo = BigDecimal.ZERO;
-                            // CORREÇÃO AQUI: getQuantidadeSolicitada() em vez de getQuantidade()
+                            // Usa quantidadeSolicitada, conforme sua correção anterior
                             return custo.multiply(item.getQuantidadeSolicitada());
                         })
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-                // B. Monta o histórico financeiro
-                String historicoFinanceiro = String.format(
-                        "\n\n[AUTO APROVAÇÃO %s]\n >> Materiais: R$ %.2f\n >> Transporte: R$ %.2f\n >> Total da Operação: R$ %.2f",
+                // B. Cria o comentário de registro (Agora como entidade Comentario)
+                String textoComentario = String.format(
+                        "AUTO APROVAÇÃO (%s)\n>> Materiais: R$ %.2f\n>> Transporte: R$ %.2f\n>> Total da Operação: R$ %.2f",
                         solicitante.getRole(),
                         totalMateriais,
                         valorTransporte,
                         totalMateriais.add(valorTransporte)
                 );
 
-                // C. Atualiza a justificativa e Salva antes de aprovar
-                String justificativaAtual = solicitacao.getJustificativa() != null ? solicitacao.getJustificativa() : "";
-                solicitacao.setJustificativa(justificativaAtual + historicoFinanceiro);
-                solicitacaoRepository.save(solicitacao);
+                Comentario comentario = new Comentario();
+                comentario.setSolicitacao(solicitacao); // Vincula à solicitação
+                comentario.setAutor(solicitante);
+                comentario.setTexto(textoComentario);
+                comentarioRepository.save(comentario); // Salva o comentário
 
-                // D. Executa o fluxo de aprovação em cadeia
+                // C. Executa o fluxo de aprovação
                 // 1º Aprova como Coordenador
                 solicitacaoService.aprovarPeloCoordenador(solicitacao.getId(), solicitante.getId());
 
@@ -104,6 +110,7 @@ public class SolicitacaoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDTOs);
     }
 
+    // ... (restante dos métodos inalterados) ...
     @GetMapping("/pendentes")
     public ResponseEntity<List<SolicitacaoResponseDTO>> listarSolicitacoesPendentes(
             @RequestHeader("X-User-Role") String role,

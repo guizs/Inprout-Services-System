@@ -37,11 +37,6 @@ async function carregarDadosHistoricoMateriais() {
         if (!historicoResponse.ok) throw new Error('Falha ao carregar histórico de materiais.');
         window.todosHistoricoMateriais = await historicoResponse.json();
 
-        const filtro = document.getElementById('filtro-segmento-materiais');
-        if (filtro && filtro.options.length <= 1) {
-            popularFiltroSegmento();
-        }
-
         renderizarTabelaHistoricoMateriais();
     } catch (error) {
         console.error("Erro ao carregar dados de histórico de materiais:", error);
@@ -137,16 +132,12 @@ function renderizarTabelaHistoricoMateriais() {
     const tbody = document.getElementById('tbody-historico-materiais');
     if (!tbody) return;
 
-    const filtroSegmento = document.getElementById('filtro-segmento-materiais');
-    const filtroId = filtroSegmento ? filtroSegmento.value : 'todos';
-
-    const solicitacoes = filtroId === 'todos'
-        ? window.todosHistoricoMateriais
-        : window.todosHistoricoMateriais.filter(s => s.os.segmento && s.os.segmento.id == filtroId);
+    // Remove filtros se houver (conforme solicitado anteriormente)
+    const solicitacoes = window.todosHistoricoMateriais || [];
 
     const thead = tbody.previousElementSibling;
 
-    // CORREÇÃO: Adicionada a coluna "Justificativa" no final
+    // Cabeçalho da Tabela de Histórico
     thead.innerHTML = `
     <tr>
         <th>Data Ação</th>
@@ -171,8 +162,8 @@ function renderizarTabelaHistoricoMateriais() {
     }
 
     solicitacoes.sort((a, b) => {
-        const dateA = new Date(a.dataAcaoController || a.dataAcaoCoordenador);
-        const dateB = new Date(b.dataAcaoController || b.dataAcaoCoordenador);
+        const dateA = new Date(a.dataAcaoController || a.dataAcaoCoordenador || a.dataSolicitacao);
+        const dateB = new Date(b.dataAcaoController || b.dataAcaoCoordenador || b.dataSolicitacao);
         return dateB - dateA;
     });
 
@@ -189,7 +180,19 @@ function renderizarTabelaHistoricoMateriais() {
         const dataAcaoFormatada = dataAcao ? new Date(dataAcao).toLocaleString('pt-BR') : 'Pendente';
         const nomeAprovador = s.nomeAprovadorController || s.nomeAprovadorCoordenador;
 
-        // CORREÇÃO: Adicionada a célula de Justificativa com style para quebra de linha
+        // Monta o texto de justificativa + comentários
+        let textoHistorico = s.justificativa || '';
+        
+        // Se houver comentários (vindos do novo DTO), adiciona-os
+        if (s.comentarios && s.comentarios.length > 0) {
+            if (textoHistorico) textoHistorico += '\n\n';
+            s.comentarios.forEach(c => {
+                const dataComentario = new Date(c.dataHora).toLocaleDateString('pt-BR');
+                textoHistorico += `[${dataComentario} - ${c.autor}]: ${c.texto}\n`;
+            });
+        }
+        if (!textoHistorico) textoHistorico = '-';
+
         tr.innerHTML = `
         <td data-label="Data Ação">${dataAcaoFormatada}</td>
         <td data-label="Status">${statusBadge}</td>
@@ -203,7 +206,7 @@ function renderizarTabelaHistoricoMateriais() {
         <td data-label="Qtd. Solicitada" class="text-center">${item.quantidadeSolicitada}</td>
         <td data-label="Aprovador">${nomeAprovador || 'N/A'}</td>
         <td data-label="Motivo Recusa">${s.motivoRecusa || '—'}</td>
-        <td data-label="Justificativa" style="white-space: pre-wrap; font-size: 0.85rem; min-width: 200px;">${s.justificativa || '-'}</td>
+        <td data-label="Justificativa" style="white-space: pre-wrap; font-size: 0.85rem; min-width: 200px;">${textoHistorico}</td>
     `;
         tbody.appendChild(tr);
     });

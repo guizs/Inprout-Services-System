@@ -1,6 +1,5 @@
 package br.com.inproutservices.inproutsystem.entities.materiais;
 
-import br.com.inproutservices.inproutsystem.entities.atividades.Comentario; // Import adicionado
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
@@ -50,14 +49,10 @@ public class Solicitacao {
     )
     private List<ItemSolicitacao> itens = new ArrayList<>();
 
-    // --- NOVO RELACIONAMENTO DE COMENTÁRIOS ---
-    @OneToMany(mappedBy = "solicitacao", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @OrderBy("dataHora DESC")
-    private List<Comentario> comentarios = new ArrayList<>();
-
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "id_aprovador_coordenador")
     private Usuario aprovadorCoordenador;
+
 
     @Column(name = "data_acao_coordenador")
     private LocalDateTime dataAcaoCoordenador;
@@ -72,51 +67,124 @@ public class Solicitacao {
     @Column(name = "motivo_recusa", columnDefinition = "TEXT")
     private String motivoRecusa;
 
+
     public Solicitacao() {
     }
 
     @PrePersist
     public void prePersist() {
         this.dataSolicitacao = LocalDateTime.now();
-        this.status = StatusSolicitacao.PENDENTE_COORDENADOR;
+        this.status = StatusSolicitacao.PENDENTE_COORDENADOR; // Status inicial alterado
     }
 
     // --- GETTERS E SETTERS ---
+    // (Todos os getters e setters existentes + os novos abaixo)
 
-    public List<Comentario> getComentarios() {
-        return comentarios;
+    public Long getId() {
+        return id;
     }
 
-    public void setComentarios(List<Comentario> comentarios) {
-        this.comentarios = comentarios;
+    public void setId(Long id) {
+        this.id = id;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public OS getOs() { return os; }
-    public void setOs(OS os) { this.os = os; }
-    public Lpu getLpu() { return lpu; }
-    public void setLpu(Lpu lpu) { this.lpu = lpu; }
-    public LocalDateTime getDataSolicitacao() { return dataSolicitacao; }
-    public void setDataSolicitacao(LocalDateTime dataSolicitacao) { this.dataSolicitacao = dataSolicitacao; }
-    public String getJustificativa() { return justificativa; }
-    public void setJustificativa(String justificativa) { this.justificativa = justificativa; }
-    public StatusSolicitacao getStatus() { return status; }
-    public void setStatus(StatusSolicitacao status) { this.status = status; }
-    public List<ItemSolicitacao> getItens() { return itens; }
-    public void setItens(List<ItemSolicitacao> itens) { this.itens = itens; }
-    public LocalDateTime getDataAcaoCoordenador() { return dataAcaoCoordenador; }
-    public void setDataAcaoCoordenador(LocalDateTime dataAcaoCoordenador) { this.dataAcaoCoordenador = dataAcaoCoordenador; }
-    public Usuario getSolicitante() { return solicitante; }
-    public void setSolicitante(Usuario solicitante) { this.solicitante = solicitante; }
-    public Usuario getAprovadorCoordenador() { return aprovadorCoordenador; }
-    public void setAprovadorCoordenador(Usuario aprovadorCoordenador) { this.aprovadorCoordenador = aprovadorCoordenador; }
-    public Usuario getAprovadorController() { return aprovadorController; }
-    public void setAprovadorController(Usuario aprovadorController) { this.aprovadorController = aprovadorController; }
-    public LocalDateTime getDataAcaoController() { return dataAcaoController; }
-    public void setDataAcaoController(LocalDateTime dataAcaoController) { this.dataAcaoController = dataAcaoController; }
-    public String getMotivoRecusa() { return motivoRecusa; }
-    public void setMotivoRecusa(String motivoRecusa) { this.motivoRecusa = motivoRecusa; }
+    public OS getOs() {
+        return os;
+    }
+
+    public void setOs(OS os) {
+        this.os = os;
+    }
+
+    public Lpu getLpu() {
+        return lpu;
+    }
+
+    public void setLpu(Lpu lpu) {
+        this.lpu = lpu;
+    }
+
+
+    public LocalDateTime getDataSolicitacao() {
+        return dataSolicitacao;
+    }
+
+    public void setDataSolicitacao(LocalDateTime dataSolicitacao) {
+        this.dataSolicitacao = dataSolicitacao;
+    }
+
+    public String getJustificativa() {
+        return justificativa;
+    }
+
+    public void setJustificativa(String justificativa) {
+        this.justificativa = justificativa;
+    }
+
+    public StatusSolicitacao getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusSolicitacao status) {
+        this.status = status;
+    }
+
+    public List<ItemSolicitacao> getItens() {
+        return itens;
+    }
+
+    public void setItens(List<ItemSolicitacao> itens) {
+        this.itens = itens;
+    }
+
+    public LocalDateTime getDataAcaoCoordenador() {
+        return dataAcaoCoordenador;
+    }
+
+    public void setDataAcaoCoordenador(LocalDateTime dataAcaoCoordenador) {
+        this.dataAcaoCoordenador = dataAcaoCoordenador;
+    }
+
+    public Usuario getSolicitante() {
+        return solicitante;
+    }
+
+    public void setSolicitante(Usuario solicitante) {
+        this.solicitante = solicitante;
+    }
+
+    public Usuario getAprovadorCoordenador() {
+        return aprovadorCoordenador;
+    }
+
+    public void setAprovadorCoordenador(Usuario aprovadorCoordenador) {
+        this.aprovadorCoordenador = aprovadorCoordenador;
+    }
+
+    public Usuario getAprovadorController() {
+        return aprovadorController;
+    }
+
+    public void setAprovadorController(Usuario aprovadorController) {
+        this.aprovadorController = aprovadorController;
+    }
+
+    public LocalDateTime getDataAcaoController() {
+        return dataAcaoController;
+    }
+
+    public void setDataAcaoController(LocalDateTime dataAcaoController) {
+        this.dataAcaoController = dataAcaoController;
+    }
+
+    public String getMotivoRecusa() {
+        return motivoRecusa;
+    }
+
+    public void setMotivoRecusa(String motivoRecusa) {
+        this.motivoRecusa = motivoRecusa;
+    }
+
 
     @Override
     public boolean equals(Object o) {

@@ -10,14 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
     indexDataInicio.setDate(indexDataFim.getDate() - 30);
 
     let sortConfig = {
-        key: 'dataAtividade', // Coluna padrão para ordenação
-        direction: 'desc' // Direção padrão (descendente)
+        key: 'dataAtividade',
+        direction: 'desc'
     };
 
     const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
     const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 
-    // INÍCIO DA CORREÇÃO: Definição do dataMapping que estava faltando
     const dataMapping = {
         "STATUS APROVAÇÃO": (lancamento) => (lancamento.situacaoAprovacao || '').replace(/_/g, ' '),
         "DATA ATIVIDADE": (lancamento) => lancamento.dataAtividade || '',
@@ -47,19 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
         "PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.nome'),
         "VALOR": (lancamento) => formatarMoeda(lancamento.valor),
         "GESTOR": (lancamento) => getNestedValue(lancamento, 'manager.nome'),
-        "AÇÃO": () => '' // Coluna de ação não exporta dados
+        "AÇÃO": () => ''
     };
-    // FIM DA CORREÇÃO
 
     function converterDataParaDDMMYYYY(isoDate) {
-        if (!isoDate || !isoDate.includes('-')) {
-            return isoDate; // Retorna o valor original se for nulo, vazio ou não estiver no formato esperado
-        }
+        if (!isoDate || !isoDate.includes('-')) return isoDate;
         const [ano, mes, dia] = isoDate.split('-');
         return `${dia}/${mes}/${ano}`;
     }
 
-    // Mapeia o texto do cabeçalho para a chave de dados no objeto de lançamento
     const columnKeyMap = {
         "DATA ATIVIDADE": "dataAtividade",
         "OS": "os.os",
@@ -73,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "STATUS APROVAÇÃO": "situacaoAprovacao"
     };
 
-    // Função auxiliar para pegar valores aninhados de um objeto (ex: 'os.projeto')
     const getNestedValue = (obj, path) => {
         if (!path) return undefined;
         return path.split('.').reduce((acc, part) => acc && acc[part], obj);
@@ -82,23 +76,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
         toastElement.classList.remove('text-bg-success', 'text-bg-danger');
-        if (tipo === 'success') {
-            toastElement.classList.add('text-bg-success');
-        } else if (tipo === 'error') {
-            toastElement.classList.add('text-bg-danger');
-        }
+        if (tipo === 'success') toastElement.classList.add('text-bg-success');
+        else if (tipo === 'error') toastElement.classList.add('text-bg-danger');
         toastBody.textContent = mensagem;
         toast.show();
     }
 
     function parseDataBrasileira(dataString) {
         if (!dataString) return null;
-        // Ex: "21/07/2025 15:04:42"
         const [data, hora] = dataString.split(' ');
         if (!data) return null;
         const [dia, mes, ano] = data.split('/');
         if (!dia || !mes || !ano) return null;
-        // O mês em JavaScript é 0-indexado (Janeiro=0), por isso mes-1
         return new Date(`${ano}-${mes}-${dia}T${hora || '00:00:00'}`);
     }
 
@@ -109,32 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
     }
 
-    function normalizarListaLpus(raw) {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (Array.isArray(raw.content)) return raw.content;
-        if (Array.isArray(raw.itens)) return raw.itens;
-        if (Array.isArray(raw.lista)) return raw.lista;
-        return [];
-    }
-
     function toggleLoader(ativo = true) {
         const container = document.querySelector('.content-loader-container');
         if (container) {
             const overlay = container.querySelector("#overlay-loader");
-            if (overlay) {
-                overlay.classList.toggle("d-none", !ativo);
-            }
+            if (overlay) overlay.classList.toggle("d-none", !ativo);
         }
     }
 
     function toggleModalLoader(ativo = true) {
         const modalLoader = document.getElementById('modal-overlay-loader');
-        if (modalLoader) {
-            modalLoader.classList.toggle('d-none', !ativo);
-        }
+        if (modalLoader) modalLoader.classList.toggle('d-none', !ativo);
     }
 
+    // ==========================================================
+    // CONFIGURAÇÃO DE VISIBILIDADE POR ROLE
+    // ==========================================================
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
@@ -147,16 +126,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
         const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar');
-        const btnExportar = document.getElementById('btnExportar'); // Botão de exportar
+        const btnExportar = document.getElementById('btnExportar');
 
         const kpiPendenteContainer = document.getElementById('kpi-pendente-container');
 
-        // Todos os itens da navegação são visíveis por padrão
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'block';
         });
 
-        // Oculta botões de ação específicos por padrão
         [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
             if (el) el.style.display = 'none';
         });
@@ -166,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
             kpiPendenteContainer.classList.add('d-none');
         }
 
-        // Mostra apenas para COORDENADOR, ADMIN e CONTROLLER
         if (['COORDINATOR', 'ADMIN', 'CONTROLLER'].includes(userRole)) {
             if (kpiPendenteContainer) {
                 kpiPendenteContainer.classList.remove('d-none');
@@ -174,8 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Aplica regras de visibilidade para cada cargo
         switch (userRole) {
             case 'MANAGER':
                 [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar].forEach(el => {
@@ -187,31 +161,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (navLancamentos) navLancamentos.style.display = 'none';
                 break;
 
-            // NOVO CASO: Controller agora só vê o botão de exportar.
             case 'CONTROLLER':
                 if (btnExportar) btnExportar.style.display = 'block';
+                if (btnSolicitarMaterial) btnSolicitarMaterial.style.display = 'block';
                 break;
 
-            // CASO SEPARADO: Admin e Assistant continuam vendo todos os botões de ação.
             case 'ADMIN':
             case 'ASSISTANT':
                 [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
-
-            default:
-                // Nenhum botão de ação visível por padrão para outras roles.
-                break;
         }
-        // --- FIM DA CORREÇÃO ---
 
         const tabAtiva = document.querySelector('#lancamentosTab .nav-link.active');
         if (!tabAtiva || tabAtiva.parentElement.style.display === 'none') {
             const primeiraAbaVisivel = document.querySelector('#lancamentosTab .nav-item[style*="block"] .nav-link');
-            if (primeiraAbaVisivel) {
-                new bootstrap.Tab(primeiraAbaVisivel).show();
-            }
+            if (primeiraAbaVisivel) new bootstrap.Tab(primeiraAbaVisivel).show();
         }
     }
 
@@ -312,15 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
-        const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-
         const frag = document.createDocumentFragment();
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
-
             const detalhe = lancamento.detalhe || {};
             const os = lancamento.os || {};
             const lpu = detalhe.lpu || {};
@@ -352,25 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (nomeColuna === 'AÇÃO') {
                     let buttonsHtml = '';
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
-
-                        // --- BLOCO 1: MINHAS PENDÊNCIAS ---
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
-                            // Botão de Editar (Sempre visível para pendências)
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
-
-                            // Trava de Segurança: Só mostra excluir se NÃO tiver statusPagamento
                             if (!lancamento.statusPagamento && lancamento.situacaoAprovacao !== 'RECUSADO_CONTROLLER') {
                                 buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                             }
-
-                        } // <--- AQUI É O FECHAMENTO CORRETO DO BLOCO PENDÊNCIAS
-
-                        // --- BLOCO 2: RASCUNHOS ---
-                        else if (tbodyElement.id === 'tbody-lancamentos') {
+                        } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
                             buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
-
-                            // --- BLOCO 3: PARALISADOS OU HISTÓRICO ---
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
                             if (typeof projetosFinalizados !== 'undefined' && !projetosFinalizados.has(chaveProjetoAtual)) {
@@ -378,22 +329,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
-
-                    // Botão de Comentários (Comum a todos ou conforme regra)
                     buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
-
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
-
                 } else {
-                    // --- Renderização das outras colunas ---
                     td.innerHTML = mapaDeCelulas[nomeColuna] || '';
-
                     if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                         aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                     }
-                    if (nomeColuna === "DETALHE DIÁRIO") {
-                        td.classList.add('detalhe-diario-cell');
-                    }
+                    if (nomeColuna === "DETALHE DIÁRIO") td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });
@@ -493,11 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const kpiValorEl = document.getElementById('kpi-valor-pendente');
         if (kpiValorEl) {
-            // Soma o valor de todos os itens na lista 'pendentesAprovacao'
-            const totalPendente = pendentesAprovacao.reduce((acc, curr) => {
-                return acc + (curr.valor || 0);
-            }, 0);
-
+            const totalPendente = pendentesAprovacao.reduce((acc, curr) => acc + (curr.valor || 0), 0);
             kpiValorEl.textContent = formatarMoeda(totalPendente);
         }
 
@@ -517,36 +456,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function atualizarContadorKpi() {
-        // 1. Descobre qual aba está ativa
         const abaAtivaBtn = document.querySelector('#lancamentosTab .nav-link.active');
         if (!abaAtivaBtn) return;
-
-        // 2. Pega o ID do painel alvo (ex: #lancamentos-pane)
         const targetId = abaAtivaBtn.getAttribute('data-bs-target');
         const painelAtivo = document.querySelector(targetId);
-
         if (painelAtivo) {
-            // 3. Conta as linhas visíveis no corpo da tabela dentro deste painel
-            // Nota: Usamos 'tr' direto no tbody. Se houver mensagem de "Nenhum registro", ajustamos.
             const linhas = painelAtivo.querySelectorAll('tbody tr');
             let total = linhas.length;
-
-            // Verifica se é a linha de "Nenhum registro encontrado"
-            if (total === 1 && linhas[0].textContent.includes('Nenhum')) {
-                total = 0;
-            }
-
-            // 4. Atualiza o valor no HTML
+            if (total === 1 && linhas[0].textContent.includes('Nenhum')) total = 0;
             const elValor = document.getElementById('kpi-qtd-valor');
             const elLabel = document.getElementById('kpi-qtd-label');
-
             if (elValor) elValor.textContent = total;
-
-            // Opcional: Mudar o nome do label baseado na aba
-            if (elLabel) {
-                const nomeAba = abaAtivaBtn.innerText.trim().split('\n')[0]; // Remove badge se tiver
-                elLabel.textContent = nomeAba;
-            }
+            if (elLabel) elLabel.textContent = abaAtivaBtn.innerText.trim().split('\n')[0];
         }
     }
 
@@ -562,12 +483,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const header = e.target.closest('th.sortable');
                 if (!header) return;
                 const key = header.dataset.sortKey;
-                if (sortConfig.key === key) {
-                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-                } else {
-                    sortConfig.key = key;
-                    sortConfig.direction = 'desc';
-                }
+                if (sortConfig.key === key) sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                else { sortConfig.key = key; sortConfig.direction = 'desc'; }
                 renderizarTodasAsTabelas();
             });
         });
@@ -607,15 +524,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalAdicionarEl) {
         const formAdicionar = document.getElementById('formAdicionar');
         const modalTitle = document.getElementById('modalAdicionarLabel');
-        const submitButton = document.getElementById('btnSubmitAdicionar');
-
-        const selectOS = document.getElementById('osId');
+        const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
+        const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
+        const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
+        const dataAtividadeInput = document.getElementById('dataAtividade');
+        const lpuContainer = document.getElementById('lpuContainer');
         const selectProjeto = document.getElementById('projetoId');
-        const selectPrestador = document.getElementById('prestadorId');
+        const selectOS = document.getElementById('osId');
+        const selectLPU = document.getElementById('lpuId');
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
         const selectStatus = document.getElementById('status');
-        const lpuContainer = document.getElementById('lpuContainer');
 
         let todasAsOS = [];
         let todasAsEtapas = [];
@@ -626,13 +545,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitter = e.submitter || document.activeElement;
             const acao = submitter.dataset.acao;
             const editingId = formAdicionar.dataset.editingId;
-
             const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId || document.getElementById('lpuId').value;
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
                 osId: selectOS.value,
-                prestadorId: selectPrestador.value,
+                prestadorId: document.getElementById('prestadorId').value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
                 dataAtividade: converterDataParaDDMMYYYY(document.getElementById('dataAtividade').value),
                 vistoria: document.getElementById('vistoria').value,
@@ -682,18 +600,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.innerHTML = '';
                 return;
             }
-
             lpuContainer.classList.remove('d-none');
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
             selectLPU.disabled = true;
-
             try {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
                 const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
                 if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                 const osData = await response.json();
                 const lpusParaExibir = osData.detalhes;
-
                 if (lpusParaExibir && lpusParaExibir.length > 0) {
                     lpusParaExibir.forEach(item => {
                         const lpu = item.lpu || item;
@@ -702,16 +617,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const codigo = lpu.codigoLpu || lpu.codigo || '';
                         const nome = lpu.nomeLpu || lpu.nome || '';
                         const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
-                        const value = item.id;
-                        selectLPU.add(new Option(label, value));
+                        selectLPU.add(new Option(label, item.id));
                     });
                 }
-
-                if (selectLPU.options.length <= 1) {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
-                } else {
-                    selectLPU.disabled = false;
-                }
+                if (selectLPU.options.length <= 1) selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
+                else selectLPU.disabled = false;
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 lpuContainer.classList.add('d-none');
@@ -720,11 +630,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const os = todasAsOS.find(os => os.id == osId); // Busca o objeto completo na lista
-            if (os && selectProjeto.value !== os.projeto) {
-                selectProjeto.value = os.projeto;
-            }
-            preencherCamposOS(os); // Passa o objeto OS completo
+            const os = todasAsOS.find(os => os.id == osId);
+            if (os && selectProjeto.value !== os.projeto) selectProjeto.value = os.projeto;
+            preencherCamposOS(os);
             await carregarEPopularLPU(osId);
         });
 
@@ -742,7 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(url);
                 if (!response.ok) throw new Error(`Falha ao carregar dados: ${response.statusText}`);
                 const data = await response.json();
-
                 if (selectElement.id.includes('prestadorId') && typeof Choices !== 'undefined') {
                     if (selectElement.choices) selectElement.choices.destroy();
                     selectElement.innerHTML = '';
@@ -776,7 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
                 document.getElementById('regional').value = osSelecionada.detalhes?.[0]?.regional || '';
             } else {
-                // Limpa os campos se nenhum objeto for passado
                 document.getElementById('site').value = '';
                 document.getElementById('segmento').value = '';
                 document.getElementById('projeto').value = '';
@@ -796,19 +702,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     todasAsOS = await response.json();
                     const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
                     selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    projetosUnicos.forEach(projeto => {
-                        selectProjeto.add(new Option(projeto, projeto));
-                    });
+                    projetosUnicos.forEach(projeto => selectProjeto.add(new Option(projeto, projeto)));
                     selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    todasAsOS.forEach(item => {
-                        selectOS.add(new Option(item.os, item.id));
-                    });
+                    todasAsOS.forEach(item => selectOS.add(new Option(item.os, item.id)));
                 } catch (error) {
                     console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(document.getElementById('prestadorId'), 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
                 todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
@@ -816,31 +718,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            const formAdicionar = document.getElementById('formAdicionar');
-            const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
-            const dataAtividadeInput = document.getElementById('dataAtividade');
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectProjeto = document.getElementById('projetoId');
-            const selectOS = document.getElementById('osId');
-            const selectLPU = document.getElementById('lpuId');
-            const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
             await carregarDadosParaModal();
             formAdicionar.reset();
-            if (editingId) { formAdicionar.dataset.editingId = editingId; }
-            else { delete formAdicionar.dataset.editingId; }
-            if (lancamento.detalhe && lancamento.detalhe.id) { formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id; }
-            else { delete formAdicionar.dataset.osLpuDetalheId; }
+            if (editingId) formAdicionar.dataset.editingId = editingId;
+            else delete formAdicionar.dataset.editingId;
+            if (lancamento.detalhe && lancamento.detalhe.id) formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
+            else delete formAdicionar.dataset.osLpuDetalheId;
 
             if (lpuContainer) lpuContainer.classList.add('d-none');
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
 
-            // Lógica para definir títulos e botões (sem alterações)
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -863,28 +756,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Preenche os selects primeiro
             if (lancamento.os) {
-                // Garante que a opção do Projeto exista no select
                 if (selectProjeto && lancamento.os.projeto) {
                     if (!selectProjeto.querySelector(`option[value="${lancamento.os.projeto}"]`)) {
-                        const projectOption = new Option(lancamento.os.projeto, lancamento.os.projeto, true, true);
-                        selectProjeto.add(projectOption);
+                        selectProjeto.add(new Option(lancamento.os.projeto, lancamento.os.projeto, true, true));
                     }
                     selectProjeto.value = lancamento.os.projeto;
                 }
-
-                // Garante que a opção da OS exista no select
                 if (selectOS && lancamento.os.id) {
                     if (!selectOS.querySelector(`option[value="${lancamento.os.id}"]`)) {
-                        const osOption = new Option(lancamento.os.os, lancamento.os.id, true, true);
-                        selectOS.add(osOption);
+                        selectOS.add(new Option(lancamento.os.os, lancamento.os.id, true, true));
                     }
                     selectOS.value = lancamento.os.id;
                 }
-
-                // Busca os dados completos da OS para preencher os campos de baixo (esta parte está correta)
                 try {
                     const response = await fetchComAuth(`http://localhost:8080/os/${lancamento.os.id}`);
                     if (!response.ok) throw new Error('Falha ao recarregar dados da OS para edição.');
@@ -917,25 +801,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
 
-            // Desabilita os campos APÓS o preenchimento
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
             if (selectProjeto) selectProjeto.disabled = true;
 
             const selectPrestadorEl = document.getElementById('prestadorId');
             if (selectPrestadorEl) {
-                if (selectPrestadorEl.choices) {
-                    selectPrestadorEl.choices.destroy();
-                }
+                if (selectPrestadorEl.choices) selectPrestadorEl.choices.destroy();
                 const prestadores = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
                 const choices = new Choices(selectPrestadorEl, { searchEnabled: true, placeholder: true, placeholderValue: 'Digite para buscar o prestador...', itemSelectText: '', noResultsText: 'Nenhum resultado', });
                 const choicesData = prestadores.map(item => ({ value: item.id, label: `${item.codigoPrestador} - ${item.prestador}` }));
                 choices.setChoices(choicesData, 'value', 'label', false);
                 selectPrestadorEl.choices = choices;
-
-                if (lancamento.prestador?.id) {
-                    setTimeout(() => { selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id)); }, 100);
-                }
+                if (lancamento.prestador?.id) setTimeout(() => { selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id)); }, 100);
             }
 
             if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
@@ -948,7 +826,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectEtapaGeral.value = '';
                 await popularDropdownsDependentes('', null, null);
             }
-
             modalAdicionar.show();
         }
 
@@ -985,7 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
-            const addComplementarBtn = e.target.closest('.btn-add-complementar');
 
             if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
@@ -997,9 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (lancamento) {
                         const isRetomar = reenviarBtn.classList.contains('btn-retomar');
                         await abrirModalParaEdicao(lancamento, isRetomar ? null : lancamento.id);
-                    } else {
-                        throw new Error('Lançamento não encontrado.');
-                    }
+                    } else throw new Error('Lançamento não encontrado.');
                 } catch (error) {
                     console.error("Erro ao preparar modal:", error);
                     mostrarToast(error.message, 'error');
@@ -1015,47 +889,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lancamentoId = submeterBtn.dataset.id;
                 const btnConfirmar = document.getElementById('btnConfirmarSubmissao');
                 btnConfirmar.dataset.lancamentoId = lancamentoId;
-                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
-                modalConfirmacao.show();
-            }
-            else if (e.target.closest('.btn-excluir-lancamento')) {
-                const btnExcluir = e.target.closest('.btn-excluir-lancamento');
-                const lancamentoId = btnExcluir.dataset.id;
+                new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao')).show();
+            } else if (e.target.closest('.btn-excluir-lancamento')) {
+                const lancamentoId = e.target.closest('.btn-excluir-lancamento').dataset.id;
                 document.getElementById('deleteLancamentoId').value = lancamentoId;
-                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento'));
-                modalConfirmacao.show();
+                new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento')).show();
             }
         });
 
-        // ==========================================================
-        // >>>>> INÍCIO DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
-        // ==========================================================
         function getProjetosParalisados() {
             const ultimosLancamentosPorProjeto = new Map();
-
-            // 1. Encontra o lançamento mais recente para cada "projeto" (item da OS)
             todosLancamentos.forEach(l => {
-                if (l.detalhe && l.detalhe.id) { // Usa o ID do detalhe como chave única do projeto
+                if (l.detalhe && l.detalhe.id) {
                     const chaveProjeto = l.detalhe.id;
                     if (!ultimosLancamentosPorProjeto.has(chaveProjeto) || l.id > ultimosLancamentosPorProjeto.get(chaveProjeto).id) {
                         ultimosLancamentosPorProjeto.set(chaveProjeto, l);
                     }
                 }
             });
-
-            // 2. Filtra o mapa para retornar apenas os lançamentos cuja situação é 'Paralisado'
             const lancamentosParalisados = [];
             for (const ultimoLancamento of ultimosLancamentosPorProjeto.values()) {
-                if (ultimoLancamento.situacao === 'Paralisado') {
-                    lancamentosParalisados.push(ultimoLancamento);
-                }
+                if (ultimoLancamento.situacao === 'Paralisado') lancamentosParalisados.push(ultimoLancamento);
             }
-
             return lancamentosParalisados;
         }
-        // ==========================================================
-        // >>>>> FIM DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
-        // ==========================================================
 
         document.getElementById('btnConfirmarExclusaoLancamentoDefinitiva')?.addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;
@@ -1067,23 +924,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const resposta = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}`, { method: 'DELETE' });
-                if (!resposta.ok) {
-                    let errorMsg = 'Erro ao excluir o lançamento.';
-                    try { const errorData = await resposta.json(); errorMsg = errorData.message || errorMsg; }
-                    catch (e) { errorMsg = await resposta.text(); }
-                    throw new Error(errorMsg);
-                }
+                if (!resposta.ok) throw new Error('Erro ao excluir o lançamento.');
                 mostrarToast('Lançamento excluído com sucesso!', 'success');
                 await carregarLancamentos();
             } catch (error) {
-                console.error('Erro na exclusão do lançamento:', error);
+                console.error(error);
                 mostrarToast(error.message, 'error');
             } finally {
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = originalContent;
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
+                if (modalInstance) modalInstance.hide();
             }
         });
 
@@ -1097,10 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
                 const resposta = await fetchComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
-                if (!resposta.ok) {
-                    const erroData = await resposta.json();
-                    throw new Error(erroData.message || 'Erro ao submeter.');
-                }
+                if (!resposta.ok) throw new Error('Erro ao submeter.');
                 mostrarToast('Lançamento submetido com sucesso!', 'success');
                 await carregarLancamentos();
                 renderizarTodasAsTabelas();
@@ -1109,9 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = originalContent;
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
+                if (modalInstance) modalInstance.hide();
             }
         });
 
@@ -1126,32 +971,22 @@ document.addEventListener('DOMContentLoaded', () => {
             selectStatus.disabled = true;
 
             if (etapaSelecionada && etapaSelecionada.etapasDetalhadas && etapaSelecionada.etapasDetalhadas.length > 0) {
-                etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
-                    selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
-                });
+                etapaSelecionada.etapasDetalhadas.forEach(detalhe => selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id)));
                 selectEtapaDetalhada.disabled = false;
-
                 if (etapaDetalhadaIdSelecionada) {
                     selectEtapaDetalhada.value = etapaDetalhadaIdSelecionada;
                     const etapaDetalhada = etapaSelecionada.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaIdSelecionada);
                     if (etapaDetalhada && etapaDetalhada.status && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(statusValue => {
-                            selectStatus.add(new Option(statusValue, statusValue));
-                        });
+                        etapaDetalhada.status.forEach(statusValue => selectStatus.add(new Option(statusValue, statusValue)));
                         selectStatus.disabled = false;
-                        if (statusSelecionado) {
-                            selectStatus.value = statusSelecionado;
-                        }
+                        if (statusSelecionado) selectStatus.value = statusSelecionado;
                     }
                 }
             }
         }
 
         selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
-        selectEtapaDetalhada.addEventListener('change', (e) => {
-            const etapaGeralId = selectEtapaGeral.value;
-            popularDropdownsDependentes(etapaGeralId, e.target.value, null);
-        });
+        selectEtapaDetalhada.addEventListener('change', (e) => popularDropdownsDependentes(selectEtapaGeral.value, e.target.value, null));
     }
 
     function exibirComentarios(lancamento) {
@@ -1249,68 +1084,8 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTodasAsTabelas();
     });
 
-    function popularSelectMateriais(selectElement) {
-        // Se o array de materiais ainda estiver vazio, busca no servidor
-        if (todosOsMateriais.length === 0) {
-            // Placeholder de carregamento
-            selectElement.innerHTML = '<option value="" selected disabled>Carregando materiais...</option>';
-
-            fetchComAuth('http://localhost:8080/materiais')
-                .then(res => res.json())
-                .then(data => {
-                    todosOsMateriais = data;
-                    // Chama a função que aplica o Choices.js
-                    aplicarChoicesNoSelect(selectElement);
-                })
-                .catch(err => {
-                    console.error("Erro ao buscar materiais:", err);
-                    selectElement.innerHTML = '<option value="">Erro ao carregar</option>';
-                });
-        } else {
-            // Se já temos dados, aplica direto
-            aplicarChoicesNoSelect(selectElement);
-        }
-    }
-
-    function aplicarChoicesNoSelect(selectElement) {
-        // Se já houver uma instância do Choices, destrua-a para evitar duplicação
-        if (selectElement.choices) {
-            selectElement.choices.destroy();
-        }
-
-        // Limpa o HTML original
-        selectElement.innerHTML = '';
-
-        // Prepara os dados para o Choices
-        // A mágica da busca está aqui: colocamos tudo no 'label'
-        const opcoes = [
-            { value: '', label: 'Selecione ou pesquise o material...', selected: true, disabled: true },
-            ...todosOsMateriais.map(m => ({
-                value: m.codigo,
-                // O texto abaixo é o que aparece na lista e o que é pesquisável
-                label: `${m.codigo} - ${m.descricao} | ${m.empresa} ${m.modelo ? '| ' + m.modelo : ''} ${m.numeroDeSerie ? '| SN:' + m.numeroDeSerie : ''}`,
-                customProperties: m // Guardamos o objeto completo se precisar
-            }))
-        ];
-
-        // Inicializa a biblioteca
-        const choices = new Choices(selectElement, {
-            choices: opcoes,
-            searchEnabled: true,
-            searchPlaceholderValue: 'Busque por código, nome, série, modelo...',
-            itemSelectText: '',
-            noResultsText: 'Nenhum material encontrado',
-            shouldSort: false, // Mantém a ordem original (ou pode ordenar por nome se preferir)
-            position: 'bottom', // Força abrir para baixo
-            renderChoiceLimit: 50 // Limite de renderização para performance
-        });
-
-        // Salva a instância no elemento DOM para poder destruir depois
-        selectElement.choices = choices;
-    }
-
     // ==========================================================
-    // SEÇÃO 4: LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL
+    // LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL (COM TRANSPORTE)
     // ==========================================================
     const modalSolicitarMaterialEl = document.getElementById('modalSolicitarMaterial');
     if (modalSolicitarMaterialEl) {
@@ -1321,14 +1096,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const listaItensContainer = document.getElementById('listaItens');
         const btnAdicionarItem = document.getElementById('btnAdicionarItem');
 
-        // 1. DECLARAÇÃO DA VARIÁVEL DE DADOS
-        let todosOsMateriais = [];
+        // Elementos de Transporte
+        const containerTransporte = document.getElementById('containerTransporte');
+        const listaTransporte = document.getElementById('listaTransporte');
+        const btnAdicionarTransporte = document.getElementById('btnAdicionarTransporte');
+        const displayTotalTransporte = document.getElementById('displayTotalTransporte');
 
-        // 2. FUNÇÃO PARA POPULAR O SELECT
+        let todosOsMateriais = [];
+        let totalTransporteCalculado = 0;
+
         function popularSelectMateriais(selectElement) {
             if (todosOsMateriais.length === 0) {
                 selectElement.innerHTML = '<option value="" selected disabled>Carregando materiais...</option>';
-
                 fetchComAuth('http://localhost:8080/materiais')
                     .then(res => res.json())
                     .then(data => {
@@ -1344,45 +1123,82 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 3. FUNÇÃO DO CHOICES.JS (COM A ORDEM DO TEXTO CORRIGIDA)
         function aplicarChoicesNoSelect(selectElement) {
-            if (selectElement.choices) {
-                selectElement.choices.destroy();
-            }
-
+            if (selectElement.choices) selectElement.choices.destroy();
             selectElement.innerHTML = '';
-
             const opcoes = [
                 { value: '', label: 'Selecione ou pesquise o material...', selected: true, disabled: true },
                 ...todosOsMateriais.map(m => ({
                     value: m.codigo,
-                    // CORRIGIDO: Empresa vem primeiro, igual ao original
-                    // Formato: EMPRESA - CÓDIGO - DESCRIÇÃO | DETALHES
                     label: `${m.empresa} - ${m.codigo} - ${m.descricao} ${m.modelo ? '| ' + m.modelo : ''} ${m.numeroDeSerie ? '| SN:' + m.numeroDeSerie : ''}`,
                     customProperties: m
                 }))
             ];
-
             const choices = new Choices(selectElement, {
-                choices: opcoes,
-                searchEnabled: true,
-                searchPlaceholderValue: 'Pesquisar material...',
-                itemSelectText: '',
-                noResultsText: 'Nenhum material encontrado',
-                shouldSort: false,
-                position: 'bottom',
-                renderChoiceLimit: 50
+                choices: opcoes, searchEnabled: true, searchPlaceholderValue: 'Pesquisar material...',
+                itemSelectText: '', noResultsText: 'Nenhum material encontrado', position: 'bottom', renderChoiceLimit: 50
             });
-
             selectElement.choices = choices;
         }
 
-        // 4. FUNÇÃO PARA O CARD DE DETALHES
+        function criarHtmlLinhaTransporte() {
+            return `
+                <div class="row g-2 align-items-center mb-2 transporte-row">
+                    <div class="col-md">
+                        <input type="text" class="form-control transporte-select" placeholder="Digite o tipo e dê Enter..." required>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control transporte-valor" placeholder="0,00" required>
+                        </div>
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-remover-transporte" title="Remover">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function inicializarChoicesTransporte(element) {
+            new Choices(element, {
+                allowHTML: true,
+                addItems: true,      // Permite criar novos
+                editItems: true,     // Permite editar (backspace)
+                maxItemCount: 1,     // IMPORTANTE: Só aceita 1 valor por campo
+                removeItemButton: true,
+                searchEnabled: false, // Desliga busca pois é input livre
+                placeholder: true,
+                placeholderValue: "Digite (ex: Uber) e dê Enter",
+                addItemText: (value) => `Pressione Enter para adicionar <b>"${value}"</b>`,
+                uniqueItemText: 'Este item já foi adicionado'
+            });
+
+            // CORREÇÃO EXTRA: Impede que o Enter envie o formulário ao criar o item
+            element.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                }
+            });
+        }
+        function atualizarTotalTransporte() {
+            let total = 0;
+            document.querySelectorAll('.transporte-valor').forEach(input => {
+                const valorLimpo = input.value.replace(/\./g, '').replace(',', '.');
+                const valor = parseFloat(valorLimpo);
+                if (!isNaN(valor)) {
+                    total += valor;
+                }
+            });
+            totalTransporteCalculado = total;
+            displayTotalTransporte.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
+        }
+
         function configurarEventoChangeMaterial(selectElement) {
             selectElement.addEventListener('change', function () {
                 const codigoSelecionado = this.value;
                 const material = todosOsMateriais.find(m => m.codigo === codigoSelecionado);
-
                 const row = this.closest('.item-row');
                 const card = row.querySelector('.material-info-card');
                 const grid = card.querySelector('.material-info-grid');
@@ -1390,7 +1206,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (material) {
                     const custoMedio = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoMedioPonderado || 0);
                     const custoTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoTotal || 0);
-
                     grid.innerHTML = `
                         <div class="info-item"><span class="info-label">Modelo</span><span class="info-value">${material.modelo || '-'}</span></div>
                         <div class="info-item"><span class="info-label">Nº Série</span><span class="info-value">${material.numeroDeSerie || '-'}</span></div>
@@ -1401,44 +1216,84 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="info-item" style="grid-column: 1 / -1;"><span class="info-label">Descrição</span><span class="info-value small">${material.descricao}</span></div>
                     `;
                     card.classList.add('show');
-
                     const inputQtd = row.querySelector('.quantidade-input');
                     if (inputQtd) inputQtd.max = material.saldoFisico;
-
                 } else {
                     card.classList.remove('show');
                 }
             });
         }
 
-        // --- LISTENERS ---
-
         modalSolicitarMaterialEl.addEventListener('show.bs.modal', async () => {
             formSolicitacao.reset();
             listaItensContainer.innerHTML = criarHtmlLinhaItem();
+            listaTransporte.innerHTML = '';
+            totalTransporteCalculado = 0;
+            displayTotalTransporte.textContent = 'R$ 0,00';
 
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectLPU.disabled = true;
             selectOS.innerHTML = '<option value="" selected disabled>Carregando OSs...</option>';
+
+            const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+            const isAdminOrController = ['ADMIN', 'CONTROLLER'].includes(userRole);
+
+            if (isAdminOrController) containerTransporte.classList.remove('d-none');
+            else containerTransporte.classList.add('d-none');
 
             const firstMaterialSelect = listaItensContainer.querySelector('.material-select');
             popularSelectMateriais(firstMaterialSelect);
             configurarEventoChangeMaterial(firstMaterialSelect);
 
             try {
-                const usuarioId = localStorage.getItem('usuarioId');
-                if (!usuarioId) throw new Error('ID do usuário não encontrado.');
+                let urlOS = '';
+                if (isAdminOrController) urlOS = `http://localhost:8080/os?completo=true`;
+                else {
+                    const usuarioId = localStorage.getItem('usuarioId');
+                    urlOS = `http://localhost:8080/os/por-usuario/${usuarioId}`;
+                }
 
-                const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                const oss = await response.json();
+                const response = await fetchComAuth(urlOS);
+                const data = await response.json();
+                const listaOS = Array.isArray(data) ? data : (data.content || []);
 
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
-                oss.forEach(os => {
-                    selectOS.add(new Option(os.os, os.id));
-                });
+                listaOS.sort((a, b) => a.os.localeCompare(b.os));
+                listaOS.forEach(os => selectOS.add(new Option(`${os.os} - ${os.projeto || ''}`, os.id)));
             } catch (error) {
                 console.error("Erro ao buscar OSs:", error);
                 selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        });
+
+        btnAdicionarTransporte.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.innerHTML = criarHtmlLinhaTransporte();
+            const novaLinha = div.firstElementChild;
+            listaTransporte.appendChild(novaLinha);
+
+            const select = novaLinha.querySelector('.transporte-select');
+            inicializarChoicesTransporte(select);
+
+            const inputValor = novaLinha.querySelector('.transporte-valor');
+            inputValor.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '');
+                v = (v / 100).toFixed(2) + '';
+                v = v.replace('.', ',');
+                v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+                e.target.value = v;
+                atualizarTotalTransporte();
+            });
+        });
+
+        listaTransporte.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-remover-transporte');
+            if (btn) {
+                const row = btn.closest('.transporte-row');
+                const select = row.querySelector('.transporte-select');
+                if (select.choices) select.choices.destroy();
+                row.remove();
+                atualizarTotalTransporte();
             }
         });
 
@@ -1446,31 +1301,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const osId = e.target.value;
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-
             if (!osId) {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
                 return;
             }
-
             try {
                 const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
-
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        const codigo = lpu.codigoLpu || lpu.codigo || '';
-                        const nome = lpu.nomeLpu || lpu.nome || '';
-                        const label = `${codigo} - ${nome}`;
+                        const label = `${lpu.codigoLpu || lpu.codigo} - ${lpu.nomeLpu || lpu.nome}`;
                         selectLPU.add(new Option(label, lpu.id));
                     });
                     selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
-                }
+                } else selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
             } catch (error) {
-                console.error("Erro ao buscar LPUs:", error);
+                console.error("Erro LPUs:", error);
                 selectLPU.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         });
@@ -1479,9 +1327,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = criarHtmlLinhaItem();
             const novoItemRow = tempDiv.firstElementChild;
-
             listaItensContainer.appendChild(novoItemRow);
-
             const newSelect = novoItemRow.querySelector('.material-select');
             popularSelectMateriais(newSelect);
             configurarEventoChangeMaterial(newSelect);
@@ -1495,9 +1341,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const select = row.querySelector('.material-select');
                     if (select && select.choices) select.choices.destroy();
                     row.remove();
-                } else {
-                    mostrarToast('A solicitação deve ter pelo menos um item.', 'warning');
-                }
+                } else mostrarToast('A solicitação deve ter pelo menos um material.', 'warning');
             }
         });
 
@@ -1511,9 +1355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('#listaItens .item-row').forEach(row => {
                 const codigoMaterial = row.querySelector('.material-select').value;
                 const quantidade = row.querySelector('.quantidade-input').value;
-                if (codigoMaterial && quantidade) {
-                    itens.push({ codigoMaterial, quantidade: parseFloat(quantidade) });
-                }
+                if (codigoMaterial && quantidade) itens.push({ codigoMaterial, quantidade: parseFloat(quantidade) });
             });
 
             if (itens.length === 0) {
@@ -1523,12 +1365,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            let valorTransporteFinal = 0;
+            if (!containerTransporte.classList.contains('d-none')) {
+                valorTransporteFinal = totalTransporteCalculado;
+            }
+
             const payload = {
                 idSolicitante: localStorage.getItem('usuarioId'),
                 osId: selectOS.value,
                 lpuId: selectLPU.value,
                 justificativa: document.getElementById('justificativaSolicitacao').value,
-                itens: itens
+                itens: itens,
+                valorTransporte: valorTransporteFinal
             };
 
             try {
@@ -1537,13 +1385,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
                 if (!response.ok) {
                     const errorText = await response.text();
                     throw new Error(errorText || 'Falha ao criar solicitação.');
                 }
-
-                mostrarToast('Solicitação enviada com sucesso!', 'success');
+                mostrarToast('Solicitação enviada com sucesso! Transporte atualizado.', 'success');
                 modalSolicitarMaterial.hide();
             } catch (error) {
                 mostrarToast(error.message || 'Erro ao enviar.', 'error');
@@ -1554,47 +1400,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================================
-    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
-    // ==========================================================
     const modalSolicitarComplementarEl = document.getElementById('modalSolicitarComplementar');
     if (modalSolicitarComplementarEl) {
         const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
         const form = document.getElementById('formSolicitarComplementar');
-
         const selectOSComplementar = document.getElementById('osIdComplementar');
         const selectProjetoComplementar = document.getElementById('projetoIdComplementar');
         const selectLPUComplementar = document.getElementById('lpuIdComplementar');
         let todasAsOSComplementar = [];
-
-        // AGORA SÓ A LPU USA O CHOICES.JS
         let choicesLPU;
 
-        // --- LÓGICA DE ABERTURA DO MODAL ---
         modalSolicitarComplementarEl.addEventListener('show.bs.modal', async () => {
             form.reset();
-
             document.getElementById('siteComplementar').value = '';
-
-            // Inicializa o Choices.js APENAS para a LPU
             if (!choicesLPU) {
-                choicesLPU = new Choices(selectLPUComplementar, {
-                    searchEnabled: true,
-                    itemSelectText: '',
-                    noResultsText: 'Nenhuma LPU encontrada',
-                    placeholder: true,
-                    placeholderValue: 'Busque ou selecione uma LPU'
-                });
+                choicesLPU = new Choices(selectLPUComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma LPU encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma LPU' });
             }
-
-            // Limpa os selects e desabilita a LPU
             selectProjetoComplementar.innerHTML = '<option value="">Carregando...</option>';
             selectOSComplementar.innerHTML = '<option value="">Carregando...</option>';
             choicesLPU.clearStore();
             choicesLPU.disable();
 
             try {
-                // Carrega os dados da API (se ainda não tiver em cache)
                 if (todasAsOSComplementar.length === 0) {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
@@ -1602,24 +1429,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!response.ok) throw new Error('Falha ao carregar OSs do usuário.');
                     todasAsOSComplementar = await response.json();
                 }
-
-                // Popula o select de PROJETOS (SELECT NORMAL)
                 const projetosUnicos = [...new Set(todasAsOSComplementar.map(os => os.projeto))];
                 selectProjetoComplementar.innerHTML = '<option value="" selected disabled>Selecione o projeto...</option>';
-                projetosUnicos.forEach(projeto => {
-                    selectProjetoComplementar.add(new Option(projeto, projeto));
-                });
-
-                // Popula o select de OS (SELECT NORMAL)
+                projetosUnicos.forEach(projeto => selectProjetoComplementar.add(new Option(projeto, projeto)));
                 selectOSComplementar.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 todasAsOSComplementar.forEach(os => {
                     const option = new Option(os.os, os.os);
-                    // Armazena dados extras no próprio elemento da opção para consulta futura
                     option.dataset.id = os.id;
                     option.dataset.projeto = os.projeto;
                     selectOSComplementar.add(option);
                 });
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 selectProjetoComplementar.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -1627,46 +1446,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // --- LISTENER DE MUDANÇA NO PROJETO (SELECT NORMAL) ---
         selectProjetoComplementar.addEventListener('change', () => {
             const projetoSelecionado = selectProjetoComplementar.value;
             if (!projetoSelecionado) return;
-
             const osCorrespondente = todasAsOSComplementar.find(os => os.projeto === projetoSelecionado);
             if (osCorrespondente && selectOSComplementar.value !== osCorrespondente.os) {
-                // Define o valor do select de OS
                 selectOSComplementar.value = osCorrespondente.os;
-                // Dispara o evento de 'change' na OS para carregar as LPUs
                 selectOSComplementar.dispatchEvent(new Event('change'));
             }
         });
 
-        // --- LISTENER DE MUDANÇA NA OS (SELECT NORMAL) ---
         selectOSComplementar.addEventListener('change', async () => {
             const osCodigo = selectOSComplementar.value;
             if (!osCodigo) return;
-
-            // --- CÓDIGO NOVO PARA PREENCHER O SITE ---
             const inputSite = document.getElementById('siteComplementar');
-            // Busca o objeto completo da OS na lista carregada anteriormente
             const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigo);
+            if (osSelecionada && osSelecionada.detalhes && osSelecionada.detalhes.length > 0) inputSite.value = osSelecionada.detalhes[0].site || '-';
+            else inputSite.value = '';
 
-            if (osSelecionada && osSelecionada.detalhes && osSelecionada.detalhes.length > 0) {
-                // Pega o site do primeiro detalhe da OS (geralmente é o mesmo para toda a OS)
-                inputSite.value = osSelecionada.detalhes[0].site || '-';
-            } else {
-                inputSite.value = '';
-            }
-            // --- FIM DO CÓDIGO NOVO ---
-
-            // Atualiza o select de Projeto se necessário
             const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
             const projetoDaOS = selectedOption.dataset.projeto;
-            if (projetoDaOS && selectProjetoComplementar.value !== projetoDaOS) {
-                selectProjetoComplementar.value = projetoDaOS;
-            }
+            if (projetoDaOS && selectProjetoComplementar.value !== projetoDaOS) selectProjetoComplementar.value = projetoDaOS;
 
-            // Carrega as LPUs
             choicesLPU.clearStore();
             choicesLPU.disable();
             choicesLPU.setChoices([{ value: '', label: 'Carregando LPUs...', disabled: true }]);
@@ -1675,38 +1476,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(`${API_BASE_URL}/contrato`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const contratos = await response.json();
-
                 const lpuChoices = [{ value: '', label: 'Selecione o item LPU...', selected: true, disabled: true }];
                 contratos.forEach(contrato => {
                     if (contrato.lpus && contrato.lpus.length > 0) {
                         contrato.lpus.forEach(lpu => {
                             if (lpu.ativo) {
-                                lpuChoices.push({
-                                    value: lpu.id,
-                                    label: `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`
-                                });
+                                lpuChoices.push({ value: lpu.id, label: `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}` });
                             }
                         });
                     }
                 });
                 choicesLPU.setChoices(lpuChoices, 'value', 'label', false);
                 choicesLPU.enable();
-
             } catch (error) {
                 mostrarToast('Erro ao carregar a lista de LPUs.', 'error');
                 choicesLPU.setChoices([{ value: '', label: 'Erro ao carregar', disabled: true }]);
             }
         });
 
-        // --- LÓGICA DE SUBMISSÃO DO FORMULÁRIO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
-
-            // Pega o ID da OS a partir do 'data-id' da opção selecionada
             const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
             const osIdParaApi = selectedOption ? selectedOption.dataset.id : null;
-
             const payload = {
                 osId: osIdParaApi,
                 lpuId: selectLPUComplementar.value,
@@ -1714,25 +1506,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 justificativa: document.getElementById('justificativaComplementar').value,
                 solicitanteId: localStorage.getItem('usuarioId')
             };
-
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-
             try {
-                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Erro ao enviar solicitação.');
                 }
-
                 mostrarToast('Solicitação de atividade complementar enviada com sucesso!', 'success');
                 modalSolicitarComplementar.hide();
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1767,34 +1550,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     colunas: colunasHistorico
                 }
             };
-
             const wb = XLSX.utils.book_new();
-
             for (const aba in dadosParaExportar) {
                 const { dados, colunas } = dadosParaExportar[aba];
                 const rows = dados.map(lancamento => {
                     return colunas.map(coluna => {
                         const func = dataMapping[coluna];
-                        if (func) {
-                            return func(lancamento);
-                        }
+                        if (func) return func(lancamento);
                         return "";
                     });
                 });
-
                 const ws = XLSX.utils.aoa_to_sheet([colunas, ...rows]);
-
-                // Ajuste de largura das colunas
                 const colWidths = colunas.map(col => ({ wch: Math.max(15, col.length + 2) }));
                 ws['!cols'] = colWidths;
-
                 XLSX.utils.book_append_sheet(wb, ws, aba);
             }
-
             XLSX.writeFile(wb, "lancamentos.xlsx");
         });
     }
-
 
     function inicializarCabecalhos() {
         renderizarCabecalho(colunasLancamentos, document.querySelector('#lancamentos-pane thead'));

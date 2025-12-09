@@ -391,22 +391,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span class="kpi-value">${formatarMoeda(valorTotalCPS)}</span>
                 </div>`;
 
-            // 4. Material (com botão de editar para Admin/Controller)
-            let btnEditarFinanceiro = '';
-            if (['ADMIN', 'CONTROLLER'].includes(userRole)) {
-                btnEditarFinanceiro = `
-                    <i class="bi bi-pencil-square text-primary ms-1" 
-                       style="cursor: pointer; font-size: 0.8rem;"
-                       onclick="abrirModalFinanceiro(${osId}, '${dadosOS.os}', ${custoTotalMateriais}, ${valorTransporte}); event.stopPropagation();" 
-                       title="Editar Material/Transporte"></i>
-                `;
-            }
             kpisInternosHTML += `
                 <div class="header-kpi">
                     <span class="kpi-label">Material</span>
                     <span class="kpi-value">
                         ${formatarMoeda(custoTotalMateriais)}
-                        ${btnEditarFinanceiro}
                     </span>
                 </div>`;
 

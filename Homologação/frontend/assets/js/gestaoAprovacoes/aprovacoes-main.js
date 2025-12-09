@@ -20,20 +20,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // 2. Carregamento Inicial
-    const primeiraAba = document.querySelector('#aprovacoesTab .nav-link.active');
-    if (primeiraAba) {
-        const targetPaneId = primeiraAba.getAttribute('data-bs-target');
-        toggleLoader(true, targetPaneId);
-
-        carregarDashboardEBadges().finally(() => {
-            toggleLoader(false, targetPaneId);
-            // Renderiza a aba ativa inicialmente
-            if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-            else if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
-            else if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
-            else if (targetPaneId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
-        });
+    const abaInicial = document.querySelector('#aprovacoesTab .nav-link.active');
+    if (abaInicial) {
+        const idInicial = abaInicial.getAttribute('data-bs-target');
+        toggleLoader(true, idInicial);
     }
+
+    carregarDashboardEBadges().finally(() => {
+        const abaAtivaAgora = document.querySelector('#aprovacoesTab .nav-link.active');
+        
+        // Remove loader de todas as abas possíveis para garantir
+        ['#atividades-pane', '#materiais-pane', '#complementares-pane', '#cps-pendencias-pane'].forEach(id => toggleLoader(false, id));
+
+        if (abaAtivaAgora) {
+            const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
+            
+            // Renderiza o conteúdo da aba que o usuário está vendo AGORA
+            if (painelAtivoId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+            else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
+            else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+        }
+    });
 
     // 3. Listeners de Troca de Abas
     const tabElements = document.querySelectorAll('#aprovacoesTab .nav-link');

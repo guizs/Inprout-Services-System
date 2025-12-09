@@ -43,7 +43,8 @@ public record SolicitacaoResponseDTO(
                 entity.getDataAcaoController(),
                 entity.getMotivoRecusa(),
                 new OsSimpleDTO(entity.getOs()),
-                new LpuSimpleDTO(entity.getLpu())
+                new LpuSimpleDTO(entity.getLpu()),
+                List<ComentarioSimplesDTO>
         );
     }
 

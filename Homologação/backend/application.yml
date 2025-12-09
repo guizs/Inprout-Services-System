@@ -1,27 +1,38 @@
 spring:
+  datasource:
+  url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
+  username: ${DB_USER:postgres}
+  password: ${DB_PASS:inpservices123}
+  driver-class-name: org.postgresql.Driver
+
   #datasource:
-    #url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
+    #url: ${DB_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}
     #username: ${DB_USER:postgres}
     #password: ${DB_PASS:inpservices123}
     #driver-class-name: org.postgresql.Driver
 
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASS:inpservices123}
-    driver-class-name: org.postgresql.Driver
+  hikari:
+    maximum-pool-size: 10
+    minimum-idle: 2
+    idle-timeout: 30000
+    max-lifetime: 1800000
 
   jpa:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_batch_fetch_size: 50
     hibernate:
       ddl-auto: update
 
-    show-sql: true
+    show-sql: false
 
 server:
   port: 8080
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
 
 jwt:
   secret: ${JWT_SECRET:bWV1cHJvamV0b2lucHJvdXRzZWd1cmFuY2EyMDI1Y29tY2hhdmVzdXBlcmZvcnRl}

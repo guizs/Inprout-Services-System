@@ -41,11 +41,6 @@ public class OsController {
             @RequestParam(defaultValue = "10") int size, // Carrega só 10 de início
             @RequestParam(defaultValue = "false") boolean completo // Flag para carregar tudo
     ) {
-        if (completo) {
-            // Se a flag 'completo' for true, traz uma página gigante (hack para trazer tudo)
-            // Ou crie um método específico no service para findAllList
-            return ResponseEntity.ok(osService.findAllWithDetails(PageRequest.of(0, Integer.MAX_VALUE)));
-        }
         return ResponseEntity.ok(osService.findAllWithDetails(PageRequest.of(page, size)));
     }
 

@@ -57,7 +57,6 @@ public class OsServiceImpl implements OsService {
     private final PrestadorRepository prestadorRepository;
     private final EtapaDetalhadaRepository etapaDetalhadaRepository;
 
-
     public OsServiceImpl(OsRepository osRepository, LpuRepository lpuRepository, ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, UsuarioRepository usuarioRepository, LancamentoRepository lancamentoRepository, OsLpuDetalheRepository osLpuDetalheRepository, PrestadorRepository prestadorRepository, EtapaDetalhadaRepository etapaDetalhadaRepository) {
         this.osRepository = osRepository;
         this.lpuRepository = lpuRepository;
@@ -69,6 +68,95 @@ public class OsServiceImpl implements OsService {
         this.prestadorRepository = prestadorRepository;
         this.etapaDetalhadaRepository = etapaDetalhadaRepository;
     }
+
+    // --- MÉTODOS DE LEITURA (Otimizados com readOnly = true) ---
+
+    @Override
+    @Transactional(readOnly = true) // OTIMIZAÇÃO: Não abre transação de escrita, economizando recurso
+    public Page<OsResponseDto> findAllWithDetails(Pageable pageable) {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
+
+        if ("anonymousUser".equals(userEmail)) {
+            return Page.empty(pageable);
+        }
+
+        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
+
+        Role role = usuarioLogado.getRole();
+        Page<OS> paginaOS;
+
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            // Usa query otimizada
+            paginaOS = osRepository.findAllWithDetails(pageable);
+        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
+            if (segmentos.isEmpty()) return Page.empty(pageable);
+
+            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
+            // Usa query otimizada por segmento
+            paginaOS = osRepository.findBySegmentoIdIn(ids, pageable);
+        } else {
+            return Page.empty(pageable);
+        }
+
+        return paginaOS.map(OsResponseDto::new);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OS getOsById(Long id) {
+        // Usa query que já traz todos os detalhes para evitar lazy loading exception
+        return osRepository.findByIdWithDetails(id)
+                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OsResponseDto> getAllOs() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
+
+        if ("anonymousUser".equals(userEmail)) return Collections.emptyList();
+
+        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
+
+        Role role = usuarioLogado.getRole();
+        List<OS> listaOS;
+
+        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
+            listaOS = osRepository.findAllWithDetails();
+        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
+            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
+            if (segmentos.isEmpty()) return Collections.emptyList();
+
+            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
+            listaOS = osRepository.findAllListWithDetailsBySegmentoIds(ids);
+        } else {
+            return Collections.emptyList();
+        }
+
+        return listaOS.stream().map(OsResponseDto::new).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OS> getAllOsByUsuario(Long usuarioId) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
+
+        Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
+
+        if (segmentosDoUsuario.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return osRepository.findAllBySegmentoIn(segmentosDoUsuario);
+    }
+
+    // --- MÉTODOS DE ESCRITA (Mantidos com @Transactional padrão) ---
 
     @Override
     @Transactional
@@ -129,26 +217,20 @@ public class OsServiceImpl implements OsService {
                 detalheCriado.setItem(osDto.getItem());
                 detalheCriado.setUnidade(osDto.getUnidade());
 
-                // --- INÍCIO DA CORREÇÃO ---
                 Integer quantidade = osDto.getQuantidade();
                 detalheCriado.setQuantidade(quantidade);
                 BigDecimal valorTotalPlanilha = osDto.getValorTotal();
 
-                // Se o valor total não foi informado na planilha, o sistema calcula.
                 if (valorTotalPlanilha == null || valorTotalPlanilha.compareTo(BigDecimal.ZERO) == 0) {
                     if (quantidade != null && quantidade > 0 && lpu.getValorSemImposto() != null) {
-                        // Cálculo: valor da LPU * quantidade
                         BigDecimal valorCalculado = lpu.getValorSemImposto().multiply(new BigDecimal(quantidade));
                         detalheCriado.setValorTotal(valorCalculado);
                     } else {
-                        // Se não for possível calcular, o valor fica como zero.
                         detalheCriado.setValorTotal(BigDecimal.ZERO);
                     }
                 } else {
-                    // Se o valor foi informado na planilha, ele é utilizado.
                     detalheCriado.setValorTotal(valorTotalPlanilha);
                 }
-                // --- FIM DA CORREÇÃO ---
 
                 detalheCriado.setObservacoes(osDto.getObservacoes());
                 detalheCriado.setDataPo(osDto.getDataPo());
@@ -175,67 +257,12 @@ public class OsServiceImpl implements OsService {
         if (novoGestorTim == null || novoGestorTim.isBlank()) {
             throw new BusinessException("O novo Gestor TIM não pode ser vazio.");
         }
-
         OS os = osRepository.findById(osId)
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + osId));
-
         os.setGestorTim(novoGestorTim);
         os.setDataAtualizacao(LocalDateTime.now());
-        os.setUsuarioAtualizacao("sistema-patch-gestor"); // Idealmente, pegue o usuário logado
-
+        os.setUsuarioAtualizacao("sistema-patch-gestor");
         return osRepository.save(os);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public OS getOsById(Long id) {
-        return osRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new EntityNotFoundException("OS não encontrada com o ID: " + id));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<OS> getAllOsByUsuario(Long usuarioId) {
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
-
-        Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
-
-        if (segmentosDoUsuario.isEmpty()) {
-            return Collections.emptyList();
-        }
-
-        return osRepository.findAllBySegmentoIn(segmentosDoUsuario);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<OsResponseDto> getAllOs() {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
-
-        if ("anonymousUser".equals(userEmail)) return Collections.emptyList();
-
-        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
-
-        Role role = usuarioLogado.getRole();
-        List<OS> listaOS;
-
-        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            listaOS = osRepository.findAllWithDetails(); // Chama método sem paginação
-        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
-            if (segmentos.isEmpty()) return Collections.emptyList();
-
-            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
-            // Certifique-se que criou este método no Repository
-            listaOS = osRepository.findAllListWithDetailsBySegmentoIds(ids);
-        } else {
-            return Collections.emptyList();
-        }
-
-        return listaOS.stream().map(OsResponseDto::new).collect(Collectors.toList());
     }
 
     @Override
@@ -269,7 +296,6 @@ public class OsServiceImpl implements OsService {
 
             for (Lpu lpu : lpusDesejadas) {
                 OsLpuDetalhe detalhe = detalhesExistentesMap.get(lpu.getId());
-
                 if (detalhe != null) {
                     detalhe.setObjetoContratado(lpu.getNomeLpu());
                     detalhe.setSite(osDto.getSite());
@@ -296,31 +322,20 @@ public class OsServiceImpl implements OsService {
                 }
             }
         }
-
         existingOs.setDataAtualizacao(LocalDateTime.now());
         existingOs.setUsuarioAtualizacao("sistema");
-
         return osRepository.save(existingOs);
     }
 
     @Override
     @Transactional
     public void deleteOs(Long id) {
-        // Busca o detalhe que será excluído
         OsLpuDetalhe detalhe = osLpuDetalheRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Registro de detalhe da OS não encontrado com o ID: " + id));
-
-        OS osPai = detalhe.getOs(); // Pega a OS "pai" antes de excluir o filho
-
-        // Exclui permanentemente o registro (detalhe) do banco de dados
+        OS osPai = detalhe.getOs();
         osLpuDetalheRepository.delete(detalhe);
-
-        // Força o Hibernate a executar a exclusão no banco de dados imediatamente
         osLpuDetalheRepository.flush();
-
-        // Verifica se a OS "pai" ainda tem algum outro detalhe associado a ela
         if (osLpuDetalheRepository.countByOs(osPai) == 0) {
-            // Se não houver mais nenhum detalhe, exclui a OS "pai" também
             osRepository.delete(osPai);
         }
     }
@@ -353,49 +368,15 @@ public class OsServiceImpl implements OsService {
     public OS atualizarValoresFinanceiros(Long osId, BigDecimal materialAdicional, BigDecimal transporteAdicional) {
         OS os = osRepository.findById(osId)
                 .orElseThrow(() -> new EntityNotFoundException("OS não encontrada"));
-
         if (materialAdicional != null) {
             BigDecimal atual = os.getCustoTotalMateriais() != null ? os.getCustoTotalMateriais() : BigDecimal.ZERO;
             os.setCustoTotalMateriais(atual.add(materialAdicional));
         }
-
         if (transporteAdicional != null) {
             BigDecimal transporteAtual = os.getTransporte() != null ? os.getTransporte() : BigDecimal.ZERO;
             os.setTransporte(transporteAtual.add(transporteAdicional));
         }
-
         return osRepository.save(os);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<OsResponseDto> findAllWithDetails(Pageable pageable) {
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String userEmail = (principal instanceof UserDetails) ? ((UserDetails) principal).getUsername() : principal.toString();
-
-        if ("anonymousUser".equals(userEmail)) {
-            return Page.empty(pageable);
-        }
-
-        Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
-
-        Role role = usuarioLogado.getRole();
-        Page<OS> paginaOS;
-
-        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            paginaOS = osRepository.findAllWithDetails(pageable);
-        } else if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentos = usuarioLogado.getSegmentos();
-            if (segmentos.isEmpty()) return Page.empty(pageable);
-
-            Set<Long> ids = segmentos.stream().map(Segmento::getId).collect(Collectors.toSet());
-            paginaOS = osRepository.findBySegmentoIdIn(ids, pageable);
-        } else {
-            return Page.empty(pageable);
-        }
-
-        return paginaOS.map(OsResponseDto::new);
     }
 
     // =================================================================================

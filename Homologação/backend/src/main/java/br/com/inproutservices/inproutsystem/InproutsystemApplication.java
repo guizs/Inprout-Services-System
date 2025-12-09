@@ -4,11 +4,13 @@ package br.com.inproutservices.inproutsystem;
 import jakarta.annotation.PostConstruct; // Importe esta linha
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import java.util.TimeZone; // Importe esta linha
 
 @SpringBootApplication
 @EnableScheduling
+@EnableCaching
 public class InproutsystemApplication {
 
 	@PostConstruct

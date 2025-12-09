@@ -3,6 +3,8 @@ package br.com.inproutservices.inproutsystem.services.index;
 import br.com.inproutservices.inproutsystem.entities.index.Prestador;
 import br.com.inproutservices.inproutsystem.repositories.index.PrestadorRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,25 +18,29 @@ public class PrestadorService {
     @Autowired
     private PrestadorRepository prestadorRepository;
 
+    @Cacheable("prestadores")
     public List<Prestador> listarTodos() {
-        // CORREÇÃO: Ordenando por 'id' em vez de 'codigoPrestador'
         return prestadorRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
     }
 
+    @Cacheable("prestadores")
     public List<Prestador> listarAtivos() {
         // CORREÇÃO: Ordenando por 'id'
         return prestadorRepository.findByAtivoTrueOrderByIdAsc();
     }
 
+    @Cacheable("prestadores")
     public List<Prestador> listarDesativados() {
         // CORREÇÃO: Ordenando por 'id'
         return prestadorRepository.findByAtivoFalseOrderByIdAsc();
     }
 
+    @Cacheable("prestadores")
     public Optional<Prestador> buscarPorCodigo(String codigo) {
         return prestadorRepository.findByCodigoPrestador(codigo);
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     @Transactional
     public Prestador salvar(Prestador prestador) {
         if (prestadorRepository.existsByCodigoPrestador(prestador.getCodigoPrestador())) {
@@ -44,10 +50,12 @@ public class PrestadorService {
         return prestadorRepository.save(prestador);
     }
 
+    @Cacheable("prestadores")
     public Optional<Prestador> buscarPorId(Long id) {
         return prestadorRepository.findById(id);
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     @Transactional
     public void desativar(String codigo) {
         Prestador prestador = prestadorRepository.findByCodigoPrestador(codigo)
@@ -57,6 +65,7 @@ public class PrestadorService {
         prestadorRepository.save(prestador);
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     @Transactional
     public void ativar(String codigo) {
         Prestador prestador = prestadorRepository.findByCodigoPrestador(codigo)
@@ -66,6 +75,7 @@ public class PrestadorService {
         prestadorRepository.save(prestador);
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     @Transactional
     public Prestador atualizar(Long id, Prestador dadosNovos) {
         Prestador prestadorExistente = prestadorRepository.findById(id)
@@ -80,6 +90,7 @@ public class PrestadorService {
         return prestadorRepository.save(prestadorExistente);
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     private void atualizarDados(Prestador existente, Prestador novosDados) {
         existente.setCodigoPrestador(novosDados.getCodigoPrestador());
         existente.setPrestador(novosDados.getPrestador());
@@ -102,6 +113,7 @@ public class PrestadorService {
         existente.setObservacoes(novosDados.getObservacoes());
     }
 
+    @CacheEvict(value = "prestadores", allEntries = true)
     @Transactional(readOnly = true)
     public List<Prestador> buscarPorTermo(String termo) {
         if (termo == null || termo.isBlank()) {

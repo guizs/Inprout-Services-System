@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Busca TUDO de uma vez (usando o parâmetro completo=true que vi no seu código)
             // Se o backend não suportar 'completo=true', mude para size=99999
-            const response = await fetchComAuth(`${API_BASE_URL}/os?completo=true`, {
+            const response = await fetchComAuth(`${API_BASE_URL}/os?page=0&size=100000`, {
                 headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
             });
 
@@ -622,7 +622,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return 0;
         });
 
-        gruposFiltradosCache = agrupado;
+        gruposFiltradosCache = transformarEmGrupos(linhasFiltradas);
         paginaAtual = 1;
         renderizarTabela();
     }
@@ -1233,115 +1233,194 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         btnExportar.addEventListener('click', async () => {
-            const gruposParaExportar = gruposFiltradosCache;
-            if (gruposParaExportar.length === 0) {
+            // 1. Verificações iniciais
+            if (todasAsLinhas.length === 0 && gruposFiltradosCache.length === 0) {
                 mostrarToast('Não há dados para exportar.', 'error');
                 return;
             }
 
-            // Mostra o modal de progresso
+            // 2. Recupera o Modal de forma segura (impede duplicidade)
             const modalProgressoEl = document.getElementById('modalProgressoExportacao');
-            const modalProgresso = new bootstrap.Modal(modalProgressoEl);
-            const textoProgresso = document.getElementById('textoProgresso');
+            // Usa getOrCreateInstance para não criar dois modais no mesmo elemento
+            const modalProgresso = bootstrap.Modal.getOrCreateInstance(modalProgressoEl);
+
+            const statusCarregamento = isCarregandoTudo
+                ? `<span class="text-warning"><i class="bi bi-hourglass-split"></i> Carregando restante dos dados...</span>`
+                : `<span class="text-success"><i class="bi bi-check-circle"></i> Carga completa.</span>`;
+
+            // 3. Pergunta ao usuário
+            const result = await Swal.fire({
+                title: 'Exportar Relatório',
+                html: `
+                <div class="text-start fs-6">
+                    <p>O que você deseja exportar?</p>
+                    <ul class="text-muted small mb-3">
+                        <li><b>Filtrados:</b> Apenas o que aparece na sua busca/tela atual.</li>
+                        <li><b>Completo:</b> Todo o banco de dados carregado.</li>
+                    </ul>
+                    <div class="alert alert-light border">
+                        <small>
+                            Total visível agora: <b>${gruposFiltradosCache.length}</b> grupos.<br>
+                            Total em memória (Tudo): <b>${todasAsLinhas.length}</b> registros.<br>
+                            Status: ${statusCarregamento}
+                        </small>
+                    </div>
+                </div>
+            `,
+                icon: 'question',
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: '<i class="bi bi-filter"></i> Apenas Filtrados',
+                denyButtonText: '<i class="bi bi-database"></i> Banco Completo',
+                cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#6c757d',
+                denyButtonColor: '#198754',
+                reverseButtons: true
+            });
+
+            if (!result.isConfirmed && !result.isDenied) {
+                return;
+            }
+
+            let gruposParaExportar = [];
+
+            if (result.isConfirmed) {
+                gruposParaExportar = gruposFiltradosCache;
+                if (gruposParaExportar.length === 0) {
+                    mostrarToast('Nenhum registro filtrado para exportar.', 'warning');
+                    return;
+                }
+            } else if (result.isDenied) {
+                if (todasAsLinhas.length <= 10 && isCarregandoTudo) {
+                    await Swal.fire({
+                        icon: 'warning',
+                        title: 'Aguarde...',
+                        text: 'Os dados completos ainda estão sendo baixados. Tente novamente em alguns segundos.',
+                        timer: 3000
+                    });
+                    return;
+                }
+                gruposParaExportar = transformarEmGrupos(todasAsLinhas);
+            }
+
+            // 4. Exibe o modal
             modalProgresso.show();
+            const textoProgresso = document.getElementById('textoProgresso');
             textoProgresso.textContent = 'Preparando dados...';
 
             try {
-                // --- INÍCIO DA LÓGICA PARA MÚLTIPLAS ABAS ---
+                await new Promise(r => setTimeout(r, 300)); // Delay para garantir que o modal renderizou
 
-                // 1. Prepara os dados para a Aba de Resumo
-                textoProgresso.textContent = 'Gerando aba de resumo...';
+                // --- GERAÇÃO DO EXCEL ---
+                textoProgresso.textContent = `Processando ${gruposParaExportar.length} grupos...`;
+
                 const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "Total CPS Legado", "% Concluído"];
                 const resumoRows = gruposParaExportar.map(grupo => {
-                    // 1. Cálculos existentes
-                    const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', [])
-                        .reduce((sum, d) => sum + (d.valorTotal || 0), 0);
-
+                    const dadosOS = grupo.linhas[0].os || {};
+                    const valorTotalOS = get(grupo.linhas[0], 'os.detalhes', []).reduce((sum, d) => sum + (d.valorTotal || 0), 0);
                     const valorTotalCPS = grupo.linhas
                         .flatMap(linha => get(linha, 'detalhe.lancamentos', []))
                         .filter(lanc => ['APROVADO'].includes(lanc.situacaoAprovacao))
                         .reduce((sum, lanc) => sum + (lanc.valor || 0), 0);
-
-                    const custoTotalMateriais = get(grupo.linhas[0], 'os.custoTotalMateriais', 0) || 0;
-
-                    // 2. --- CORREÇÃO: DEFININDO A VARIÁVEL QUE FALTAVA ---
-                    // Pegamos os dados da OS a partir da primeira linha do grupo
-                    const dadosOS = grupo.linhas[0].os || {};
-                    // Agora criamos a variável valorCpsLegado para poder usar depois
+                    const custoTotalMateriais = dadosOS.custoTotalMateriais || 0;
                     const valorCpsLegado = dadosOS.valorCpsLegado || 0;
-                    // -----------------------------------------------------
-
-                    // 3. Atualizando o percentual para incluir o legado (opcional, mas recomendado se for exibir)
                     const percentual = valorTotalOS > 0
                         ? ((valorTotalCPS + custoTotalMateriais + valorCpsLegado) / valorTotalOS) * 100
                         : 0;
-
-                    return [
-                        grupo.projeto,
-                        grupo.os,
-                        valorTotalOS,
-                        valorTotalCPS,
-                        custoTotalMateriais,
-                        valorCpsLegado, // <--- Agora vai funcionar porque a variável foi criada acima
-                        percentual
-                    ];
+                    return [grupo.projeto, grupo.os, valorTotalOS, valorTotalCPS, custoTotalMateriais, valorCpsLegado, percentual];
                 });
 
-                // 2. Prepara os dados para a Aba de Detalhes (lógica que já tínhamos)
-                textoProgresso.textContent = 'Gerando aba de detalhes...';
+                textoProgresso.textContent = 'Gerando linhas detalhadas...';
+                await new Promise(r => setTimeout(r, 50));
+
                 const detalhesHeaders = [...headers, "VALOR CPS LEGADO"];
                 const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
                     return detalhesHeaders.map(header => {
                         const func = dataMapping[header];
                         if (!func) return '-';
-
                         let cellValue = func(linhaData);
 
-                        // Formata para tipos corretos para o Excel
-                        if (header.toUpperCase().includes('VALOR')) {
-                            const rawValue = get(linhaData, header === 'VALOR' ? 'ultimoLancamento.valor' : 'detalhe.valorTotal', 0) || 0;
-                            return rawValue; // Passa como número
+                        // Formatação numérica
+                        if (header.toUpperCase().includes('VALOR') || header === 'QUANTIDADE') {
+                            let rawValue = 0;
+                            if (header === 'VALOR') rawValue = get(linhaData, 'ultimoLancamento.valor', 0);
+                            else if (header === 'VALOR TOTAL OS') rawValue = get(linhaData, 'detalhe.valorTotal', 0);
+                            else if (header === 'VALOR CPS LEGADO') rawValue = get(linhaData, 'os.valorCpsLegado', 0);
+                            else if (header === 'QUANTIDADE') rawValue = get(linhaData, 'detalhe.quantidade', 0);
+                            return parseFloat(rawValue) || 0;
                         }
-                        if (header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) {
-                            if (!cellValue) return null;
+                        // Formatação de data
+                        if ((header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) && cellValue && cellValue !== '-') {
                             const partes = cellValue.split(' ')[0].split('/');
                             if (partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]);
-                            return cellValue;
                         }
                         return cellValue;
                     });
                 });
 
-                // 3. Cria o arquivo Excel com as duas abas
-                textoProgresso.textContent = 'Montando arquivo...';
-
-                // Cria a planilha de Resumo
+                textoProgresso.textContent = 'Finalizando arquivo...';
                 const ws_resumo = XLSX.utils.aoa_to_sheet([resumoHeaders, ...resumoRows]);
-                ws_resumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }]; // Larguras customizadas
-
-                // Cria a planilha de Detalhes
+                ws_resumo['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
                 const ws_detalhes = XLSX.utils.aoa_to_sheet([detalhesHeaders, ...detalhesRows]);
-                ws_detalhes['!cols'] = detalhesHeaders.map(h => ({ wch: Math.max(15, h.length + 2) })); // Largura automática
+                ws_detalhes['!cols'] = detalhesHeaders.map(h => ({ wch: 18 }));
 
-                // Cria um novo "livro" (arquivo Excel)
                 const wb = XLSX.utils.book_new();
-
-                // Adiciona as duas planilhas ao livro, com seus respectivos nomes
                 XLSX.utils.book_append_sheet(wb, ws_resumo, "Resumo OS");
                 XLSX.utils.book_append_sheet(wb, ws_detalhes, "Lançamentos Detalhados");
 
-                // 4. Inicia o download do arquivo
-                XLSX.writeFile(wb, "relatorio_registros.xlsx");
-
-                // --- FIM DA LÓGICA ---
+                XLSX.writeFile(wb, "relatorio_registros_completo.xlsx");
 
             } catch (error) {
-                console.error("Erro durante a exportação:", error);
-                mostrarToast('Ocorreu um erro ao gerar o arquivo de exportação.', 'error');
+                console.error("Erro exportação:", error);
+                mostrarToast('Erro ao gerar Excel: ' + error.message, 'error');
             } finally {
-                setTimeout(() => modalProgresso.hide(), 500);
+                // 5. FECHAMENTO BLINDADO
+
+                // Tenta fechar bonito
+                if (modalProgresso) modalProgresso.hide();
+
+                // Espera um tiquinho e força a remoção do fundo cinza se ele sobrar
+                setTimeout(() => {
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(b => b.remove());
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = ''; // Devolve o scroll da página
+                    document.body.style.paddingRight = '';
+                }, 500);
             }
         });
+    }
+
+    function transformarEmGrupos(lista) {
+        if (!lista) return [];
+
+        // Agrupa
+        const agrupado = Object.values(lista.reduce((acc, linha) => {
+            // Cria uma chave única baseada em Projeto + OS
+            const chaveGrupo = `${get(linha, 'os.projeto', 'Sem Projeto')} / ${get(linha, 'os.os', 'Sem OS')}`;
+
+            if (!acc[chaveGrupo]) {
+                acc[chaveGrupo] = {
+                    linhas: [],
+                    projeto: get(linha, 'os.projeto', 'Sem Projeto'),
+                    os: get(linha, 'os.os', 'Sem OS'),
+                    id: get(linha, 'os.id', 'sem-id-' + Math.random())
+                };
+            }
+            acc[chaveGrupo].linhas.push(linha);
+            return acc;
+        }, {}));
+
+        // Ordena igual à tabela
+        agrupado.sort((a, b) => {
+            const osA = a.os.toLowerCase();
+            const osB = b.os.toLowerCase();
+            if (osA < osB) return osSortDirection === 'asc' ? -1 : 1;
+            if (osA > osB) return osSortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        return agrupado;
     }
 
     if (userRole !== 'ADMIN' && userRole !== 'ASSISTANT') {

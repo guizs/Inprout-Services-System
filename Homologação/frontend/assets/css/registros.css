@@ -498,3 +498,26 @@ body .swal2-actions {
     width: 100% !important;
     justify-content: flex-end !important; /* Alinha botões à direita */
 }
+
+/* Ajustes para o SweetAlert ficar igual ao tema */
+div:where(.swal2-container) div:where(.swal2-popup) {
+    border-radius: 12px !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+div:where(.swal2-container) button:where(.swal2-styled).swal2-deny {
+    background-color: #198754 !important; /* Verde Inprout */
+}
+
+div:where(.swal2-container) button:where(.swal2-styled).swal2-deny:hover {
+    background-color: #157347 !important; /* Verde mais escuro */
+}
+
+div:where(.swal2-container) button:where(.swal2-styled).swal2-confirm {
+    background-color: #6c757d !important; /* Cinza */
+}
+
+div:where(.swal2-icon).swal2-question {
+    border-color: #198754 !important;
+    color: #198754 !important;
+}

@@ -40,8 +40,6 @@ import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static br.com.inproutservices.inproutsystem.services.atividades.OsServiceImpl.isRowEmpty;
-
 @Service
 public class LancamentoServiceImpl implements LancamentoService {
 
@@ -497,6 +495,50 @@ public class LancamentoServiceImpl implements LancamentoService {
     }
 
     @Override
+    @Transactional
+    public Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa) {
+        Lancamento lancamento = getLancamentoById(lancamentoId);
+        Usuario coordenador = usuarioRepository.findById(coordenadorId)
+                .orElseThrow(() -> new EntityNotFoundException("Coordenador não encontrado com ID: " + coordenadorId));
+
+        if (valor == null || valor.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("O valor do adiantamento deve ser maior que zero.");
+        }
+        if (justificativa == null || justificativa.isBlank()) {
+            throw new BusinessException("A justificativa é obrigatória para solicitar adiantamento.");
+        }
+        if (lancamento.getValor() != null && valor.compareTo(lancamento.getValor()) > 0) {
+            throw new BusinessException("O valor do adiantamento não pode ser maior que o valor total da atividade.");
+        }
+
+        // CASO 2: Fase Financeira CPS (Status APROVADO + Pagamento EM_ABERTO)
+        else if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.APROVADO &&
+                lancamento.getStatusPagamento() == StatusPagamento.EM_ABERTO) {
+            // No CPS, mudamos apenas o status de pagamento
+            lancamento.setStatusPagamento(StatusPagamento.SOLICITACAO_ADIANTAMENTO);
+        }
+        // CASO DE ERRO
+        else {
+            throw new BusinessException("Status inválido para solicitar adiantamento. O item deve estar 'Pendente Coord.' ou 'Em Aberto (CPS)'.");
+        }
+
+        // Atualizações comuns
+        lancamento.setValorSolicitadoAdiantamento(valor);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        // Adiciona Comentário de Auditoria
+        Comentario comentario = new Comentario();
+        comentario.setLancamento(lancamento);
+        comentario.setAutor(coordenador);
+        comentario.setTexto("SOLICITAÇÃO DE ADIANTAMENTO: " +
+                String.format("R$ %.2f", valor) +
+                ". Justificativa: " + justificativa);
+        lancamento.getComentarios().add(comentario);
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ProgramacaoDiariaDTO> getProgramacaoDiaria(LocalDate dataInicio, LocalDate dataFim) {
         return lancamentoRepository.countLancamentosPorDiaEGestor(dataInicio, dataFim);
@@ -508,11 +550,19 @@ public class LancamentoServiceImpl implements LancamentoService {
         Lancamento lancamento = lancamentoRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + id));
 
-        // Regra de Negócio: Permite exclusão apenas se for RASCUNHO ou RECUSADO
+        if (lancamento.getStatusPagamento() != null) {
+            throw new BusinessException("Não é possível excluir um lançamento que já entrou no fluxo de pagamento (CPS).");
+        }
+
+        if (lancamento.getSituacaoAprovacao() == SituacaoAprovacao.RECUSADO_CONTROLLER) {
+            throw new BusinessException("Não é possível excluir um lançamento que já passou pela aprovação do Controller e foi devolvido. Realize a correção e reenvie.");
+        }
+
+        // Regra original
         if (lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RASCUNHO &&
-                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR &&
-                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_CONTROLLER) {
-            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS, RECUSADOS POR COORDENADOR ou RECUSADOS POR CONTROLLER. Status atual: " + lancamento.getSituacaoAprovacao());
+                lancamento.getSituacaoAprovacao() != SituacaoAprovacao.RECUSADO_COORDENADOR) {
+            // Note que removi RECUSADO_CONTROLLER da lista de permitidos acima
+            throw new BusinessException("A exclusão é permitida apenas para RASCUNHOS ou RECUSADOS POR COORDENADOR.");
         }
 
         lancamentoRepository.delete(lancamento);
@@ -584,10 +634,13 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Lancamento> getAllLancamentos() {
+    public List<Lancamento> getAllLancamentos(LocalDate inicio, LocalDate fim) {
+
+        // --- CORREÇÃO: Definir padrão aqui, ANTES da consulta ---
+        if (inicio == null) inicio = LocalDate.now().minusDays(90);
+        if (fim == null) fim = LocalDate.now();
 
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
         String userEmail;
         if (principal instanceof UserDetails) {
             userEmail = ((UserDetails) principal).getUsername();
@@ -596,26 +649,29 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
-            return lancamentoRepository.findAllWithDetails();
+            // Se for anônimo (não deveria acontecer se protegido), retorna lista vazia
+            return List.of();
         }
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
 
-        List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetails();
+        // Busca com as datas já garantidas
+        List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetailsByPeriodo(inicio, fim);
 
         Role role = usuarioLogado.getRole();
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             return todosLancamentos;
         }
 
+        // Filtra para Managers e Coordinators
         if (role == Role.MANAGER || role == Role.COORDINATOR) {
             Set<Long> segmentosDoUsuario = usuarioLogado.getSegmentos().stream()
                     .map(Segmento::getId)
                     .collect(Collectors.toSet());
 
             if (segmentosDoUsuario.isEmpty()) {
-                return List.of(); // Retorna lista vazia se o usuário não tem segmentos
+                return List.of();
             }
 
             return todosLancamentos.stream()
@@ -635,31 +691,15 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Lancamento> getHistoricoPorUsuario(Long usuarioId) {
+    public List<Lancamento> getHistoricoPorUsuario(Long usuarioId, LocalDate inicio, LocalDate fim) {
+        // Se não vier datas, define o padrão: Hoje e 30 dias atrás
+        if (fim == null) fim = LocalDate.now();
+        if (inicio == null) inicio = fim.minusDays(30);
+
         Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com o ID: " + usuarioId));
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado."));
 
-        Role role = usuario.getRole();
-        List<SituacaoAprovacao> statusHistorico = List.of(
-                SituacaoAprovacao.APROVADO,
-                SituacaoAprovacao.APROVADO_LEGADO,
-                SituacaoAprovacao.RECUSADO_COORDENADOR,
-                SituacaoAprovacao.RECUSADO_CONTROLLER
-        );
-
-        if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
-            return lancamentoRepository.findBySituacaoAprovacaoIn(statusHistorico);
-        }
-
-        if (role == Role.MANAGER || role == Role.COORDINATOR) {
-            Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return List.of();
-            }
-            return lancamentoRepository.findBySituacaoAprovacaoInAndOsSegmentoIn(statusHistorico, segmentosDoUsuario);
-        }
-
-        return List.of();
+        return lancamentoRepository.findHistoricoByUsuarioIdAndPeriodo(usuarioId, inicio, fim);
     }
 
     @Override

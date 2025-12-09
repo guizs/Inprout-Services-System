@@ -12,7 +12,10 @@ import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalhe
 import br.com.inproutservices.inproutsystem.services.atividades.ControleCpsService;
 import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import jakarta.validation.Valid;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,8 +38,8 @@ public class ControleCpsController {
     private final LancamentoRepository lancamentoRepository;
 
     public ControleCpsController(ControleCpsService controleCpsService,
-                                  OsLpuDetalheRepository osLpuDetalheRepository,
-                                  LancamentoRepository lancamentoRepository) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository,
+                                 LancamentoRepository lancamentoRepository) {
         this.controleCpsService = controleCpsService;
         this.osLpuDetalheRepository = osLpuDetalheRepository;
         this.lancamentoRepository = lancamentoRepository;
@@ -104,10 +107,12 @@ public class ControleCpsController {
                 .map(l -> l.getOs().getId())
                 .collect(Collectors.toSet());
 
+        // Busca detalhes da LPU para total da OS
         List<OsLpuDetalhe> detalhes = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds));
 
-        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
-        List<Lancamento> aprovados = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds));
+        // --- CORREÇÃO: Busca TODOS os lançamentos da OS, não só os 'Aprovados' ---
+        // Isso garante que se um item estiver PAGO mas com status de aprovação diferente, ele seja contabilizado
+        List<Lancamento> todosLancamentosDaOs = lancamentoRepository.findByOsIdIn(new ArrayList<>(osIds));
 
         Map<Long, BigDecimal> totalOsMap = detalhes.stream()
                 .collect(Collectors.groupingBy(
@@ -116,20 +121,23 @@ public class ControleCpsController {
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // Total CPS (Operacional Aprovado)
-        Map<Long, BigDecimal> totalCpsMap = aprovados.stream()
+        // Total CPS (Apenas o que está de fato APROVADO operacionalmente)
+        List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
+        Map<Long, BigDecimal> totalCpsMap = todosLancamentosDaOs.stream()
+                .filter(l -> statusAprovado.contains(l.getSituacaoAprovacao()))
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
                         Collectors.mapping(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // --- NOVO CÁLCULO: Total Já Pago ---
-        Map<Long, BigDecimal> totalPagoMap = aprovados.stream()
+        // --- CORREÇÃO NO CÁLCULO DE PAGO ---
+        // Filtra puramente pelo StatusPagamento == PAGO, ignorando a SituacaoAprovacao
+        Map<Long, BigDecimal> totalPagoMap = todosLancamentosDaOs.stream()
                 .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
-                        Collectors.mapping(l -> l.getValorPagamento() != null ? l.getValorPagamento() : BigDecimal.ZERO,
+                        Collectors.mapping(l -> l.getValorPagamento() != null ? l.getValorPagamento() : (l.getValor() != null ? l.getValor() : BigDecimal.ZERO),
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
@@ -138,7 +146,7 @@ public class ControleCpsController {
             BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
             BigDecimal valorCps = totalCpsMap.getOrDefault(osId, BigDecimal.ZERO);
             BigDecimal valorPendente = BigDecimal.ZERO;
-            BigDecimal totalPago = totalPagoMap.getOrDefault(osId, BigDecimal.ZERO); // Pega o valor pago
+            BigDecimal totalPago = totalPagoMap.getOrDefault(osId, BigDecimal.ZERO);
 
             return new LancamentoResponseDTO(
                     l.getId(),
@@ -166,7 +174,10 @@ public class ControleCpsController {
                     l.getValorPagamento(),
                     l.getStatusPagamento(),
                     l.getControllerPagador() != null ? new LancamentoResponseDTO.AutorSimpleDTO(l.getControllerPagador()) : null,
-                    l.getDataPagamento()
+                    l.getDataPagamento(),
+                    l.getDataCompetencia(),
+                    l.getValorAdiantamento(),
+                    l.getValorSolicitadoAdiantamento()
             );
         }).collect(Collectors.toList());
     }
@@ -184,6 +195,49 @@ public class ControleCpsController {
         return ResponseEntity.ok(dashboard);
     }
 
+    @PostMapping("/{id}/solicitar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        BigDecimal valor = new BigDecimal(payload.get("valor").toString());
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        Lancamento l = controleCpsService.solicitarAdiantamento(id, valor, usuarioId);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @PostMapping("/{id}/pagar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> pagarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long controllerId = Long.valueOf(payload.get("usuarioId").toString());
+        Lancamento l = controleCpsService.aprovarAdiantamento(id, controllerId);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @PostMapping("/{id}/recusar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> recusarAdiantamento(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long controllerId = Long.valueOf(payload.get("usuarioId").toString());
+        String motivo = (String) payload.get("motivo");
+        Lancamento l = controleCpsService.recusarAdiantamento(id, controllerId, motivo);
+        return ResponseEntity.ok(new LancamentoResponseDTO(l));
+    }
+
+    @GetMapping("/exportar")
+    public ResponseEntity<ByteArrayResource> exportarRelatorioCps(
+            @RequestHeader("X-User-ID") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim,
+            @RequestParam(required = false) Long segmentoId,
+            @RequestParam(required = false) Long gestorId,
+            @RequestParam(required = false) Long prestadorId
+    ) {
+        byte[] dadosExcel = controleCpsService.exportarRelatorioExcel(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
+
+        ByteArrayResource resource = new ByteArrayResource(dadosExcel);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=relatorio_cps.xlsx")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentLength(dadosExcel.length)
+                .body(resource);
+    }
+
     @GetMapping("/historico")
     public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoControleCps(
             @RequestHeader("X-User-ID") Long usuarioId,
@@ -196,5 +250,24 @@ public class ControleCpsController {
         // Passa os filtros para o serviço
         List<Lancamento> historico = controleCpsService.getHistoricoControleCps(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
         return ResponseEntity.ok(enriquecerComTotais(historico));
+    }
+
+    @PostMapping("/fechar-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> fecharParaPagamentoLote(@Valid @RequestBody ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.fecharParaPagamentoLote(dto);
+        // Reutiliza seu método existente de enriquecer com totais
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
+    }
+
+    @PostMapping("/recusar-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> recusarPagamentoLote(@Valid @RequestBody ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.recusarPagamentoLote(dto);
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
+    }
+
+    @PostMapping("/recusar-controller-lote")
+    public ResponseEntity<List<LancamentoResponseDTO>> recusarPeloControllerLote(@Valid @RequestBody ControleCpsDTO.AcaoRecusaControllerLoteDTO dto) {
+        List<Lancamento> lancamentos = controleCpsService.recusarPeloControllerLote(dto);
+        return ResponseEntity.ok(enriquecerComTotais(lancamentos));
     }
 }

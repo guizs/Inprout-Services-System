@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.dtos.materiais;
 
+import br.com.inproutservices.inproutsystem.entities.atividades.Comentario; // Import Necessário
 import br.com.inproutservices.inproutsystem.entities.index.Lpu;
 import br.com.inproutservices.inproutsystem.entities.materiais.ItemSolicitacao;
 import br.com.inproutservices.inproutsystem.entities.materiais.Solicitacao;
@@ -16,18 +17,19 @@ import java.util.stream.Collectors;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SolicitacaoResponseDTO(
         Long id,
-        String nomeSolicitante, // Alterado de ID para Nome
+        String nomeSolicitante,
         LocalDateTime dataSolicitacao,
         String justificativa,
         StatusSolicitacao status,
         List<ItemSolicitacaoResponseDTO> itens,
-        String nomeAprovadorCoordenador, // Novo
+        String nomeAprovadorCoordenador,
         LocalDateTime dataAcaoCoordenador,
-        String nomeAprovadorController, // Novo
+        String nomeAprovadorController,
         LocalDateTime dataAcaoController,
         String motivoRecusa,
         OsSimpleDTO os,
-        LpuSimpleDTO lpu
+        LpuSimpleDTO lpu,
+        List<ComentarioSimplesDTO> comentarios // <--- NOVO CAMPO ADICIONADO
 ) {
     public SolicitacaoResponseDTO(Solicitacao entity) {
         this(
@@ -43,11 +45,22 @@ public record SolicitacaoResponseDTO(
                 entity.getDataAcaoController(),
                 entity.getMotivoRecusa(),
                 new OsSimpleDTO(entity.getOs()),
-                new LpuSimpleDTO(entity.getLpu())
+                new LpuSimpleDTO(entity.getLpu()),
+                // Mapeia a lista de comentários da entidade para o DTO simples
+                entity.getComentarios().stream().map(ComentarioSimplesDTO::new).collect(Collectors.toList())
         );
     }
 
-    // DTO aninhado para o Item, agora com o saldo em estoque
+    // --- DTOs ANINHADOS ---
+
+    // Novo DTO para exibir os comentários de forma resumida
+    public record ComentarioSimplesDTO(String autor, String texto, LocalDateTime dataHora) {
+        public ComentarioSimplesDTO(Comentario c) {
+            this(c.getAutor().getNome(), c.getTexto(), c.getDataHora());
+        }
+    }
+
+    // DTO aninhado para o Item
     public record ItemSolicitacaoResponseDTO(
             Long id,
             MaterialSimpleDTO material,
@@ -69,7 +82,7 @@ public record SolicitacaoResponseDTO(
                     materialEntity.getId(),
                     materialEntity.getDescricao(),
                     materialEntity.getSaldoFisico(),
-                    materialEntity.getUnidadeMedida() // 2. E ADICIONE AQUI
+                    materialEntity.getUnidadeMedida()
             );
         }
     }

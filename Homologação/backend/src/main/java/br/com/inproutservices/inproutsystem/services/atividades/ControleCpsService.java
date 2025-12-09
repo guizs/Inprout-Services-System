@@ -19,7 +19,9 @@ public interface ControleCpsService {
      * Busca o histórico de pagamentos (PAGO, RECUSADO).
      */
     List<Lancamento> getHistoricoControleCps(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
+
     DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
+
     /**
      * Ação do Coordenador: Fecha um lançamento para pagamento, definindo o valor final.
      */
@@ -41,4 +43,20 @@ public interface ControleCpsService {
     List<Lancamento> marcarComoPago(ControleCpsDTO.AcaoControllerDTO dto);
 
     Lancamento recusarPeloController(ControleCpsDTO.AcaoRecusaControllerDTO dto);
+
+    List<Lancamento> fecharParaPagamentoLote(ControleCpsDTO.AcaoCoordenadorLoteDTO dto);
+
+    List<Lancamento> recusarPagamentoLote(ControleCpsDTO.AcaoRecusaCoordenadorLoteDTO dto);
+
+    List<Lancamento> recusarPeloControllerLote(ControleCpsDTO.AcaoRecusaControllerLoteDTO dto);
+
+    Lancamento solicitarAdiantamento(Long lancamentoId, BigDecimal valor, Long usuarioId);
+
+    Lancamento aprovarAdiantamento(Long lancamentoId, Long controllerId);
+
+    Lancamento recusarAdiantamento(Long lancamentoId, Long controllerId, String motivo);
+
+    byte[] exportarRelatorioExcel(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId);
+
 }
+

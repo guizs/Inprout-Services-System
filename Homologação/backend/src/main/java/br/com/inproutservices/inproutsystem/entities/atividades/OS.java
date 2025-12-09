@@ -31,6 +31,9 @@ public class OS {
     @Column(name = "custo_total_materiais", precision = 10, scale = 2)
     private BigDecimal custoTotalMateriais;
 
+    @Column(name = "transporte")
+    private BigDecimal transporte = BigDecimal.ZERO;
+
     // ----- RELACIONAMENTO CORRETO -----
     @OneToMany(mappedBy = "os", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<OsLpuDetalhe> detalhes = new HashSet<>();
@@ -49,7 +52,16 @@ public class OS {
     private String usuarioAtualizacao;
     private String statusRegistro;
 
-    // ----- CONSTRUTORES (Substituindo o Lombok) -----
+    // ----- CONSTRUTORES
+
+
+    public BigDecimal getTransporte() {
+        return transporte;
+    }
+
+    public void setTransporte(BigDecimal transporte) {
+        this.transporte = transporte;
+    }
 
     /**
      * Construtor padrão (sem argumentos).

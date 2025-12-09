@@ -7,12 +7,15 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.OsService;
 import br.com.inproutservices.inproutsystem.services.index.LpuService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +33,15 @@ public class OsController {
     public OsController(OsService osService, LpuService lpuService) {
         this.osService = osService;
         this.lpuService = lpuService;
+    }
+
+    @GetMapping
+    public ResponseEntity<Page<OsResponseDto>> getAllOs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size, // Carrega só 10 de início
+            @RequestParam(defaultValue = "false") boolean completo // Flag para carregar tudo
+    ) {
+        return ResponseEntity.ok(osService.findAllWithDetails(PageRequest.of(page, size)));
     }
 
     @PatchMapping("/{id}/gestor-tim")
@@ -63,13 +75,16 @@ public class OsController {
         return ResponseEntity.ok(new OsResponseDto(osEncontrada));
     }
 
-    @GetMapping
-    public ResponseEntity<List<OsResponseDto>> getAllOs() {
-        List<OS> oss = osService.findAllWithDetails();
-        List<OsResponseDto> dtos = oss.stream()
-                .map(OsResponseDto::new)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
+    @PatchMapping("/{id}/valores-financeiros")
+    public ResponseEntity<OsResponseDto> atualizarValoresFinanceiros(
+            @PathVariable Long id,
+            @RequestBody Map<String, BigDecimal> payload
+    ) {
+        BigDecimal materialAdicional = payload.get("materialAdicional");
+        BigDecimal novoTransporte = payload.get("transporte");
+
+        OS osAtualizada = osService.atualizarValoresFinanceiros(id, materialAdicional, novoTransporte);
+        return ResponseEntity.ok(new OsResponseDto(osAtualizada));
     }
 
     @PostMapping("/importar-linha")

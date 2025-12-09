@@ -1,20 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE_URL = 'http://localhost:8080';
+    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
     const toastElement = document.getElementById('toastMensagem');
     const toastBody = document.getElementById('toastTexto');
     const toast = toastElement ? new bootstrap.Toast(toastElement) : null;
     const searchInput = document.getElementById('searchInput');
+    let indexDataFim = new Date();
+    let indexDataInicio = new Date();
+    indexDataInicio.setDate(indexDataFim.getDate() - 30);
 
     let sortConfig = {
-        key: 'dataAtividade', // Coluna padrão para ordenação
-        direction: 'desc' // Direção padrão (descendente)
+        key: 'dataAtividade',
+        direction: 'desc'
     };
 
     const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
     const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 
-    // INÍCIO DA CORREÇÃO: Definição do dataMapping que estava faltando
     const dataMapping = {
         "STATUS APROVAÇÃO": (lancamento) => (lancamento.situacaoAprovacao || '').replace(/_/g, ' '),
         "DATA ATIVIDADE": (lancamento) => lancamento.dataAtividade || '',
@@ -44,19 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
         "PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.nome'),
         "VALOR": (lancamento) => formatarMoeda(lancamento.valor),
         "GESTOR": (lancamento) => getNestedValue(lancamento, 'manager.nome'),
-        "AÇÃO": () => '' // Coluna de ação não exporta dados
+        "AÇÃO": () => ''
     };
-    // FIM DA CORREÇÃO
 
     function converterDataParaDDMMYYYY(isoDate) {
-        if (!isoDate || !isoDate.includes('-')) {
-            return isoDate; // Retorna o valor original se for nulo, vazio ou não estiver no formato esperado
-        }
+        if (!isoDate || !isoDate.includes('-')) return isoDate;
         const [ano, mes, dia] = isoDate.split('-');
         return `${dia}/${mes}/${ano}`;
     }
 
-    // Mapeia o texto do cabeçalho para a chave de dados no objeto de lançamento
     const columnKeyMap = {
         "DATA ATIVIDADE": "dataAtividade",
         "OS": "os.os",
@@ -70,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
         "STATUS APROVAÇÃO": "situacaoAprovacao"
     };
 
-    // Função auxiliar para pegar valores aninhados de um objeto (ex: 'os.projeto')
     const getNestedValue = (obj, path) => {
         if (!path) return undefined;
         return path.split('.').reduce((acc, part) => acc && acc[part], obj);
@@ -79,23 +76,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function mostrarToast(mensagem, tipo = 'success') {
         if (!toast || !toastBody) return;
         toastElement.classList.remove('text-bg-success', 'text-bg-danger');
-        if (tipo === 'success') {
-            toastElement.classList.add('text-bg-success');
-        } else if (tipo === 'error') {
-            toastElement.classList.add('text-bg-danger');
-        }
+        if (tipo === 'success') toastElement.classList.add('text-bg-success');
+        else if (tipo === 'error') toastElement.classList.add('text-bg-danger');
         toastBody.textContent = mensagem;
         toast.show();
     }
 
     function parseDataBrasileira(dataString) {
         if (!dataString) return null;
-        // Ex: "21/07/2025 15:04:42"
         const [data, hora] = dataString.split(' ');
         if (!data) return null;
         const [dia, mes, ano] = data.split('/');
         if (!dia || !mes || !ano) return null;
-        // O mês em JavaScript é 0-indexado (Janeiro=0), por isso mes-1
         return new Date(`${ano}-${mes}-${dia}T${hora || '00:00:00'}`);
     }
 
@@ -106,32 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${codigo}${codigo && nome ? ' - ' : ''}${nome}`;
     }
 
-    function normalizarListaLpus(raw) {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (Array.isArray(raw.content)) return raw.content;
-        if (Array.isArray(raw.itens)) return raw.itens;
-        if (Array.isArray(raw.lista)) return raw.lista;
-        return [];
-    }
-
     function toggleLoader(ativo = true) {
         const container = document.querySelector('.content-loader-container');
         if (container) {
             const overlay = container.querySelector("#overlay-loader");
-            if (overlay) {
-                overlay.classList.toggle("d-none", !ativo);
-            }
+            if (overlay) overlay.classList.toggle("d-none", !ativo);
         }
     }
 
     function toggleModalLoader(ativo = true) {
         const modalLoader = document.getElementById('modal-overlay-loader');
-        if (modalLoader) {
-            modalLoader.classList.toggle('d-none', !ativo);
-        }
+        if (modalLoader) modalLoader.classList.toggle('d-none', !ativo);
     }
 
+    // ==========================================================
+    // CONFIGURAÇÃO DE VISIBILIDADE POR ROLE
+    // ==========================================================
     function configurarVisibilidadePorRole() {
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
@@ -144,20 +126,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
         const btnSolicitarComplementar = document.getElementById('btnSolicitarComplementar');
-        const btnExportar = document.getElementById('btnExportar'); // Botão de exportar
+        const btnExportar = document.getElementById('btnExportar');
 
-        // Todos os itens da navegação são visíveis por padrão
+        const kpiPendenteContainer = document.getElementById('kpi-pendente-container');
+
         [navMinhasPendencias, navLancamentos, navPendentes, navParalisados, navHistorico].forEach(el => {
             if (el) el.style.display = 'block';
         });
 
-        // Oculta botões de ação específicos por padrão
         [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
             if (el) el.style.display = 'none';
         });
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // Aplica regras de visibilidade para cada cargo
+        if (kpiPendenteContainer) {
+            kpiPendenteContainer.classList.remove('d-flex');
+            kpiPendenteContainer.classList.add('d-none');
+        }
+
+        if (['COORDINATOR', 'ADMIN', 'CONTROLLER'].includes(userRole)) {
+            if (kpiPendenteContainer) {
+                kpiPendenteContainer.classList.remove('d-none');
+                kpiPendenteContainer.classList.add('d-flex');
+            }
+        }
+
         switch (userRole) {
             case 'MANAGER':
                 [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar].forEach(el => {
@@ -169,31 +161,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (navLancamentos) navLancamentos.style.display = 'none';
                 break;
 
-            // NOVO CASO: Controller agora só vê o botão de exportar.
             case 'CONTROLLER':
                 if (btnExportar) btnExportar.style.display = 'block';
+                if (btnSolicitarMaterial) btnSolicitarMaterial.style.display = 'block';
                 break;
 
-            // CASO SEPARADO: Admin e Assistant continuam vendo todos os botões de ação.
             case 'ADMIN':
             case 'ASSISTANT':
                 [btnNovoLancamento, btnSolicitarMaterial, btnSolicitarComplementar, btnExportar].forEach(el => {
                     if (el) el.style.display = 'block';
                 });
                 break;
-
-            default:
-                // Nenhum botão de ação visível por padrão para outras roles.
-                break;
         }
-        // --- FIM DA CORREÇÃO ---
 
         const tabAtiva = document.querySelector('#lancamentosTab .nav-link.active');
         if (!tabAtiva || tabAtiva.parentElement.style.display === 'none') {
             const primeiraAbaVisivel = document.querySelector('#lancamentosTab .nav-item[style*="block"] .nav-link');
-            if (primeiraAbaVisivel) {
-                new bootstrap.Tab(primeiraAbaVisivel).show();
-            }
+            if (primeiraAbaVisivel) new bootstrap.Tab(primeiraAbaVisivel).show();
         }
     }
 
@@ -294,15 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
-        const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
         const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-
         const frag = document.createDocumentFragment();
 
         dados.forEach(lancamento => {
             const tr = document.createElement('tr');
-
             const detalhe = lancamento.detalhe || {};
             const os = lancamento.os || {};
             const lpu = detalhe.lpu || {};
@@ -336,13 +316,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
-                            buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
+                            if (!lancamento.statusPagamento && lancamento.situacaoAprovacao !== 'RECUSADO_CONTROLLER') {
+                                buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
+                            }
                         } else if (tbodyElement.id === 'tbody-lancamentos') {
                             buttonsHtml += `<button class="btn btn-sm btn-secondary btn-editar-rascunho" data-id="${lancamento.id}" title="Editar Rascunho"><i class="bi bi-pencil"></i></button>`;
                             buttonsHtml += ` <button class="btn btn-sm btn-danger btn-excluir-lancamento" data-id="${lancamento.id}" title="Excluir Lançamento"><i class="bi bi-trash"></i></button>`;
                         } else if (tbodyElement.id === 'tbody-paralisados' || tbodyElement.id === 'tbody-historico') {
                             const chaveProjetoAtual = `${os.id}-${lpu.id}`;
-                            if (!projetosFinalizados.has(chaveProjetoAtual)) {
+                            if (typeof projetosFinalizados !== 'undefined' && !projetosFinalizados.has(chaveProjetoAtual)) {
                                 buttonsHtml += `<button class="btn btn-sm btn-warning btn-retomar" data-id="${lancamento.id}" title="Retomar Lançamento"><i class="bi bi-play-circle"></i></button>`;
                             }
                         }
@@ -354,9 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (["VISTORIA", "INSTALAÇÃO", "ATIVAÇÃO", "DOCUMENTAÇÃO", "DESMOBILIZAÇÃO"].includes(nomeColuna)) {
                         aplicarEstiloStatus(td, mapaDeCelulas[nomeColuna]);
                     }
-                    if (nomeColuna === "DETALHE DIÁRIO") {
-                        td.classList.add('detalhe-diario-cell');
-                    }
+                    if (nomeColuna === "DETALHE DIÁRIO") td.classList.add('detalhe-diario-cell');
                 }
                 tr.appendChild(td);
             });
@@ -409,10 +389,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return dadosFiltrados;
     }
 
-    async function carregarLancamentos() {
+    async function carregarLancamentos(append = false) {
+        if (!append) {
+            indexDataFim = new Date();
+            indexDataInicio = new Date();
+            indexDataInicio.setDate(indexDataFim.getDate() - 30);
+            todosLancamentos = [];
+        }
         toggleLoader(true);
         try {
-            const response = await fetchComAuth('http://localhost:8080/lancamentos');
+            const response = await fetchComAuth('https://www.inproutservices.com.br/api/lancamentos');
             if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
             const lancamentosDaApi = await response.json();
             todosLancamentos = filtrarLancamentosParaUsuario(lancamentosDaApi);
@@ -448,6 +434,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
         const paralisados = getProjetosParalisados().sort(comparer);
 
+        const kpiValorEl = document.getElementById('kpi-valor-pendente');
+        if (kpiValorEl) {
+            const totalPendente = pendentesAprovacao.reduce((acc, curr) => acc + (curr.valor || 0), 0);
+            kpiValorEl.textContent = formatarMoeda(totalPendente);
+        }
+
         inicializarCabecalhos();
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
@@ -459,7 +451,30 @@ document.addEventListener('DOMContentLoaded', () => {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
         }
+
+        atualizarContadorKpi();
     }
+
+    function atualizarContadorKpi() {
+        const abaAtivaBtn = document.querySelector('#lancamentosTab .nav-link.active');
+        if (!abaAtivaBtn) return;
+        const targetId = abaAtivaBtn.getAttribute('data-bs-target');
+        const painelAtivo = document.querySelector(targetId);
+        if (painelAtivo) {
+            const linhas = painelAtivo.querySelectorAll('tbody tr');
+            let total = linhas.length;
+            if (total === 1 && linhas[0].textContent.includes('Nenhum')) total = 0;
+            const elValor = document.getElementById('kpi-qtd-valor');
+            const elLabel = document.getElementById('kpi-qtd-label');
+            if (elValor) elValor.textContent = total;
+            if (elLabel) elLabel.textContent = abaAtivaBtn.innerText.trim().split('\n')[0];
+        }
+    }
+
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tabEl => {
+        tabEl.addEventListener('shown.bs.tab', atualizarContadorKpi);
+    });
 
     function adicionarListenersDeOrdenacao() {
         const theads = document.querySelectorAll('.tab-pane thead');
@@ -468,15 +483,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 const header = e.target.closest('th.sortable');
                 if (!header) return;
                 const key = header.dataset.sortKey;
-                if (sortConfig.key === key) {
-                    sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
-                } else {
-                    sortConfig.key = key;
-                    sortConfig.direction = 'desc';
-                }
+                if (sortConfig.key === key) sortConfig.direction = sortConfig.direction === 'asc' ? 'desc' : 'asc';
+                else { sortConfig.key = key; sortConfig.direction = 'desc'; }
                 renderizarTodasAsTabelas();
             });
         });
+    }
+
+    function criarHtmlLinhaItem() {
+        return `
+        <div class="item-row border-bottom pb-3 mb-3">
+            <div class="row g-2 align-items-center">
+                <div class="col-md">
+                    <label class="form-label visually-hidden">Material</label>
+                    <select class="form-select material-select" required>
+                        <option selected disabled value="">Selecione o material...</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label visually-hidden">Quantidade</label>
+                    <input type="number" class="form-control quantidade-input" placeholder="Qtde." min="0.01" step="0.01" value="1" required>
+                </div>
+                <div class="col-md-auto">
+                    <button type="button" class="btn btn-outline-danger btn-sm btn-remover-item" title="Remover Item">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="material-info-card">
+                <div class="material-info-grid">
+                    </div>
+            </div>
+        </div>`;
     }
 
     const modalAdicionarEl = document.getElementById('modalAdicionar');
@@ -485,15 +524,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (modalAdicionarEl) {
         const formAdicionar = document.getElementById('formAdicionar');
         const modalTitle = document.getElementById('modalAdicionarLabel');
-        const submitButton = document.getElementById('btnSubmitAdicionar');
-
-        const selectOS = document.getElementById('osId');
+        const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
+        const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
+        const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
+        const dataAtividadeInput = document.getElementById('dataAtividade');
+        const lpuContainer = document.getElementById('lpuContainer');
         const selectProjeto = document.getElementById('projetoId');
-        const selectPrestador = document.getElementById('prestadorId');
+        const selectOS = document.getElementById('osId');
+        const selectLPU = document.getElementById('lpuId');
         const selectEtapaGeral = document.getElementById('etapaGeralSelect');
         const selectEtapaDetalhada = document.getElementById('etapaDetalhadaId');
         const selectStatus = document.getElementById('status');
-        const lpuContainer = document.getElementById('lpuContainer');
 
         let todasAsOS = [];
         let todasAsEtapas = [];
@@ -504,13 +545,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const submitter = e.submitter || document.activeElement;
             const acao = submitter.dataset.acao;
             const editingId = formAdicionar.dataset.editingId;
-
             const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId || document.getElementById('lpuId').value;
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
                 osId: selectOS.value,
-                prestadorId: selectPrestador.value,
+                prestadorId: document.getElementById('prestadorId').value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
                 dataAtividade: converterDataParaDDMMYYYY(document.getElementById('dataAtividade').value),
                 vistoria: document.getElementById('vistoria').value,
@@ -531,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 osLpuDetalheId: osLpuDetalheIdCorreto
             };
 
-            const url = editingId ? `http://localhost:8080/lancamentos/${editingId}` : 'http://localhost:8080/lancamentos';
+            const url = editingId ? `https://www.inproutservices.com.br/api/lancamentos/${editingId}` : 'https://www.inproutservices.com.br/api/lancamentos';
             const method = editingId ? 'PUT' : 'POST';
 
             try {
@@ -560,18 +600,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectLPU.innerHTML = '';
                 return;
             }
-
             lpuContainer.classList.remove('d-none');
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
             selectLPU.disabled = true;
-
             try {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
-                const response = await fetchComAuth(`http://localhost:8080/os/${osId}`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}`);
                 if (!response.ok) throw new Error('Falha ao buscar detalhes da OS.');
                 const osData = await response.json();
                 const lpusParaExibir = osData.detalhes;
-
                 if (lpusParaExibir && lpusParaExibir.length > 0) {
                     lpusParaExibir.forEach(item => {
                         const lpu = item.lpu || item;
@@ -580,16 +617,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         const codigo = lpu.codigoLpu || lpu.codigo || '';
                         const nome = lpu.nomeLpu || lpu.nome || '';
                         const label = `${codigo} - ${nome} | Qtd: ${quantidade} | Key: ${key}`;
-                        const value = item.id;
-                        selectLPU.add(new Option(label, value));
+                        selectLPU.add(new Option(label, item.id));
                     });
                 }
-
-                if (selectLPU.options.length <= 1) {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
-                } else {
-                    selectLPU.disabled = false;
-                }
+                if (selectLPU.options.length <= 1) selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada.</option>';
+                else selectLPU.disabled = false;
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 lpuContainer.classList.add('d-none');
@@ -598,11 +630,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const os = todasAsOS.find(os => os.id == osId); // Busca o objeto completo na lista
-            if (os && selectProjeto.value !== os.projeto) {
-                selectProjeto.value = os.projeto;
-            }
-            preencherCamposOS(os); // Passa o objeto OS completo
+            const os = todasAsOS.find(os => os.id == osId);
+            if (os && selectProjeto.value !== os.projeto) selectProjeto.value = os.projeto;
+            preencherCamposOS(os);
             await carregarEPopularLPU(osId);
         });
 
@@ -620,7 +650,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(url);
                 if (!response.ok) throw new Error(`Falha ao carregar dados: ${response.statusText}`);
                 const data = await response.json();
-
                 if (selectElement.id.includes('prestadorId') && typeof Choices !== 'undefined') {
                     if (selectElement.choices) selectElement.choices.destroy();
                     selectElement.innerHTML = '';
@@ -654,7 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('gestorTim').value = osSelecionada.gestorTim || '';
                 document.getElementById('regional').value = osSelecionada.detalhes?.[0]?.regional || '';
             } else {
-                // Limpa os campos se nenhum objeto for passado
                 document.getElementById('site').value = '';
                 document.getElementById('segmento').value = '';
                 document.getElementById('projeto').value = '';
@@ -669,56 +697,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
-                    const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
                     todasAsOS = await response.json();
                     const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
                     selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    projetosUnicos.forEach(projeto => {
-                        selectProjeto.add(new Option(projeto, projeto));
-                    });
+                    projetosUnicos.forEach(projeto => selectProjeto.add(new Option(projeto, projeto)));
                     selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    todasAsOS.forEach(item => {
-                        selectOS.add(new Option(item.os, item.id));
-                    });
+                    todasAsOS.forEach(item => selectOS.add(new Option(item.os, item.id)));
                 } catch (error) {
                     console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
-                todosOsPrestadores = await popularSelect(selectPrestador, 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
+                todosOsPrestadores = await popularSelect(document.getElementById('prestadorId'), 'https://www.inproutservices.com.br/api/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(selectEtapaGeral, 'https://www.inproutservices.com.br/api/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
-            const formAdicionar = document.getElementById('formAdicionar');
-            const modalTitle = document.getElementById('modalAdicionarLabel');
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
-            const dataAtividadeInput = document.getElementById('dataAtividade');
-            const lpuContainer = document.getElementById('lpuContainer');
-            const selectProjeto = document.getElementById('projetoId');
-            const selectOS = document.getElementById('osId');
-            const selectLPU = document.getElementById('lpuId');
-            const selectEtapaGeral = document.getElementById('etapaGeralSelect');
 
             await carregarDadosParaModal();
             formAdicionar.reset();
-            if (editingId) { formAdicionar.dataset.editingId = editingId; }
-            else { delete formAdicionar.dataset.editingId; }
-            if (lancamento.detalhe && lancamento.detalhe.id) { formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id; }
-            else { delete formAdicionar.dataset.osLpuDetalheId; }
+            if (editingId) formAdicionar.dataset.editingId = editingId;
+            else delete formAdicionar.dataset.editingId;
+            if (lancamento.detalhe && lancamento.detalhe.id) formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
+            else delete formAdicionar.dataset.osLpuDetalheId;
 
             if (lpuContainer) lpuContainer.classList.add('d-none');
             if (btnSubmitPadrao) btnSubmitPadrao.style.display = 'none';
             if (btnSalvarRascunho) btnSalvarRascunho.style.display = 'none';
             if (btnSalvarEEnviar) btnSalvarEEnviar.style.display = 'none';
 
-            // Lógica para definir títulos e botões (sem alterações)
             if (editingId) {
                 if (lancamento.situacaoAprovacao === 'RASCUNHO') {
                     if (modalTitle) modalTitle.innerHTML = `<i class="bi bi-pencil"></i> Editar Rascunho #${lancamento.id}`;
@@ -741,30 +756,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
-            // --- INÍCIO DA CORREÇÃO ---
-            // Preenche os selects primeiro
             if (lancamento.os) {
-                // Garante que a opção do Projeto exista no select
                 if (selectProjeto && lancamento.os.projeto) {
                     if (!selectProjeto.querySelector(`option[value="${lancamento.os.projeto}"]`)) {
-                        const projectOption = new Option(lancamento.os.projeto, lancamento.os.projeto, true, true);
-                        selectProjeto.add(projectOption);
+                        selectProjeto.add(new Option(lancamento.os.projeto, lancamento.os.projeto, true, true));
                     }
                     selectProjeto.value = lancamento.os.projeto;
                 }
-
-                // Garante que a opção da OS exista no select
                 if (selectOS && lancamento.os.id) {
                     if (!selectOS.querySelector(`option[value="${lancamento.os.id}"]`)) {
-                        const osOption = new Option(lancamento.os.os, lancamento.os.id, true, true);
-                        selectOS.add(osOption);
+                        selectOS.add(new Option(lancamento.os.os, lancamento.os.id, true, true));
                     }
                     selectOS.value = lancamento.os.id;
                 }
-
-                // Busca os dados completos da OS para preencher os campos de baixo (esta parte está correta)
                 try {
-                    const response = await fetchComAuth(`http://localhost:8080/os/${lancamento.os.id}`);
+                    const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${lancamento.os.id}`);
                     if (!response.ok) throw new Error('Falha ao recarregar dados da OS para edição.');
                     const osDataCompleta = await response.json();
                     preencherCamposOS(osDataCompleta);
@@ -795,25 +801,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (lpuContainer) lpuContainer.classList.remove('d-none');
             }
 
-            // Desabilita os campos APÓS o preenchimento
             if (selectOS) selectOS.disabled = true;
             if (selectLPU) selectLPU.disabled = true;
             if (selectProjeto) selectProjeto.disabled = true;
 
             const selectPrestadorEl = document.getElementById('prestadorId');
             if (selectPrestadorEl) {
-                if (selectPrestadorEl.choices) {
-                    selectPrestadorEl.choices.destroy();
-                }
-                const prestadores = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
+                if (selectPrestadorEl.choices) selectPrestadorEl.choices.destroy();
+                const prestadores = await fetchComAuth('https://www.inproutservices.com.br/api/index/prestadores/ativos').then(res => res.json());
                 const choices = new Choices(selectPrestadorEl, { searchEnabled: true, placeholder: true, placeholderValue: 'Digite para buscar o prestador...', itemSelectText: '', noResultsText: 'Nenhum resultado', });
                 const choicesData = prestadores.map(item => ({ value: item.id, label: `${item.codigoPrestador} - ${item.prestador}` }));
                 choices.setChoices(choicesData, 'value', 'label', false);
                 selectPrestadorEl.choices = choices;
-
-                if (lancamento.prestador?.id) {
-                    setTimeout(() => { selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id)); }, 100);
-                }
+                if (lancamento.prestador?.id) setTimeout(() => { selectPrestadorEl.choices.setChoiceByValue(String(lancamento.prestador.id)); }, 100);
             }
 
             if (lancamento.etapa && lancamento.etapa.id && selectEtapaGeral) {
@@ -826,7 +826,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectEtapaGeral.value = '';
                 await popularDropdownsDependentes('', null, null);
             }
-
             modalAdicionar.show();
         }
 
@@ -863,7 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
-            const addComplementarBtn = e.target.closest('.btn-add-complementar');
 
             if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
@@ -875,9 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (lancamento) {
                         const isRetomar = reenviarBtn.classList.contains('btn-retomar');
                         await abrirModalParaEdicao(lancamento, isRetomar ? null : lancamento.id);
-                    } else {
-                        throw new Error('Lançamento não encontrado.');
-                    }
+                    } else throw new Error('Lançamento não encontrado.');
                 } catch (error) {
                     console.error("Erro ao preparar modal:", error);
                     mostrarToast(error.message, 'error');
@@ -893,47 +889,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 const lancamentoId = submeterBtn.dataset.id;
                 const btnConfirmar = document.getElementById('btnConfirmarSubmissao');
                 btnConfirmar.dataset.lancamentoId = lancamentoId;
-                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao'));
-                modalConfirmacao.show();
-            }
-            else if (e.target.closest('.btn-excluir-lancamento')) {
-                const btnExcluir = e.target.closest('.btn-excluir-lancamento');
-                const lancamentoId = btnExcluir.dataset.id;
+                new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao')).show();
+            } else if (e.target.closest('.btn-excluir-lancamento')) {
+                const lancamentoId = e.target.closest('.btn-excluir-lancamento').dataset.id;
                 document.getElementById('deleteLancamentoId').value = lancamentoId;
-                const modalConfirmacao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento'));
-                modalConfirmacao.show();
+                new bootstrap.Modal(document.getElementById('modalConfirmarExclusaoLancamento')).show();
             }
         });
 
-        // ==========================================================
-        // >>>>> INÍCIO DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
-        // ==========================================================
         function getProjetosParalisados() {
             const ultimosLancamentosPorProjeto = new Map();
-
-            // 1. Encontra o lançamento mais recente para cada "projeto" (item da OS)
             todosLancamentos.forEach(l => {
-                if (l.detalhe && l.detalhe.id) { // Usa o ID do detalhe como chave única do projeto
+                if (l.detalhe && l.detalhe.id) {
                     const chaveProjeto = l.detalhe.id;
                     if (!ultimosLancamentosPorProjeto.has(chaveProjeto) || l.id > ultimosLancamentosPorProjeto.get(chaveProjeto).id) {
                         ultimosLancamentosPorProjeto.set(chaveProjeto, l);
                     }
                 }
             });
-
-            // 2. Filtra o mapa para retornar apenas os lançamentos cuja situação é 'Paralisado'
             const lancamentosParalisados = [];
             for (const ultimoLancamento of ultimosLancamentosPorProjeto.values()) {
-                if (ultimoLancamento.situacao === 'Paralisado') {
-                    lancamentosParalisados.push(ultimoLancamento);
-                }
+                if (ultimoLancamento.situacao === 'Paralisado') lancamentosParalisados.push(ultimoLancamento);
             }
-
             return lancamentosParalisados;
         }
-        // ==========================================================
-        // >>>>> FIM DA CORREÇÃO DA LÓGICA DE "PARALISADOS" <<<<<
-        // ==========================================================
 
         document.getElementById('btnConfirmarExclusaoLancamentoDefinitiva')?.addEventListener('click', async function (e) {
             const confirmButton = e.currentTarget;
@@ -945,23 +924,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
                 const resposta = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}`, { method: 'DELETE' });
-                if (!resposta.ok) {
-                    let errorMsg = 'Erro ao excluir o lançamento.';
-                    try { const errorData = await resposta.json(); errorMsg = errorData.message || errorMsg; }
-                    catch (e) { errorMsg = await resposta.text(); }
-                    throw new Error(errorMsg);
-                }
+                if (!resposta.ok) throw new Error('Erro ao excluir o lançamento.');
                 mostrarToast('Lançamento excluído com sucesso!', 'success');
                 await carregarLancamentos();
             } catch (error) {
-                console.error('Erro na exclusão do lançamento:', error);
+                console.error(error);
                 mostrarToast(error.message, 'error');
             } finally {
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = originalContent;
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
+                if (modalInstance) modalInstance.hide();
             }
         });
 
@@ -974,11 +946,8 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 confirmButton.disabled = true;
                 confirmButton.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-                const resposta = await fetchComAuth(`http://localhost:8080/lancamentos/${id}/submeter`, { method: 'POST' });
-                if (!resposta.ok) {
-                    const erroData = await resposta.json();
-                    throw new Error(erroData.message || 'Erro ao submeter.');
-                }
+                const resposta = await fetchComAuth(`https://www.inproutservices.com.br/api/lancamentos/${id}/submeter`, { method: 'POST' });
+                if (!resposta.ok) throw new Error('Erro ao submeter.');
                 mostrarToast('Lançamento submetido com sucesso!', 'success');
                 await carregarLancamentos();
                 renderizarTodasAsTabelas();
@@ -987,9 +956,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 confirmButton.disabled = false;
                 confirmButton.innerHTML = originalContent;
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
+                if (modalInstance) modalInstance.hide();
             }
         });
 
@@ -1004,32 +971,22 @@ document.addEventListener('DOMContentLoaded', () => {
             selectStatus.disabled = true;
 
             if (etapaSelecionada && etapaSelecionada.etapasDetalhadas && etapaSelecionada.etapasDetalhadas.length > 0) {
-                etapaSelecionada.etapasDetalhadas.forEach(detalhe => {
-                    selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id));
-                });
+                etapaSelecionada.etapasDetalhadas.forEach(detalhe => selectEtapaDetalhada.add(new Option(`${detalhe.indice} - ${detalhe.nome}`, detalhe.id)));
                 selectEtapaDetalhada.disabled = false;
-
                 if (etapaDetalhadaIdSelecionada) {
                     selectEtapaDetalhada.value = etapaDetalhadaIdSelecionada;
                     const etapaDetalhada = etapaSelecionada.etapasDetalhadas.find(ed => ed.id == etapaDetalhadaIdSelecionada);
                     if (etapaDetalhada && etapaDetalhada.status && etapaDetalhada.status.length > 0) {
-                        etapaDetalhada.status.forEach(statusValue => {
-                            selectStatus.add(new Option(statusValue, statusValue));
-                        });
+                        etapaDetalhada.status.forEach(statusValue => selectStatus.add(new Option(statusValue, statusValue)));
                         selectStatus.disabled = false;
-                        if (statusSelecionado) {
-                            selectStatus.value = statusSelecionado;
-                        }
+                        if (statusSelecionado) selectStatus.value = statusSelecionado;
                     }
                 }
             }
         }
 
         selectEtapaGeral.addEventListener('change', (e) => popularDropdownsDependentes(e.target.value, null, null));
-        selectEtapaDetalhada.addEventListener('change', (e) => {
-            const etapaGeralId = selectEtapaGeral.value;
-            popularDropdownsDependentes(etapaGeralId, e.target.value, null);
-        });
+        selectEtapaDetalhada.addEventListener('change', (e) => popularDropdownsDependentes(selectEtapaGeral.value, e.target.value, null));
     }
 
     function exibirComentarios(lancamento) {
@@ -1128,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================================
-    // SEÇÃO 4: LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL
+    // LÓGICA DO MODAL DE SOLICITAÇÃO DE MATERIAL (COM TRANSPORTE)
     // ==========================================================
     const modalSolicitarMaterialEl = document.getElementById('modalSolicitarMaterial');
     if (modalSolicitarMaterialEl) {
@@ -1138,108 +1095,253 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectLPU = document.getElementById('lpuSolicitacao');
         const listaItensContainer = document.getElementById('listaItens');
         const btnAdicionarItem = document.getElementById('btnAdicionarItem');
-        let todosOsMateriais = [];
 
-        const popularSelectMateriais = (selectElement) => {
-            selectElement.innerHTML = '<option value="" selected disabled>Carregando...</option>';
+        // Elementos de Transporte
+        const containerTransporte = document.getElementById('containerTransporte');
+        const listaTransporte = document.getElementById('listaTransporte');
+        const btnAdicionarTransporte = document.getElementById('btnAdicionarTransporte');
+        const displayTotalTransporte = document.getElementById('displayTotalTransporte');
+
+        let todosOsMateriais = [];
+        let totalTransporteCalculado = 0;
+
+        function popularSelectMateriais(selectElement) {
             if (todosOsMateriais.length === 0) {
-                fetchComAuth('http://localhost:8080/materiais')
+                selectElement.innerHTML = '<option value="" selected disabled>Carregando materiais...</option>';
+                fetchComAuth('https://www.inproutservices.com.br/api/materiais')
                     .then(res => res.json())
                     .then(data => {
                         todosOsMateriais = data;
-                        preencherOpcoes(selectElement);
+                        aplicarChoicesNoSelect(selectElement);
                     })
                     .catch(err => {
                         console.error("Erro ao buscar materiais:", err);
                         selectElement.innerHTML = '<option value="">Erro ao carregar</option>';
                     });
             } else {
-                preencherOpcoes(selectElement);
+                aplicarChoicesNoSelect(selectElement);
             }
-        };
+        }
 
-        const preencherOpcoes = (selectElement) => {
-            selectElement.innerHTML = '<option value="" selected disabled>Selecione o material...</option>';
-            todosOsMateriais.forEach(material => {
-                const option = new Option(`${material.empresa} - ${material.codigo} - ${material.descricao}`, material.codigo);
-                selectElement.add(option);
+        function aplicarChoicesNoSelect(selectElement) {
+            if (selectElement.choices) selectElement.choices.destroy();
+            selectElement.innerHTML = '';
+            const opcoes = [
+                { value: '', label: 'Selecione ou pesquise o material...', selected: true, disabled: true },
+                ...todosOsMateriais.map(m => ({
+                    value: m.codigo,
+                    label: `${m.empresa} - ${m.codigo} - ${m.descricao} ${m.modelo ? '| ' + m.modelo : ''} ${m.numeroDeSerie ? '| SN:' + m.numeroDeSerie : ''}`,
+                    customProperties: m
+                }))
+            ];
+            const choices = new Choices(selectElement, {
+                choices: opcoes, searchEnabled: true, searchPlaceholderValue: 'Pesquisar material...',
+                itemSelectText: '', noResultsText: 'Nenhum material encontrado', position: 'bottom', renderChoiceLimit: 50
             });
-        };
+            selectElement.choices = choices;
+        }
+
+        function criarHtmlLinhaTransporte() {
+            return `
+                <div class="row g-2 align-items-center mb-2 transporte-row">
+                    <div class="col-md">
+                        <input type="text" class="form-control transporte-select" placeholder="Digite o tipo e dê Enter..." required>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text">R$</span>
+                            <input type="text" class="form-control transporte-valor" placeholder="0,00" required>
+                        </div>
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-remover-transporte" title="Remover">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function inicializarChoicesTransporte(element) {
+            new Choices(element, {
+                allowHTML: true,
+                addItems: true,      // Permite criar novos
+                editItems: true,     // Permite editar (backspace)
+                maxItemCount: 1,     // IMPORTANTE: Só aceita 1 valor por campo
+                removeItemButton: true,
+                searchEnabled: false, // Desliga busca pois é input livre
+                placeholder: true,
+                placeholderValue: "Digite (ex: Uber) e dê Enter",
+                addItemText: (value) => `Pressione Enter para adicionar <b>"${value}"</b>`,
+                uniqueItemText: 'Este item já foi adicionado'
+            });
+
+            // CORREÇÃO EXTRA: Impede que o Enter envie o formulário ao criar o item
+            element.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                }
+            });
+        }
+        function atualizarTotalTransporte() {
+            let total = 0;
+            document.querySelectorAll('.transporte-valor').forEach(input => {
+                const valorLimpo = input.value.replace(/\./g, '').replace(',', '.');
+                const valor = parseFloat(valorLimpo);
+                if (!isNaN(valor)) {
+                    total += valor;
+                }
+            });
+            totalTransporteCalculado = total;
+            displayTotalTransporte.textContent = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
+        }
+
+        function configurarEventoChangeMaterial(selectElement) {
+            selectElement.addEventListener('change', function () {
+                const codigoSelecionado = this.value;
+                const material = todosOsMateriais.find(m => m.codigo === codigoSelecionado);
+                const row = this.closest('.item-row');
+                const card = row.querySelector('.material-info-card');
+                const grid = card.querySelector('.material-info-grid');
+
+                if (material) {
+                    const custoMedio = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoMedioPonderado || 0);
+                    const custoTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(material.custoTotal || 0);
+                    grid.innerHTML = `
+                        <div class="info-item"><span class="info-label">Modelo</span><span class="info-value">${material.modelo || '-'}</span></div>
+                        <div class="info-item"><span class="info-label">Nº Série</span><span class="info-value">${material.numeroDeSerie || '-'}</span></div>
+                        <div class="info-item"><span class="info-label">Unidade</span><span class="info-value">${material.unidadeMedida}</span></div>
+                        <div class="info-item"><span class="info-label">Estoque</span><span class="info-value">${material.saldoFisico}</span></div>
+                        <div class="info-item"><span class="info-label">Custo Médio</span><span class="info-value text-primary">${custoMedio}</span></div>
+                        <div class="info-item"><span class="info-label">Custo Total</span><span class="info-value">${custoTotal}</span></div>
+                        <div class="info-item" style="grid-column: 1 / -1;"><span class="info-label">Descrição</span><span class="info-value small">${material.descricao}</span></div>
+                    `;
+                    card.classList.add('show');
+                    const inputQtd = row.querySelector('.quantidade-input');
+                    if (inputQtd) inputQtd.max = material.saldoFisico;
+                } else {
+                    card.classList.remove('show');
+                }
+            });
+        }
 
         modalSolicitarMaterialEl.addEventListener('show.bs.modal', async () => {
             formSolicitacao.reset();
-            listaItensContainer.innerHTML = `
-            <div class="row g-2 align-items-center mb-2 item-row">
-              <div class="col-md"><select class="form-select material-select" required><option selected disabled value="">Selecione...</option></select></div>
-              <div class="col-md-3"><input type="number" class="form-control quantidade-input" placeholder="Qtde." min="1" value="1" required></div>
-              <div class="col-md-auto"><button type="button" class="btn btn-outline-danger btn-sm btn-remover-item" title="Remover Item" disabled><i class="bi bi-trash"></i></button></div>
-            </div>`;
+            listaItensContainer.innerHTML = criarHtmlLinhaItem();
+            listaTransporte.innerHTML = '';
+            totalTransporteCalculado = 0;
+            displayTotalTransporte.textContent = 'R$ 0,00';
+
             selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
             selectLPU.disabled = true;
-            popularSelectMateriais(listaItensContainer.querySelector('.material-select'));
+            selectOS.innerHTML = '<option value="" selected disabled>Carregando OSs...</option>';
+
+            const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+            const isAdminOrController = ['ADMIN', 'CONTROLLER'].includes(userRole);
+
+            if (isAdminOrController) containerTransporte.classList.remove('d-none');
+            else containerTransporte.classList.add('d-none');
+
+            const firstMaterialSelect = listaItensContainer.querySelector('.material-select');
+            popularSelectMateriais(firstMaterialSelect);
+            configurarEventoChangeMaterial(firstMaterialSelect);
 
             try {
-                const usuarioId = localStorage.getItem('usuarioId');
-                if (!usuarioId) {
-                    throw new Error('ID do usuário não encontrado para filtrar as OSs.');
+                let urlOS = '';
+                if (isAdminOrController) urlOS = `https://www.inproutservices.com.br/api/os?completo=true`;
+                else {
+                    const usuarioId = localStorage.getItem('usuarioId');
+                    urlOS = `https://www.inproutservices.com.br/api/os/por-usuario/${usuarioId}`;
                 }
-                const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
-                const oss = await response.json();
+
+                const response = await fetchComAuth(urlOS);
+                const data = await response.json();
+                const listaOS = Array.isArray(data) ? data : (data.content || []);
+
                 selectOS.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
-                oss.forEach(os => {
-                    const option = new Option(os.os, os.id);
-                    selectOS.add(option);
-                });
+                listaOS.sort((a, b) => a.os.localeCompare(b.os));
+                listaOS.forEach(os => selectOS.add(new Option(`${os.os} - ${os.projeto || ''}`, os.id)));
             } catch (error) {
                 console.error("Erro ao buscar OSs:", error);
                 selectOS.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         });
 
+        btnAdicionarTransporte.addEventListener('click', () => {
+            const div = document.createElement('div');
+            div.innerHTML = criarHtmlLinhaTransporte();
+            const novaLinha = div.firstElementChild;
+            listaTransporte.appendChild(novaLinha);
+
+            const select = novaLinha.querySelector('.transporte-select');
+            inicializarChoicesTransporte(select);
+
+            const inputValor = novaLinha.querySelector('.transporte-valor');
+            inputValor.addEventListener('input', (e) => {
+                let v = e.target.value.replace(/\D/g, '');
+                v = (v / 100).toFixed(2) + '';
+                v = v.replace('.', ',');
+                v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
+                e.target.value = v;
+                atualizarTotalTransporte();
+            });
+        });
+
+        listaTransporte.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-remover-transporte');
+            if (btn) {
+                const row = btn.closest('.transporte-row');
+                const select = row.querySelector('.transporte-select');
+                if (select.choices) select.choices.destroy();
+                row.remove();
+                atualizarTotalTransporte();
+            }
+        });
+
         selectOS.addEventListener('change', async (e) => {
             const osId = e.target.value;
-            const selectLPU = document.getElementById('lpuSolicitacao');
             selectLPU.disabled = true;
             selectLPU.innerHTML = '<option>Carregando LPUs...</option>';
-
             if (!osId) {
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a OS primeiro...</option>';
                 return;
             }
-
             try {
-                const response = await fetchComAuth(`http://localhost:8080/os/${osId}/lpus`);
+                const response = await fetchComAuth(`https://www.inproutservices.com.br/api/os/${osId}/lpus`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const lpus = await response.json();
                 selectLPU.innerHTML = '<option value="" selected disabled>Selecione a LPU...</option>';
                 if (lpus && lpus.length > 0) {
                     lpus.forEach(lpu => {
-                        const option = new Option(labelLpu(lpu), lpu.id);
-                        selectLPU.add(option);
+                        const label = `${lpu.codigoLpu || lpu.codigo} - ${lpu.nomeLpu || lpu.nome}`;
+                        selectLPU.add(new Option(label, lpu.id));
                     });
                     selectLPU.disabled = false;
-                } else {
-                    selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
-                }
+                } else selectLPU.innerHTML = '<option value="" disabled>Nenhuma LPU encontrada</option>';
             } catch (error) {
-                console.error("Erro ao buscar LPUs:", error);
+                console.error("Erro LPUs:", error);
                 selectLPU.innerHTML = '<option value="">Erro ao carregar</option>';
             }
         });
 
         btnAdicionarItem.addEventListener('click', () => {
-            const novoItemRow = listaItensContainer.firstElementChild.cloneNode(true);
-            const newSelect = novoItemRow.querySelector('.material-select');
-            novoItemRow.querySelector('.quantidade-input').value = 1;
-            const btnRemover = novoItemRow.querySelector('.btn-remover-item');
-            btnRemover.disabled = false;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = criarHtmlLinhaItem();
+            const novoItemRow = tempDiv.firstElementChild;
             listaItensContainer.appendChild(novoItemRow);
+            const newSelect = novoItemRow.querySelector('.material-select');
             popularSelectMateriais(newSelect);
+            configurarEventoChangeMaterial(newSelect);
         });
 
         listaItensContainer.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-remover-item')) {
-                e.target.closest('.item-row').remove();
+            const btnRemover = e.target.closest('.btn-remover-item');
+            if (btnRemover) {
+                if (listaItensContainer.querySelectorAll('.item-row').length > 1) {
+                    const row = btnRemover.closest('.item-row');
+                    const select = row.querySelector('.material-select');
+                    if (select && select.choices) select.choices.destroy();
+                    row.remove();
+                } else mostrarToast('A solicitação deve ter pelo menos um material.', 'warning');
             }
         });
 
@@ -1248,37 +1350,49 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSubmit = document.getElementById('btnEnviarSolicitacao');
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
+
             const itens = [];
             document.querySelectorAll('#listaItens .item-row').forEach(row => {
                 const codigoMaterial = row.querySelector('.material-select').value;
                 const quantidade = row.querySelector('.quantidade-input').value;
-                if (codigoMaterial && quantidade) {
-                    itens.push({ codigoMaterial, quantidade: parseFloat(quantidade) });
-                }
+                if (codigoMaterial && quantidade) itens.push({ codigoMaterial, quantidade: parseFloat(quantidade) });
             });
+
+            if (itens.length === 0) {
+                mostrarToast('Adicione pelo menos um material.', 'warning');
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar Solicitação';
+                return;
+            }
+
+            let valorTransporteFinal = 0;
+            if (!containerTransporte.classList.contains('d-none')) {
+                valorTransporteFinal = totalTransporteCalculado;
+            }
 
             const payload = {
                 idSolicitante: localStorage.getItem('usuarioId'),
                 osId: selectOS.value,
                 lpuId: selectLPU.value,
                 justificativa: document.getElementById('justificativaSolicitacao').value,
-                itens: itens
+                itens: itens,
+                valorTransporte: valorTransporteFinal
             };
 
             try {
-                const response = await fetchComAuth('http://localhost:8080/solicitacoes', {
+                const response = await fetchComAuth('https://www.inproutservices.com.br/api/solicitacoes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error('Falha ao criar solicitação. Verifique o console para detalhes.');
+                    throw new Error(errorText || 'Falha ao criar solicitação.');
                 }
-                mostrarToast('Solicitação enviada com sucesso!', 'success');
+                mostrarToast('Solicitação enviada com sucesso! Transporte atualizado.', 'success');
                 modalSolicitarMaterial.hide();
             } catch (error) {
-                mostrarToast(error.message, 'error');
+                mostrarToast(error.message || 'Erro ao enviar.', 'error');
             } finally {
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = '<i class="bi bi-send me-1"></i> Enviar Solicitação';
@@ -1286,48 +1400,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================================
-    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
-    // ==========================================================
-    // ==========================================================
-    // SEÇÃO 5: LÓGICA DO NOVO MODAL - SOLICITAR COMPLEMENTAR
-    // ==========================================================
     const modalSolicitarComplementarEl = document.getElementById('modalSolicitarComplementar');
     if (modalSolicitarComplementarEl) {
         const modalSolicitarComplementar = new bootstrap.Modal(modalSolicitarComplementarEl);
         const form = document.getElementById('formSolicitarComplementar');
-
         const selectOSComplementar = document.getElementById('osIdComplementar');
         const selectProjetoComplementar = document.getElementById('projetoIdComplementar');
         const selectLPUComplementar = document.getElementById('lpuIdComplementar');
         let todasAsOSComplementar = [];
-
-        // AGORA SÓ A LPU USA O CHOICES.JS
         let choicesLPU;
 
-        // --- LÓGICA DE ABERTURA DO MODAL ---
         modalSolicitarComplementarEl.addEventListener('show.bs.modal', async () => {
             form.reset();
-
-            // Inicializa o Choices.js APENAS para a LPU
+            document.getElementById('siteComplementar').value = '';
             if (!choicesLPU) {
-                choicesLPU = new Choices(selectLPUComplementar, {
-                    searchEnabled: true,
-                    itemSelectText: '',
-                    noResultsText: 'Nenhuma LPU encontrada',
-                    placeholder: true,
-                    placeholderValue: 'Busque ou selecione uma LPU'
-                });
+                choicesLPU = new Choices(selectLPUComplementar, { searchEnabled: true, itemSelectText: '', noResultsText: 'Nenhuma LPU encontrada', placeholder: true, placeholderValue: 'Busque ou selecione uma LPU' });
             }
-
-            // Limpa os selects e desabilita a LPU
             selectProjetoComplementar.innerHTML = '<option value="">Carregando...</option>';
             selectOSComplementar.innerHTML = '<option value="">Carregando...</option>';
             choicesLPU.clearStore();
             choicesLPU.disable();
 
             try {
-                // Carrega os dados da API (se ainda não tiver em cache)
                 if (todasAsOSComplementar.length === 0) {
                     const usuarioId = localStorage.getItem('usuarioId');
                     if (!usuarioId) throw new Error('ID do usuário não encontrado.');
@@ -1335,24 +1429,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!response.ok) throw new Error('Falha ao carregar OSs do usuário.');
                     todasAsOSComplementar = await response.json();
                 }
-
-                // Popula o select de PROJETOS (SELECT NORMAL)
                 const projetosUnicos = [...new Set(todasAsOSComplementar.map(os => os.projeto))];
                 selectProjetoComplementar.innerHTML = '<option value="" selected disabled>Selecione o projeto...</option>';
-                projetosUnicos.forEach(projeto => {
-                    selectProjetoComplementar.add(new Option(projeto, projeto));
-                });
-
-                // Popula o select de OS (SELECT NORMAL)
+                projetosUnicos.forEach(projeto => selectProjetoComplementar.add(new Option(projeto, projeto)));
                 selectOSComplementar.innerHTML = '<option value="" selected disabled>Selecione a OS...</option>';
                 todasAsOSComplementar.forEach(os => {
                     const option = new Option(os.os, os.os);
-                    // Armazena dados extras no próprio elemento da opção para consulta futura
                     option.dataset.id = os.id;
                     option.dataset.projeto = os.projeto;
                     selectOSComplementar.add(option);
                 });
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
                 selectProjetoComplementar.innerHTML = '<option value="">Erro ao carregar</option>';
@@ -1360,33 +1446,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // --- LISTENER DE MUDANÇA NO PROJETO (SELECT NORMAL) ---
         selectProjetoComplementar.addEventListener('change', () => {
             const projetoSelecionado = selectProjetoComplementar.value;
             if (!projetoSelecionado) return;
-
             const osCorrespondente = todasAsOSComplementar.find(os => os.projeto === projetoSelecionado);
             if (osCorrespondente && selectOSComplementar.value !== osCorrespondente.os) {
-                // Define o valor do select de OS
                 selectOSComplementar.value = osCorrespondente.os;
-                // Dispara o evento de 'change' na OS para carregar as LPUs
                 selectOSComplementar.dispatchEvent(new Event('change'));
             }
         });
 
-        // --- LISTENER DE MUDANÇA NA OS (SELECT NORMAL) ---
         selectOSComplementar.addEventListener('change', async () => {
             const osCodigo = selectOSComplementar.value;
             if (!osCodigo) return;
+            const inputSite = document.getElementById('siteComplementar');
+            const osSelecionada = todasAsOSComplementar.find(os => os.os === osCodigo);
+            if (osSelecionada && osSelecionada.detalhes && osSelecionada.detalhes.length > 0) inputSite.value = osSelecionada.detalhes[0].site || '-';
+            else inputSite.value = '';
 
-            // Atualiza o select de Projeto se necessário
             const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
             const projetoDaOS = selectedOption.dataset.projeto;
-            if (projetoDaOS && selectProjetoComplementar.value !== projetoDaOS) {
-                selectProjetoComplementar.value = projetoDaOS;
-            }
+            if (projetoDaOS && selectProjetoComplementar.value !== projetoDaOS) selectProjetoComplementar.value = projetoDaOS;
 
-            // Carrega as LPUs
             choicesLPU.clearStore();
             choicesLPU.disable();
             choicesLPU.setChoices([{ value: '', label: 'Carregando LPUs...', disabled: true }]);
@@ -1395,38 +1476,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = await fetchComAuth(`${API_BASE_URL}/contrato`);
                 if (!response.ok) throw new Error('Falha ao buscar LPUs.');
                 const contratos = await response.json();
-
                 const lpuChoices = [{ value: '', label: 'Selecione o item LPU...', selected: true, disabled: true }];
                 contratos.forEach(contrato => {
                     if (contrato.lpus && contrato.lpus.length > 0) {
                         contrato.lpus.forEach(lpu => {
                             if (lpu.ativo) {
-                                lpuChoices.push({
-                                    value: lpu.id,
-                                    label: `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}`
-                                });
+                                lpuChoices.push({ value: lpu.id, label: `Contrato: ${contrato.nome} | ${lpu.codigoLpu} - ${lpu.nomeLpu}` });
                             }
                         });
                     }
                 });
                 choicesLPU.setChoices(lpuChoices, 'value', 'label', false);
                 choicesLPU.enable();
-
             } catch (error) {
                 mostrarToast('Erro ao carregar a lista de LPUs.', 'error');
                 choicesLPU.setChoices([{ value: '', label: 'Erro ao carregar', disabled: true }]);
             }
         });
 
-        // --- LÓGICA DE SUBMISSÃO DO FORMULÁRIO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btnSubmit = document.getElementById('btnEnviarSolicitacaoComplementar');
-
-            // Pega o ID da OS a partir do 'data-id' da opção selecionada
             const selectedOption = selectOSComplementar.options[selectOSComplementar.selectedIndex];
             const osIdParaApi = selectedOption ? selectedOption.dataset.id : null;
-
             const payload = {
                 osId: osIdParaApi,
                 lpuId: selectLPUComplementar.value,
@@ -1434,25 +1506,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 justificativa: document.getElementById('justificativaComplementar').value,
                 solicitanteId: localStorage.getItem('usuarioId')
             };
-
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Enviando...`;
-
             try {
-                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.message || 'Erro ao enviar solicitação.');
                 }
-
                 mostrarToast('Solicitação de atividade complementar enviada com sucesso!', 'success');
                 modalSolicitarComplementar.hide();
-
             } catch (error) {
                 mostrarToast(error.message, 'error');
             } finally {
@@ -1487,34 +1550,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     colunas: colunasHistorico
                 }
             };
-
             const wb = XLSX.utils.book_new();
-
             for (const aba in dadosParaExportar) {
                 const { dados, colunas } = dadosParaExportar[aba];
                 const rows = dados.map(lancamento => {
                     return colunas.map(coluna => {
                         const func = dataMapping[coluna];
-                        if (func) {
-                            return func(lancamento);
-                        }
+                        if (func) return func(lancamento);
                         return "";
                     });
                 });
-
                 const ws = XLSX.utils.aoa_to_sheet([colunas, ...rows]);
-
-                // Ajuste de largura das colunas
                 const colWidths = colunas.map(col => ({ wch: Math.max(15, col.length + 2) }));
                 ws['!cols'] = colWidths;
-
                 XLSX.utils.book_append_sheet(wb, ws, aba);
             }
-
             XLSX.writeFile(wb, "lancamentos.xlsx");
         });
     }
-
 
     function inicializarCabecalhos() {
         renderizarCabecalho(colunasLancamentos, document.querySelector('#lancamentos-pane thead'));

@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public class ControleCpsDTO {
@@ -12,7 +13,8 @@ public class ControleCpsDTO {
             @NotNull Long lancamentoId,
             @NotNull Long coordenadorId,
             @NotNull BigDecimal valorPagamento,
-            String justificativa
+            String justificativa,
+            LocalDate competencia
     ) {}
 
     public record AcaoControllerDTO(
@@ -22,6 +24,25 @@ public class ControleCpsDTO {
 
     public record AcaoRecusaControllerDTO(
             @NotNull Long lancamentoId,
+            @NotNull Long controllerId,
+            @NotNull String motivo
+    ) {}
+
+    public record AcaoCoordenadorLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
+            @NotNull Long coordenadorId,
+            LocalDate competencia
+    ) {}
+
+    // --- NOVOS DTOs ADICIONADOS ---
+    public record AcaoRecusaCoordenadorLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
+            @NotNull Long coordenadorId,
+            @NotNull String justificativa
+    ) {}
+
+    public record AcaoRecusaControllerLoteDTO(
+            @NotEmpty List<Long> lancamentoIds,
             @NotNull Long controllerId,
             @NotNull String motivo
     ) {}

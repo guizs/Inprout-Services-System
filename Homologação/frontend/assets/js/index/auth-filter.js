@@ -18,22 +18,19 @@ function filtrarLancamentosParaUsuario(lancamentos) {
     // Lógica separada estritamente por Role
 
     if (role === 'MANAGER') {
-        // REGRA DO CRIADOR:
-        // O Manager (Criador) vê APENAS os lançamentos que ele criou (onde manager.id == userId).
-        if (!userId) return []; // Segurança
-        
-        return lancamentos.filter(lancamento => 
-            lancamento?.manager?.id == userId
+        if (userSegmentos.length === 0) return [];
+        return lancamentos.filter(lancamento =>
+            lancamento?.os?.segmento && userSegmentos.includes(lancamento.os.segmento.id)
         );
     }
-    
+
     if (role === 'COORDINATOR') {
         // REGRA DO SEGMENTO:
         // O Coordenador vê APENAS os lançamentos do(s) seu(s) segmento(s).
         if (userSegmentos.length === 0) {
             return []; // Coordenador sem segmento não vê nada
         }
-        return lancamentos.filter(lancamento => 
+        return lancamentos.filter(lancamento =>
             lancamento?.os?.segmento && userSegmentos.includes(lancamento.os.segmento.id)
         );
     }

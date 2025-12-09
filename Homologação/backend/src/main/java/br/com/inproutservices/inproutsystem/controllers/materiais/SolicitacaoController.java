@@ -4,13 +4,21 @@ import br.com.inproutservices.inproutsystem.dtos.materiais.AprovacaoRejeicaoDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoRequestDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.materiais.Solicitacao;
+import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
+import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
+import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.services.materiais.SolicitacaoService;
+import br.com.inproutservices.inproutsystem.services.atividades.OsService;
+import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
+import br.com.inproutservices.inproutsystem.repositories.materiais.SolicitacaoRepository;
+import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,31 +28,94 @@ import java.util.stream.Collectors;
 public class SolicitacaoController {
 
     private final SolicitacaoService solicitacaoService;
+    private final OsService osService;
+    private final UsuarioRepository usuarioRepository;
+    private final SolicitacaoRepository solicitacaoRepository;
+    private final ComentarioRepository comentarioRepository;
 
-    public SolicitacaoController(SolicitacaoService solicitacaoService) {
+    public SolicitacaoController(SolicitacaoService solicitacaoService,
+                                 OsService osService,
+                                 UsuarioRepository usuarioRepository,
+                                 SolicitacaoRepository solicitacaoRepository,
+                                 ComentarioRepository comentarioRepository) {
         this.solicitacaoService = solicitacaoService;
+        this.osService = osService;
+        this.usuarioRepository = usuarioRepository;
+        this.solicitacaoRepository = solicitacaoRepository;
+        this.comentarioRepository = comentarioRepository;
     }
 
     @PostMapping
     public ResponseEntity<List<SolicitacaoResponseDTO>> criarSolicitacao(@RequestBody SolicitacaoRequestDTO dto) {
-        // 1. O service agora retorna uma LISTA de solicitações salvas
+        // 1. Cria a solicitação normalmente (Status inicial: PENDENTE_COORDENADOR)
         List<Solicitacao> solicitacoesSalvas = solicitacaoService.criarSolicitacao(dto);
 
-        // 2. Convertemos a lista de entidades para uma lista de DTOs
+        // 2. Lógica de Transporte (Atualiza OS)
+        BigDecimal valorTransporte = dto.valorTransporte() != null ? dto.valorTransporte() : BigDecimal.ZERO;
+        if (valorTransporte.compareTo(BigDecimal.ZERO) > 0) {
+            osService.atualizarValoresFinanceiros(dto.osId(), null, valorTransporte);
+        }
+
+        // 3. Lógica de Auto-Aprovação e Comentário (Admin/Controller)
+        Usuario solicitante = usuarioRepository.findById(dto.idSolicitante())
+                .orElseThrow(() -> new EntityNotFoundException("Solicitante não encontrado"));
+
+        if (solicitante.getRole() == Role.ADMIN || solicitante.getRole() == Role.CONTROLLER) {
+            List<Solicitacao> solicitacoesAprovadas = new ArrayList<>();
+
+            for (Solicitacao solicitacao : solicitacoesSalvas) {
+                // A. Calcula valor total dos materiais desta solicitação
+                BigDecimal totalMateriais = solicitacao.getItens().stream()
+                        .map(item -> {
+                            BigDecimal custo = item.getMaterial().getCustoMedioPonderado();
+                            if (custo == null) custo = BigDecimal.ZERO;
+                            // Usa quantidadeSolicitada, conforme sua correção anterior
+                            return custo.multiply(item.getQuantidadeSolicitada());
+                        })
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                // B. Cria o comentário de registro (Agora como entidade Comentario)
+                String textoComentario = String.format(
+                        "AUTO APROVAÇÃO (%s)\n>> Materiais: R$ %.2f\n>> Transporte: R$ %.2f\n>> Total da Operação: R$ %.2f",
+                        solicitante.getRole(),
+                        totalMateriais,
+                        valorTransporte,
+                        totalMateriais.add(valorTransporte)
+                );
+
+                Comentario comentario = new Comentario();
+                comentario.setSolicitacao(solicitacao); // Vincula à solicitação
+                comentario.setAutor(solicitante);
+                comentario.setTexto(textoComentario);
+                comentarioRepository.save(comentario); // Salva o comentário
+
+                // C. Executa o fluxo de aprovação
+                // 1º Aprova como Coordenador
+                solicitacaoService.aprovarPeloCoordenador(solicitacao.getId(), solicitante.getId());
+
+                // 2º Aprova como Controller (Finaliza)
+                Solicitacao finalizada = solicitacaoService.aprovarPeloController(solicitacao.getId(), solicitante.getId());
+
+                solicitacoesAprovadas.add(finalizada);
+            }
+            // Atualiza a lista de retorno para refletir o status APROVADO
+            solicitacoesSalvas = solicitacoesAprovadas;
+        }
+
+        // 4. Retorno
         List<SolicitacaoResponseDTO> responseDTOs = solicitacoesSalvas.stream()
                 .map(SolicitacaoResponseDTO::new)
                 .collect(Collectors.toList());
 
-        // 3. Retornamos a lista de DTOs com o status 201 (Created)
-        // A URI de location não faz mais sentido para múltiplos recursos, então a removemos.
         return ResponseEntity.status(HttpStatus.CREATED).body(responseDTOs);
     }
 
+    // ... (restante dos métodos inalterados) ...
     @GetMapping("/pendentes")
     public ResponseEntity<List<SolicitacaoResponseDTO>> listarSolicitacoesPendentes(
             @RequestHeader("X-User-Role") String role,
-            @RequestHeader("X-User-ID") Long usuarioId) { // Adicionado User-ID
-        List<SolicitacaoResponseDTO> list = solicitacaoService.listarPendentes(role, usuarioId) // Passa o ID para o serviço
+            @RequestHeader("X-User-ID") Long usuarioId) {
+        List<SolicitacaoResponseDTO> list = solicitacaoService.listarPendentes(role, usuarioId)
                 .stream()
                 .map(SolicitacaoResponseDTO::new)
                 .collect(Collectors.toList());
@@ -59,8 +130,6 @@ public class SolicitacaoController {
                 .collect(Collectors.toList());
         return ResponseEntity.ok(list);
     }
-
-    // --- NOVOS ENDPOINTS ---
 
     @PostMapping("/{id}/coordenador/aprovar")
     public ResponseEntity<SolicitacaoResponseDTO> aprovarPeloCoordenador(@PathVariable Long id, @RequestBody AprovacaoRejeicaoDTO dto) {

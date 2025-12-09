@@ -28,7 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-// Records para requisições em lote, mantidos no topo para clareza
+// Records para requisições em lote
 record AprovacaoLoteRequest(List<Long> lancamentoIds, Long aprovadorId) {}
 record RejeicaoLoteCoordenadorRequest(List<Long> lancamentoIds, Long aprovadorId, String comentario) {}
 record SolicitarPrazoLoteRequest(List<Long> lancamentoIds, Long coordenadorId, String comentario, LocalDate novaDataSugerida) {}
@@ -52,7 +52,6 @@ public class LancamentoController {
 
     /**
      * Método centralizado e otimizado para enriquecer listas de lançamentos com valores calculados.
-     * Evita o problema de performance "N+1 query".
      */
     private List<LancamentoResponseDTO> enriquecerLancamentosComValores(List<Lancamento> lancamentos) {
         if (lancamentos == null || lancamentos.isEmpty()) {
@@ -75,13 +74,11 @@ public class LancamentoController {
         Map<Long, List<OsLpuDetalhe>> detalhesPorOsId = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(d -> d.getOs().getId()));
 
-        // CORREÇÃO: Usando o novo método do repositório
         List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO);
         Map<Long, List<Lancamento>> lancamentosAprovadosPorOsId = lancamentoRepository.findBySituacaoAprovacaoInAndOsIdIn(statusAprovado, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
 
         List<SituacaoAprovacao> statusPendentes = List.of(SituacaoAprovacao.PENDENTE_COORDENADOR, SituacaoAprovacao.PENDENTE_CONTROLLER, SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO, SituacaoAprovacao.PRAZO_VENCIDO);
-        // CORREÇÃO: Usando o novo método do repositório para pendentes
         Map<Long, List<Lancamento>> lancamentosPendentesPorOsId = lancamentoRepository.findPendentesBySituacaoAprovacaoInAndOsIdIn(statusPendentes, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
 
@@ -120,22 +117,44 @@ public class LancamentoController {
             BigDecimal valorPendente = valorPendenteMap.getOrDefault(osId, BigDecimal.ZERO);
 
             return new LancamentoResponseDTO(
-                    dto.id(), dto.os(), dto.detalhe(), dto.prestador(), dto.etapa(), dto.manager(),
-                    dto.valor(), dto.situacaoAprovacao(), dto.dataAtividade(), dto.detalheDiario(),
-                    dto.dataCriacao(), dto.dataPrazo(), dto.dataPrazoProposta(), dto.comentarios(), dto.equipe(), dto.vistoria(),
-                    dto.planoVistoria(), dto.desmobilizacao(), dto.planoDesmobilizacao(), dto.instalacao(),
-                    dto.planoInstalacao(), dto.ativacao(), dto.planoAtivacao(), dto.documentacao(),
-                    dto.planoDocumentacao(), dto.status(), dto.situacao(),
+                    dto.id(),
+                    dto.os(),
+                    dto.detalhe(),
+                    dto.prestador(),
+                    dto.etapa(),
+                    dto.manager(),
+                    dto.valor(),
+                    dto.situacaoAprovacao(),
+                    dto.dataAtividade(),
+                    dto.detalheDiario(),
+                    dto.dataCriacao(),
+                    dto.dataPrazo(),
+                    dto.dataPrazoProposta(),
+                    dto.comentarios(),
+                    dto.equipe(),
+                    dto.vistoria(),
+                    dto.planoVistoria(),
+                    dto.desmobilizacao(),
+                    dto.planoDesmobilizacao(),
+                    dto.instalacao(),
+                    dto.planoInstalacao(),
+                    dto.ativacao(),
+                    dto.planoAtivacao(),
+                    dto.documentacao(),
+                    dto.planoDocumentacao(),
+                    dto.status(),
+                    dto.situacao(),
                     totalOs,
                     valorCps,
                     valorPendente,
-
-                    null,
-
+                    null, // totalPago
                     dto.valorPagamento(),
                     dto.statusPagamento(),
                     dto.controllerPagador(),
-                    dto.dataPagamento()
+                    dto.dataPagamento(),
+                    dto.dataCompetencia(),
+                    dto.valorAdiantamento(),
+                    dto.valorSolicitadoAdiantamento()
             );
         }).collect(Collectors.toList());
     }
@@ -153,7 +172,7 @@ public class LancamentoController {
     }
 
     @PostMapping("/importar-legado-cps")
-    public ResponseEntity<Map<String, Object>> importarLegadoCps(@RequestParam("file") MultipartFile file) throws IOException { // <-- ADICIONE "throws IOException"
+    public ResponseEntity<Map<String, Object>> importarLegadoCps(@RequestParam("file") MultipartFile file) throws IOException {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Por favor, envie um arquivo."));
         }
@@ -174,12 +193,15 @@ public class LancamentoController {
     }
 
     // ==========================================================
-    // ENDPOINTS PRINCIPAIS (AGORA OTIMIZADOS)
+    // ENDPOINTS PRINCIPAIS (OTIMIZADOS)
     // ==========================================================
 
     @GetMapping
-    public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos() {
-        List<Lancamento> lancamentos = lancamentoService.getAllLancamentos();
+    public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        List<Lancamento> lancamentos = lancamentoService.getAllLancamentos(inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(lancamentos);
         return ResponseEntity.ok(dtosAtualizados);
     }
@@ -192,14 +214,19 @@ public class LancamentoController {
     }
 
     @GetMapping("/historico/{usuarioId}")
-    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoPorUsuario(@PathVariable Long usuarioId) {
-        List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId);
+    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoPorUsuario(
+            @PathVariable Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        // Agora repassa as datas para o serviço
+        List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId, inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(historico);
         return ResponseEntity.ok(dtosAtualizados);
     }
 
     // ==========================================================
-    // DEMAIS ENDPOINTS (sem alteração na lógica, apenas mantidos)
+    // DEMAIS ENDPOINTS (MANTIDOS)
     // ==========================================================
 
     @PostMapping("/lote/prazo/aprovar")
@@ -307,10 +334,9 @@ public class LancamentoController {
 
     @GetMapping("/cps/relatorio")
     public ResponseEntity<CpsResponseDTO> getRelatorioCps(
-            @RequestParam("dataInicio") String dataInicioStr,
-            @RequestParam("dataFim") String dataFimStr) {
-        LocalDate dataInicio = LocalDate.parse(dataInicioStr, DateTimeFormatter.ISO_LOCAL_DATE);
-        LocalDate dataFim = LocalDate.parse(dataFimStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            @RequestParam("dataInicio") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam("dataFim") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim
+    ) {
         CpsResponseDTO relatorio = lancamentoService.getRelatorioCps(dataInicio, dataFim);
         return ResponseEntity.ok(relatorio);
     }
@@ -376,4 +402,19 @@ public class LancamentoController {
         Lancamento lancamentoAtualizado = lancamentoService.registrarAdiantamento(id, valorAdiantamento);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamentoAtualizado));
     }
+
+    @PostMapping("/{id}/solicitar-adiantamento")
+    public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamentoCoordenador(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+
+        // CORREÇÃO: O JavaScript envia "usuarioId", então devemos ler "usuarioId" aqui
+        Long coordenadorId = Long.valueOf(payload.get("usuarioId").toString());
+
+        BigDecimal valor = new BigDecimal(payload.get("valor").toString());
+        String justificativa = (String) payload.get("justificativa");
+
+        Lancamento lancamento = lancamentoService.solicitarAdiantamentoCoordenador(id, coordenadorId, valor, justificativa);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
+    }
+
+
 }

@@ -9,10 +9,11 @@ import java.util.List;
  */
 public record SolicitacaoRequestDTO(
         Long idSolicitante,
-        Long osId,          // CAMPO ADICIONADO: ID da Ordem de Serviço selecionada no modal
-        Long lpuId,         // CAMPO ADICIONADO: ID da LPU selecionada no modal
+        Long osId,          // ID da Ordem de Serviço selecionada no modal
+        Long lpuId,         // ID da LPU selecionada no modal
         String justificativa,
-        List<ItemDTO> itens // Lista de itens solicitados
+        List<ItemDTO> itens, // Lista de itens solicitados
+        BigDecimal valorTransporte // NOVO CAMPO: Valor total do transporte a ser somado na OS
 ) {
     /**
      * DTO aninhado para representar cada item da solicitação.

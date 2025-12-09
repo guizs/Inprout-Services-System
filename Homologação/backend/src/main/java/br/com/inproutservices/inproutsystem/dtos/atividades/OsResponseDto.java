@@ -21,6 +21,7 @@ public record OsResponseDto(
         String projeto,
         String gestorTim,
         BigDecimal custoTotalMateriais,
+        BigDecimal transporte,
         BigDecimal valorCpsLegado,
         List<OsLpuDetalheCompletoDto> detalhes,
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataCriacao,
@@ -37,6 +38,7 @@ public record OsResponseDto(
                 os.getProjeto(),
                 os.getGestorTim(),
                 os.getCustoTotalMateriais(),
+                os.getTransporte(),
                 os.getValorCpsLegado(),
                 os.getDetalhes().stream()
                         .map(OsLpuDetalheCompletoDto::new)
@@ -77,6 +79,8 @@ public record OsResponseDto(
             String numFs,
             String gate,
             String gateId,
+            @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss")
+            LocalDateTime dataCriacaoItem,
             LancamentoResponseDTO ultimoLancamento,
             List<LancamentoResponseDTO> lancamentos
     ) {
@@ -109,6 +113,7 @@ public record OsResponseDto(
                     detalhe.getNumFs(),
                     detalhe.getGate(),
                     detalhe.getGateId(),
+                    detalhe.getDataCriacao(),
 
                     // --- INÍCIO DA CORREÇÃO COM REGRA DE EXCEÇÃO ---
                     detalhe.getLancamentos().stream()

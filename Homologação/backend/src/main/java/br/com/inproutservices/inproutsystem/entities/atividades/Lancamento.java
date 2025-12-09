@@ -132,6 +132,12 @@ public class Lancamento {
     public Lancamento() {
     }
 
+    @Column(name = "data_competencia")
+    private LocalDate dataCompetencia;
+
+    @Column(name = "valor_solicitado_adiantamento")
+    private BigDecimal valorSolicitadoAdiantamento;
+
     /**
      * Este método garante que a data de criação e a situação inicial
      * sejam definidas automaticamente ao criar um novo lançamento.
@@ -296,6 +302,14 @@ public class Lancamento {
         this.vistoria = vistoria;
     }
 
+    public BigDecimal getValorSolicitadoAdiantamento() {
+        return valorSolicitadoAdiantamento;
+    }
+
+    public void setValorSolicitadoAdiantamento(BigDecimal valorSolicitadoAdiantamento) {
+        this.valorSolicitadoAdiantamento = valorSolicitadoAdiantamento;
+    }
+
     public LocalDate getPlanoVistoria() {
         return planoVistoria;
     }
@@ -423,6 +437,14 @@ public class Lancamento {
 
     public void setStatus(StatusEtapa status) {
         this.status = status;
+    }
+
+    public LocalDate getDataCompetencia() {
+        return dataCompetencia;
+    }
+
+    public void setDataCompetencia(LocalDate dataCompetencia) {
+        this.dataCompetencia = dataCompetencia;
     }
 
     @Override

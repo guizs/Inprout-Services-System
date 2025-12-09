@@ -33,5 +33,6 @@ public enum StatusPagamento {
      * Coordenador solicitou alteração em um item que já estava FECHADO,
      * mas ainda não PAGO. Fica em destaque para o Controller.
      */
-    ALTERACAO_SOLICITADA
+    ALTERACAO_SOLICITADA,
+    SOLICITACAO_ADIANTAMENTO
 }

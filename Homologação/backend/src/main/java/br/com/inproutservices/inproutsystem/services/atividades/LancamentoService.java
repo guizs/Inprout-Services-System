@@ -21,7 +21,8 @@ public interface LancamentoService {
 
     List<Lancamento> listarPendentesPorUsuario(Long usuarioId);
 
-    List<Lancamento> getHistoricoPorUsuario(Long usuarioId);
+    // --- ATUALIZADO: Agora aceita datas para o filtro ---
+    List<Lancamento> getHistoricoPorUsuario(Long usuarioId, LocalDate inicio, LocalDate fim);
 
     Lancamento atualizarLancamento(Long id, LancamentoRequestDTO dto);
 
@@ -37,19 +38,17 @@ public interface LancamentoService {
 
     Lancamento aprovarPeloCoordenador(Long lancamentoId, Long coordenadorId);
 
-    // Assinatura padronizada para receber o DTO
     Lancamento solicitarNovoPrazo(Long lancamentoId, AcaoCoordenadorDTO dto);
 
     Lancamento aprovarPeloController(Long lancamentoId, Long controllerId);
 
     Lancamento aprovarExtensaoPrazo(Long lancamentoId, Long controllerId);
 
-    // Assinatura padronizada para receber o DTO
     Lancamento rejeitarExtensaoPrazo(Long lancamentoId, AcaoControllerDTO dto);
 
     Lancamento getLancamentoById(Long id);
 
-    List<Lancamento> getAllLancamentos();
+    List<Lancamento> getAllLancamentos(LocalDate inicio, LocalDate fim);
 
     CpsResponseDTO getRelatorioCps(LocalDate dataInicio, LocalDate dataFim);
 
@@ -72,4 +71,6 @@ public interface LancamentoService {
     void deletarLancamento(Long id);
     List<PendenciasPorCoordenadorDTO> getPendenciasPorCoordenador();
     List<String> importarLegadoCps(MultipartFile file) throws IOException;
+
+    Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa);
 }

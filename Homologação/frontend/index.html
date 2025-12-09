@@ -187,6 +187,7 @@
 
       <div class="d-flex align-items-center gap-2">
 
+
         <a href="#" class="btn btn-dropdown" data-bs-toggle="modal" data-bs-target="#modalSolicitarMaterial"
           id="btnSolicitarMaterial"> <i class="bi bi-box-seam me-1"></i> Solicitar material
         </a>
@@ -209,50 +210,69 @@
 
     </div>
 
-    <ul class="nav nav-tabs mb-3" id="lancamentosTab" role="tablist">
 
-      <li class="nav-item" role="presentation" id="nav-item-minhas-pendencias">
-        <button class="nav-link position-relative" id="minhasPendencias-tab" data-bs-toggle="tab"
-          data-bs-target="#minhasPendencias-pane" type="button" role="tab" aria-controls="minhasPendencias-pane"
-          aria-selected="false">
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
 
-          Lançamentos pendentes
+      <ul class="nav nav-tabs border-0 mb-0" id="lancamentosTab" role="tablist">
+        <li class="nav-item" role="presentation" id="nav-item-minhas-pendencias">
+          <button class="nav-link position-relative" id="minhasPendencias-tab" data-bs-toggle="tab"
+            data-bs-target="#minhasPendencias-pane" type="button" role="tab">
+            Lançamentos pendentes
+            <span id="notificacao-pendencias"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              style="display: none;"></span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-lancamentos">
+          <button class="nav-link active" id="lancamentos-tab" data-bs-toggle="tab" data-bs-target="#lancamentos-pane"
+            type="button" role="tab">
+            Lançamentos
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-pendentes">
+          <button class="nav-link" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes-pane"
+            type="button" role="tab">
+            Pendente aprovação
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-paralisados">
+          <button class="nav-link" id="paralisados-tab" data-bs-toggle="tab" data-bs-target="#paralisados-pane"
+            type="button" role="tab">
+            Paralisados
+          </button>
+        </li>
+        <li class="nav-item" role="presentation" id="nav-item-historico">
+          <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico-pane"
+            type="button" role="tab">
+            Histórico
+          </button>
+        </li>
+      </ul>
 
-          <span id="notificacao-pendencias"
-            class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-            style="display: none;">
-          </span>
-        </button>
-      </li>
+      <div class="d-flex gap-2 mb-1">
 
-      <li class="nav-item" role="presentation" id="nav-item-lancamentos">
-        <button class="nav-link active" id="lancamentos-tab" data-bs-toggle="tab" data-bs-target="#lancamentos-pane"
-          type="button" role="tab" aria-controls="lancamentos-pane" aria-selected="true">
-          Lançamentos
-        </button>
-      </li>
+        <div id="kpi-pendente-container" class="mini-kpi-card d-none align-items-center shadow-sm">
+          <div class="icon-wrapper bg-warning-subtle text-warning">
+            <i class="bi bi-hourglass-split"></i>
+          </div>
+          <div class="d-flex flex-column ms-2">
+            <span class="kpi-label">CPS pendente aprovação</span>
+            <span id="kpi-valor-pendente" class="kpi-value">R$ 0,00</span>
+          </div>
+        </div>
 
-      <li class="nav-item" role="presentation" id="nav-item-pendentes">
-        <button class="nav-link" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes-pane" type="button"
-          role="tab" aria-controls="pendentes-pane" aria-selected="false">
-          Pendente aprovação
-        </button>
-      </li>
+        <div id="kpi-quantidade-container" class="mini-kpi-card d-flex align-items-center shadow-sm">
+          <div class="icon-wrapper bg-primary-subtle text-primary">
+            <i class="bi bi-list-ol"></i>
+          </div>
+          <div class="d-flex flex-column ms-2">
+            <span class="kpi-label" id="kpi-qtd-label">Itens na lista</span>
+            <span id="kpi-qtd-valor" class="kpi-value">0</span>
+          </div>
+        </div>
 
-      <li class="nav-item" role="presentation" id="nav-item-paralisados">
-        <button class="nav-link" id="paralisados-tab" data-bs-toggle="tab" data-bs-target="#paralisados-pane"
-          type="button" role="tab" aria-controls="paralisados-pane" aria-selected="false">
-          Paralisados
-        </button>
-      </li>
-
-      <li class="nav-item" role="presentation" id="nav-item-historico">
-        <button class="nav-link" id="historico-tab" data-bs-toggle="tab" data-bs-target="#historico-pane" type="button"
-          role="tab" aria-controls="historico-pane" aria-selected="false">
-          Histórico
-        </button>
-      </li>
-    </ul>
+      </div>
+    </div>
 
     <div class="content-loader-container">
       <div class="tab-content" id="lancamentosTabContent">
@@ -340,7 +360,13 @@
                 <label for="lpuIdComplementar" class="form-label">Item LPU</label>
                 <select class="form-select" id="lpuIdComplementar" required disabled></select>
               </div>
-              <div class="col-md-12">
+              <div class="col-md-4">
+                <label for="siteComplementar" class="form-label">Site</label>
+                <input type="text" class="form-control" id="siteComplementar" readonly disabled
+                  style="background-color: #e9ecef;">
+              </div>
+
+              <div class="col-md-8">
                 <label for="quantidadeComplementar" class="form-label">Quantidade</label>
                 <input type="number" class="form-control" id="quantidadeComplementar" min="1" value="1" required>
               </div>
@@ -386,20 +412,14 @@
               <div class="col-md-6">
                 <label for="osSolicitacao" class="form-label">Ordem de Serviço (OS)</label>
                 <select class="form-select" id="osSolicitacao">
-                  <option selected disabled value="">Selecione a OS...</option>
-                  <option value="1">OS-2025-001</option>
-                  <option value="2">OS-2025-002</option>
-                  <option value="3">OS-2025-003</option>
+                  <option selected disabled value="">Carregando OS...</option>
                 </select>
               </div>
 
               <div class="col-md-6">
                 <label for="lpuSolicitacao" class="form-label">LPU</label>
                 <select class="form-select" id="lpuSolicitacao">
-                  <option selected disabled value="">Selecione a LPU...</option>
-                  <option value="1">LPU-SP-CAPITAL-01</option>
-                  <option value="2">LPU-RJ-CAPITAL-05</option>
-                  <option value="3">LPU-MG-INTERIOR-12</option>
+                  <option selected disabled value="">Primeiro selecione a OS...</option>
                 </select>
               </div>
 
@@ -413,7 +433,7 @@
             </div>
 
             <div class="itens-container bg-light border rounded p-3 mt-4">
-              <h6 class="section-title mt-0">Itens</h6>
+              <h6 class="section-title mt-0">Itens (Materiais)</h6>
               <div id="listaItens">
                 <div class="row g-2 align-items-center mb-2 item-row">
                   <div class="col-md">
@@ -437,8 +457,29 @@
               </div>
 
               <button type="button" id="btnAdicionarItem" class="btn btn-outline-primary btn-sm mt-2">
-                <i class="bi bi-plus-circle me-1"></i> Adicionar Novo Item
+                <i class="bi bi-plus-circle me-1"></i> Adicionar Material
               </button>
+            </div>
+
+            <div id="containerTransporte"
+              class="itens-container bg-white border border-warning rounded p-3 mt-4 d-none">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="section-title mt-0 text-warning"><i class="bi bi-truck me-2"></i>Transporte / Deslocamento
+                </h6>
+                <span class="badge bg-warning text-dark">Admin/Controller</span>
+              </div>
+
+              <div id="listaTransporte">
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-2">
+                <button type="button" id="btnAdicionarTransporte" class="btn btn-outline-warning text-dark btn-sm">
+                  <i class="bi bi-plus-circle me-1"></i> Adicionar Transporte
+                </button>
+                <div class="fw-bold">
+                  Total Transporte: <span id="displayTotalTransporte" class="text-success">R$ 0,00</span>
+                </div>
+              </div>
             </div>
 
           </form>
@@ -953,15 +994,15 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="assets/js/general/global.js?v=2.2"></script>
+  <script src="assets/js/general/global.js?v=3.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
-  <script src="assets/js/index/calendary.js?v=2.2" type="module"></script>
-  <script src="assets/js/index/editionfields.js?v=2.2"></script>
-  <script src="assets/js/general/sidebar.js?v=2.2"></script>
-  <script src="assets/js/index/auth-filter.js?v=2.2"></script>
-  <script src="assets/js/index/index.js?v=2.2"></script>
-  <script src="assets/js/index/lancamento-lote.js?v=2.2"></script>
+  <script src="assets/js/index/calendary.js?v=3.0" type="module"></script>
+  <script src="assets/js/index/editionfields.js?v=3.0"></script>
+  <script src="assets/js/general/sidebar.js?v=3.0"></script>
+  <script src="assets/js/index/auth-filter.js?v=3.0"></script>
+  <script src="assets/js/index/index.js?v=3.0"></script>
+  <script src="assets/js/index/lancamento-lote.js?v=3.0"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>

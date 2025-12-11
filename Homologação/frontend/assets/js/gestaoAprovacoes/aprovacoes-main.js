@@ -28,13 +28,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     carregarDashboardEBadges().finally(() => {
         const abaAtivaAgora = document.querySelector('#aprovacoesTab .nav-link.active');
-        
+
         // Remove loader de todas as abas possíveis para garantir
         ['#atividades-pane', '#materiais-pane', '#complementares-pane', '#cps-pendencias-pane'].forEach(id => toggleLoader(false, id));
 
         if (abaAtivaAgora) {
             const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
-            
+
             // Renderiza o conteúdo da aba que o usuário está vendo AGORA
             if (painelAtivoId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
             else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
@@ -303,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function () {
             modalRecusar.hide();
 
             const histPane = document.getElementById('historico-atividades-pane');
-            if(histPane) histPane.dataset.loaded = 'false';
+            if (histPane) histPane.dataset.loaded = 'false';
 
 
             await carregarDashboardEBadges();
@@ -354,8 +354,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
             modalComentar.hide();
             const histPane = document.getElementById('historico-atividades-pane');
-            if(histPane) histPane.dataset.loaded = 'false';
-            
+            if (histPane) histPane.dataset.loaded = 'false';
+
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
@@ -743,4 +743,46 @@ function atualizarEstadoAcoesLoteComplementar() {
         document.getElementById('contador-aprovacao-complementar').textContent = checkboxes.length;
         document.getElementById('contador-recusa-complementar').textContent = checkboxes.length;
     }
+}
+
+function renderizarTabelaDocs(lancamentos) {
+    const tbody = document.getElementById('tbody-minhas-docs');
+    tbody.innerHTML = '';
+    let saldo = 0;
+
+    lancamentos.forEach(l => {
+        if (l.statusDocumentacao === 'FINALIZADO') {
+            saldo += l.valor || 0;
+            return; // Se for tab de pendentes, ignora finalizados
+        }
+
+        const hoje = new Date();
+        const prazo = new Date(l.dataPrazoDoc); // Vem do backend
+        let corSla = 'bg-success'; // Verde
+
+        // Simples comparação de data (pode refinar com horas)
+        if (hoje > prazo) {
+            corSla = 'bg-danger'; // Vermelho (Atrasado)
+        } else if (hoje.toDateString() === prazo.toDateString()) {
+            corSla = 'bg-warning'; // Amarelo (Vence hoje)
+        }
+
+        const tr = `
+            <tr>
+                <td>${l.os.os}</td>
+                <td>${l.tipoDocumentacaoNome}</td>
+                <td>${formatarData(l.dataRecebimentoDoc)}</td>
+                <td><span class="badge ${corSla}">${formatarData(l.dataPrazoDoc)}</span></td>
+                <td>${formatarMoeda(l.valor)}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary btn-finalizar-doc" data-id="${l.id}">
+                        Finalizar
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += tr;
+    });
+
+    document.getElementById('saldo-documentista').innerText = formatarMoeda(saldo);
 }

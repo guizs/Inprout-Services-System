@@ -416,5 +416,17 @@ public class LancamentoController {
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
 
+    @PostMapping("/{id}/documentacao/receber")
+    public ResponseEntity<LancamentoResponseDTO> receberDocumentacao(@PathVariable Long id) {
+        Lancamento lancamento = lancamentoService.receberDocumentacao(id);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
+    }
+
+    @PostMapping("/{id}/documentacao/finalizar")
+    public ResponseEntity<LancamentoResponseDTO> finalizarDocumentacao(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String assunto = payload.get("assuntoEmail");
+        Lancamento lancamento = lancamentoService.finalizarDocumentacao(id, assunto);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
+    }
 
 }

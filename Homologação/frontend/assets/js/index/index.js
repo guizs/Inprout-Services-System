@@ -1161,6 +1161,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
+        document.addEventListener('click', async (e) => {
+            if (e.target.closest('.btn-receber-doc')) {
+                const id = e.target.closest('.btn-receber-doc').dataset.id;
+                if (confirm("Confirmar recebimento da documentação?")) {
+                    try {
+                        await fetchComAuth(`http://localhost:8080/lancamentos/${id}/documentacao/receber`, { method: 'POST' });
+                        mostrarToast("Documentação recebida!", "success");
+                        carregarLancamentos(); // Recarrega
+                    } catch (err) {
+                        mostrarToast("Erro ao receber.", "error");
+                    }
+                }
+            }
+        });
+
         function inicializarChoicesTransporte(element) {
             new Choices(element, {
                 allowHTML: true,

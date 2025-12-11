@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT NECESSÁRIO
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -60,7 +61,16 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataPagamento,
         @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia,
         BigDecimal valorAdiantamento,
-        BigDecimal valorSolicitadoAdiantamento
+        BigDecimal valorSolicitadoAdiantamento,
+        Long tipoDocumentacaoId,
+        String tipoDocumentacaoNome,
+        Long documentistaId,
+        String documentistaNome,
+        StatusDocumentacao statusDocumentacao,
+        LocalDateTime dataSolicitacaoDoc,
+        LocalDateTime dataRecebimentoDoc,
+        LocalDate dataPrazoDoc,
+        LocalDateTime dataFinalizacaoDoc
 ) {
     // Construtor auxiliar que recebe a Entidade Lancamento
     public LancamentoResponseDTO(Lancamento lancamento) {
@@ -104,7 +114,17 @@ public record LancamentoResponseDTO(
                 lancamento.getDataPagamento(),
                 lancamento.getDataCompetencia(),
                 lancamento.getValorAdiantamento(),
-                lancamento.getValorSolicitadoAdiantamento()
+                lancamento.getValorSolicitadoAdiantamento(),
+                lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getId() : null,
+                lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getNome() : null,
+                lancamento.getDocumentista() != null ? lancamento.getDocumentista().getId() : null,
+                lancamento.getDocumentista() != null ? lancamento.getDocumentista().getNome() : null,
+                lancamento.getStatusDocumentacao(),
+                lancamento.getDataSolicitacaoDoc(),
+                lancamento.getDataRecebimentoDoc(),
+                lancamento.getDataPrazoDoc(),
+                lancamento.getDataFinalizacaoDoc()
+
         );
     }
 

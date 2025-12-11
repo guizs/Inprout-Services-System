@@ -201,4 +201,10 @@ public class UsuarioController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuário não encontrado.");
     }
+
+    @GetMapping("/documentistas")
+    public ResponseEntity<List<UsuarioResponseDTO>> getDocumentistas() {
+        List<Usuario> documentistas = usuarioRepository.findByRole(Role.DOCUMENTIST);
+        // Converter para DTO e retornar
+    }
 }

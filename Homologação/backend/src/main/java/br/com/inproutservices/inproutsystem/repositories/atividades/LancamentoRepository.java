@@ -8,6 +8,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -272,4 +273,8 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
             "WHERE l.dataAtividade BETWEEN :inicio AND :fim " + // <--- FILTRO DE DATA
             "ORDER BY l.dataAtividade DESC")
     List<Lancamento> findAllWithDetailsByPeriodo(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
+
+    List<Lancamento> findByStatusDocumentacao(StatusDocumentacao status);
+
+    List<Lancamento> findByDocumentistaIdAndStatusDocumentacaoIn(Long documentistaId, List<StatusDocumentacao> status);
 }

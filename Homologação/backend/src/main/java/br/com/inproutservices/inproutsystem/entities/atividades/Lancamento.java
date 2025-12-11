@@ -7,6 +7,7 @@ import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -114,6 +115,33 @@ public class Lancamento {
     @Column(name = "status_pagamento", length = 30)
     private StatusPagamento statusPagamento;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tipo_documentacao_id")
+    private TipoDocumentacao tipoDocumentacao;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "documentista_id")
+    private Usuario documentista;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_documentacao")
+    private StatusDocumentacao statusDocumentacao = StatusDocumentacao.NAO_APLICAVEL;
+
+    @Column(name = "data_solicitacao_doc")
+    private LocalDateTime dataSolicitacaoDoc;
+
+    @Column(name = "data_recebimento_doc")
+    private LocalDateTime dataRecebimentoDoc;
+
+    @Column(name = "data_prazo_doc") // Data limite calculada (SLA)
+    private LocalDate dataPrazoDoc;
+
+    @Column(name = "data_finalizacao_doc")
+    private LocalDateTime dataFinalizacaoDoc;
+
+    @Column(name = "assunto_email_doc")
+    private String assuntoEmailDoc;
+
     /**
      * O Controller que marcou o lançamento como "PAGO".
      */
@@ -212,6 +240,70 @@ public class Lancamento {
 
     public void setSituacaoAprovacao(SituacaoAprovacao situacaoAprovacao) {
         this.situacaoAprovacao = situacaoAprovacao;
+    }
+
+    public TipoDocumentacao getTipoDocumentacao() {
+        return tipoDocumentacao;
+    }
+
+    public void setTipoDocumentacao(TipoDocumentacao tipoDocumentacao) {
+        this.tipoDocumentacao = tipoDocumentacao;
+    }
+
+    public Usuario getDocumentista() {
+        return documentista;
+    }
+
+    public void setDocumentista(Usuario documentista) {
+        this.documentista = documentista;
+    }
+
+    public StatusDocumentacao getStatusDocumentacao() {
+        return statusDocumentacao;
+    }
+
+    public void setStatusDocumentacao(StatusDocumentacao statusDocumentacao) {
+        this.statusDocumentacao = statusDocumentacao;
+    }
+
+    public LocalDateTime getDataSolicitacaoDoc() {
+        return dataSolicitacaoDoc;
+    }
+
+    public void setDataSolicitacaoDoc(LocalDateTime dataSolicitacaoDoc) {
+        this.dataSolicitacaoDoc = dataSolicitacaoDoc;
+    }
+
+    public LocalDateTime getDataRecebimentoDoc() {
+        return dataRecebimentoDoc;
+    }
+
+    public void setDataRecebimentoDoc(LocalDateTime dataRecebimentoDoc) {
+        this.dataRecebimentoDoc = dataRecebimentoDoc;
+    }
+
+    public LocalDate getDataPrazoDoc() {
+        return dataPrazoDoc;
+    }
+
+    public void setDataPrazoDoc(LocalDate dataPrazoDoc) {
+        this.dataPrazoDoc = dataPrazoDoc;
+    }
+
+    public LocalDateTime getDataFinalizacaoDoc() {
+        return dataFinalizacaoDoc;
+    }
+
+    public void setDataFinalizacaoDoc(LocalDateTime dataFinalizacaoDoc) {
+        this.dataFinalizacaoDoc = dataFinalizacaoDoc;
+    }
+
+    public String getAssuntoEmailDoc() {
+        return assuntoEmailDoc;
+    }
+
+    public void setAssuntoEmailDoc(String assuntoEmailDoc) {
+        this.assuntoEmailDoc = assuntoEmailDoc;
     }
 
     public Usuario getManager() {

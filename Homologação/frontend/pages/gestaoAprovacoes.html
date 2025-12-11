@@ -132,6 +132,12 @@
                             <i class="bi bi-archive me-1"></i> Histórico Materiais
                         </button>
                     </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="minhas-docs-tab" data-bs-toggle="tab"
+                            data-bs-target="#minhas-docs-pane">
+                            Minhas Documentações
+                        </button>
+                    </li>
                 </ul>
             </div>
 
@@ -535,6 +541,48 @@
                 <div class="overlay-loader d-none">
                     <div class="spinner-border text-primary" role="status"><span
                             class="visually-hidden">Carregando...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="minhas-docs-pane">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Saldo a Receber (Finalizados): </strong> <span id="saldo-documentista">R$ 0,00</span>
+                    </div>
+                    <table class="table modern-table">
+                        <thead>
+                            <tr>
+                                <th>OS</th>
+                                <th>Tipo Doc.</th>
+                                <th>Data Recebimento</th>
+                                <th>Prazo (SLA)</th>
+                                <th>Valor (LPU)</th>
+                                <th>Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-minhas-docs"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalFinalizarDoc" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5>Finalizar Análise</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="finalizarDocId">
+                        <label>Assunto do E-mail (Prova de Envio)</label>
+                        <input type="text" class="form-control" id="assuntoEmailDoc" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-success" id="btnConfirmarFinalizarDoc">Finalizar</button>
+                    </div>
                 </div>
             </div>
         </div>

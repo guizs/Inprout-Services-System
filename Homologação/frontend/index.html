@@ -235,6 +235,13 @@
             Pendente aprovação
           </button>
         </li>
+        <li class="nav-item" role="presentation" id="nav-item-pendente-doc" style="display: none;">
+          <button class="nav-link" id="pendente-doc-tab" data-bs-toggle="tab" data-bs-target="#pendente-doc-pane"
+            type="button">
+            Pendente Doc. <span id="badge-pendente-doc" class="badge bg-danger rounded-pill"
+              style="display:none">0</span>
+          </button>
+        </li>
         <li class="nav-item" role="presentation" id="nav-item-paralisados">
           <button class="nav-link" id="paralisados-tab" data-bs-toggle="tab" data-bs-target="#paralisados-pane"
             type="button" role="tab">
@@ -303,6 +310,15 @@
               <thead> </thead>
               <tbody id="tbody-pendentes">
               </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-pane fade" id="pendente-doc-pane" role="tabpanel">
+          <div class="table-responsive custom-scroll">
+            <table class="table modern-table align-middle">
+              <thead> </thead>
+              <tbody id="tbody-pendente-doc"></tbody>
             </table>
           </div>
         </div>
@@ -686,6 +702,22 @@
               <div class="col-md-4">
                 <label class="form-label">REGIONAL</label>
                 <input type="text" class="form-control" id="regional" readonly>
+              </div>
+            </div>
+
+            <h6 class="section-title">Controle de Documentação (Opcional)</h6>
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label for="tipoDocumentacaoId" class="form-label">Tipo de Documentação</label>
+                <select class="form-select" id="tipoDocumentacaoId">
+                  <option value="" selected>Não se aplica</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="documentistaId" class="form-label">Documentista Responsável</label>
+                <select class="form-select" id="documentistaId">
+                  <option value="" selected disabled>Selecione...</option>
+                </select>
               </div>
             </div>
 

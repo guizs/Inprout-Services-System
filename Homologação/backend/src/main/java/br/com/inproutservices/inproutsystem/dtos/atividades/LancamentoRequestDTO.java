@@ -49,5 +49,7 @@ public record LancamentoRequestDTO(
         BigDecimal valor,
         Long managerId,
         Boolean atividadeComplementar,
-        Integer quantidade
+        Integer quantidade,
+        Long tipoDocumentacaoId,
+        Long documentistaId
 ) {}

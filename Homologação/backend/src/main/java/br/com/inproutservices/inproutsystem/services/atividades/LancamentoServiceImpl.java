@@ -1,14 +1,12 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
-import br.com.inproutservices.inproutsystem.entities.atividades.Comentario;
-import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
-import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
+import br.com.inproutservices.inproutsystem.entities.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.index.*;
-import br.com.inproutservices.inproutsystem.entities.atividades.OS;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
@@ -214,6 +212,58 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
         lancamento.setSituacao(dto.situacao());
+
+        if (dto.tipoDocumentacaoId() != null && dto.documentistaId() != null) {
+            TipoDocumentacao tipoDoc = tipoDocumentacaoRepository.findById(dto.tipoDocumentacaoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Tipo de Documentação não encontrado"));
+            Usuario documentista = usuarioRepository.findById(dto.documentistaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Documentista não encontrado"));
+
+            lancamento.setTipoDocumentacao(tipoDoc);
+            lancamento.setDocumentista(documentista);
+            lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
+            lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
+        } else {
+            lancamento.setStatusDocumentacao(StatusDocumentacao.NAO_APLICAVEL);
+        }
+
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Transactional
+    public Lancamento receberDocumentacao(Long lancamentoId) {
+        Lancamento lancamento = getLancamentoById(lancamentoId);
+
+        if (lancamento.getStatusDocumentacao() != StatusDocumentacao.PENDENTE_RECEBIMENTO) {
+            throw new BusinessException("Status inválido para recebimento.");
+        }
+
+        lancamento.setStatusDocumentacao(StatusDocumentacao.EM_ANALISE);
+        lancamento.setDataRecebimentoDoc(LocalDateTime.now());
+
+        // Calcula prazo de 48h úteis (2 dias úteis)
+        LocalDate prazo = prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 2);
+        lancamento.setDataPrazoDoc(prazo);
+
+        lancamento.setUltUpdate(LocalDateTime.now());
+        return lancamentoRepository.save(lancamento);
+    }
+
+    @Transactional
+    public Lancamento finalizarDocumentacao(Long lancamentoId, String assuntoEmail) {
+        Lancamento lancamento = getLancamentoById(lancamentoId);
+
+        if (lancamento.getStatusDocumentacao() != StatusDocumentacao.EM_ANALISE) {
+            throw new BusinessException("A documentação precisa ser recebida antes de finalizar.");
+        }
+        if (assuntoEmail == null || assuntoEmail.isBlank()) {
+            throw new BusinessException("O assunto do e-mail é obrigatório.");
+        }
+
+        lancamento.setStatusDocumentacao(StatusDocumentacao.FINALIZADO);
+        lancamento.setDataFinalizacaoDoc(LocalDateTime.now());
+        lancamento.setAssuntoEmailDoc(assuntoEmail);
+        lancamento.setUltUpdate(LocalDateTime.now());
 
         return lancamentoRepository.save(lancamento);
     }

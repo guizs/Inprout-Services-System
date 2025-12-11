@@ -60,6 +60,7 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia,
         BigDecimal valorAdiantamento,
         BigDecimal valorSolicitadoAdiantamento,
+        // --- NOVOS CAMPOS (Total 47 campos) ---
         Long tipoDocumentacaoId,
         String tipoDocumentacaoNome,
         Long documentistaId,
@@ -111,6 +112,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCompetencia(),
                 lancamento.getValorAdiantamento(),
                 lancamento.getValorSolicitadoAdiantamento(),
+                // --- PREENCHIMENTO DOS NOVOS CAMPOS ---
                 lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getId() : null,
                 lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getNome() : null,
                 lancamento.getDocumentista() != null ? lancamento.getDocumentista().getId() : null,

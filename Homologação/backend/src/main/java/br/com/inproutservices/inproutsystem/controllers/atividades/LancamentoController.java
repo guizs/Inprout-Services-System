@@ -106,7 +106,6 @@ public class LancamentoController {
                 ));
 
         // 3. Recriação do DTO com os valores calculados E os novos campos de documentação
-        // IMPORTANTE: A ordem dos argumentos aqui DEVE ser idêntica à definição do Record LancamentoResponseDTO
         return dtos.stream().map(dto -> {
             Long osId = (dto.os() != null) ? dto.os().id() : null;
             BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
@@ -153,7 +152,7 @@ public class LancamentoController {
                     dto.valorAdiantamento(),
                     dto.valorSolicitadoAdiantamento(),
 
-                    // Novos campos de Documentação (Ordem exata do DTO)
+                    // --- NOVOS CAMPOS QUE FALTAVAM NA CHAMADA MANUAL ---
                     dto.tipoDocumentacaoId(),
                     dto.tipoDocumentacaoNome(),
                     dto.documentistaId(),

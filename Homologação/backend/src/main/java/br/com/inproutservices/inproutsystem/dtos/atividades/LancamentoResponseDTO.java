@@ -9,7 +9,7 @@ import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoOperacional;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
-import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento; // <-- IMPORT NECESSÁRIO
+import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.index.StatusEtapa;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -52,9 +52,7 @@ public record LancamentoResponseDTO(
         BigDecimal totalOs,
         BigDecimal valorCps,
         BigDecimal valorPendente,
-
-        BigDecimal totalPago, // <--- CAMPO NOVO (Obrigatorio na ordem correta)
-
+        BigDecimal totalPago,
         BigDecimal valorPagamento,
         StatusPagamento statusPagamento,
         AutorSimpleDTO controllerPagador,
@@ -72,7 +70,7 @@ public record LancamentoResponseDTO(
         LocalDate dataPrazoDoc,
         LocalDateTime dataFinalizacaoDoc
 ) {
-    // Construtor auxiliar que recebe a Entidade Lancamento
+    // Construtor auxiliar que preenche TODOS os campos a partir da Entidade
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
@@ -105,9 +103,7 @@ public record LancamentoResponseDTO(
                 null, // totalOs
                 null, // valorCps
                 null, // valorPendente
-
                 null, // totalPago
-
                 lancamento.getValorPagamento(),
                 lancamento.getStatusPagamento(),
                 (lancamento.getControllerPagador() != null) ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
@@ -124,11 +120,9 @@ public record LancamentoResponseDTO(
                 lancamento.getDataRecebimentoDoc(),
                 lancamento.getDataPrazoDoc(),
                 lancamento.getDataFinalizacaoDoc()
-
         );
     }
 
-    // (O restante dos records aninhados permanece igual)
     public record ComentarioDTO(Long id, String texto, @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora, AutorSimpleDTO autor) {
         public ComentarioDTO(Comentario comentario) { this(comentario.getId(), comentario.getTexto(), comentario.getDataHora(), (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null); }
     }

@@ -73,4 +73,8 @@ public interface LancamentoService {
     List<String> importarLegadoCps(MultipartFile file) throws IOException;
 
     Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa);
+
+    Lancamento receberDocumentacao(Long lancamentoId);
+
+    Lancamento finalizarDocumentacao(Long lancamentoId, String assuntoEmail);
 }

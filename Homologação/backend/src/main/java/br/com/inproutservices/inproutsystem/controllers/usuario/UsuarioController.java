@@ -2,6 +2,7 @@ package br.com.inproutservices.inproutsystem.controllers.usuario;
 
 import br.com.inproutservices.inproutsystem.dtos.login.LoginRequest;
 import br.com.inproutservices.inproutsystem.dtos.usuario.UsuarioRequestDTO;
+import br.com.inproutservices.inproutsystem.dtos.usuario.UsuarioResponseDTO;
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
@@ -204,7 +205,14 @@ public class UsuarioController {
 
     @GetMapping("/documentistas")
     public ResponseEntity<List<UsuarioResponseDTO>> getDocumentistas() {
-        List<Usuario> documentistas = usuarioRepository.findByRole(Role.DOCUMENTIST);
-        // Converter para DTO e retornar
+        // Usa 'usuarioRepo' que já foi injetado no construtor da sua classe
+        List<Usuario> documentistas = usuarioRepo.findByRole(Role.DOCUMENTIST);
+
+        // Converte a lista de Entidades para DTOs
+        List<UsuarioResponseDTO> response = documentistas.stream()
+                .map(u -> new UsuarioResponseDTO(u.getId(), u.getNome()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
     }
 }

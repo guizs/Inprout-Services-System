@@ -19,7 +19,7 @@ import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioReposit
 import br.com.inproutservices.inproutsystem.services.config.PrazoService;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
-import org.springframework.scheduling.annotation.Scheduled;
+import br.com.inproutservices.inproutsystem.repositories.atividades.TipoDocumentacaoRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -53,12 +53,13 @@ public class LancamentoServiceImpl implements LancamentoService {
     private final OsService osService;
     private final ContratoRepository contratoRepository;
     private final SegmentoRepository segmentoRepository;
+    private final TipoDocumentacaoRepository tipoDocumentacaoRepository;
 
     public LancamentoServiceImpl(LancamentoRepository lancamentoRepository, OsRepository osRepository,
                                  UsuarioRepository usuarioRepository, PrazoService prazoService,
                                  ComentarioRepository comentarioRepository, PrestadorRepository prestadorRepository,
                                  EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository,
-                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService,ContratoRepository contratoRepository, SegmentoRepository segmentoRepository) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService,ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, TipoDocumentacaoRepository tipoDocumentacaoRepository) {
         this.lancamentoRepository = lancamentoRepository;
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
@@ -71,9 +72,9 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.osService = osService;
         this.contratoRepository = contratoRepository;
         this.segmentoRepository = segmentoRepository;
+        this.tipoDocumentacaoRepository = tipoDocumentacaoRepository;
     }
 
-    // ... (todos os outros métodos do service permanecem iguais)
     @Override
     @Transactional
     public Lancamento submeterLancamentoManualmente(Long lancamentoId, Long managerId) {

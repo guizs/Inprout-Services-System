@@ -1,18 +1,14 @@
 package br.com.inproutservices.inproutsystem.controllers.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
-import br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import br.com.inproutservices.inproutsystem.entities.atividades.OsLpuDetalhe;
 import br.com.inproutservices.inproutsystem.enums.atividades.SituacaoAprovacao;
-import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
 import br.com.inproutservices.inproutsystem.services.atividades.LancamentoService;
 import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
+import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
-import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +19,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -58,6 +52,7 @@ public class LancamentoController {
             return new ArrayList<>();
         }
 
+        // 1. Converte Entidades para DTOs (aqui o construtor auxiliar preenche os dados de Doc corretamente)
         List<LancamentoResponseDTO> dtos = lancamentos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
@@ -71,6 +66,7 @@ public class LancamentoController {
             return dtos;
         }
 
+        // 2. Buscas em lote para otimização (Cálculos Financeiros)
         Map<Long, List<OsLpuDetalhe>> detalhesPorOsId = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(d -> d.getOs().getId()));
 
@@ -81,7 +77,6 @@ public class LancamentoController {
         List<SituacaoAprovacao> statusPendentes = List.of(SituacaoAprovacao.PENDENTE_COORDENADOR, SituacaoAprovacao.PENDENTE_CONTROLLER, SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO, SituacaoAprovacao.PRAZO_VENCIDO);
         Map<Long, List<Lancamento>> lancamentosPendentesPorOsId = lancamentoRepository.findPendentesBySituacaoAprovacaoInAndOsIdIn(statusPendentes, new ArrayList<>(osIds)).stream()
                 .collect(Collectors.groupingBy(l -> l.getOsLpuDetalhe().getOs().getId()));
-
 
         Map<Long, BigDecimal> totalOsMap = detalhesPorOsId.entrySet().stream()
                 .collect(Collectors.toMap(
@@ -110,6 +105,8 @@ public class LancamentoController {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 ));
 
+        // 3. Recriação do DTO com os valores calculados E os novos campos de documentação
+        // IMPORTANTE: A ordem dos argumentos aqui DEVE ser idêntica à definição do Record LancamentoResponseDTO
         return dtos.stream().map(dto -> {
             Long osId = (dto.os() != null) ? dto.os().id() : null;
             BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
@@ -154,7 +151,18 @@ public class LancamentoController {
                     dto.dataPagamento(),
                     dto.dataCompetencia(),
                     dto.valorAdiantamento(),
-                    dto.valorSolicitadoAdiantamento()
+                    dto.valorSolicitadoAdiantamento(),
+
+                    // Novos campos de Documentação (Ordem exata do DTO)
+                    dto.tipoDocumentacaoId(),
+                    dto.tipoDocumentacaoNome(),
+                    dto.documentistaId(),
+                    dto.documentistaNome(),
+                    dto.statusDocumentacao(),
+                    dto.dataSolicitacaoDoc(),
+                    dto.dataRecebimentoDoc(),
+                    dto.dataPrazoDoc(),
+                    dto.dataFinalizacaoDoc()
             );
         }).collect(Collectors.toList());
     }
@@ -192,10 +200,6 @@ public class LancamentoController {
         return ResponseEntity.ok(relatorio);
     }
 
-    // ==========================================================
-    // ENDPOINTS PRINCIPAIS (OTIMIZADOS)
-    // ==========================================================
-
     @GetMapping
     public ResponseEntity<List<LancamentoResponseDTO>> getAllLancamentos(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
@@ -219,15 +223,10 @@ public class LancamentoController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
     ) {
-        // Agora repassa as datas para o serviço
         List<Lancamento> historico = lancamentoService.getHistoricoPorUsuario(usuarioId, inicio, fim);
         List<LancamentoResponseDTO> dtosAtualizados = enriquecerLancamentosComValores(historico);
         return ResponseEntity.ok(dtosAtualizados);
     }
-
-    // ==========================================================
-    // DEMAIS ENDPOINTS (MANTIDOS)
-    // ==========================================================
 
     @PostMapping("/lote/prazo/aprovar")
     public ResponseEntity<Void> aprovarPrazoLotePeloController(@RequestBody AprovacaoLoteRequest request) {
@@ -405,13 +404,9 @@ public class LancamentoController {
 
     @PostMapping("/{id}/solicitar-adiantamento")
     public ResponseEntity<LancamentoResponseDTO> solicitarAdiantamentoCoordenador(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-
-        // CORREÇÃO: O JavaScript envia "usuarioId", então devemos ler "usuarioId" aqui
         Long coordenadorId = Long.valueOf(payload.get("usuarioId").toString());
-
         BigDecimal valor = new BigDecimal(payload.get("valor").toString());
         String justificativa = (String) payload.get("justificativa");
-
         Lancamento lancamento = lancamentoService.solicitarAdiantamentoCoordenador(id, coordenadorId, valor, justificativa);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
@@ -428,5 +423,4 @@ public class LancamentoController {
         Lancamento lancamento = lancamentoService.finalizarDocumentacao(id, assunto);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
-
 }

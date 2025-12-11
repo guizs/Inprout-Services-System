@@ -1,7 +1,7 @@
 // guizs/inprout-services-system/Inprout-Services-System-Correcao_bo/Homologação/frontend/assets/js/cps/export.js
 
 // --- VARIÁVEL QUE FALTAVA ---
-const API_URL = 'https://www.inproutservices.com.br/api';
+const API_URL = 'http://localhost:8080';
 
 // Função central para criar e baixar o arquivo .xlsx
 function exportToExcel(rows, headers, fileName) {

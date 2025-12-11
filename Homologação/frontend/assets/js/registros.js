@@ -8,7 +8,7 @@ const formatarMoeda = (valor) => {
 document.addEventListener('DOMContentLoaded', function () {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const API_BASE_URL = 'https://www.inproutservices.com.br/api';
+    const API_BASE_URL = 'http://localhost:8080';
     let isImportCancelled = false;
     let todasAsLinhas = [];
     let linhasIniciais = [];
@@ -1233,22 +1233,26 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         btnExportar.addEventListener('click', async () => {
-            // 1. Verificações iniciais
+            // --- 1. LIMPEZA PREVENTIVA (Destrava a tela caso já esteja bugada) ---
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = 'auto';
+
+            // Verifica se há dados
             if (todasAsLinhas.length === 0 && gruposFiltradosCache.length === 0) {
                 mostrarToast('Não há dados para exportar.', 'error');
                 return;
             }
 
-            // 2. Recupera o Modal de forma segura (impede duplicidade)
-            const modalProgressoEl = document.getElementById('modalProgressoExportacao');
-            // Usa getOrCreateInstance para não criar dois modais no mesmo elemento
-            const modalProgresso = bootstrap.Modal.getOrCreateInstance(modalProgressoEl);
+            // Recupera o modal de forma segura
+            const modalEl = document.getElementById('modalProgressoExportacao');
+            const modalProgresso = bootstrap.Modal.getOrCreateInstance(modalEl);
 
             const statusCarregamento = isCarregandoTudo
                 ? `<span class="text-warning"><i class="bi bi-hourglass-split"></i> Carregando restante dos dados...</span>`
                 : `<span class="text-success"><i class="bi bi-check-circle"></i> Carga completa.</span>`;
 
-            // 3. Pergunta ao usuário
+            // Pergunta ao usuário
             const result = await Swal.fire({
                 title: 'Exportar Relatório',
                 html: `
@@ -1282,6 +1286,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
+            // --- 2. PEQUENA PAUSA (Evita o conflito visual entre o Swal e o Modal) ---
+            await new Promise(r => setTimeout(r, 300));
+
             let gruposParaExportar = [];
 
             if (result.isConfirmed) {
@@ -1303,15 +1310,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 gruposParaExportar = transformarEmGrupos(todasAsLinhas);
             }
 
-            // 4. Exibe o modal
+            // Abre o modal de progresso
             modalProgresso.show();
             const textoProgresso = document.getElementById('textoProgresso');
             textoProgresso.textContent = 'Preparando dados...';
 
             try {
-                await new Promise(r => setTimeout(r, 300)); // Delay para garantir que o modal renderizou
+                await new Promise(r => setTimeout(r, 500)); // Delay visual para o usuário ler
 
-                // --- GERAÇÃO DO EXCEL ---
+                // Geração do Excel
                 textoProgresso.textContent = `Processando ${gruposParaExportar.length} grupos...`;
 
                 const resumoHeaders = ["Projeto", "OS", "Total OS", "Total CPS Aprovado", "Total Material", "Total CPS Legado", "% Concluído"];
@@ -1331,7 +1338,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
 
                 textoProgresso.textContent = 'Gerando linhas detalhadas...';
-                await new Promise(r => setTimeout(r, 50));
+                await new Promise(r => setTimeout(r, 100));
 
                 const detalhesHeaders = [...headers, "VALOR CPS LEGADO"];
                 const detalhesRows = gruposParaExportar.flatMap(g => g.linhas).map(linhaData => {
@@ -1340,7 +1347,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         if (!func) return '-';
                         let cellValue = func(linhaData);
 
-                        // Formatação numérica
                         if (header.toUpperCase().includes('VALOR') || header === 'QUANTIDADE') {
                             let rawValue = 0;
                             if (header === 'VALOR') rawValue = get(linhaData, 'ultimoLancamento.valor', 0);
@@ -1349,7 +1355,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             else if (header === 'QUANTIDADE') rawValue = get(linhaData, 'detalhe.quantidade', 0);
                             return parseFloat(rawValue) || 0;
                         }
-                        // Formatação de data
                         if ((header.toUpperCase().includes('DATA') || header.toUpperCase().includes('PLANO')) && cellValue && cellValue !== '-') {
                             const partes = cellValue.split(' ')[0].split('/');
                             if (partes.length === 3) return new Date(partes[2], partes[1] - 1, partes[0]);
@@ -1374,17 +1379,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error("Erro exportação:", error);
                 mostrarToast('Erro ao gerar Excel: ' + error.message, 'error');
             } finally {
-                // 5. FECHAMENTO BLINDADO
+                // --- 3. FAXINA FINAL (Garante que a tela destrave) ---
+                modalProgresso.hide();
 
-                // Tenta fechar bonito
-                if (modalProgresso) modalProgresso.hide();
-
-                // Espera um tiquinho e força a remoção do fundo cinza se ele sobrar
                 setTimeout(() => {
-                    const backdrops = document.querySelectorAll('.modal-backdrop');
-                    backdrops.forEach(b => b.remove());
+                    // Remove na força bruta qualquer fundo cinza que tenha sobrado
+                    document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
                     document.body.classList.remove('modal-open');
-                    document.body.style.overflow = ''; // Devolve o scroll da página
+                    document.body.style.overflow = 'auto';
                     document.body.style.paddingRight = '';
                 }, 500);
             }

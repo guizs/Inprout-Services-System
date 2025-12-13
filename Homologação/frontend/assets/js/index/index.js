@@ -852,16 +852,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
 
-            const elTipoDoc = document.getElementById('tipoDocumentacaoId');
-            const elDocumentista = document.getElementById('documentistaId');
-
-            if (elTipoDoc) elTipoDoc.value = lancamento.tipoDocumentacaoId || "";
-            if (elDocumentista) elDocumentista.value = lancamento.documentistaId || "";
-
+            // 1. PRIMEIRO: Carrega as opções dos selects (LPU, Prestadores, Tipos Doc)
             await carregarDadosParaModal();
+
+            // 2. SEGUNDO: Limpa o formulário de resquícios anteriores
             formAdicionar.reset();
+
+            // 3. TERCEIRO: Configurações de IDs e botões
             if (editingId) formAdicionar.dataset.editingId = editingId;
             else delete formAdicionar.dataset.editingId;
+
             if (lancamento.detalhe && lancamento.detalhe.id) formAdicionar.dataset.osLpuDetalheId = lancamento.detalhe.id;
             else delete formAdicionar.dataset.osLpuDetalheId;
 
@@ -892,6 +892,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (dataAtividadeInput) dataAtividadeInput.value = new Date().toISOString().split('T')[0];
             }
 
+            // 4. QUARTO: Preencher os campos de Documentação (AGORA NA ORDEM CERTA)
+            const elTipoDoc = document.getElementById('tipoDocumentacaoId');
+            const elDocumentista = document.getElementById('documentistaId');
+
+            if (elTipoDoc) {
+                // Seleciona o Tipo de Documentação
+                elTipoDoc.value = lancamento.tipoDocumentacaoId || "";
+
+                // IMPORTANTE: Dispara o filtro para carregar o select de documentistas corretamente
+                if (typeof filtrarDocumentistasPorTipo === 'function') {
+                    filtrarDocumentistasPorTipo(elTipoDoc.value);
+                }
+            }
+
+            if (elDocumentista) {
+                // Agora que o filtro rodou e populou o select, selecionamos o valor
+                elDocumentista.value = lancamento.documentistaId || "";
+            }
+
+            // 5. QUINTO: Preenchimento dos demais dados (OS, Valores, etc.)
             if (lancamento.os) {
                 if (selectProjeto && lancamento.os.projeto) {
                     if (!selectProjeto.querySelector(`option[value="${lancamento.os.projeto}"]`)) {
@@ -906,6 +926,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     selectOS.value = lancamento.os.id;
                 }
                 try {
+                    // Busca dados completos da OS para preencher campos read-only
                     const response = await fetchComAuth(`http://localhost:8080/os/${lancamento.os.id}`);
                     if (!response.ok) throw new Error('Falha ao recarregar dados da OS para edição.');
                     const osDataCompleta = await response.json();
@@ -915,9 +936,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     mostrarToast('Erro ao carregar dados da OS.', 'error');
                 }
             }
+
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
+
             ['vistoria', 'desmobilizacao', 'instalacao', 'ativacao', 'documentacao'].forEach(k => {
                 const el = document.getElementById(k);
                 if (el) el.value = lancamento[k] || 'N/A';

@@ -60,7 +60,7 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia,
         BigDecimal valorAdiantamento,
         BigDecimal valorSolicitadoAdiantamento,
-        // --- NOVOS CAMPOS (Total 47 campos) ---
+
         Long tipoDocumentacaoId,
         String tipoDocumentacaoNome,
         Long documentistaId,
@@ -71,7 +71,7 @@ public record LancamentoResponseDTO(
         LocalDate dataPrazoDoc,
         LocalDateTime dataFinalizacaoDoc
 ) {
-    // Construtor auxiliar que preenche TODOS os campos a partir da Entidade
+
     public LancamentoResponseDTO(Lancamento lancamento) {
         this(
                 lancamento.getId(),
@@ -87,7 +87,9 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCriacao(),
                 lancamento.getDataPrazo(),
                 lancamento.getDataPrazoProposta(),
-                (lancamento.getComentarios() != null) ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList()) : List.of(),
+                (lancamento.getComentarios() != null)
+                        ? lancamento.getComentarios().stream().map(ComentarioDTO::new).collect(Collectors.toList())
+                        : List.of(),
                 lancamento.getEquipe(),
                 lancamento.getVistoria(),
                 lancamento.getPlanoVistoria(),
@@ -101,10 +103,10 @@ public record LancamentoResponseDTO(
                 lancamento.getPlanoDocumentacao(),
                 lancamento.getStatus(),
                 lancamento.getSituacao(),
-                null, // totalOs
-                null, // valorCps
-                null, // valorPendente
-                null, // totalPago
+                null,
+                null,
+                null,
+                null,
                 lancamento.getValorPagamento(),
                 lancamento.getStatusPagamento(),
                 (lancamento.getControllerPagador() != null) ? new AutorSimpleDTO(lancamento.getControllerPagador()) : null,
@@ -112,8 +114,8 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCompetencia(),
                 lancamento.getValorAdiantamento(),
                 lancamento.getValorSolicitadoAdiantamento(),
-                // --- PREENCHIMENTO DOS NOVOS CAMPOS ---
-                lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getId() : null,
+
+                lancamento.getTipoDocumentacao()!= null ? lancamento.getTipoDocumentacao().getId() : null,
                 lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getNome() : null,
                 lancamento.getDocumentista() != null ? lancamento.getDocumentista().getId() : null,
                 lancamento.getDocumentista() != null ? lancamento.getDocumentista().getNome() : null,
@@ -124,6 +126,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDataFinalizacaoDoc()
         );
     }
+
 
     public record ComentarioDTO(Long id, String texto, @JsonFormat(pattern = "dd/MM/yyyy HH:mm:ss") LocalDateTime dataHora, AutorSimpleDTO autor) {
         public ComentarioDTO(Comentario comentario) { this(comentario.getId(), comentario.getTexto(), comentario.getDataHora(), (comentario.getAutor() != null) ? new AutorSimpleDTO(comentario.getAutor()) : null); }

@@ -110,8 +110,7 @@ public class ControleCpsController {
         // Busca detalhes da LPU para total da OS
         List<OsLpuDetalhe> detalhes = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds));
 
-        // --- CORREÇÃO: Busca TODOS os lançamentos da OS, não só os 'Aprovados' ---
-        // Isso garante que se um item estiver PAGO mas com status de aprovação diferente, ele seja contabilizado
+        // Busca TODOS os lançamentos da OS, não só os 'Aprovados'
         List<Lancamento> todosLancamentosDaOs = lancamentoRepository.findByOsIdIn(new ArrayList<>(osIds));
 
         Map<Long, BigDecimal> totalOsMap = detalhes.stream()
@@ -131,8 +130,7 @@ public class ControleCpsController {
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // --- CORREÇÃO NO CÁLCULO DE PAGO ---
-        // Filtra puramente pelo StatusPagamento == PAGO, ignorando a SituacaoAprovacao
+        // Total PAGO
         Map<Long, BigDecimal> totalPagoMap = todosLancamentosDaOs.stream()
                 .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
                 .collect(Collectors.groupingBy(
@@ -177,7 +175,18 @@ public class ControleCpsController {
                     l.getDataPagamento(),
                     l.getDataCompetencia(),
                     l.getValorAdiantamento(),
-                    l.getValorSolicitadoAdiantamento()
+                    l.getValorSolicitadoAdiantamento(),
+
+                    // === CORREÇÃO: ADICIONADOS OS CAMPOS FALTANTES ===
+                    l.getTipoDocumentacao() != null ? l.getTipoDocumentacao().getId() : null,
+                    l.getTipoDocumentacao() != null ? l.getTipoDocumentacao().getNome() : null,
+                    l.getDocumentista() != null ? l.getDocumentista().getId() : null,
+                    l.getDocumentista() != null ? l.getDocumentista().getNome() : null,
+                    l.getStatusDocumentacao(),
+                    l.getDataSolicitacaoDoc(),
+                    l.getDataRecebimentoDoc(),
+                    l.getDataPrazoDoc(),
+                    l.getDataFinalizacaoDoc()
             );
         }).collect(Collectors.toList());
     }
@@ -247,7 +256,6 @@ public class ControleCpsController {
             @RequestParam(required = false) Long gestorId,
             @RequestParam(required = false) Long prestadorId
     ) {
-        // Passa os filtros para o serviço
         List<Lancamento> historico = controleCpsService.getHistoricoControleCps(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
         return ResponseEntity.ok(enriquecerComTotais(historico));
     }
@@ -255,7 +263,6 @@ public class ControleCpsController {
     @PostMapping("/fechar-lote")
     public ResponseEntity<List<LancamentoResponseDTO>> fecharParaPagamentoLote(@Valid @RequestBody ControleCpsDTO.AcaoCoordenadorLoteDTO dto) {
         List<Lancamento> lancamentos = controleCpsService.fecharParaPagamentoLote(dto);
-        // Reutiliza seu método existente de enriquecer com totais
         return ResponseEntity.ok(enriquecerComTotais(lancamentos));
     }
 

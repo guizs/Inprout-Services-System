@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const abaAtivaAgora = document.querySelector('#aprovacoesTab .nav-link.active');
 
         // Remove loader de todas as abas possíveis para garantir
-        ['#atividades-pane', '#materiais-pane', '#complementares-pane', '#cps-pendencias-pane'].forEach(id => toggleLoader(false, id));
+        ['#atividades-pane', '#materiais-pane', '#complementares-pane', '#cps-pendencias-pane', '#minhas-docs-pane'].forEach(id => toggleLoader(false, id));
 
         if (abaAtivaAgora) {
             const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
@@ -40,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
             else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
             else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+            else if (painelAtivoId === '#minhas-docs-pane') renderizarTabelaDocs(window.minhasDocsPendentes || []);
         }
     });
 
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
             else if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
             else if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            else if (targetPaneId === '#minhas-docs-pane') renderizarTabelaDocs(window.minhasDocsPendentes || []);
 
             // Abas de Histórico (carregam sob demanda)
             else if (targetPaneId === '#historico-atividades-pane' && targetPane.dataset.loaded !== 'true') {
@@ -72,7 +74,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // 4. Lógica de Checkbox (Atividades)
     const accordionPendencias = document.getElementById('accordion-pendencias');
     if (accordionPendencias) {
-        // Bloqueia propagação do clique no header para não fechar o acordeão ao clicar no checkbox
         accordionPendencias.addEventListener('click', (e) => {
             if (e.target.closest('.check-container-header')) {
                 e.stopPropagation();
@@ -82,48 +83,26 @@ document.addEventListener('DOMContentLoaded', function () {
         accordionPendencias.addEventListener('change', (e) => {
             const target = e.target;
 
-            // 1. Clicou em "Selecionar Todos" de um grupo (Projeto/OS)
+            // 1. Clicou em "Selecionar Todos" de um grupo
             if (target.classList.contains('selecionar-todos-acordeon')) {
                 const isChecked = target.checked;
-                const targetBodyId = target.dataset.targetBody; // Ex: collapse-ID-0
-
-                // Marca/Desmarca todos os filhos desse grupo
+                const targetBodyId = target.dataset.targetBody;
                 const filhos = document.querySelectorAll(`#${targetBodyId} .linha-checkbox`);
                 filhos.forEach(cb => {
                     cb.checked = isChecked;
                     const tr = cb.closest('tr');
                     if (tr) tr.classList.toggle('table-active', isChecked);
                 });
-
-                // Estiliza o botão do acordeão
                 const btnAcordeon = target.closest('.accordion-header').querySelector('.accordion-button');
                 if (btnAcordeon) {
                     isChecked ? btnAcordeon.classList.add('header-selected') : btnAcordeon.classList.remove('header-selected');
                 }
-
                 atualizarEstadoAcoesLote();
             }
-
-            // 2. Clicou em um checkbox individual de linha
+            // 2. Clicou em um checkbox individual
             else if (target.classList.contains('linha-checkbox')) {
                 const tr = target.closest('tr');
                 if (tr) tr.classList.toggle('table-active', target.checked);
-
-                // Lógica para atualizar o "Selecionar Todos" do pai se todos estiverem marcados
-                // (Opcional, mas melhora a UX)
-                const accordionItem = target.closest('.accordion-item');
-                if (accordionItem) {
-                    const paiCheck = accordionItem.querySelector('.selecionar-todos-acordeon');
-                    const todosFilhos = accordionItem.querySelectorAll('.linha-checkbox');
-                    const todosMarcados = Array.from(todosFilhos).every(c => c.checked);
-                    const algumMarcado = Array.from(todosFilhos).some(c => c.checked);
-
-                    if (paiCheck) {
-                        paiCheck.checked = todosMarcados;
-                        paiCheck.indeterminate = algumMarcado && !todosMarcados;
-                    }
-                }
-
                 atualizarEstadoAcoesLote();
             }
         });
@@ -131,15 +110,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 5. Botões de Ação em Lote (Atividades)
     document.getElementById('btn-aprovar-selecionados')?.addEventListener('click', () => {
-        // Marca o modal como lote
         if (modalAprovar) {
             modalAprovar._element.dataset.acaoEmLote = 'true';
-
-            // Texto dinâmico do modal
             const checks = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
             const modalBody = modalAprovar._element.querySelector('.modal-body p');
             if (modalBody) modalBody.innerHTML = `Você está prestes a aprovar <b>${checks.length}</b> itens selecionados.<br>Deseja continuar?`;
-
             modalAprovar.show();
         }
     });
@@ -148,31 +123,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const checkboxes = document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked');
         if (checkboxes.length === 0) return;
 
-        // Verifica o status do primeiro item para saber qual modal abrir (Recusa ou Prazo)
         const firstId = checkboxes[0].dataset.id;
         const lanc = window.todosOsLancamentosGlobais.find(l => l.id == firstId);
 
         if ((userRole === 'CONTROLLER' || userRole === 'ADMIN') &&
             (lanc.situacaoAprovacao === 'AGUARDANDO_EXTENSAO_PRAZO' || lanc.situacaoAprovacao === 'PRAZO_VENCIDO')) {
-            // Controller Recusando Prazo -> Abre Modal de Comentário/Novo Prazo
             if (modalComentar) {
                 modalComentar._element.dataset.acaoEmLote = 'true';
-
-                // Ajusta textos
                 const title = modalComentar._element.querySelector('.modal-title');
                 if (title) title.innerHTML = '<i class="bi bi-calendar-x-fill text-danger me-2"></i>Recusar Prazo em Lote';
-
                 modalComentar.show();
             }
         } else {
-            // Recusa Normal (Coordenador ou Controller devolvendo)
             if (modalRecusar) {
                 modalRecusar._element.dataset.acaoEmLote = 'true';
-                document.getElementById('motivoRecusa').value = ''; // Limpa
-
+                document.getElementById('motivoRecusa').value = '';
                 const title = modalRecusar._element.querySelector('.modal-title');
                 if (title) title.innerHTML = '<i class="bi bi-x-circle-fill text-danger me-2"></i>Recusar em Lote';
-
                 modalRecusar.show();
             }
         }
@@ -183,10 +150,8 @@ document.addEventListener('DOMContentLoaded', function () {
             modalComentar._element.dataset.acaoEmLote = 'true';
             document.getElementById('comentarioCoordenador').value = '';
             document.getElementById('novaDataProposta').value = '';
-
             const title = modalComentar._element.querySelector('.modal-title');
             if (title) title.innerHTML = '<i class="bi bi-clock-history text-warning me-2"></i>Solicitar Prazo em Lote';
-
             modalComentar.show();
         }
     });
@@ -222,6 +187,51 @@ document.addEventListener('DOMContentLoaded', function () {
         if (modalRecusarComplementar) { modalRecusarComplementar._element.dataset.acaoEmLote = 'true'; recusarComplementar(null); }
     });
 
+    // =================================================================
+    // BOTÃO FINALIZAR DOC
+    // =================================================================
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-finalizar-doc')) {
+            const id = e.target.dataset.id;
+            const modalFinalizar = new bootstrap.Modal(document.getElementById('modalFinalizarDoc'));
+            document.getElementById('finalizarDocId').value = id;
+            document.getElementById('assuntoEmailDoc').value = '';
+            modalFinalizar.show();
+        }
+    });
+
+    document.getElementById('btnConfirmarFinalizarDoc')?.addEventListener('click', async function() {
+        const id = document.getElementById('finalizarDocId').value;
+        const assunto = document.getElementById('assuntoEmailDoc').value;
+
+        if(!assunto) {
+            mostrarToast("O assunto do e-mail é obrigatório.", "warning");
+            return;
+        }
+
+        const btn = this;
+        setButtonLoading(btn, true);
+        try {
+            await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/finalizar`, { 
+                method: 'POST', 
+                body: JSON.stringify({ assuntoEmail: assunto }) 
+            });
+            mostrarToast("Documentação finalizada!", "success");
+            
+            // Fecha modal
+            const modalEl = document.getElementById('modalFinalizarDoc');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+
+            await carregarDashboardEBadges();
+            renderizarTabelaDocs(window.minhasDocsPendentes || []);
+        } catch (e) {
+            mostrarToast(e.message, 'error');
+        } finally {
+            setButtonLoading(btn, false);
+        }
+    });
+
 
     // =================================================================
     // HANDLERS DE SUBMIT (ATIVIDADES)
@@ -255,18 +265,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify({ lancamentoIds: ids, aprovadorId: userId, controllerId: userId }) });
             if (!res.ok) throw new Error("Erro ao aprovar.");
 
-            // --- TOAST DE SUCESSO ---
             mostrarToast(`${ids.length} item(ns) aprovado(s) com sucesso!`, "success");
-
             modalAprovar.hide();
-
             const histPane = document.getElementById('historico-atividades-pane');
             if (histPane) histPane.dataset.loaded = 'false';
-
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
-            // --- TOAST DE ERRO ---
             mostrarToast(e.message, 'error');
         }
         finally { setButtonLoading(this, false); delete modalAprovar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
@@ -297,19 +302,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
             if (!res.ok) throw new Error("Erro ao recusar.");
 
-            // --- TOAST DE SUCESSO ---
             mostrarToast(`${ids.length} item(ns) recusado(s) com sucesso!`, "success");
-
             modalRecusar.hide();
-
             const histPane = document.getElementById('historico-atividades-pane');
             if (histPane) histPane.dataset.loaded = 'false';
-
-
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
-            // --- TOAST DE ERRO ---
             mostrarToast(e.message, 'error');
         }
         finally { setButtonLoading(btn, false); delete modalRecusar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
@@ -324,7 +323,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const comentario = document.getElementById('comentarioCoordenador').value;
         const novaData = document.getElementById('novaDataProposta').value;
 
-        // Validação da Data
         if (['CONTROLLER', 'ADMIN'].includes(userRole)) {
             if (!novaData && document.querySelector('label[for="novaDataProposta"]').textContent.includes('Obrigatório')) {
                 mostrarToast("Por favor, defina o novo prazo.", "warning"); return;
@@ -349,17 +347,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const res = await fetchComAuth(`${API_BASE_URL}${endpoint}`, { method: 'POST', body: JSON.stringify(payload) });
             if (!res.ok) throw new Error("Erro ao processar solicitação de prazo.");
 
-            // --- TOAST DE SUCESSO ---
             mostrarToast("Ação de prazo realizada com sucesso!", "success");
-
             modalComentar.hide();
             const histPane = document.getElementById('historico-atividades-pane');
             if (histPane) histPane.dataset.loaded = 'false';
-
             await carregarDashboardEBadges();
             renderizarAcordeonPendencias(window.todasPendenciasAtividades);
         } catch (e) {
-            // --- TOAST DE ERRO ---
             mostrarToast(e.message, 'error');
         }
         finally { setButtonLoading(btn, false); delete modalComentar._element.dataset.acaoEmLote; toggleLoader(false, '#atividades-pane'); }
@@ -599,14 +593,28 @@ async function carregarDashboardEBadges() {
         if (!resGeral.ok) throw new Error('Falha no dashboard.');
 
         window.todosOsLancamentosGlobais = await resGeral.json();
-        window.todasPendenciasAtividades = await resPendAtiv.json();
+        // === FILTRO DA SEPARAÇÃO (DOCS x ATIVIDADES) ===
+        const todasPendenciasGerais = await resPendAtiv.json();
+        
+        // Separa o que é documentação do que é atividade normal
+        // Assumindo que statusDocumentacao != null e != 'NAO_APLICAVEL' e documentistaId == userId indica item de doc
+        window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL' && l.documentistaId == userId);
+        
+        // O restante (incluindo aprovações operacionais) vai para atividades
+        // (Você pode refinar esse filtro se um mesmo item puder aparecer em ambos, mas geralmente quem aprova operação não é o documentista)
+        window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.documentistaId != userId);
+
         const pendenciasPorCoordenador = await resPendCoord.json();
         window.todasPendenciasMateriais = await resPendMat.json();
         window.todasPendenciasComplementares = await resPendCompl.json();
 
         renderizarCardsDashboard(window.todosOsLancamentosGlobais, pendenciasPorCoordenador, window.todasPendenciasMateriais.length, window.todasPendenciasComplementares.length);
+        
         atualizarBadge('#materiais-tab', window.todasPendenciasMateriais.length);
         atualizarBadge('#complementares-tab', window.todasPendenciasComplementares.length);
+        
+        // Atualiza badge de docs se houver
+        atualizarBadge('#minhas-docs-tab', window.minhasDocsPendentes.length);
 
     } catch (e) { console.error(e); }
     finally { toggleLoader(false, '.overview-card'); }
@@ -747,36 +755,55 @@ function atualizarEstadoAcoesLoteComplementar() {
 
 function renderizarTabelaDocs(lancamentos) {
     const tbody = document.getElementById('tbody-minhas-docs');
+    if(!tbody) return; // Segurança caso a aba não exista no HTML
+    
     tbody.innerHTML = '';
     let saldo = 0;
+
+    if (!lancamentos || lancamentos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma documentação pendente.</td></tr>';
+        document.getElementById('saldo-documentista').innerText = 'R$ 0,00';
+        return;
+    }
 
     lancamentos.forEach(l => {
         if (l.statusDocumentacao === 'FINALIZADO') {
             saldo += l.valor || 0;
-            return; // Se for tab de pendentes, ignora finalizados
+            return; 
         }
 
         const hoje = new Date();
-        const prazo = new Date(l.dataPrazoDoc); // Vem do backend
-        let corSla = 'bg-success'; // Verde
+        // Converte string 'yyyy-mm-dd' para Date, se vier assim
+        const prazo = l.dataPrazoDoc ? new Date(l.dataPrazoDoc) : null;
+        
+        let corSla = 'bg-secondary';
+        let textoPrazo = '-';
 
-        // Simples comparação de data (pode refinar com horas)
-        if (hoje > prazo) {
-            corSla = 'bg-danger'; // Vermelho (Atrasado)
-        } else if (hoje.toDateString() === prazo.toDateString()) {
-            corSla = 'bg-warning'; // Amarelo (Vence hoje)
+        if(prazo) {
+            textoPrazo = formatarData(l.dataPrazoDoc);
+            // Zera horas para comparação justa de dias
+            const hojeZero = new Date(hoje.setHours(0,0,0,0));
+            const prazoZero = new Date(prazo.setHours(0,0,0,0));
+
+            if (hojeZero > prazoZero) {
+                corSla = 'bg-danger'; // Atrasado
+            } else if (hojeZero.getTime() === prazoZero.getTime()) {
+                corSla = 'bg-warning text-dark'; // Vence hoje
+            } else {
+                corSla = 'bg-success'; // No prazo
+            }
         }
 
         const tr = `
             <tr>
-                <td>${l.os.os}</td>
-                <td>${l.tipoDocumentacaoNome}</td>
-                <td>${formatarData(l.dataRecebimentoDoc)}</td>
-                <td><span class="badge ${corSla}">${formatarData(l.dataPrazoDoc)}</span></td>
+                <td>${l.os ? l.os.os : '-'}</td>
+                <td>${l.tipoDocumentacaoNome || '-'}</td>
+                <td>${l.dataRecebimentoDoc ? new Date(l.dataRecebimentoDoc).toLocaleDateString('pt-BR') : '-'}</td>
+                <td><span class="badge ${corSla}">${textoPrazo}</span></td>
                 <td>${formatarMoeda(l.valor)}</td>
                 <td>
                     <button class="btn btn-sm btn-primary btn-finalizar-doc" data-id="${l.id}">
-                        Finalizar
+                        <i class="bi bi-check2-all"></i> Finalizar
                     </button>
                 </td>
             </tr>
@@ -784,5 +811,8 @@ function renderizarTabelaDocs(lancamentos) {
         tbody.innerHTML += tr;
     });
 
-    document.getElementById('saldo-documentista').innerText = formatarMoeda(saldo);
+    // O saldo aqui poderia ser "Total Pendente" ou "Total Finalizado", ajuste conforme a regra.
+    // Se for "A Receber", seria a soma dos pendentes.
+    const totalPendente = lancamentos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
+    document.getElementById('saldo-documentista').innerText = formatarMoeda(totalPendente);
 }

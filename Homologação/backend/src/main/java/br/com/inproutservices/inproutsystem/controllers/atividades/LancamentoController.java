@@ -52,7 +52,7 @@ public class LancamentoController {
             return new ArrayList<>();
         }
 
-        // 1. Converte Entidades para DTOs (aqui o construtor auxiliar preenche os dados de Doc corretamente)
+        // 1. Converte Entidades para DTOs
         List<LancamentoResponseDTO> dtos = lancamentos.stream()
                 .map(LancamentoResponseDTO::new)
                 .collect(Collectors.toList());
@@ -152,7 +152,7 @@ public class LancamentoController {
                     dto.valorAdiantamento(),
                     dto.valorSolicitadoAdiantamento(),
 
-                    // --- NOVOS CAMPOS QUE FALTAVAM NA CHAMADA MANUAL ---
+                    // --- NOVOS CAMPOS QUE FALTAVAM ---
                     dto.tipoDocumentacaoId(),
                     dto.tipoDocumentacaoNome(),
                     dto.documentistaId(),

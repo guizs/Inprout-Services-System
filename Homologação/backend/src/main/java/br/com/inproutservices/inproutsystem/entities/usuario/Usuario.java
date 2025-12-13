@@ -2,6 +2,7 @@ package br.com.inproutservices.inproutsystem.entities.usuario;
 
 import br.com.inproutservices.inproutsystem.entities.index.Segmento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -31,6 +32,7 @@ public class Usuario implements UserDetails {
     private Set<Segmento> segmentos = new HashSet<>();
 
     @Override
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }
@@ -140,26 +142,10 @@ public class Usuario implements UserDetails {
         return this.email;
     }
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true; // A conta não expira
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true; // A conta não é bloqueada
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true; // As credenciais não expiram
-    }
-
-    @Override
-    public boolean isEnabled() {
-        // A conta está ativa se o campo 'ativo' for true
-        return this.ativo;
-    }
+    @Override @JsonIgnore public boolean isAccountNonExpired() { return true; }
+    @Override @JsonIgnore public boolean isAccountNonLocked() { return true; }
+    @Override @JsonIgnore public boolean isCredentialsNonExpired() { return true; }
+    @Override @JsonIgnore public boolean isEnabled() { return true; }
 
     public void setDataCriacao(LocalDateTime dataCriacao) {
         this.dataCriacao = dataCriacao;

@@ -23,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let todasAsEtapasLote = [];
     let todosOsPrestadoresLote = [];
     let todasAsOSLote = [];
+    let todosTiposDocumentacaoLote = [];
+    let todosDocumentistasLote = [];
 
 
     function inicializarFlatpickrComFormato(selector) {
@@ -147,89 +149,106 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function gerarFormularioHTML(idSufixo, titulo, mostrarAberto = true) {
         return `
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading-${idSufixo}">
-                    <button class="accordion-button ${!mostrarAberto ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${idSufixo}" aria-expanded="${mostrarAberto}">
-                        ${titulo}
-                    </button>
-                </h2>
-                <div id="collapse-${idSufixo}" class="accordion-collapse collapse ${mostrarAberto ? 'show' : ''}">
-                    <div class="accordion-body">
-                        <h6 class="section-title">Execução</h6>
-                        <div class="etapas-scroll mb-3">
-                            <div class="card etapa-card">
-                                <h6>Vistoria</h6>
-                                <select class="form-select" id="vistoria-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
-                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoVistoria-lpu-${idSufixo}" placeholder="Plano (Data)">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Desmobilização</h6>
-                                <select class="form-select" id="desmobilizacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
-                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDesmobilizacao-lpu-${idSufixo}" placeholder="Plano (Data)">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Instalação</h6>
-                                <select class="form-select" id="instalacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
-                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoInstalacao-lpu-${idSufixo}" placeholder="Plano (Data)">
-                            </div>
-                             <div class="card etapa-card">
-                                <h6>Ativação</h6>
-                                <select class="form-select" id="ativacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
-                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoAtivacao-lpu-${idSufixo}" placeholder="Plano (Data)">
-                            </div>
-                            <div class="card etapa-card">
-                                <h6>Documentação</h6>
-                                <select class="form-select" id="documentacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
-                                <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDocumentacao-lpu-${idSufixo}" placeholder="Plano (Data)">
-                            </div>
-                        </div>
-                        <h6 class="section-title">Detalhes da Atividade</h6>
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <label for="etapaGeral-lpu-${idSufixo}" class="form-label">Etapa Geral</label>
-                                <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${idSufixo}" data-lpu-id="${idSufixo}" required><option value="" selected disabled>Selecione...</option></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="etapaDetalhadaId-lpu-${idSufixo}" class="form-label">Etapa Detalhada</label>
-                                <select class="form-select etapa-detalhada-select" id="etapaDetalhadaId-lpu-${idSufixo}" required disabled></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="status-lpu-${idSufixo}" class="form-label">Status</label>
-                                <select class="form-select status-select" id="status-lpu-${idSufixo}" required disabled></select>
-                            </div>
-                        </div>
-                         <div class="mb-3">
-                            <label for="situacao-lpu-${idSufixo}" class="form-label">Situação</label>
-                            <select class="form-select" id="situacao-lpu-${idSufixo}">
-                                <option value="" selected disabled>Selecione...</option>
-                                <option>Não iniciado</option>
-                                <option>Aguardando documentação</option>
-                                <option>Paralisado</option>
-                                <option selected>Em andamento</option>
-                                <option>Finalizado</option>
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading-${idSufixo}">
+                <button class="accordion-button ${!mostrarAberto ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-${idSufixo}" aria-expanded="${mostrarAberto}">
+                    ${titulo}
+                </button>
+            </h2>
+            <div id="collapse-${idSufixo}" class="accordion-collapse collapse ${mostrarAberto ? 'show' : ''}">
+                <div class="accordion-body">
+                    
+                    <h6 class="section-title">Controle de Documentação</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="tipoDocumentacaoId-lpu-${idSufixo}" class="form-label">Tipo de Documentação</label>
+                            <select class="form-select tipo-doc-select" id="tipoDocumentacaoId-lpu-${idSufixo}">
+                                <option value="" selected>Não se aplica</option>
                             </select>
                         </div>
-                         <div class="mb-3">
-                            <label for="detalheDiario-lpu-${idSufixo}" class="form-label">Detalhe Diário</label>
-                            <textarea class="form-control" id="detalheDiario-lpu-${idSufixo}" rows="2" required></textarea>
+                        <div class="col-md-6">
+                            <label for="documentistaId-lpu-${idSufixo}" class="form-label">Documentista Responsável</label>
+                            <select class="form-select documentista-select" id="documentistaId-lpu-${idSufixo}">
+                                <option value="" selected disabled>Selecione...</option>
+                            </select>
                         </div>
-                        <h6 class="section-title">Financeiro</h6>
-                        <div class="row g-3 mb-3">
-                             <div class="col-md-8">
-                                <label for="prestadorId-lpu-${idSufixo}" class="form-label">Prestador</label>
-                                <select class="form-select" id="prestadorId-lpu-${idSufixo}" required></select>
-                            </div>
-                            <div class="col-md-4">
-                                <label for="valor-lpu-${idSufixo}" class="form-label">Valor</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">R$</span>
-                                    <input type="text" class="form-control" id="valor-lpu-${idSufixo}" inputmode="numeric" />
-                                </div>
+                    </div>
+
+                    <h6 class="section-title">Execução</h6>
+                    <div class="etapas-scroll mb-3">
+                        <div class="card etapa-card">
+                            <h6>Vistoria</h6>
+                            <select class="form-select" id="vistoria-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                            <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoVistoria-lpu-${idSufixo}" placeholder="Plano (Data)">
+                        </div>
+                        <div class="card etapa-card">
+                            <h6>Desmobilização</h6>
+                            <select class="form-select" id="desmobilizacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                            <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDesmobilizacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                        </div>
+                        <div class="card etapa-card">
+                            <h6>Instalação</h6>
+                            <select class="form-select" id="instalacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                            <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoInstalacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                        </div>
+                         <div class="card etapa-card">
+                            <h6>Ativação</h6>
+                            <select class="form-select" id="ativacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                            <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoAtivacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                        </div>
+                        <div class="card etapa-card">
+                            <h6>Documentação</h6>
+                            <select class="form-select" id="documentacao-lpu-${idSufixo}"><option>OK</option><option>NOK</option><option selected>N/A</option></select>
+                            <input type="text" class="form-control flatpickr-date-lote mt-2" id="planoDocumentacao-lpu-${idSufixo}" placeholder="Plano (Data)">
+                        </div>
+                    </div>
+                    <h6 class="section-title">Detalhes da Atividade</h6>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <label for="etapaGeral-lpu-${idSufixo}" class="form-label">Etapa Geral</label>
+                            <select class="form-select etapa-geral-select" id="etapaGeral-lpu-${idSufixo}" data-lpu-id="${idSufixo}" required><option value="" selected disabled>Selecione...</option></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="etapaDetalhadaId-lpu-${idSufixo}" class="form-label">Etapa Detalhada</label>
+                            <select class="form-select etapa-detalhada-select" id="etapaDetalhadaId-lpu-${idSufixo}" required disabled></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="status-lpu-${idSufixo}" class="form-label">Status</label>
+                            <select class="form-select status-select" id="status-lpu-${idSufixo}" required disabled></select>
+                        </div>
+                    </div>
+                     <div class="mb-3">
+                        <label for="situacao-lpu-${idSufixo}" class="form-label">Situação</label>
+                        <select class="form-select" id="situacao-lpu-${idSufixo}">
+                            <option value="" selected disabled>Selecione...</option>
+                            <option>Não iniciado</option>
+                            <option>Aguardando documentação</option>
+                            <option>Paralisado</option>
+                            <option selected>Em andamento</option>
+                            <option>Finalizado</option>
+                        </select>
+                    </div>
+                     <div class="mb-3">
+                        <label for="detalheDiario-lpu-${idSufixo}" class="form-label">Detalhe Diário</label>
+                        <textarea class="form-control" id="detalheDiario-lpu-${idSufixo}" rows="2" required></textarea>
+                    </div>
+                    <h6 class="section-title">Financeiro</h6>
+                    <div class="row g-3 mb-3">
+                         <div class="col-md-8">
+                            <label for="prestadorId-lpu-${idSufixo}" class="form-label">Prestador</label>
+                            <select class="form-select" id="prestadorId-lpu-${idSufixo}" required></select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="valor-lpu-${idSufixo}" class="form-label">Valor</label>
+                            <div class="input-group">
+                                <span class="input-group-text">R$</span>
+                                <input type="text" class="form-control" id="valor-lpu-${idSufixo}" inputmode="numeric" />
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>`;
+            </div>
+        </div>`;
     }
 
     /**
@@ -243,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectPrestador.choices) selectPrestador.choices.destroy();
             selectPrestador.innerHTML = '';
             const choicesInstance = new Choices(selectPrestador, { searchEnabled: true, placeholder: true, placeholderValue: 'Busque pelo nome ou código...', itemSelectText: '', noResultsText: 'Nenhum resultado' });
-            
+
             // --- INÍCIO DA CORREÇÃO ---
             // 1. Adicionamos um item "placeholder"
             const placeholder = { value: '', label: 'Busque pelo nome ou código...', selected: true, disabled: true };
@@ -252,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 2. Enviamos a lista completa (com placeholder)
             choicesInstance.setChoices([placeholder, ...choicesData], 'value', 'label', false);
             // --- FIM DA CORREÇÃO ---
-            
+
             selectPrestador.choices = choicesInstance;
         }
 
@@ -261,29 +280,73 @@ document.addEventListener('DOMContentLoaded', () => {
             selectEtapaGeral.innerHTML = '<option value="" selected disabled>Selecione...</option>';
             todasAsEtapasLote.forEach(e => selectEtapaGeral.add(new Option(`${e.codigo} - ${e.nome}`, e.id)));
         }
+
+        const selectTipoDoc = document.getElementById(`tipoDocumentacaoId-lpu-${idSufixo}`);
+        if (selectTipoDoc && todosTiposDocumentacaoLote.length > 0) {
+            todosTiposDocumentacaoLote.forEach(td => selectTipoDoc.add(new Option(td.nome, td.id)));
+        }
+
+        const selectDocumentista = document.getElementById(`documentistaId-lpu-${idSufixo}`);
+        if (selectDocumentista && todosDocumentistasLote.length > 0) {
+            todosDocumentistasLote.forEach(d => selectDocumentista.add(new Option(d.nome, d.id)));
+        }
     }
 
     /**
     * Lê todos os valores de um formulário específico e retorna um objeto.
     */
     function lerDadosDeFormulario(idSufixo) {
+        // 1. É necessário declarar as variáveis ANTES do return
+        // O ?.value evita erro se o campo não existir por algum motivo
+        const campoTipoDoc = document.getElementById(`tipoDocumentacaoId-lpu-${idSufixo}`);
+        const campoDocumentista = document.getElementById(`documentistaId-lpu-${idSufixo}`);
+
+        const tipoDocVal = campoTipoDoc ? campoTipoDoc.value : "";
+        const documentistaVal = campoDocumentista ? campoDocumentista.value : "";
+
+        // Captura os outros valores do formulário
+        const vistoria = document.getElementById(`vistoria-lpu-${idSufixo}`).value;
+        const planoVistoria = formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${idSufixo}`).value);
+        const desmobilizacao = document.getElementById(`desmobilizacao-lpu-${idSufixo}`).value;
+        const planoDesmobilizacao = formatarDataParaAPI(document.getElementById(`planoDesmobilizacao-lpu-${idSufixo}`).value);
+        const instalacao = document.getElementById(`instalacao-lpu-${idSufixo}`).value;
+        const planoInstalacao = formatarDataParaAPI(document.getElementById(`planoInstalacao-lpu-${idSufixo}`).value);
+        const ativacao = document.getElementById(`ativacao-lpu-${idSufixo}`).value;
+        const planoAtivacao = formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${idSufixo}`).value);
+        const documentacao = document.getElementById(`documentacao-lpu-${idSufixo}`).value;
+        const planoDocumentacao = formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${idSufixo}`).value);
+
+        const etapaDetalhadaId = document.getElementById(`etapaDetalhadaId-lpu-${idSufixo}`).value;
+        const status = document.getElementById(`status-lpu-${idSufixo}`).value;
+        const situacao = document.getElementById(`situacao-lpu-${idSufixo}`).value;
+        const detalheDiario = document.getElementById(`detalheDiario-lpu-${idSufixo}`).value;
+        const prestadorId = document.getElementById(`prestadorId-lpu-${idSufixo}`).value;
+
+        // Tratamento do valor monetário
+        const valorInput = document.getElementById(`valor-lpu-${idSufixo}`).value;
+        const valor = parseFloat(valorInput.replace(/\./g, '').replace(',', '.')) || 0;
+
         return {
-            vistoria: document.getElementById(`vistoria-lpu-${idSufixo}`).value,
-            planoVistoria: formatarDataParaAPI(document.getElementById(`planoVistoria-lpu-${idSufixo}`).value),
-            desmobilizacao: document.getElementById(`desmobilizacao-lpu-${idSufixo}`).value,
-            planoDesmobilizacao: formatarDataParaAPI(document.getElementById(`planoDesmobilizacao-lpu-${idSufixo}`).value),
-            instalacao: document.getElementById(`instalacao-lpu-${idSufixo}`).value,
-            planoInstalacao: formatarDataParaAPI(document.getElementById(`planoInstalacao-lpu-${idSufixo}`).value),
-            ativacao: document.getElementById(`ativacao-lpu-${idSufixo}`).value,
-            planoAtivacao: formatarDataParaAPI(document.getElementById(`planoAtivacao-lpu-${idSufixo}`).value),
-            documentacao: document.getElementById(`documentacao-lpu-${idSufixo}`).value,
-            planoDocumentacao: formatarDataParaAPI(document.getElementById(`planoDocumentacao-lpu-${idSufixo}`).value),
-            etapaDetalhadaId: document.getElementById(`etapaDetalhadaId-lpu-${idSufixo}`).value,
-            status: document.getElementById(`status-lpu-${idSufixo}`).value,
-            situacao: document.getElementById(`situacao-lpu-${idSufixo}`).value,
-            detalheDiario: document.getElementById(`detalheDiario-lpu-${idSufixo}`).value,
-            prestadorId: document.getElementById(`prestadorId-lpu-${idSufixo}`).value,
-            valor: parseFloat(document.getElementById(`valor-lpu-${idSufixo}`).value.replace(/\./g, '').replace(',', '.')) || 0,
+            vistoria: vistoria,
+            planoVistoria: planoVistoria,
+            desmobilizacao: desmobilizacao,
+            planoDesmobilizacao: planoDesmobilizacao,
+            instalacao: instalacao,
+            planoInstalacao: planoInstalacao,
+            ativacao: ativacao,
+            planoAtivacao: planoAtivacao,
+            documentacao: documentacao,
+            planoDocumentacao: planoDocumentacao,
+
+            tipoDocumentacaoId: tipoDocVal && tipoDocVal !== "" ? parseInt(tipoDocVal) : null,
+            documentistaId: documentistaVal && documentistaVal !== "" ? parseInt(documentistaVal) : null,
+
+            etapaDetalhadaId: etapaDetalhadaId,
+            status: status,
+            situacao: situacao,
+            detalheDiario: detalheDiario,
+            prestadorId: prestadorId,
+            valor: valor
         };
     }
 
@@ -407,6 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (todosOsPrestadoresLote.length === 0) {
                 todosOsPrestadoresLote = await fetchComAuth('http://localhost:8080/index/prestadores/ativos').then(res => res.json());
             }
+            if (todosTiposDocumentacaoLote.length === 0) {
+                todosTiposDocumentacaoLote = await fetchComAuth('http://localhost:8080/tipos-documentacao').then(res => res.json());
+            }
+            if (todosDocumentistasLote.length === 0) {
+                todosDocumentistasLote = await fetchComAuth('http://localhost:8080/usuarios/documentistas').then(res => res.json());
+            }
 
             const replicarDados = document.getElementById('replicarDadosSwitchLote').checked;
 
@@ -471,6 +540,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (etapaDetalhada && etapaDetalhada.status.length > 0) {
                 etapaDetalhada.status.forEach(status => selectStatus.add(new Option(status, status)));
                 selectStatus.disabled = false;
+            }
+        }
+        if (target.classList.contains('tipo-doc-select')) {
+            const tipoId = target.value;
+            const sufixoId = target.id.replace('tipoDocumentacaoId-', '');
+            const selectDocumentista = document.getElementById(`documentistaId-${sufixoId}`);
+
+            if (selectDocumentista) {
+                selectDocumentista.innerHTML = '<option value="" selected disabled>Selecione...</option>';
+
+                const tipoSelecionado = todosTiposDocumentacaoLote.find(t => t.id == tipoId);
+
+                if (tipoSelecionado && tipoSelecionado.documentistas && tipoSelecionado.documentistas.length > 0) {
+                    tipoSelecionado.documentistas.forEach(doc => {
+                        selectDocumentista.add(new Option(doc.nome, doc.id));
+                    });
+                } else {
+                    // Fallback: mostra todos se não houver restrição
+                    todosDocumentistasLote.forEach(doc => {
+                        selectDocumentista.add(new Option(doc.nome, doc.id));
+                    });
+                }
             }
         }
     });

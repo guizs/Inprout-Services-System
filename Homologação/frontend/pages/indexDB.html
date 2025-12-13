@@ -63,6 +63,10 @@
                 <i class="bi bi-calendar-check"></i><br>
                 GATES
             </div>
+            <div class="segment-card filter-card" data-filter="geral">
+                <i class="bi bi-gear-fill"></i><br>
+                Geral
+            </div>
         </div>
 
 
@@ -206,6 +210,83 @@
         </div>
     </div>
 
+    </div>
+
+    <div id="conteudo-geral" class="conteudo-filtro d-none">
+
+        <div class="bloco-etapas-header d-flex justify-content-between align-items-center">
+            <h4 class="titulo-etapas mb-0">Configurações Gerais</h4>
+
+            <div class="d-flex gap-2 flex-wrap justify-content-end">
+                <button type="button" class="btn btn-outline--success btn-adicionar-etapa"
+                    onclick="abrirModalTipoDoc()">
+                    <i class="bi bi-plus-circle me-1"></i> Novo Tipo de Documento
+                </button>
+            </div>
+        </div>
+
+        <div class="px-4 mt-3">
+            <div class="row">
+                <div class="col-md-12">
+                    <h5 class="mb-3 text-secondary" style="font-size: 1rem; font-weight: 600;">Tipos de Documentação
+                    </h5>
+                    <div class="table-responsive custom-scroll" style="max-height: 500px;">
+                        <table class="table modern-table align-middle">
+                            <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+                                <tr>
+                                    <th>Nome do Documento</th>
+                                    <th>Documentista Padrão</th>
+                                    <th class="text-end" style="padding-right: 20px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-tipos-doc">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalTipoDoc" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="modalTipoDocLabel">Tipo de Documentação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formTipoDoc">
+                        <input type="hidden" id="tipoDocId">
+
+                        <div class="mb-3">
+                            <label for="tipoDocNome"
+                                class="form-label fw-medium small text-uppercase text-secondary">Nome do
+                                Documento</label>
+                            <input type="text" class="form-control form-control-lg" id="tipoDocNome"
+                                placeholder="Ex: Relatório Fotográfico" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="tipoDocResponsavel"
+                                class="form-label fw-medium small text-uppercase text-secondary">Documentistas
+                                Autorizados</label>
+                            <select class="form-select" id="tipoDocResponsavel" multiple style="height: 120px;">
+                            </select>
+                            <div class="form-text">Segure a tecla <strong>Ctrl</strong> para selecionar mais de
+                                um.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-link text-decoration-none text-secondary"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="salvarTipoDoc()">Salvar
+                        Configuração</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
@@ -1302,8 +1383,9 @@
     <script src="../assets/js/indexDB/prestadores.js?v=3.0"></script>
     <script src="../assets/js/indexDB/lpus.js?v=3.0"></script>
     <script src="../assets/js/indexDB/gate.js?v=3.0"></script>
-    
-    
+    <script src="../assets/js/indexDB/geral.js?v=3.0"></script>
+
+
 
     <script>
         document.addEventListener("DOMContentLoaded", () => {

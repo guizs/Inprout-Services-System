@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let indexDataFim = new Date();
     let indexDataInicio = new Date();
     indexDataInicio.setDate(indexDataFim.getDate() - 30);
+    let tiposDocumentacaoCache = [];
 
     let sortConfig = {
         key: 'dataAtividade',
@@ -46,6 +47,9 @@ document.addEventListener('DOMContentLoaded', () => {
         "PRESTADOR": (lancamento) => getNestedValue(lancamento, 'prestador.nome'),
         "VALOR": (lancamento) => formatarMoeda(lancamento.valor),
         "GESTOR": (lancamento) => getNestedValue(lancamento, 'manager.nome'),
+        "TIPO DOC.": (lancamento) => lancamento.tipoDocumentacaoNome || '-',
+        "DOCUMENTISTA": (lancamento) => lancamento.documentistaNome || '-',
+        "STATUS DOC.": (lancamento) => lancamento.statusDocumentacao ? lancamento.statusDocumentacao.replace(/_/g, ' ') : '-',
         "AÇÃO": () => ''
     };
 
@@ -122,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const navPendentes = document.getElementById('nav-item-pendentes');
         const navParalisados = document.getElementById('nav-item-paralisados');
         const navHistorico = document.getElementById('nav-item-historico');
+        const navPendenteDoc = document.getElementById('nav-item-pendente-doc');
 
         const btnNovoLancamento = document.getElementById('btnNovoLancamento');
         const btnSolicitarMaterial = document.getElementById('btnSolicitarMaterial');
@@ -147,6 +152,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (kpiPendenteContainer) {
                 kpiPendenteContainer.classList.remove('d-none');
                 kpiPendenteContainer.classList.add('d-flex');
+            }
+        }
+
+        if (navPendenteDoc) {
+            if (['ADMIN', 'MANAGER', 'COORDINATOR', 'CONTROLLER', 'DOCUMENTIST'].includes(userRole)) {
+                navPendenteDoc.style.display = 'block';
             }
         }
 
@@ -201,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
     const colunasMinhasPendencias = colunasLancamentos;
     const colunasHistorico = [...colunasPrincipais, "AÇÃO"];
+    const colunasPendenteDoc = ["AÇÃO", ...colunasPrincipais,];
 
     function renderizarCabecalho(colunas, theadElement) {
         if (!theadElement) return;
@@ -313,6 +325,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (nomeColuna === 'AÇÃO') {
                     let buttonsHtml = '';
+
+                    if (tbodyElement.id === 'tbody-pendente-doc') {
+                        buttonsHtml += `<button class="btn btn-sm btn-primary btn-receber-doc" data-id="${lancamento.id}" title="Confirmar Recebimento"><i class="bi bi-file-earmark-check"></i></button>`;
+                    }
+
                     if (userRole === 'ADMIN' || userRole === 'MANAGER') {
                         if (tbodyElement.id === 'tbody-minhas-pendencias') {
                             buttonsHtml += `<button class="btn btn-sm btn-success btn-reenviar" data-id="${lancamento.id}" title="Corrigir e Reenviar"><i class="bi bi-pencil-square"></i></button>`;
@@ -329,7 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             }
                         }
                     }
+
                     buttonsHtml += ` <button class="btn btn-sm btn-info btn-ver-comentarios" data-id="${lancamento.id}" title="Ver Comentários" data-bs-toggle="modal" data-bs-target="#modalComentarios"><i class="bi bi-chat-left-text"></i></button>`;
+
                     td.innerHTML = `<div class="btn-group" role="group">${buttonsHtml}</div>`;
                 } else {
                     td.innerHTML = mapaDeCelulas[nomeColuna] || '';
@@ -415,6 +434,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderizarTodasAsTabelas() {
         const dadosParaExibir = getDadosFiltrados();
+
+        // 1. Definição do Comparer (Deve vir antes de qualquer .sort(comparer))
         const comparer = (a, b) => {
             let valA = getNestedValue(a, sortConfig.key);
             let valB = getNestedValue(b, sortConfig.key);
@@ -428,18 +449,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const statusPendentes = ['PENDENTE_COORDENADOR', 'AGUARDANDO_EXTENSAO_PRAZO', 'PENDENTE_CONTROLLER'];
         const statusRejeitados = ['RECUSADO_COORDENADOR', 'RECUSADO_CONTROLLER'];
+
+        // 2. Filtragem e Ordenação
         const rascunhos = dadosParaExibir.filter(l => l.situacaoAprovacao === 'RASCUNHO').sort(comparer);
         const pendentesAprovacao = dadosParaExibir.filter(l => statusPendentes.includes(l.situacaoAprovacao)).sort(comparer);
         const minhasPendencias = dadosParaExibir.filter(l => statusRejeitados.includes(l.situacaoAprovacao)).sort(comparer);
         const historico = dadosParaExibir.filter(l => !['RASCUNHO', ...statusPendentes, ...statusRejeitados].includes(l.situacaoAprovacao)).sort(comparer);
         const paralisados = getProjetosParalisados().sort(comparer);
 
+        // --- CORREÇÃO: Nova linha inserida AQUI, após o 'comparer' existir ---
+        const pendentesDoc = dadosParaExibir.filter(l => l.statusDocumentacao === 'PENDENTE_RECEBIMENTO').sort(comparer);
+
+        // 3. Atualização de KPIs
         const kpiValorEl = document.getElementById('kpi-valor-pendente');
         if (kpiValorEl) {
             const totalPendente = pendentesAprovacao.reduce((acc, curr) => acc + (curr.valor || 0), 0);
             kpiValorEl.textContent = formatarMoeda(totalPendente);
         }
 
+        // 4. Renderização das Tabelas
         inicializarCabecalhos();
         renderizarTabela(rascunhos, tbodyLancamentos, colunasLancamentos);
         renderizarTabela(pendentesAprovacao, tbodyPendentes, colunasPrincipais);
@@ -447,9 +475,19 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarTabela(historico, tbodyHistorico, colunasHistorico);
         renderizarTabela(paralisados, tbodyParalisados, colunasMinhasPendencias);
 
+        // --- Renderiza a nova tabela de Documentação ---
+        renderizarTabela(pendentesDoc, document.getElementById('tbody-pendente-doc'), colunasPendenteDoc);
+
+        // 5. Atualização de Notificações e Badges
         if (notificacaoPendencias) {
             notificacaoPendencias.textContent = minhasPendencias.length;
             notificacaoPendencias.style.display = minhasPendencias.length > 0 ? '' : 'none';
+        }
+
+        const badgeDoc = document.getElementById('badge-pendente-doc');
+        if (badgeDoc) {
+            badgeDoc.textContent = pendentesDoc.length;
+            badgeDoc.style.display = pendentesDoc.length > 0 ? 'inline-block' : 'none';
         }
 
         atualizarContadorKpi();
@@ -546,10 +584,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const acao = submitter.dataset.acao;
             const editingId = formAdicionar.dataset.editingId;
             const osLpuDetalheIdCorreto = formAdicionar.dataset.osLpuDetalheId || document.getElementById('lpuId').value;
+            const tipoDocValue = document.getElementById('tipoDocumentacaoId').value;
+            const documentistaValue = document.getElementById('documentistaId').value;
 
             const payload = {
                 managerId: localStorage.getItem('usuarioId'),
                 osId: selectOS.value,
+                tipoDocumentacaoId: tipoDocValue ? parseInt(tipoDocValue) : null,
+                documentistaId: documentistaValue ? parseInt(documentistaValue) : null,
                 prestadorId: document.getElementById('prestadorId').value,
                 etapaDetalhadaId: selectEtapaDetalhada.value,
                 dataAtividade: converterDataParaDDMMYYYY(document.getElementById('dataAtividade').value),
@@ -693,6 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         async function carregarDadosParaModal() {
+            // Carrega OS (se ainda não carregou)
             if (todasAsOS.length === 0) {
                 try {
                     const usuarioId = localStorage.getItem('usuarioId');
@@ -700,27 +743,120 @@ document.addEventListener('DOMContentLoaded', () => {
                     const response = await fetchComAuth(`http://localhost:8080/os/por-usuario/${usuarioId}`);
                     if (!response.ok) throw new Error('Falha ao carregar Ordens de Serviço.');
                     todasAsOS = await response.json();
-                    const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
-                    selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    projetosUnicos.forEach(projeto => selectProjeto.add(new Option(projeto, projeto)));
-                    selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
-                    todasAsOS.forEach(item => selectOS.add(new Option(item.os, item.id)));
+
+                    const selectProjeto = document.getElementById('projetoId');
+                    const selectOS = document.getElementById('osId');
+
+                    if (selectProjeto) {
+                        const projetosUnicos = [...new Set(todasAsOS.map(os => os.projeto))];
+                        selectProjeto.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                        projetosUnicos.forEach(projeto => selectProjeto.add(new Option(projeto, projeto)));
+                    }
+
+                    if (selectOS) {
+                        selectOS.innerHTML = `<option value="" selected disabled>Selecione...</option>`;
+                        todasAsOS.forEach(item => selectOS.add(new Option(item.os, item.id)));
+                    }
                 } catch (error) {
                     console.error('Erro ao popular selects de OS/Projeto:', error);
                 }
             }
+
+            // Carrega Prestadores (se ainda não carregou)
             if (!todosOsPrestadores || todosOsPrestadores.length === 0) {
                 todosOsPrestadores = await popularSelect(document.getElementById('prestadorId'), 'http://localhost:8080/index/prestadores/ativos', 'id', item => `${item.codigoPrestador} - ${item.prestador}`);
             }
+
+            // Carrega Etapas (se ainda não carregou)
             if (todasAsEtapas.length === 0) {
-                todasAsEtapas = await popularSelect(selectEtapaGeral, 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
+                todasAsEtapas = await popularSelect(document.getElementById('etapaGeralSelect'), 'http://localhost:8080/index/etapas', 'id', item => `${item.codigo} - ${item.nome}`);
             }
+
+            // --- CARREGAMENTO DE DOCUMENTAÇÃO (CORRIGIDO) ---
+            const selectTipoDoc = document.getElementById('tipoDocumentacaoId');
+
+            // Só carrega se a lista estiver vazia
+            if (tiposDocumentacaoCache.length === 0) {
+                try {
+                    const res = await fetchComAuth('http://localhost:8080/tipos-documentacao');
+                    if (res.ok) {
+                        tiposDocumentacaoCache = await res.json();
+                    }
+                } catch (err) {
+                    console.error("Erro ao carregar tipos de documentação:", err);
+                }
+            }
+
+            // Popula o select usando o cache
+            if (selectTipoDoc && tiposDocumentacaoCache.length > 0) {
+                // Salva o valor selecionado atual (caso esteja editando e rechamou a função)
+                const valorAtual = selectTipoDoc.value;
+
+                selectTipoDoc.innerHTML = '<option value="" selected>Não se aplica</option>';
+                tiposDocumentacaoCache.forEach(tipo => {
+                    selectTipoDoc.add(new Option(tipo.nome, tipo.id));
+                });
+
+                // Restaura o valor se ainda for válido
+                if (valorAtual) selectTipoDoc.value = valorAtual;
+            }
+            // ------------------------------------------------
+        }
+
+        function filtrarDocumentistasPorTipo(tipoId) {
+            const selectDocumentista = document.getElementById('documentistaId');
+            if (!selectDocumentista) return;
+
+            // Limpa e adiciona placeholder
+            selectDocumentista.innerHTML = '<option value="" selected disabled>Selecione...</option>';
+
+            if (!tipoId || tipoId === "") {
+                // Se "Não se aplica" ou vazio, opcional: carregar todos ou deixar vazio
+                // Aqui vamos carregar todos os documentistas como fallback
+                fetchComAuth('http://localhost:8080/usuarios/documentistas')
+                    .then(r => r.json())
+                    .then(docs => {
+                        docs.forEach(d => selectDocumentista.add(new Option(d.nome, d.id)));
+                    });
+                return;
+            }
+
+            // Encontra o tipo selecionado no cache
+            const tipoSelecionado = tiposDocumentacaoCache.find(t => t.id == tipoId);
+
+            if (tipoSelecionado && tipoSelecionado.documentistas && tipoSelecionado.documentistas.length > 0) {
+                // Se houver restrição, mostra apenas os permitidos
+                tipoSelecionado.documentistas.forEach(doc => {
+                    selectDocumentista.add(new Option(doc.nome, doc.id));
+                });
+            } else {
+                // Se não houver restrição (lista vazia), busca todos
+                fetchComAuth('http://localhost:8080/usuarios/documentistas')
+                    .then(r => r.json())
+                    .then(docs => {
+                        docs.forEach(d => selectDocumentista.add(new Option(d.nome, d.id)));
+                    });
+            }
+        }
+
+        // Adiciona o listener ao select
+        const selectTipoDocEl = document.getElementById('tipoDocumentacaoId');
+        if (selectTipoDocEl) {
+            selectTipoDocEl.addEventListener('change', (e) => {
+                filtrarDocumentistasPorTipo(e.target.value);
+            });
         }
 
         async function abrirModalParaEdicao(lancamento, editingId) {
             const btnSubmitPadrao = document.getElementById('btnSubmitAdicionar');
             const btnSalvarRascunho = document.getElementById('btnSalvarRascunho');
             const btnSalvarEEnviar = document.getElementById('btnSalvarEEnviar');
+
+            const elTipoDoc = document.getElementById('tipoDocumentacaoId');
+            const elDocumentista = document.getElementById('documentistaId');
+
+            if (elTipoDoc) elTipoDoc.value = lancamento.tipoDocumentacaoId || "";
+            if (elDocumentista) elDocumentista.value = lancamento.documentistaId || "";
 
             await carregarDadosParaModal();
             formAdicionar.reset();
@@ -862,6 +998,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const reenviarBtn = e.target.closest('.btn-reenviar, .btn-editar-rascunho, .btn-retomar');
             const comentariosBtn = e.target.closest('.btn-ver-comentarios');
             const submeterBtn = e.target.closest('.btn-submeter-agora');
+            const btnReceberDoc = e.target.closest('.btn-receber-doc');
 
             if (reenviarBtn) {
                 const originalContent = reenviarBtn.innerHTML;
@@ -890,6 +1027,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 const btnConfirmar = document.getElementById('btnConfirmarSubmissao');
                 btnConfirmar.dataset.lancamentoId = lancamentoId;
                 new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao')).show();
+            } else if (btnReceberDoc) {
+                const id = btnReceberDoc.dataset.id;
+                if (confirm("Confirmar recebimento da documentação?")) {
+                    try {
+                        toggleLoader(true);
+                        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/receber`, { method: 'POST' });
+                        if (!response.ok) throw new Error("Erro ao receber documentação");
+                        mostrarToast("Documentação recebida com sucesso!", "success");
+                        await carregarLancamentos();
+                    } catch (error) {
+                        mostrarToast(error.message, "error");
+                    } finally {
+                        toggleLoader(false);
+                    }
+                }
             } else if (e.target.closest('.btn-excluir-lancamento')) {
                 const lancamentoId = e.target.closest('.btn-excluir-lancamento').dataset.id;
                 document.getElementById('deleteLancamentoId').value = lancamentoId;
@@ -1590,6 +1742,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarCabecalho(colunasHistorico, document.querySelector('#historico-pane thead'));
         renderizarCabecalho(colunasMinhasPendencias, document.querySelector('#minhasPendencias-pane thead'));
         renderizarCabecalho(colunasMinhasPendencias, document.querySelector('#paralisados-pane thead'));
+        renderizarCabecalho(colunasPendenteDoc, document.querySelector('#pendente-doc-pane thead'));
     }
 
     inicializarCabecalhos();

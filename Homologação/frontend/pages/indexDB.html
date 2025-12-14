@@ -193,14 +193,14 @@
 
         <div class="px-4 mt-3">
             <div class="table-responsive custom-scroll">
-                <table class="table modern-table align-middle">
+                <table class="table modern-table align-middle mb-0">
                     <thead id="thead-gate">
                         <tr>
                             <th>Nome do GATE</th>
                             <th>Data Início</th>
                             <th>Data Fim</th>
                             <th>Valor Faturado</th>
-                            <th>Ações</th>
+                            <th style="width: 100px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="tbody-gate">
@@ -904,28 +904,17 @@
                                 <input type="text" class="form-control" id="cnpjPrestador_Editar" disabled>
                             </div>
 
-                            <div class="col-md-2">
+                            <div class="col-md-5">
                                 <label class="form-label d-flex justify-content-between align-items-center">
-                                    <span>Cód. Banco</span>
+                                    <span>Instituição Financeira</span>
                                     <div class="form-check form-switch m-0">
                                         <input type="checkbox" class="form-check-input toggle-editar"
-                                            data-target="#codigoBanco_Editar">
+                                            data-target="#selectBancoEditar">
                                     </div>
                                 </label>
-                                <select class="form-select" id="codigoBanco_Editar" disabled>
-                                    <option value="">Selecione...</option>
+                                <select class="form-select" id="selectBancoEditar" disabled>
+                                    <option value="">Selecione o banco...</option>
                                 </select>
-                            </div>
-
-                            <div class="col-md-3">
-                                <label class="form-label d-flex justify-content-between align-items-center">
-                                    <span>Banco</span>
-                                    <div class="form-check form-switch m-0">
-                                        <input type="checkbox" class="form-check-input toggle-editar"
-                                            data-target="#bancoPrestador_Editar">
-                                    </div>
-                                </label>
-                                <input type="text" class="form-control" id="bancoPrestador_Editar" disabled>
                             </div>
 
                             <div class="col-md-3">

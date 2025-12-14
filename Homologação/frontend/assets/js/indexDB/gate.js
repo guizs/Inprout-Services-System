@@ -18,13 +18,13 @@ async function carregarTabelaGates() {
     if (!tbody) return;
 
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Carregando...</td></tr>';
-    
+
     try {
         const response = await fetchComAuth("http://localhost:8080/gates");
         if (!response.ok) throw new Error("Falha ao carregar GATEs.");
-        
+
         const gates = await response.json();
-        
+
         if (gates.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum GATE cadastrado.</td></tr>';
             return;
@@ -37,7 +37,10 @@ async function carregarTabelaGates() {
                 <td>${formatarDataSimples(gate.dataFim)}</td>
                 <td>${formatarMoeda(gate.valorFaturado)}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline-danger btn-excluir-gate" data-id="${gate.id}" data-nome="${gate.nome}" title="Excluir GATE">
+                    <button class="btn btn-sm btn-outline-danger btn-excluir-gate" 
+                            data-id="${gate.id}" 
+                            data-nome="${gate.nome}" 
+                            title="Excluir GATE">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -55,7 +58,7 @@ async function carregarTabelaGates() {
 function configurarModalCriarGate() {
     const modalEl = document.getElementById('modalCriarGate');
     if (!modalEl) return;
-    
+
     const modal = new bootstrap.Modal(modalEl);
     const form = document.getElementById('formCriarGate');
     const btnSalvar = document.getElementById('btnSalvarGate');
@@ -73,7 +76,7 @@ function configurarModalCriarGate() {
     // Evento de submit
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
+
         btnSalvar.disabled = true;
         btnSalvar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Salvando...`;
 
@@ -94,7 +97,7 @@ function configurarModalCriarGate() {
                 const errData = await response.json();
                 throw new Error(errData.message || 'Erro ao criar GATE.');
             }
-            
+
             mostrarToast('GATE criado com sucesso!', 'success');
             modal.hide();
             await carregarTabelaGates();
@@ -131,7 +134,7 @@ function configurarModalExcluirGate() {
     // Evento de clique no botão de confirmar
     btnConfirmar.addEventListener('click', async () => {
         if (!gateIdParaExcluir) return;
-        
+
         btnConfirmar.disabled = true;
         btnConfirmar.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Excluindo...`;
 

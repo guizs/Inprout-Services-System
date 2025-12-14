@@ -9,9 +9,23 @@ async function inicializarPrestadores() {
                 return elemento?.value?.trim() || null;
             };
 
+            // --- LÓGICA DO BANCO CORRIGIDA ---
+            const selectBanco = document.getElementById('selectBancoCadastro');
+            const bancoOption = selectBanco.options[selectBanco.selectedIndex];
+
+            let bancoId = null;
+            let codigoBancoLegado = null;
+            let nomeBancoLegado = null;
+
+            if (selectBanco.value) {
+                bancoId = Number(selectBanco.value);
+                // Pega do dataset que populamos na função carregarSelectBancosDinamicamente
+                codigoBancoLegado = bancoOption.dataset.codigo;
+                nomeBancoLegado = bancoOption.dataset.nome;
+            }
+            // ----------------------------------
+
             const prestador = {
-                codigoPrestador: Number(document.getElementById("codigoPrestador").value) || null,
-                prestador: getValor("nomePrestador"),
                 codigoPrestador: Number(getValor("codigoPrestador")) || null,
                 prestador: getValor("nomePrestador"),
                 razaoSocial: getValor("razaoSocial"),
@@ -21,11 +35,12 @@ async function inicializarPrestadores() {
                 rg: getValor("rgPrestador"),
                 cpf: getValor("cpfPrestador"),
                 cnpj: getValor("cnpjPrestador"),
+
+                // Campos de Banco Corrigidos
                 bancoId: bancoId,
                 codigoBanco: codigoBancoLegado,
                 banco: nomeBancoLegado,
-                codigoBanco: getValor("codigoBanco"),
-                banco: getValor("bancoPrestador"),
+
                 agencia: getValor("agenciaPrestador"),
                 conta: getValor("contaPrestador"),
                 tipoDeConta: getValor("tipoConta"),
@@ -49,9 +64,7 @@ async function inicializarPrestadores() {
 
                 mostrarToast("Prestador salvo com sucesso!", "success");
                 form.reset();
-
-                // Reseta o select manualmente
-                selectBanco.value = "";
+                selectBanco.value = ""; // Reseta o select
 
                 await carregarTabelaPrestadores(getColunasAtuaisPorRole());
                 bootstrap.Modal.getInstance(document.getElementById("modalAdicionarPrestador")).hide();
@@ -65,23 +78,10 @@ async function inicializarPrestadores() {
         });
     }
 
-    const role = localStorage.getItem("role");
-    const colunasPorRole = {
-        ADMIN: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes'],
-        COORDINATOR: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
-        MANAGER: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
-        CONTROLLER: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
-        ASSISTANT: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes']
-    };
+    // Carregamento inicial da tabela
+    await carregarTabelaPrestadores(getColunasAtuaisPorRole());
 
-    const colunas = colunasPorRole[role] ?? ['codigoPrestador', 'prestador']; // fallback
-
-    await carregarTabelaPrestadores(colunas);
-
-    function formatarCampo(campo) {
-        return campo.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-    }
-
+    // Listener para carregar os bancos quando abrir o modal
     const modalAdicionar = document.getElementById('modalAdicionarPrestador');
     if (modalAdicionar) {
         modalAdicionar.addEventListener('show.bs.modal', () => {
@@ -94,6 +94,7 @@ async function carregarTabelaPrestadores(camposOriginais) {
     const thead = document.getElementById("thead-prestadores");
     const tbody = document.getElementById("tbody-prestadores");
 
+    // Adiciona a coluna de status no início
     const campos = ['status', ...camposOriginais];
 
     const titulosFormatados = {
@@ -106,6 +107,14 @@ async function carregarTabelaPrestadores(camposOriginais) {
         regiao: "Região",
         cpf: "CPF",
         cnpj: "CNPJ",
+        
+        // --- NOVOS CAMPOS ADICIONADOS AQUI ---
+        banco: "Banco",
+        agencia: "Agência",
+        conta: "Conta",
+        tipoDeConta: "Tipo Conta",
+        // -------------------------------------
+
         telefone: "Telefone",
         email: "E-mail",
         tipoPix: "Tipo de PIX",
@@ -114,10 +123,7 @@ async function carregarTabelaPrestadores(camposOriginais) {
     };
 
     try {
-        // --- INÍCIO DA ALTERAÇÃO ---
-
-        // 1. Busca TODOS os prestadores de um único endpoint.
-        // A lista já virá do backend ordenada pelo ID.
+        // 1. Busca TODOS os prestadores
         const response = await fetchComAuth("http://localhost:8080/index/prestadores");
 
         if (!response.ok) {
@@ -126,29 +132,27 @@ async function carregarTabelaPrestadores(camposOriginais) {
 
         const todosOsPrestadores = await response.json();
 
-        // 2. O sort no frontend não é mais necessário! A ordem vem do servidor.
-
-        // --- FIM DA ALTERAÇÃO ---
-
         if (!Array.isArray(todosOsPrestadores) || todosOsPrestadores.length === 0) {
             thead.innerHTML = "<tr><th>Nenhum dado encontrado</th></tr>";
             tbody.innerHTML = "";
             return;
         }
 
+        // Gera o Cabeçalho (THEAD) usando o mapeamento de títulos
         thead.innerHTML = `
             <tr>
                 ${campos.map(campo => `<th>${titulosFormatados[campo] || campo}</th>`).join("")}
             </tr>
         `;
 
+        // Gera o Corpo (TBODY)
         tbody.innerHTML = todosOsPrestadores.map(prestador => {
             const linhaHtml = campos.map(campo => {
                 if (campo === 'status') {
-                    // Esta lógica agora funcionará perfeitamente para todos os prestadores
                     const statusClass = prestador.ativo ? 'active' : 'inactive';
                     return `<td><span class="status-indicator ${statusClass}"></span></td>`;
                 }
+                // Retorna o valor do campo ou vazio se for nulo
                 return `<td>${prestador[campo] ?? ""}</td>`;
             }).join("");
 
@@ -464,17 +468,14 @@ function configurarModalAtivarPrestador() {
  */
 function getColunasAtuaisPorRole() {
     const colunasPorRole = {
-        ADMIN: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes'],
+        ADMIN: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'banco', 'agencia', 'conta', 'tipoDeConta', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes'],
         COORDINATOR: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
         MANAGER: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
         CONTROLLER: ['codigoPrestador', 'prestador', 'cidade', 'uf', 'regiao', 'telefone', 'email'],
-        ASSISTANT: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes']
+        ASSISTANT: ['codigoPrestador', 'prestador', 'razaoSocial', 'cidade', 'uf', 'regiao', 'cpf', 'cnpj', 'banco', 'agencia', 'conta', 'tipoDeConta', 'telefone', 'email', 'tipoPix', 'chavePix', 'observacoes']
     };
 
-    // Pega a role, garante que não seja nula, remove espaços e converte para maiúsculas.
     const role = (localStorage.getItem("role") || "").trim().toUpperCase();
-
-    // Retorna as colunas para a role encontrada ou o valor padrão.
     return colunasPorRole[role] ?? ['codigoPrestador', 'prestador'];
 }
 
@@ -483,7 +484,6 @@ function getColunasAtuaisPorRole() {
  * usando o padrão de interruptor e com o mapeamento de campos corrigido.
  */
 function configurarModalEditarPrestador() {
-    // 1. Referências aos elementos
     const modalEl = document.getElementById("modalEditarPrestador");
     if (!modalEl) return;
 
@@ -493,20 +493,18 @@ function configurarModalEditarPrestador() {
     const btnSalvar = document.getElementById("btnSalvarEdicaoPrestador");
     let todosOsPrestadores = [];
 
-    // --- A CORREÇÃO ESTÁ AQUI ---
-    // 2. Mapeamento explícito das chaves do JSON para os IDs do HTML
+    // Mapeamento atualizado (Removemos codigoBanco e banco antigos, adicionamos o novo select)
     const mapeamentoCampos = {
         codigoPrestador: 'codigoPrestador_Editar',
-        prestador: 'nomePrestador_Editar', // Chave 'prestador' no JSON vai para o campo 'nomePrestador_Editar'
+        prestador: 'nomePrestador_Editar',
         razaoSocial: 'razaoSocial_Editar',
-        cidade: 'cidadePrestador_Editar', // Chave 'cidade' no JSON vai para 'cidadePrestador_Editar'
+        cidade: 'cidadePrestador_Editar',
         uf: 'ufPrestador_Editar',
-        regiao: 'regionalPrestador_Editar', // Chave 'regiao' no JSON vai para 'regionalPrestador_Editar'
+        regiao: 'regionalPrestador_Editar',
         rg: 'rgPrestador_Editar',
         cpf: 'cpfPrestador_Editar',
         cnpj: 'cnpjPrestador_Editar',
-        codigoBanco: 'codigoBanco_Editar',
-        banco: 'bancoPrestador_Editar',
+        // 'bancoReferencia' será tratado manualmente abaixo
         agencia: 'agenciaPrestador_Editar',
         conta: 'contaPrestador_Editar',
         tipoDeConta: 'tipoConta_Editar',
@@ -517,12 +515,10 @@ function configurarModalEditarPrestador() {
         observacoes: 'observacoesPrestador_Editar'
     };
 
-    /**
-     * Função auxiliar para popular os campos do formulário usando o mapeamento.
-     */
     const preencherFormularioEdicao = (prestador) => {
+        // 1. Preenche campos simples
         for (const key in prestador) {
-            const campoId = mapeamentoCampos[key]; // Busca o ID correto no nosso mapa
+            const campoId = mapeamentoCampos[key];
             if (campoId) {
                 const campo = document.getElementById(campoId);
                 if (campo) {
@@ -530,9 +526,27 @@ function configurarModalEditarPrestador() {
                 }
             }
         }
+
+        // 2. Lógica Especial para o Banco (Select)
+        const selectBanco = document.getElementById('selectBancoEditar');
+        if (selectBanco) {
+            if (prestador.bancoReferencia && prestador.bancoReferencia.id) {
+                // Se o prestador já tem o objeto bancoReferencia (novo modelo)
+                selectBanco.value = prestador.bancoReferencia.id;
+            } else {
+                // Tenta encontrar pelo código antigo (legado) se não tiver referência
+                // Isso é um fallback visual, mas o ideal é o backend já ter feito o vínculo
+                const options = Array.from(selectBanco.options);
+                const optionEncontrada = options.find(opt => opt.dataset.codigo === prestador.codigoBanco);
+                if (optionEncontrada) {
+                    selectBanco.value = optionEncontrada.value;
+                } else {
+                    selectBanco.value = "";
+                }
+            }
+        }
     };
 
-    // O restante do código permanece o mesmo, pois já está correto.
     const resetarFormulario = () => {
         formCampos.querySelectorAll('input:not([readonly]):not(.toggle-editar), select, textarea').forEach(input => {
             input.disabled = true;
@@ -549,11 +563,14 @@ function configurarModalEditarPrestador() {
         resetarFormulario();
         try {
             toggleLoader(true);
+            // Carrega a lista de bancos antes de tudo
+            await carregarSelectBancosDinamicamente();
             await preencherSelectComPrestadores(selectEl);
+
             const response = await fetchComAuth("http://localhost:8080/index/prestadores");
             todosOsPrestadores = await response.json();
         } catch (error) {
-            mostrarToast("Erro ao preparar modal de edição.", "error");
+            mostrarToast("Erro ao preparar modal.", "error");
         } finally {
             toggleLoader(false);
         }
@@ -563,7 +580,6 @@ function configurarModalEditarPrestador() {
         const prestadorId = parseInt(selectEl.value);
         if (!prestadorId) {
             formCampos.classList.add('d-none');
-            btnSalvar.disabled = true;
             return;
         }
         const prestador = todosOsPrestadores.find(p => p.id === prestadorId);
@@ -575,41 +591,52 @@ function configurarModalEditarPrestador() {
         }
     });
 
+    // Lógica do Toggle (Switch) de editar
     formCampos.addEventListener('change', (e) => {
         if (e.target.classList.contains('toggle-editar')) {
             const targetSelector = e.target.getAttribute('data-target');
             const inputTarget = document.querySelector(targetSelector);
             if (inputTarget) {
                 inputTarget.disabled = !e.target.checked;
-                if (e.target.checked) {
-                    inputTarget.focus();
-                }
+                if (e.target.checked) inputTarget.focus();
             }
         }
     });
 
-    // O submit já estava pegando os IDs corretos, então não precisa mudar.
     formEl.addEventListener('submit', async (e) => {
         e.preventDefault();
-        toggleLoader(true);
         const prestadorId = parseInt(selectEl.value);
-        if (!prestadorId) { toggleLoader(false); return; }
+        if (!prestadorId) return;
+
+        toggleLoader(true);
 
         const dadosAtualizados = {};
+
+        // 1. Pega valores dos campos mapeados
         for (const key in mapeamentoCampos) {
             const campo = document.getElementById(mapeamentoCampos[key]);
             if (campo) {
                 let valor = campo.value;
-                // Se o campo for um SELECT e o valor for uma string vazia, converte para null
-                if (campo.tagName === 'SELECT' && valor === '') {
-                    valor = null;
-                }
+                if (campo.tagName === 'SELECT' && valor === '') valor = null;
                 dadosAtualizados[key] = valor;
             }
         }
-        dadosAtualizados.id = prestadorId;
-        dadosAtualizados.ativo = todosOsPrestadores.find(p => p.id === prestadorId)?.ativo;
 
+        // 2. Pega valor do Banco Novo
+        const selectBanco = document.getElementById('selectBancoEditar');
+        if (selectBanco && selectBanco.value) {
+            const bancoId = Number(selectBanco.value);
+            dadosAtualizados.bancoId = bancoId;
+
+            // Preenche legado para garantir compatibilidade
+            const option = selectBanco.options[selectBanco.selectedIndex];
+            dadosAtualizados.codigoBanco = option.dataset.codigo;
+            dadosAtualizados.banco = option.dataset.nome;
+        }
+
+        dadosAtualizados.id = prestadorId;
+        // Mantém o status ativo original, caso a API exija
+        dadosAtualizados.ativo = todosOsPrestadores.find(p => p.id === prestadorId)?.ativo;
 
         try {
             const response = await fetchComAuth(`http://localhost:8080/index/prestadores/${prestadorId}`, {
@@ -617,11 +644,10 @@ function configurarModalEditarPrestador() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dadosAtualizados)
             });
-            if (!response.ok) {
-                const erroData = await response.json();
-                throw new Error(erroData.message || "Falha ao atualizar o prestador.");
-            }
-            mostrarToast("Prestador atualizado com sucesso!", 'success');
+
+            if (!response.ok) throw new Error("Falha ao atualizar.");
+
+            mostrarToast("Atualizado com sucesso!", 'success');
             bootstrap.Modal.getInstance(modalEl).hide();
             await carregarTabelaPrestadores(getColunasAtuaisPorRole());
         } catch (error) {

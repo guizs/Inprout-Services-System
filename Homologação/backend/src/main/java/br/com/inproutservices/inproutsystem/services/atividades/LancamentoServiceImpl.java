@@ -518,6 +518,22 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setSituacao(dto.situacao());
         lancamento.setDetalheDiario(dto.detalheDiario());
         lancamento.setValor(dto.valor());
+        if (dto.tipoDocumentacaoId() != null && dto.documentistaId() != null) {
+            TipoDocumentacao tipoDoc = tipoDocumentacaoRepository.findById(dto.tipoDocumentacaoId())
+                    .orElseThrow(() -> new EntityNotFoundException("Tipo de Documentação não encontrado"));
+            Usuario documentista = usuarioRepository.findById(dto.documentistaId())
+                    .orElseThrow(() -> new EntityNotFoundException("Documentista não encontrado"));
+
+            lancamento.setTipoDocumentacao(tipoDoc);
+            lancamento.setDocumentista(documentista);
+
+            if (lancamento.getStatusDocumentacao() == StatusDocumentacao.NAO_APLICAVEL) {
+                lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
+                if (lancamento.getDataSolicitacaoDoc() == null) {
+                    lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
+                }
+            }
+        }
 
         if (isReenvio) {
             lancamento.setSituacaoAprovacao(SituacaoAprovacao.PENDENTE_COORDENADOR);

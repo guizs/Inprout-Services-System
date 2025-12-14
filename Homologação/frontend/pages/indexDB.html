@@ -292,6 +292,8 @@
                 </div>
                 <div class="modal-body p-4">
                     <form id="formBanco">
+                        <input type="hidden" id="bancoId">
+
                         <div class="mb-3">
                             <label class="form-label fw-medium small text-uppercase text-secondary">Código do Banco
                                 (COMPE)</label>
@@ -310,6 +312,50 @@
                     <button type="button" class="btn btn-link text-secondary text-decoration-none"
                         data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary px-4" onclick="salvarBanco()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalExcluirBanco" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Excluir Banco
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o banco <strong id="nomeBancoExcluir"></strong>?</p>
+                    <p class="text-danger small mb-0">Esta ação não pode ser desfeita.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmarDeletarBanco()">Sim, Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalExcluirTipoDoc" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Excluir Tipo de Documentação
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tem certeza que deseja excluir o tipo <strong id="nomeTipoDocExcluir"></strong>?</p>
+                    <p class="text-muted small">Verifique se não há lançamentos utilizando este tipo antes de excluir.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmarDeletarTipoDoc()">Sim,
+                        Excluir</button>
                 </div>
             </div>
         </div>
@@ -683,13 +729,11 @@
                             <label class="form-label">CNPJ</label>
                             <input type="text" class="form-control" id="cnpjPrestador">
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">Cód. Banco</label>
-                            <input type="text" class="form-control" id="codigoBanco">
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label">Banco</label>
-                            <input type="text" class="form-control" id="bancoPrestador">
+                        <div class="col-md-5">
+                            <label class="form-label">Instituição Financeira</label>
+                            <select class="form-select" id="selectBancoCadastro">
+                                <option value="">Selecione o banco...</option>
+                            </select>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label">Agência</label>

@@ -21,6 +21,9 @@ async function inicializarPrestadores() {
                 rg: getValor("rgPrestador"),
                 cpf: getValor("cpfPrestador"),
                 cnpj: getValor("cnpjPrestador"),
+                bancoId: bancoId,
+                codigoBanco: codigoBancoLegado,
+                banco: nomeBancoLegado,
                 codigoBanco: getValor("codigoBanco"),
                 banco: getValor("bancoPrestador"),
                 agencia: getValor("agenciaPrestador"),
@@ -33,6 +36,8 @@ async function inicializarPrestadores() {
                 observacoes: getValor("observacoesPrestador")
             };
 
+            toggleLoader(true);
+
             try {
                 const response = await fetchComAuth("http://localhost:8080/index/prestadores", {
                     method: "POST",
@@ -40,30 +45,22 @@ async function inicializarPrestadores() {
                     body: JSON.stringify(prestador)
                 });
 
-                if (!response.ok) {
-                    // Lança um erro para ser pego pelo catch
-                    throw new Error("Erro ao salvar o prestador.");
-                }
+                if (!response.ok) throw new Error("Erro ao salvar o prestador.");
 
-                await response.json();
-
-                // CORRIGIDO: Usando a função de toast para sucesso
                 mostrarToast("Prestador salvo com sucesso!", "success");
-
                 form.reset();
 
-                // Recarrega a tabela para mostrar o novo prestador
-                await carregarTabelaPrestadores(colunas);
+                // Reseta o select manualmente
+                selectBanco.value = "";
 
-                const modal = bootstrap.Modal.getInstance(document.getElementById("modalAdicionarPrestador"));
-                modal.hide();
+                await carregarTabelaPrestadores(getColunasAtuaisPorRole());
+                bootstrap.Modal.getInstance(document.getElementById("modalAdicionarPrestador")).hide();
 
             } catch (error) {
-                // É bom manter o console.error para você ver os detalhes do erro no console
                 console.error(error);
-
-                // CORRIGIDO: Usando a função de toast para erro
                 mostrarToast("Erro ao salvar o prestador.", "error");
+            } finally {
+                toggleLoader(false);
             }
         });
     }
@@ -205,37 +202,44 @@ async function preencherSelectComPrestadores(elementoSelect) {
 }
 
 async function carregarSelectBancosDinamicamente() {
-    const selects = ['codigoBanco', 'codigoBanco_Editar']; // IDs dos selects nos modais de criar e editar
+    // Lista de IDs dos selects que vamos popular (Cadastro e Edição futuramente)
+    const selectsIds = ['selectBancoCadastro', 'selectBancoEditar'];
 
-    // Tenta buscar do cache ou da API
     try {
         const response = await fetchComAuth('http://localhost:8080/geral/bancos');
-        if (!response.ok) return; // Silencioso se falhar, ou mostrar erro
+        if (!response.ok) return;
 
         const bancos = await response.json();
 
-        selects.forEach(selectId => {
-            const selectEl = document.getElementById(selectId);
+        // Ordenar por código
+        bancos.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+        selectsIds.forEach(id => {
+            const selectEl = document.getElementById(id);
             if (!selectEl) return;
 
-            // Guarda o valor que estava selecionado (caso seja edição)
+            // Mantém valor selecionado caso já tenha (útil para edição)
             const valorAtual = selectEl.value;
-
-            selectEl.innerHTML = '<option value="">Selecione o banco</option>';
+            selectEl.innerHTML = '<option value="">Selecione o banco...</option>';
 
             bancos.forEach(banco => {
                 const option = document.createElement('option');
-                option.value = banco.codigo; // O value é o código (ex: 001) para salvar no banco de dados
+                // IMPORTANTE: Value é o ID para o vínculo relacional
+                option.value = banco.id;
+
+                // Guardamos o código e nome em dataset para enviar como fallback (legado)
+                option.dataset.codigo = banco.codigo;
+                option.dataset.nome = banco.nome;
+
                 option.textContent = `${banco.codigo} - ${banco.nome}`;
                 selectEl.appendChild(option);
             });
 
-            // Restaura seleção se existir
             if (valorAtual) selectEl.value = valorAtual;
         });
 
     } catch (error) {
-        console.error("Erro ao carregar bancos para o select", error);
+        console.error("Erro ao carregar bancos:", error);
     }
 }
 

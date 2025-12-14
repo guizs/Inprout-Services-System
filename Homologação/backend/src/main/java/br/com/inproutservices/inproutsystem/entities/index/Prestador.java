@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.entities.index;
 
+import br.com.inproutservices.inproutsystem.entities.geral.Banco;
 import br.com.inproutservices.inproutsystem.enums.index.TipoPix;
 import jakarta.persistence.*;
 
@@ -23,13 +24,19 @@ public class Prestador {
     private String rg;
     private String cpf;
     private String cnpj;
+    @Column(name = "codigo_banco_legado")
     private String codigoBanco;
+    @Column(name = "nome_banco_legado")
     private String banco;
     private String agencia;
     private String conta;
     private String tipoDeConta;
     private String telefone;
     private String email;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "banco_id")
+    private Banco bancoReferencia;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_pix")
@@ -40,6 +47,36 @@ public class Prestador {
 
     @Column(nullable = false)
     private boolean ativo = true;
+
+    public String getCodigoBanco() {
+        if (this.bancoReferencia != null) {
+            return this.bancoReferencia.getCodigo();
+        }
+        return codigoBanco;
+    }
+
+    public String getBanco() {
+        if (this.bancoReferencia != null) {
+            return this.bancoReferencia.getNome();
+        }
+        return banco;
+    }
+
+    public void setCodigoBanco(String codigoBanco) {
+        this.codigoBanco = codigoBanco;
+    }
+
+    public void setBanco(String banco) {
+        this.banco = banco;
+    }
+
+    public Banco getBancoReferencia() {
+        return bancoReferencia;
+    }
+
+    public void setBancoReferencia(Banco bancoReferencia) {
+        this.bancoReferencia = bancoReferencia;
+    }
 
     public Long getId() {
         return id;
@@ -119,22 +156,6 @@ public class Prestador {
 
     public void setCnpj(String cnpj) {
         this.cnpj = cnpj;
-    }
-
-    public String getCodigoBanco() {
-        return codigoBanco;
-    }
-
-    public void setCodigoBanco(String codigoBanco) {
-        this.codigoBanco = codigoBanco;
-    }
-
-    public String getBanco() {
-        return banco;
-    }
-
-    public void setBanco(String banco) {
-        this.banco = banco;
     }
 
     public String getAgencia() {

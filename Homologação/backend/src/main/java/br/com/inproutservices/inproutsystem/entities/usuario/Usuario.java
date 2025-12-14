@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Entity
@@ -23,7 +24,7 @@ public class Usuario implements UserDetails {
 
     private String nome;
 
-    @ManyToMany(fetch = FetchType.EAGER) // EAGER para carregar os segmentos junto com o usuário
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_segmentos",
             joinColumns = @JoinColumn(name = "usuario_id"),
@@ -46,13 +47,10 @@ public class Usuario implements UserDetails {
     private Role role;
 
     private LocalDateTime dataCriacao;
-
     private LocalDateTime dataAtualizacao;
-
     private Boolean ativo = true;
 
-    public Usuario() {
-    }
+    public Usuario() {}
 
     public Usuario(Long id, String nome, String email, String senha, Role role, LocalDateTime dataCriacao, LocalDateTime dataAtualizacao, Boolean ativo) {
         this.id = id;
@@ -77,93 +75,44 @@ public class Usuario implements UserDetails {
         dataAtualizacao = LocalDateTime.now();
     }
 
-    // 🔸 Getters e Setters
-
-    public Long getId() {
-        return id;
-    }
-
-    public Set<Segmento> getSegmentos() {
-        return segmentos;
-    }
-
-    public void setSegmentos(Set<Segmento> segmentos) {
-        this.segmentos = segmentos;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    public LocalDateTime getDataCriacao() {
-        return dataCriacao;
+    // 🔸 CORREÇÃO IMPORTANTE: Equals e HashCode pelo ID para o Set funcionar corretamente
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Usuario usuario = (Usuario) o;
+        return Objects.equals(id, usuario.id);
     }
 
     @Override
-    public String getPassword() {
-        return this.senha;
+    public int hashCode() {
+        return Objects.hash(id);
     }
 
-    @Override
-    public String getUsername() {
-        // Usaremos o email como "username" para o login
-        return this.email;
-    }
+    // Getters e Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Set<Segmento> getSegmentos() { return segmentos; }
+    public void setSegmentos(Set<Segmento> segmentos) { this.segmentos = segmentos; }
+    public String getNome() { return nome; }
+    public void setNome(String nome) { this.nome = nome; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getSenha() { return senha; }
+    public void setSenha(String senha) { this.senha = senha; }
+    public Role getRole() { return role; }
+    public void setRole(Role role) { this.role = role; }
+    public LocalDateTime getDataCriacao() { return dataCriacao; }
+    public void setDataCriacao(LocalDateTime dataCriacao) { this.dataCriacao = dataCriacao; }
+    public LocalDateTime getDataAtualizacao() { return dataAtualizacao; }
+    public void setDataAtualizacao(LocalDateTime dataAtualizacao) { this.dataAtualizacao = dataAtualizacao; }
+    public Boolean getAtivo() { return ativo; }
+    public void setAtivo(Boolean ativo) { this.ativo = ativo; }
 
+    @Override public String getPassword() { return this.senha; }
+    @Override public String getUsername() { return this.email; }
     @Override @JsonIgnore public boolean isAccountNonExpired() { return true; }
     @Override @JsonIgnore public boolean isAccountNonLocked() { return true; }
     @Override @JsonIgnore public boolean isCredentialsNonExpired() { return true; }
     @Override @JsonIgnore public boolean isEnabled() { return true; }
-
-    public void setDataCriacao(LocalDateTime dataCriacao) {
-        this.dataCriacao = dataCriacao;
-    }
-
-    public LocalDateTime getDataAtualizacao() {
-        return dataAtualizacao;
-    }
-
-    public void setDataAtualizacao(LocalDateTime dataAtualizacao) {
-        this.dataAtualizacao = dataAtualizacao;
-    }
-
-    public Boolean getAtivo() {
-        return ativo;
-    }
-
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
-    }
 }

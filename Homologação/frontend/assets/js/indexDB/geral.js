@@ -192,18 +192,22 @@ async function carregarTiposDoc() {
         dados.forEach(tipo => {
             const tr = document.createElement('tr');
 
-            let docBadges = '<span class="text-muted small fst-italic">Todos habilitados</span>';
+            // Lógica de exibição das badges
+            let docBadges = '';
+
             if (tipo.documentistas && tipo.documentistas.length > 0) {
-                // Centraliza as badges com justify-content-center
                 docBadges = '<div class="d-flex flex-wrap gap-2 justify-content-center">' +
                     tipo.documentistas.map(d => `<span class="badge doc-badge">${d.nome}</span>`).join('') +
                     '</div>';
+            } else {
+                // Se a lista estiver vazia, mostra este texto. 
+                // Se sua regra de negócio é "Vazio = Todos podem fazer", mantenha. 
+                // Se "Vazio = Ninguém", mude para "Nenhum selecionado".
+                docBadges = '<span class="text-muted small fst-italic">Todos habilitados (Padrão)</span>';
             }
 
             const docIds = tipo.documentistas ? JSON.stringify(tipo.documentistas.map(d => d.id)) : '[]';
 
-            // REMOVIDO: ps-4 e text-start
-            // ADICIONADO: btn-icon-modern edit/delete
             tr.innerHTML = `
                 <td class="fw-semibold text-dark">${tipo.nome}</td>
                 <td>${docBadges}</td>
@@ -279,7 +283,6 @@ async function salvarTipoDoc() {
     // 3. Monta o payload
     const payload = {
         nome: nome,
-        // Envia lista de objetos {id: 1}, {id: 2}...
         documentistas: selectedIds.map(id => ({ id: id }))
     };
 

@@ -4,7 +4,6 @@ import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -23,9 +22,8 @@ public class TipoDocumentacao {
             joinColumns = @JoinColumn(name = "tipo_documentacao_id"),
             inverseJoinColumns = @JoinColumn(name = "usuario_id")
     )
-
-    @JsonIgnoreProperties({"tiposDocumentacao", "senha", "roles"})
-    private List<Usuario> documentistas;
+    @JsonIgnoreProperties({"tiposDocumentacao", "senha", "roles", "segmentos", "authorities", "enabled", "accountNonExpired", "accountNonLocked", "credentialsNonExpired"})
+    private Set<Usuario> documentistas = new HashSet<>();
 
     public TipoDocumentacao() {}
     public TipoDocumentacao(String nome) { this.nome = nome; }
@@ -35,11 +33,11 @@ public class TipoDocumentacao {
     public String getNome() { return nome; }
     public void setNome(String nome) { this.nome = nome; }
 
-    public List<Usuario> getDocumentistas() {
+    public Set<Usuario> getDocumentistas() {
         return documentistas;
     }
 
-    public void setDocumentistas(List<Usuario> documentistas) {
+    public void setDocumentistas(Set<Usuario> documentistas) {
         this.documentistas = documentistas;
     }
 }

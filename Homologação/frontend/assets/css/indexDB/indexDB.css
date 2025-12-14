@@ -1,3 +1,12 @@
+/* =================================================================
+   1. CARDS DE SEGMENTO (FILTROS SUPERIORES)
+   ================================================================= */
+.segment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
 .segment-card {
   background: #fff;
   border-radius: 12px;
@@ -5,7 +14,7 @@
   text-align: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.20);
   cursor: pointer;
-  transition: 0.3s;
+  transition: transform 0.2s ease-in-out, background-color 0.3s;
   font-weight: 500;
   user-select: none;
   color: var(--text-color);
@@ -18,7 +27,12 @@
   display: block;
 }
 
-.segment-card:hover,
+.segment-card:hover {
+  transform: translateY(-2px);
+  background-color: var(--primary-color);
+  color: var(--text-color);
+}
+
 .segment-card.active {
   background-color: var(--primary-color);
   color: var(--text-color);
@@ -29,6 +43,15 @@
   color: var(--secondary-color);
 }
 
+.segment-card span {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+
+/* =================================================================
+   2. CABEÇALHOS E TÍTULOS DE SEÇÃO
+   ================================================================= */
 .etapas-bloco-header {
   padding: 1rem 0;
   border-bottom: 1px solid #dce3dc;
@@ -39,23 +62,6 @@
   font-size: 1.1rem;
   font-weight: 600;
   color: #4a665a;
-}
-
-.btn-etapa {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 0.75rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.btn-etapa:hover {
-  background-color: #4cae8c;
-  color: white;
 }
 
 .bloco-etapas-header {
@@ -75,74 +81,62 @@
   margin: 0;
 }
 
-.btn-adicionar-etapa {
-  font-size: 0.9rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out; /* Adicionado 'color' à transição */
-}
-
-/* --- REGRAS DE HOVER ESPECÍFICAS --- */
 
 /* =================================================================
-   1. DEFINA AS CORES DE CADA BOTÃO USANDO VARIÁVEIS
+   3. BOTÕES CUSTOMIZADOS
    ================================================================= */
 
+/* Botão padrão de etapa */
+.btn-etapa {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-etapa:hover {
+  background-color: #4cae8c;
+  color: white;
+}
+
+/* Botões de Ação (Adicionar, Editar, etc.) com Variáveis CSS */
 .btn-outline--success {
-  --btn-color-borda: #4cae8c;  /* Cor da borda e texto no estado normal */
-  --btn-color-fundo-hover: #4cae8c;  /* Cor do fundo ao passar o mouse */
-  --btn-color-texto-hover: white;      /* Cor do texto ao passar o mouse */
+  --btn-color-borda: #4cae8c;
+  --btn-color-fundo-hover: #4cae8c;
+  --btn-color-texto-hover: white;
+  --btn-fundo-hover: #4cae8c;
+  /* Compatibilidade */
+  --btn-texto-hover: white;
+  /* Compatibilidade */
 }
 
 .btn-outline--warning {
   --btn-color-borda: #ffc107;
   --btn-color-fundo-hover: #ffc107;
   --btn-color-texto-hover: #212529;
+  --btn-fundo-hover: #ffc107;
+  --btn-texto-hover: #212529;
 }
 
 .btn-outline--danger {
   --btn-color-borda: #dc3545;
   --btn-color-fundo-hover: #dc3545;
   --btn-color-texto-hover: white;
+  --btn-fundo-hover: #dc3545;
+  --btn-texto-hover: white;
 }
 
 .btn-outline--orange {
   --btn-color-borda: #fd7e14;
   --btn-color-fundo-hover: #fd7e14;
   --btn-color-texto-hover: white;
-}
-
-
-/* =================================================================
-   2. ESTILO BASE E HOVER UNIFICADOS USANDO AS VARIÁVEIS
-   ================================================================= */
-
-/* Estilo base para todos os botões */
-.btn-adicionar-etapa {
-  /* Estilos que você já tinha */
-  font-size: 0.9rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-  
-  /* Aplicando as variáveis */
-  background-color: transparent; /* Fundo transparente por padrão */
-  border: 1px solid var(--btn-color-borda); /* Borda com a cor da variável */
-  color: var(--btn-color-borda);           /* Texto com a cor da variável */
-}
-
-/* REGRA DE HOVER ÚNICA PARA TODOS OS BOTÕES */
-.btn-adicionar-etapa:hover {
-  background-color: var(--btn-color-fundo-hover);
-  color: var(--btn-color-texto-hover);
+  --btn-fundo-hover: #fd7e14;
+  --btn-texto-hover: white;
 }
 
 .btn-outline--info {
@@ -151,67 +145,55 @@
   --btn-color-texto-hover: white;
 }
 
-.detalhe-row td {
-  background-color: #f8f9fa;
-  font-size: 0.9em;
-  padding-left: 2rem;
-  color: #555;
-  transition: all 0.3s ease;
-}
-
-/* ====== TABELA MODERNA CUSTOMIZADA ====== */
-
-.modern-table {
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  font-size: 0.85rem;
-  border-collapse: collapse;
-  background-color: #fff;
+/* Estilo Base dos Botões de Ação */
+.btn-adicionar-etapa,
+.btn-efeito-contorno {
+  font-size: 0.9rem;
+  padding: 0.5rem 1.25rem;
   border-radius: 12px;
-  overflow: hidden;
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  background-color: transparent;
+
+  /* Fallback se a variável não estiver definida */
+  border: 1px solid var(--btn-color-borda, #ced4da);
+  color: var(--btn-color-borda, #495057);
 }
 
-.modern-table thead th {
-  background-color: var(--primary-color);
-  color: var(--text-color);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 0.85rem;
-  padding: 0.75rem 1rem;
-  text-align: center;
-  border-bottom: 1px solid #e2e8e4;
+.btn-adicionar-etapa:hover,
+.btn-efeito-contorno:hover {
+  background-color: var(--btn-color-fundo-hover, var(--btn-fundo-hover));
+  color: var(--btn-color-texto-hover, var(--btn-texto-hover));
+  border-color: var(--btn-color-fundo-hover, var(--btn-fundo-hover));
+}
+
+/* Botões de Ícone Pequenos (Tabela) */
+.action-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.action-btn-icon:hover {
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
 
-.modern-table tbody td {
-  color: #444;
-  padding: 0.65rem 1rem;
-  border-top: 1px solid #ececec;
-  text-align: center;
-  vertical-align: middle;
-  white-space: nowrap;
-}
+/* =================================================================
+   4. TABELA MODERNA (Estilo Unificado e Melhorado)
+   ================================================================= */
 
-.modern-table tbody tr:nth-child(even) {
-  background-color: #f9f9f9;
-}
-
-.modern-table tbody tr:hover {
-  background-color: #e6f3ec;
-  transition: background-color 0.2s ease-in-out;
-}
-
-/* Para destaque quando clicado */
-tr.selected {
-  background-color: #d1e7dd !important;
-  transition: background-color 0.2s ease-in-out;
-}
-
-/* ===== SCROLL DA TABELA ===== */
 .custom-scroll {
   margin: 0 auto;
-  border: 1px solid #ccc;
+  border: 1px solid #e2e8e4;
   border-radius: 12px;
   background-color: #fff;
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
@@ -219,109 +201,175 @@ tr.selected {
   overflow-x: auto;
 }
 
-.subtabela {
-  margin: 0.5rem 0;
-  background-color: #f9f9f9;
-  border-radius: 8px;
+.modern-table {
+  width: 100%;
+  border-collapse: separate;
+  /* Permite border-radius */
+  border-spacing: 0;
+  /* Remove espaço entre células */
+  background-color: #fff;
+  border-radius: 12px;
   overflow: hidden;
 }
 
-.subtabela th {
-  background-color: #eef4ee;
+/* Cabeçalho da Tabela */
+.modern-table thead th {
+  background-color: #f8f9fa;
+  color: #6c757d;
+  font-weight: 700;
+  /* Mais peso para destacar */
+  text-transform: uppercase;
   font-size: 0.8rem;
-  color: #4a665a;
+  /* Aumentado levemente */
+  letter-spacing: 0.5px;
+  padding: 1.2rem 1rem;
+  /* Mais altura */
+  text-align: center;
+  /* Centralizado */
+  border-bottom: 2px solid #e9ecef;
+  vertical-align: middle;
 }
 
-.subtabela td {
-  font-size: 0.8rem;
-  color: #555;
-}
-
-.linha-detalhe {
-  display: grid;
-  grid-template-columns: 140px 1fr 250px;
-  /* Ajusta essas proporções conforme as colunas reais */
-  gap: 0.5rem;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: #f1f5f2;
-  border-radius: 6px;
-}
-
-
-.linha-detalhe span {
-  flex: 1;
-}
-
-.linha-detalhe .codigo {
-  font-weight: 600;
-  color: var(--accent-color);
-  max-width: 100px;
+/* Corpo da Tabela */
+.modern-table tbody td {
+  color: #2c3e50;
+  /* Cor de texto mais sólida */
+  font-size: 0.9rem;
+  /* Tamanho ideal para leitura */
+  padding: 1rem;
+  border-bottom: 1px solid #f0f2f5;
+  text-align: center;
+  /* Centralizado */
+  vertical-align: middle;
+  /* Centralizado verticalmente */
   white-space: nowrap;
 }
 
-.linha-detalhe .nome {
-  flex: 2;
+.modern-table tbody tr:hover {
+  background-color: #f1f8f5 !important;
+  /* Verde muito suave no hover */
 }
 
-.linha-detalhe .status {
-  flex: 2;
-  text-align: right;
-  font-style: italic;
-  color: #5d8269;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.lista-detalhes-cards {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  padding: 0.5rem 0.25rem;
-}
-
-.card-detalhe {
-  flex: 0 0 calc(33.333% - 0.5rem);
-  max-width: calc(33.333% - 0.5rem);
-  background-color: #f8faf9;
-  border: 1px solid #dce3dc;
-  border-radius: 10px;
-  padding: 0.75rem 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-  font-size: 0.85rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* aqui tá o segredo */
-  gap: 0.35rem;
-  height: 100%;
-}
-
-.card-detalhe .topo {
-  display: flex;
-  gap: 0.5rem;
+/* --- Ícones de Ação Modernos (Estilo Soft) --- */
+.btn-icon-modern {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  /* Quadrado arredondado moderno */
+  border: none;
+  background-color: transparent;
+  transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+  margin: 0 4px;
+}
+
+/* Botão Editar (Azul) */
+.btn-icon-modern.edit {
+  color: #0d6efd;
+  background-color: rgba(13, 110, 253, 0.08);
+  /* Fundo azul bem clarinho */
+}
+
+.btn-icon-modern.edit:hover {
+  background-color: #0d6efd;
+  color: white;
+  transform: translateY(-2px);
+  /* Efeito de elevação */
+  box-shadow: 0 4px 8px rgba(13, 110, 253, 0.25);
+}
+
+/* Botão Excluir (Vermelho) */
+.btn-icon-modern.delete {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.08);
+  /* Fundo vermelho bem clarinho */
+}
+
+.btn-icon-modern.delete:hover {
+  background-color: #dc3545;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.25);
+}
+
+/* Ajuste no ícone dentro do botão */
+.btn-icon-modern i {
+  font-size: 1.1rem;
+  line-height: 0;
+}
+
+
+/* =================================================================
+   5. MENU DE CONFIGURAÇÕES (ABA GERAL)
+   ================================================================= */
+.settings-menu .list-group-item {
+  border: none;
+  background-color: transparent;
+  color: #555;
   font-weight: 500;
-  color: var(--text-color);
-  font-size: 0.85rem;
+  transition: all 0.2s ease;
+  border-radius: 8px !important;
+  margin-bottom: 5px;
 }
 
-.card-detalhe .status {
-  font-size: 0.8rem;
-  color: #666;
-  margin-left: 0;
+.settings-menu .list-group-item:hover {
+  background-color: #f1f5f2;
+  color: var(--accent-color);
 }
 
-.card-detalhe .badge {
-  margin-left: 0.25rem;
-  margin-right: 0.25rem;
-  font-size: 0.75rem;
-  border-radius: 0.5rem;
-  padding: 0.3em 0.55em;
+.settings-menu .list-group-item.active {
   background-color: var(--accent-color);
   color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.settings-menu .list-group-item i {
+  font-size: 1.1rem;
+}
+
+.subsecao-geral .custom-scroll {
+  max-height: 600px;
+  /* Limite de altura para a tabela de config */
+}
+
+
+/* =================================================================
+   6. BADGES E INDICADORES
+   ================================================================= */
+
+/* Badges de Documentistas (Geral) */
+.doc-badge {
+  background-color: #e3f2fd !important;
+  color: #0d47a1 !important;
+  border: none !important;
+  font-weight: 500;
+  padding: 0.5em 0.8em;
+  border-radius: 50rem !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Status Indicator (Bolinha) */
+.status-indicator {
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.status-indicator.active {
+  background-color: #28a745;
+}
+
+.status-indicator.inactive {
+  background-color: #dc3545;
+}
+
+/* Badges de Status Genéricas */
 .badge-status {
   display: inline-block;
   padding: 0.3em 0.65em;
@@ -349,141 +397,120 @@ tr.selected {
   background-color: #888;
 }
 
-/* Layout flexível para cards de etapas detalhadas */
+
+/* =================================================================
+   7. ELEMENTOS ESPECÍFICOS (LPU, ETAPAS DETALHADAS, ETC)
+   ================================================================= */
+
+/* Linha Detalhe (Lista de Etapas) */
+.linha-detalhe {
+  display: grid;
+  grid-template-columns: 140px 1fr 250px;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background-color: #f1f5f2;
+  border-radius: 6px;
+}
+
+.linha-detalhe span {
+  flex: 1;
+}
+
+.linha-detalhe .codigo {
+  font-weight: 600;
+  color: var(--accent-color);
+  max-width: 100px;
+  white-space: nowrap;
+}
+
+.linha-detalhe .nome {
+  flex: 2;
+}
+
+.linha-detalhe .status {
+  flex: 2;
+  text-align: right;
+  font-style: italic;
+  color: #5d8269;
+  word-break: break-word;
+}
+
+/* Cards de Detalhes (Grid) */
+.lista-detalhes-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.5rem 0.25rem;
+}
+
 .card-detalhe {
   flex: 0 0 calc(33.333% - 0.5rem);
   max-width: calc(33.333% - 0.5rem);
-}
-
-.overlay-loader {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
+  background-color: #f8faf9;
+  border: 1px solid #dce3dc;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
   height: 100%;
-  background: rgba(255, 255, 255, 0.7);
-  z-index: 9999;
+}
+
+.card-detalhe .topo {
   display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Cria o indicador de status como um círculo */
-.status-indicator {
-    height: 12px;
-    width: 12px;
-    border-radius: 50%; /* Garante que seja um círculo perfeito */
-    display: inline-block;
-    vertical-align: middle;
-    margin-right: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); /* Sombra sutil para dar profundidade */
-}
-
-/* Cor para o status ATIVO */
-.status-indicator.active {
-    background-color: #28a745; /* Verde Sucesso */
-}
-
-/* Cor para o status INATIVO */
-.status-indicator.inactive {
-    background-color: #dc3545; /* Vermelho Perigo */
-}
-
-/* =================================================================
-   1. DEFINA APENAS AS CORES DO EFEITO HOVER
-   (Estas classes definem as variáveis de cor para cada tipo)
-   ================================================================= */
-
-.btn-outline--success {
-  --btn-fundo-hover: #4cae8c;
-  --btn-texto-hover: white;
-}
-
-.btn-outline--warning {
-  --btn-fundo-hover: #ffc107;
-  --btn-texto-hover: #212529;
-}
-
-.btn-outline--danger {
-  --btn-fundo-hover: #dc3545;
-  --btn-texto-hover: white;
-}
-
-.btn-outline--orange {
-  --btn-fundo-hover: #fd7e14;
-  --btn-texto-hover: white;
-}
-
-
-/* =================================================================
-   2. ESTILO BASE NEUTRO E HOVER COLORIDO UNIFICADO
-   (Esta é a classe que aplica o estilo e o efeito)
-   ================================================================= */
-
-/* ANTES: .btn-adicionar-etapa */
-/* AGORA: .btn-efeito-contorno (mais genérico) */
-.btn-efeito-contorno {
-  /* Estilos de layout e fonte */
-  font-size: 0.9rem;
-  padding: 0.5rem 1.25rem;
-  border-radius: 12px;
-  display: flex;
+  gap: 0.5rem;
   align-items: center;
   font-weight: 500;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
-  
-  /* Cores NEUTRAS aplicadas a todos por padrão */
-  background-color: transparent;
-  border: 1px solid #ced4da; /* Cinza claro para a borda */
-  color: #495057;           /* Cinza escuro para o texto, garantindo leitura */
+  color: var(--text-color);
+  font-size: 0.85rem;
 }
 
-/* Regra de HOVER ÚNICA que revela a cor usando as variáveis */
-.btn-efeito-contorno:hover {
-  background-color: var(--btn-fundo-hover);
-  color: var(--btn-texto-hover);
-  border-color: var(--btn-fundo-hover); /* Faz a borda acompanhar a cor do fundo */
+.card-detalhe .badge {
+  font-size: 0.75rem;
+  border-radius: 0.5rem;
+  padding: 0.3em 0.55em;
+  background-color: var(--accent-color);
+  color: white;
 }
 
-/* Deixa a linha do contrato com aparência de "clicável" */
+/* LPU e Contratos */
 .contrato-header-row {
-    cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
 }
 
-/* Efeito sutil ao passar o mouse */
 .contrato-header-row:hover {
-    background-color: #e9ecef; /* Um cinza bem claro */
+  background-color: #e9ecef;
 }
 
-/* Transição suave para o ícone de seta */
 .toggle-icon {
-    transition: transform 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out;
 }
 
-/* Classe que vamos adicionar via JS para girar o ícone */
 .toggle-icon.rotated {
-    transform: rotate(180deg);
+  transform: rotate(180deg);
 }
 
-/* A MÁGICA DA ANIMAÇÃO:
-   A linha de detalhes começa com altura máxima 0 e escondida. */
 .lpu-details-row {
-    max-height: 0;
-    overflow: hidden; /* Esconde o conteúdo que transborda */
-    transition: max-height 0.5s ease-in-out; /* Anima a propriedade max-height */
-    border: none !important;
-    padding: 0 !important;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease-in-out;
+  border: none !important;
+  padding: 0 !important;
 }
 
-/* Quando a linha de detalhes estiver "aberta", damos uma altura máxima grande */
 .lpu-details-row.open {
-    /* Um valor alto que com certeza será maior que o conteúdo.
-       A transição irá animar de 0 até a altura real do conteúdo. */
-    max-height: 2000px; 
+  max-height: 2000px;
 }
 
+
+/* =================================================================
+   8. DASHBOARD E BANNERS
+   ================================================================= */
 .overview-banner {
   background-color: white;
   border-left: 6px solid var(--accent-color);
@@ -520,30 +547,6 @@ tr.selected {
   color: var(--text-color);
 }
 
-.segment-card {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.05);
-  text-align: center;
-  transition: transform 0.2s ease-in-out;
-}
-
-.segment-card:hover {
-  transform: translateY(-2px);
-}
-
-.segment-card i {
-  font-size: 1.5rem;
-  color: var(--accent-color);
-  margin-bottom: 0.5rem;
-}
-
-.segment-card span {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
 .kpi-total {
   background-color: var(--card-success);
   border-radius: 12px;
@@ -562,12 +565,24 @@ tr.selected {
   font-weight: bold;
 }
 
-.segment-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 1rem;
+/* Loader Fullscreen */
+.overlay-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+
+/* =================================================================
+   9. RESPONSIVIDADE (MEDIA QUERIES)
+   ================================================================= */
 @media (max-width: 992px) {
   .dashboard-cards {
     overflow-x: auto;
@@ -580,7 +595,6 @@ tr.selected {
   }
 }
 
-/* Até 576px (celular) — 1 card por linha */
 @media (max-width: 576px) {
   .lista-detalhes-cards {
     flex-direction: column;
@@ -607,7 +621,6 @@ tr.selected {
   }
 }
 
-/* A partir de 576px (tablet) — 2 cards por linha */
 @media (min-width: 576px) {
   .card-detalhe {
     flex: 0 0 calc(50% - 0.5rem);
@@ -615,7 +628,6 @@ tr.selected {
   }
 }
 
-/* A partir de 768px (desktop) — 3 cards por linha */
 @media (min-width: 768px) {
   .card-detalhe {
     flex: 0 0 calc(33.333% - 0.5rem);

@@ -84,6 +84,13 @@ async function inicializarPrestadores() {
     function formatarCampo(campo) {
         return campo.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
     }
+
+    const modalAdicionar = document.getElementById('modalAdicionarPrestador');
+    if (modalAdicionar) {
+        modalAdicionar.addEventListener('show.bs.modal', () => {
+            carregarSelectBancosDinamicamente();
+        });
+    }
 }
 
 async function carregarTabelaPrestadores(camposOriginais) {
@@ -197,6 +204,41 @@ async function preencherSelectComPrestadores(elementoSelect) {
     }
 }
 
+async function carregarSelectBancosDinamicamente() {
+    const selects = ['codigoBanco', 'codigoBanco_Editar']; // IDs dos selects nos modais de criar e editar
+
+    // Tenta buscar do cache ou da API
+    try {
+        const response = await fetchComAuth('http://localhost:8080/geral/bancos');
+        if (!response.ok) return; // Silencioso se falhar, ou mostrar erro
+
+        const bancos = await response.json();
+
+        selects.forEach(selectId => {
+            const selectEl = document.getElementById(selectId);
+            if (!selectEl) return;
+
+            // Guarda o valor que estava selecionado (caso seja edição)
+            const valorAtual = selectEl.value;
+
+            selectEl.innerHTML = '<option value="">Selecione o banco</option>';
+
+            bancos.forEach(banco => {
+                const option = document.createElement('option');
+                option.value = banco.codigo; // O value é o código (ex: 001) para salvar no banco de dados
+                option.textContent = `${banco.codigo} - ${banco.nome}`;
+                selectEl.appendChild(option);
+            });
+
+            // Restaura seleção se existir
+            if (valorAtual) selectEl.value = valorAtual;
+        });
+
+    } catch (error) {
+        console.error("Erro ao carregar bancos para o select", error);
+    }
+}
+
 function configurarModaisPrestadores() {
     // --- Modal de Edição de Prestador ---
     const modalEditar = document.getElementById("modalEditarPrestador");
@@ -206,6 +248,7 @@ function configurarModaisPrestadores() {
             if (selectParaEditar) {
                 preencherSelectComPrestadores(selectParaEditar);
             }
+            carregarSelectBancosDinamicamente();
         });
     }
 

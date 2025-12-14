@@ -1,103 +1,78 @@
 const API_GERAL_URL = 'http://localhost:8080/tipos-documentacao';
+const API_BANCOS_URL = 'http://localhost:8080/geral/bancos'; // Nova API
 const API_DOCUMENTISTAS = 'http://localhost:8080/usuarios/documentistas';
+
 let modalTipoDocInstance;
+let modalBancoInstance;
 let listaDocumentistasCache = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. REGRA DE PERMISSÃO: Esconder a aba se não for autorizado
     verificarPermissaoGeral();
 
-    // Inicializa o modal
-    const modalEl = document.getElementById('modalTipoDoc');
-    if (modalEl) modalTipoDocInstance = new bootstrap.Modal(modalEl);
+    // Inicializa modais
+    const modalDocEl = document.getElementById('modalTipoDoc');
+    if (modalDocEl) modalTipoDocInstance = new bootstrap.Modal(modalDocEl);
 
-    // Lógica para detectar clique na aba "Geral"
+    const modalBancoEl = document.getElementById('modalBanco');
+    if (modalBancoEl) modalBancoInstance = new bootstrap.Modal(modalBancoEl);
+
+    // Listener para carregar dados ao clicar na aba
     const cardGeral = document.querySelector('.segment-card[data-filter="geral"]');
     if (cardGeral) {
         cardGeral.addEventListener('click', () => {
-            carregarTiposDoc();
-            carregarDocumentistasParaSelect(); // Pré-carrega o select
+            // Abre na aba padrão (Docs)
+            alternarSubsecao('docs');
+            carregarDocumentistasParaSelect();
         });
     }
 });
 
-function verificarPermissaoGeral() {
-    const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
-    const allowedRoles = ['ADMIN', 'CONTROLLER', 'ASSISTANT'];
-    const cardGeral = document.querySelector('.segment-card[data-filter="geral"]');
+// --- Controle de Abas (Subseções) ---
+function alternarSubsecao(tipo) {
+    // 1. Atualiza visual do menu
+    const botoes = document.querySelectorAll('.settings-menu .list-group-item');
+    botoes.forEach(btn => btn.classList.remove('active'));
 
-    if (cardGeral) {
-        if (allowedRoles.includes(userRole)) {
-            cardGeral.style.display = 'flex'; // ou 'block' dependendo do seu CSS grid
-        } else {
-            cardGeral.style.display = 'none'; // Esconde de quem não pode ver
-            // Se o usuário estiver na aba geral (por URL ou bug), remove o conteúdo
-            const conteudoGeral = document.getElementById('conteudo-geral');
-            if (conteudoGeral) conteudoGeral.innerHTML = '';
-        }
+    // 2. Esconde todas as seções
+    document.querySelectorAll('.subsecao-geral').forEach(div => div.classList.add('d-none'));
+
+    // 3. Mostra a selecionada e carrega dados
+    if (tipo === 'docs') {
+        document.getElementById('subsecao-docs').classList.remove('d-none');
+        botoes[0].classList.add('active'); // Assume que é o primeiro botão
+        carregarTiposDoc();
+    } else if (tipo === 'bancos') {
+        document.getElementById('subsecao-bancos').classList.remove('d-none');
+        botoes[1].classList.add('active'); // Assume que é o segundo botão
+        carregarBancos();
     }
 }
 
-async function carregarDocumentistasParaSelect() {
-    if (listaDocumentistasCache.length > 0) return; // Já carregado
+// --- Funções de Bancos ---
+async function carregarBancos() {
+    const tbody = document.getElementById('tbody-bancos');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
 
     try {
-        const response = await fetchComAuth(API_DOCUMENTISTAS);
-        if (response.ok) {
-            listaDocumentistasCache = await response.json();
-            const select = document.getElementById('tipoDocResponsavel');
-            if (select) {
-                // Mantém a opção padrão "Sem responsável"
-                select.innerHTML = '<option value="" selected>Sem responsável fixo</option>';
-                listaDocumentistasCache.forEach(doc => {
-                    select.add(new Option(doc.nome, doc.id));
-                });
-            }
-        }
-    } catch (error) {
-        console.error("Erro ao carregar documentistas", error);
-    }
-}
+        const response = await fetchComAuth(API_BANCOS_URL);
+        if (!response.ok) throw new Error('Erro');
+        const bancos = await response.json();
 
-async function carregarTiposDoc() {
-    const tbody = document.getElementById('tbody-tipos-doc');
-    if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Carregando...</td></tr>';
-
-    try {
-        const response = await fetchComAuth(API_GERAL_URL);
-        if (!response.ok) throw new Error('Falha ao buscar dados');
-
-        const dados = await response.json();
         tbody.innerHTML = '';
-
-        dados.sort((a, b) => a.nome.localeCompare(b.nome));
-
-        if (dados.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">Nenhum item cadastrado.</td></tr>';
+        if (bancos.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">Nenhum banco cadastrado.</td></tr>';
             return;
         }
 
-        dados.forEach(tipo => {
-            let docBadges = '<span class="text-muted small">Todos habilitados</span>';
-            if (tipo.documentistas && tipo.documentistas.length > 0) {
-                docBadges = tipo.documentistas.map(d =>
-                    `<span class="badge bg-light text-dark border me-1">${d.nome}</span>`
-                ).join('');
-            }
-
-            // Prepara lista de IDs para o botão editar
-            const docIds = tipo.documentistas ? tipo.documentistas.map(d => d.id) : [];
-
+        bancos.forEach(banco => {
+            const tr = document.createElement('tr');
+            // REMOVIDO: ps-5, text-start
+            // ADICIONADO: Centralização e novos botões
             tr.innerHTML = `
-                <td class="ps-4 fw-medium text-dark">${tipo.nome}</td>
-                <td>${docBadges}</td>
-                <td class="text-end pe-4">
-                    <button class="btn btn-sm text-primary me-2" onclick='editarTipoDoc(${tipo.id}, "${tipo.nome}", ${JSON.stringify(docIds)})'>
-                        <i class="bi bi-pencil-square"></i>
-                    </button>
-                    <button class="btn btn-sm text-danger" onclick="deletarTipoDoc(${tipo.id})">
+                <td class="fw-bold text-secondary">${banco.codigo}</td>
+                <td class="fw-medium text-dark">${banco.nome}</td>
+                <td>
+                    <button class="btn-icon-modern delete" onclick="deletarBanco(${banco.id})" title="Excluir">
                         <i class="bi bi-trash"></i>
                     </button>
                 </td>
@@ -106,7 +81,144 @@ async function carregarTiposDoc() {
         });
     } catch (error) {
         console.error(error);
+        mostrarToast("Erro ao carregar bancos.", "error");
     }
+}
+
+function abrirModalBanco() {
+    document.getElementById('formBanco').reset();
+    modalBancoInstance.show();
+}
+
+async function salvarBanco() {
+    const codigo = document.getElementById('bancoCodigo').value.trim();
+    const nome = document.getElementById('bancoNome').value.trim();
+
+    if (!codigo || !nome) {
+        mostrarToast("Preencha código e nome.", "warning");
+        return;
+    }
+
+    const payload = { codigo, nome };
+
+    try {
+        const response = await fetchComAuth(API_BANCOS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            mostrarToast("Banco salvo com sucesso!", "success");
+            modalBancoInstance.hide();
+            carregarBancos();
+        } else {
+            mostrarToast("Erro ao salvar. Verifique se o código já existe.", "error");
+        }
+    } catch (error) {
+        console.error(error);
+        mostrarToast("Erro de conexão.", "error");
+    }
+}
+
+async function deletarBanco(id) {
+    if (!confirm('Deseja realmente excluir este banco?')) return;
+    try {
+        const response = await fetchComAuth(`${API_BANCOS_URL}/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            mostrarToast("Banco excluído.", "success");
+            carregarBancos();
+        } else {
+            mostrarToast("Erro ao excluir banco.", "error");
+        }
+    } catch (e) {
+        mostrarToast("Erro de conexão.", "error");
+    }
+}
+
+// --- Funções Originais de Permissão e Documentação (Mantidas e Ajustadas) ---
+function verificarPermissaoGeral() {
+    const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+    const allowedRoles = ['ADMIN', 'CONTROLLER', 'ASSISTANT'];
+    const cardGeral = document.querySelector('.segment-card[data-filter="geral"]');
+
+    if (cardGeral) {
+        if (allowedRoles.includes(userRole)) {
+            cardGeral.style.display = 'block'; // alterado de flex para block para o grid funcionar
+        } else {
+            cardGeral.style.display = 'none';
+        }
+    }
+}
+
+// ... (Mantenha aqui as funções carregarDocumentistasParaSelect, carregarTiposDoc, salvarTipoDoc etc. que já existiam no seu arquivo original, sem alterações lógicas, apenas certifique-se que elas usem fetchComAuth e mostrarToast corretamente)
+// Caso precise, posso reescrever essas funções aqui também.
+
+async function carregarDocumentistasParaSelect() {
+    if (listaDocumentistasCache.length > 0) return;
+    try {
+        const response = await fetchComAuth(API_DOCUMENTISTAS);
+        if (response.ok) {
+            listaDocumentistasCache = await response.json();
+            const select = document.getElementById('tipoDocResponsavel');
+            if (select) {
+                select.innerHTML = ''; // Limpa antes de preencher
+                listaDocumentistasCache.forEach(doc => {
+                    select.add(new Option(doc.nome, doc.id));
+                });
+            }
+        }
+    } catch (error) {
+        console.error("Erro documentistas", error);
+    }
+}
+
+async function carregarTiposDoc() {
+    const tbody = document.getElementById('tbody-tipos-doc');
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+
+    try {
+        const response = await fetchComAuth(API_GERAL_URL);
+        const dados = await response.json();
+        tbody.innerHTML = '';
+
+        if (dados.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>`;
+            return;
+        }
+
+        dados.sort((a, b) => a.nome.localeCompare(b.nome));
+
+        dados.forEach(tipo => {
+            const tr = document.createElement('tr');
+
+            let docBadges = '<span class="text-muted small fst-italic">Todos habilitados</span>';
+            if (tipo.documentistas && tipo.documentistas.length > 0) {
+                // Centraliza as badges com justify-content-center
+                docBadges = '<div class="d-flex flex-wrap gap-2 justify-content-center">' +
+                    tipo.documentistas.map(d => `<span class="badge doc-badge">${d.nome}</span>`).join('') +
+                    '</div>';
+            }
+
+            const docIds = tipo.documentistas ? JSON.stringify(tipo.documentistas.map(d => d.id)) : '[]';
+
+            // REMOVIDO: ps-4 e text-start
+            // ADICIONADO: btn-icon-modern edit/delete
+            tr.innerHTML = `
+                <td class="fw-semibold text-dark">${tipo.nome}</td>
+                <td>${docBadges}</td>
+                <td>
+                    <button class="btn-icon-modern edit" onclick='editarTipoDoc(${tipo.id}, "${tipo.nome}", ${docIds})' title="Editar">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button class="btn-icon-modern delete" onclick="deletarTipoDoc(${tipo.id})" title="Excluir">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (e) { console.error(e); }
 }
 
 function abrirModalTipoDoc() {
@@ -153,23 +265,27 @@ async function salvarTipoDoc() {
     const id = document.getElementById('tipoDocId').value;
     const nome = document.getElementById('tipoDocNome').value;
 
+    // 1. CORREÇÃO CRÍTICA: Declarar o select aqui
+    const select = document.getElementById('tipoDocResponsavel');
+
     if (!nome.trim()) {
-        alert("O nome é obrigatório.");
+        mostrarToast("O nome é obrigatório.", "warning");
         return;
     }
 
+    // 2. Captura os IDs selecionados (se nenhum, retorna array vazio [])
     const selectedIds = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
 
-    // Monta payload com lista de objetos Usuario
+    // 3. Monta o payload
     const payload = {
         nome: nome,
+        // Envia lista de objetos {id: 1}, {id: 2}...
         documentistas: selectedIds.map(id => ({ id: id }))
     };
 
     const method = id ? 'PUT' : 'POST';
     const url = id ? `${API_GERAL_URL}/${id}` : API_GERAL_URL;
 
-    // Feedback visual no botão
     const btnSalvar = document.querySelector('#modalTipoDoc .btn-primary');
     const originalText = btnSalvar.textContent;
     btnSalvar.disabled = true;
@@ -184,13 +300,16 @@ async function salvarTipoDoc() {
 
         if (response.ok) {
             modalTipoDocInstance.hide();
-            carregarTiposDoc();
+            mostrarToast("Salvo com sucesso!", "success");
+
+            // Recarrega a tabela para mostrar os novos dados vindos do backend
+            await carregarTiposDoc();
         } else {
-            alert('Erro ao salvar. Verifique se o backend está atualizado.');
+            mostrarToast("Erro ao salvar.", "error");
         }
     } catch (error) {
         console.error(error);
-        alert('Erro de conexão.');
+        mostrarToast("Erro de conexão.", "error");
     } finally {
         btnSalvar.disabled = false;
         btnSalvar.textContent = originalText;

@@ -213,38 +213,104 @@
     </div>
 
     <div id="conteudo-geral" class="conteudo-filtro d-none">
-
-        <div class="bloco-etapas-header d-flex justify-content-between align-items-center">
+        <div class="bloco-etapas-header d-flex justify-content-between align-items-center mb-4">
             <h4 class="titulo-etapas mb-0">Configurações Gerais</h4>
-
-            <div class="d-flex gap-2 flex-wrap justify-content-end">
-                <button type="button" class="btn btn-outline--success btn-adicionar-etapa"
-                    onclick="abrirModalTipoDoc()">
-                    <i class="bi bi-plus-circle me-1"></i> Novo Tipo de Documento
-                </button>
-            </div>
         </div>
 
-        <div class="px-4 mt-3">
-            <div class="row">
-                <div class="col-md-12">
-                    <h5 class="mb-3 text-secondary" style="font-size: 1rem; font-weight: 600;">Tipos de Documentação
-                    </h5>
-                    <div class="table-responsive custom-scroll" style="max-height: 500px;">
-                        <table class="table modern-table align-middle">
-                            <thead style="position: sticky; top: 0; background: white; z-index: 10;">
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="list-group settings-menu shadow-sm border-0">
+                    <button type="button"
+                        class="list-group-item list-group-item-action active d-flex align-items-center gap-2 py-3"
+                        onclick="alternarSubsecao('docs')">
+                        <i class="bi bi-file-earmark-text"></i> Tipos de Documentação
+                    </button>
+                    <button type="button"
+                        class="list-group-item list-group-item-action d-flex align-items-center gap-2 py-3"
+                        onclick="alternarSubsecao('bancos')">
+                        <i class="bi bi-bank"></i> Lista de Bancos
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-md-9">
+
+                <div id="subsecao-docs" class="subsecao-geral">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary fw-bold mb-0">Tipos de Documentação</h5>
+                        <button type="button" class="btn btn-outline--success btn-adicionar-etapa"
+                            onclick="abrirModalTipoDoc()">
+                            <i class="bi bi-plus-circle me-1"></i> Novo Tipo
+                        </button>
+                    </div>
+                    <div class="table-responsive custom-scroll bg-white rounded-3 shadow-sm p-0">
+                        <table class="table modern-table align-middle mb-0">
+                            <thead>
                                 <tr>
                                     <th>Nome do Documento</th>
                                     <th>Documentista Padrão</th>
-                                    <th class="text-end" style="padding-right: 20px;">Ações</th>
+                                    <th style="width: 140px;">Ações</th>
                                 </tr>
                             </thead>
-                            <tbody id="tbody-tipos-doc">
-                            </tbody>
+                            <tbody id="tbody-tipos-doc"></tbody>
                         </table>
                     </div>
                 </div>
 
+                <div id="subsecao-bancos" class="subsecao-geral d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-secondary fw-bold mb-0">Bancos Cadastrados</h5>
+                        <button type="button" class="btn btn-outline--success btn-adicionar-etapa"
+                            onclick="abrirModalBanco()">
+                            <i class="bi bi-plus-circle me-1"></i> Novo Banco
+                        </button>
+                    </div>
+                    <div class="table-responsive custom-scroll bg-white rounded-3 shadow-sm p-0">
+                        <table class="table modern-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Código</th>
+                                    <th>Nome do Banco</th>
+                                    <th style="width: 100px;">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-bancos"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalBanco" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold">Gerenciar Banco</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="formBanco">
+                        <div class="mb-3">
+                            <label class="form-label fw-medium small text-uppercase text-secondary">Código do Banco
+                                (COMPE)</label>
+                            <input type="text" class="form-control" id="bancoCodigo" placeholder="Ex: 001" maxlength="5"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-medium small text-uppercase text-secondary">Nome do
+                                Banco</label>
+                            <input type="text" class="form-control" id="bancoNome" placeholder="Ex: Banco do Brasil"
+                                required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-link text-secondary text-decoration-none"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="salvarBanco()">Salvar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -803,15 +869,7 @@
                                     </div>
                                 </label>
                                 <select class="form-select" id="codigoBanco_Editar" disabled>
-                                    <option value="">Selecione o banco</option>
-                                    <option value="001">001 - Banco do Brasil</option>
-                                    <option value="033">033 - Santander</option>
-                                    <option value="104">104 - Caixa Econômica</option>
-                                    <option value="237">237 - Bradesco</option>
-                                    <option value="260">260 - Nubank</option>
-                                    <option value="341">341 - Itaú</option>
-                                    <option value="336">336 - C6 Bank</option>
-                                    <option value="748">748 - Sicredi</option>
+                                    <option value="">Selecione...</option>
                                 </select>
                             </div>
 

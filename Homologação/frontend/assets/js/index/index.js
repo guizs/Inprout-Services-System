@@ -212,23 +212,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const colunasLancamentos = [...colunasPrincipais.filter(c => c !== "STATUS APROVAÇÃO"), "AÇÃO"];
     const colunasMinhasPendencias = colunasLancamentos;
     const colunasHistorico = [...colunasPrincipais, "AÇÃO"];
-    const colunasPendenteDoc = ["AÇÃO", ...colunasPrincipais,];
+    const colunasPendenteDoc = [
+        "SELEÇÃO",
+        "AÇÃO",
+        ...colunasPrincipais.filter(coluna => coluna !== "STATUS APROVAÇÃO")
+    ];
 
     function renderizarCabecalho(colunas, theadElement) {
         if (!theadElement) return;
         let headerHTML = '<tr>';
         colunas.forEach(textoColuna => {
-            const sortKey = columnKeyMap[textoColuna];
-            if (sortKey) {
-                const isSorted = sortConfig.key === sortKey;
-                const iconClass = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
-                headerHTML += `<th class="sortable" data-sort-key="${sortKey}">${textoColuna} <i class="bi ${iconClass}"></i></th>`;
+            if (textoColuna === 'SELEÇÃO') {
+                // Checkbox mestre
+                headerHTML += `<th class="text-center" style="width: 40px;"><input type="checkbox" class="form-check-input" id="check-all-doc"></th>`;
             } else {
-                headerHTML += `<th>${textoColuna}</th>`;
+                // ... (código existente de ordenação) ...
+                const sortKey = columnKeyMap[textoColuna];
+                if (sortKey) {
+                    // ... logica de sort ...
+                    const isSorted = sortConfig.key === sortKey;
+                    const iconClass = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
+                    headerHTML += `<th class="sortable" data-sort-key="${sortKey}">${textoColuna} <i class="bi ${iconClass}"></i></th>`;
+                } else {
+                    headerHTML += `<th>${textoColuna}</th>`;
+                }
             }
         });
         headerHTML += '</tr>';
         theadElement.innerHTML = headerHTML;
+
+        // Listener para o "Selecionar Todos"
+        if (theadElement.querySelector('#check-all-doc')) {
+            setTimeout(() => { // Timeout para garantir que o DOM renderizou
+                const checkAll = document.getElementById('check-all-doc');
+                if (checkAll) {
+                    checkAll.addEventListener('change', (e) => toggleSelecionarTodosDoc(e.target.checked));
+                }
+            }, 0);
+        }
     }
 
     function renderizarCardsDashboard(lancamentos) {
@@ -323,7 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const td = document.createElement('td');
                 td.dataset.label = nomeColuna;
 
-                if (nomeColuna === 'AÇÃO') {
+                if (nomeColuna === 'SELEÇÃO') {
+                    td.className = "text-center";
+                    td.innerHTML = `<input type="checkbox" class="form-check-input check-doc-item" value="${lancamento.id}">`;
+                } else if (nomeColuna === 'AÇÃO') {
                     let buttonsHtml = '';
 
                     if (tbodyElement.id === 'tbody-pendente-doc') {
@@ -408,6 +432,67 @@ document.addEventListener('DOMContentLoaded', () => {
         return dadosFiltrados;
     }
 
+    function atualizarBarraAcoesDoc() {
+        const checkboxes = document.querySelectorAll('.check-doc-item:checked');
+        const count = checkboxes.length;
+        const barra = document.getElementById('acoes-lote-doc');
+        const contador = document.getElementById('contador-selecao-doc');
+
+        if (barra && contador) {
+            contador.textContent = count;
+            if (count > 0) {
+                barra.classList.remove('d-none');
+                barra.classList.add('d-flex');
+            } else {
+                barra.classList.add('d-none');
+                barra.classList.remove('d-flex');
+            }
+        }
+    }
+
+    function toggleSelecionarTodosDoc(checked) {
+        const checkboxes = document.querySelectorAll('#tbody-pendente-doc .check-doc-item');
+        checkboxes.forEach(cb => cb.checked = checked);
+        atualizarBarraAcoesDoc();
+    }
+
+    // Listener para checkboxes individuais (Delegation)
+    document.getElementById('tbody-pendente-doc')?.addEventListener('change', (e) => {
+        if (e.target.classList.contains('check-doc-item')) {
+            atualizarBarraAcoesDoc();
+
+            // Atualiza o estado do "Check All" se todos forem desmarcados manualmente
+            const all = document.querySelectorAll('#tbody-pendente-doc .check-doc-item');
+            const checked = document.querySelectorAll('#tbody-pendente-doc .check-doc-item:checked');
+            const checkAll = document.getElementById('check-all-doc');
+            if (checkAll) {
+                checkAll.checked = (all.length > 0 && all.length === checked.length);
+                checkAll.indeterminate = (checked.length > 0 && checked.length < all.length);
+            }
+        }
+    });
+
+    // Botão de Abrir Modal para Lote
+    const btnReceberLoteDoc = document.getElementById('btnReceberLoteDoc');
+    if (btnReceberLoteDoc) {
+        btnReceberLoteDoc.addEventListener('click', () => {
+            // Usa o mesmo modal, mas limpa o ID oculto para sinalizar que é LOTE
+            document.getElementById('idLancamentoReceberDoc').value = "LOTE";
+            document.getElementById('comentarioRecebimento').value = "";
+
+            // Atualiza o texto do modal para indicar lote
+            const modalEl = document.getElementById('modalReceberDoc');
+            const titulo = modalEl.querySelector('.modal-title');
+            const corpo = modalEl.querySelector('.modal-body p');
+
+            titulo.innerHTML = `<i class="bi bi-collection me-2"></i>Recebimento em Lote`;
+            const qtd = document.getElementById('contador-selecao-doc').textContent;
+            corpo.textContent = `Deseja confirmar o recebimento de documentação para os ${qtd} itens selecionados?`;
+
+            new bootstrap.Modal(modalEl).show();
+        });
+    }
+
     async function carregarLancamentos(append = false) {
         if (!append) {
             indexDataFim = new Date();
@@ -487,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const badgeDoc = document.getElementById('badge-pendente-doc');
         if (badgeDoc) {
             badgeDoc.textContent = pendentesDoc.length;
-            badgeDoc.style.display = pendentesDoc.length > 0 ? 'inline-block' : 'none';
+            badgeDoc.style.display = pendentesDoc.length > 0 ? '' : 'none';
         }
 
         atualizarContadorKpi();
@@ -937,46 +1022,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            const btnConfirmarRecebimentoDoc = document.getElementById('btnConfirmarRecebimentoDoc');
-            if (btnConfirmarRecebimentoDoc) {
-                btnConfirmarRecebimentoDoc.addEventListener('click', async function () {
-                    const btn = this;
-                    const id = document.getElementById('idLancamentoReceberDoc').value;
-                    const comentario = document.getElementById('comentarioRecebimento').value;
-                    const usuarioId = localStorage.getItem('usuarioId');
-
-                    if (!id) return;
-
-                    const modalEl = document.getElementById('modalReceberDoc');
-                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-
-                    try {
-                        btn.disabled = true;
-                        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
-
-                        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/receber`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ usuarioId: usuarioId, comentario: comentario })
-                        });
-
-                        if (!response.ok) throw new Error("Erro ao receber documentação");
-
-                        mostrarToast("Documentação recebida com sucesso!", "success");
-
-                        if (modalInstance) modalInstance.hide();
-                        await carregarLancamentos(); // Atualiza a tabela
-
-                    } catch (error) {
-                        console.error(error);
-                        mostrarToast(error.message, "error");
-                    } finally {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
-                    }
-                });
-            }
-
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
@@ -1026,6 +1071,74 @@ document.addEventListener('DOMContentLoaded', () => {
                 await popularDropdownsDependentes('', null, null);
             }
             modalAdicionar.show();
+        }
+
+        const btnConfirmarRecebimentoDoc = document.getElementById('btnConfirmarRecebimentoDoc');
+        if (btnConfirmarRecebimentoDoc) {
+            btnConfirmarRecebimentoDoc.addEventListener('click', async function () {
+                const btn = this;
+                const idValue = document.getElementById('idLancamentoReceberDoc').value; // Pode ser um ID ou "LOTE"
+                const comentario = document.getElementById('comentarioRecebimento').value;
+                const usuarioId = localStorage.getItem('usuarioId');
+                const modalEl = document.getElementById('modalReceberDoc');
+                const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+                const isLote = idValue === "LOTE";
+
+                let url, body;
+
+                if (isLote) {
+                    // Coleta os IDs selecionados
+                    const checkboxes = document.querySelectorAll('.check-doc-item:checked');
+                    const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+                    if (ids.length === 0) return;
+
+                    url = `${API_BASE_URL}/lancamentos/lote/documentacao/receber`;
+                    body = JSON.stringify({ ids: ids, usuarioId: usuarioId, comentario: comentario });
+                } else {
+                    // Processo individual (Legado)
+                    if (!idValue) return;
+                    url = `${API_BASE_URL}/lancamentos/${idValue}/documentacao/receber`;
+                    body = JSON.stringify({ usuarioId: usuarioId, comentario: comentario });
+                }
+
+                try {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
+
+                    const response = await fetchComAuth(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: body
+                    });
+
+                    if (!response.ok) throw new Error("Erro ao processar recebimento.");
+
+                    mostrarToast(isLote ? "Lote processado com sucesso!" : "Documentação recebida!", "success");
+
+                    if (modalInstance) modalInstance.hide();
+
+                    // Reseta a barra de lote
+                    document.getElementById('acoes-lote-doc').classList.add('d-none');
+                    document.getElementById('acoes-lote-doc').classList.remove('d-flex');
+
+                    await carregarLancamentos();
+
+                } catch (error) {
+                    console.error(error);
+                    mostrarToast(error.message, "error");
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
+
+                    // Restaura textos originais do modal (caso tenha mudado para lote)
+                    const titulo = modalEl.querySelector('.modal-title');
+                    const corpo = modalEl.querySelector('.modal-body p');
+                    titulo.innerHTML = `<i class="bi bi-file-earmark-check me-2"></i>Confirmar Recebimento`;
+                    corpo.textContent = `Deseja confirmar o recebimento da documentação física/digital para este lançamento?`;
+                }
+            });
         }
 
         modalAdicionarEl.addEventListener('show.bs.modal', async () => {
@@ -1197,15 +1310,28 @@ document.addEventListener('DOMContentLoaded', () => {
     function exibirComentarios(lancamento) {
         const modalBody = document.getElementById('modalComentariosBody');
         const modalTitle = document.getElementById('modalComentariosLabel');
-        modalTitle.textContent = `Comentários do Lançamento`;
+        const inputTexto = document.getElementById('novoComentarioTexto');
+        const btnSalvar = document.getElementById('btnSalvarComentario');
+
+        // Configura o ID no botão para saber onde salvar depois
+        if (btnSalvar) {
+            btnSalvar.dataset.id = lancamento.id;
+        }
+        // Limpa o campo de texto
+        if (inputTexto) {
+            inputTexto.value = '';
+        }
+
+        modalTitle.innerHTML = `<i class="bi bi-chat-left-text-fill me-2"></i> Comentários - OS: ${getNestedValue(lancamento, 'os.os') || 'N/A'}`;
         modalBody.innerHTML = '';
 
         if (!lancamento.comentarios || lancamento.comentarios.length === 0) {
-            modalBody.innerHTML = '<p class="text-muted text-center">Nenhum comentário para este lançamento.</p>';
+            modalBody.innerHTML = '<div class="text-center text-muted mt-4"><i class="bi bi-chat-square-dots fs-1"></i><p>Nenhum comentário registrado.</p></div>';
             return;
         }
 
         const comentariosOrdenados = [...lancamento.comentarios].sort((a, b) => {
+            // Converter datas DD/MM/YYYY HH:mm:ss para timestamp
             const parseDate = (str) => {
                 const [date, time] = str.split(' ');
                 const [day, month, year] = date.split('/');
@@ -1216,24 +1342,83 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         comentariosOrdenados.forEach(comentario => {
+            const isMe = comentario.autor.id == localStorage.getItem('usuarioId');
+            const alignClass = isMe ? 'ms-auto text-end' : 'me-auto';
+            const colorClass = isMe ? 'bg-primary-subtle border-primary-subtle' : 'bg-white border';
+
             const comentarioCard = document.createElement('div');
-            comentarioCard.className = 'card mb-3';
-            const partes = comentario.dataHora.split(' ');
-            const dataPartes = partes[0].split('/');
-            const tempoPartes = partes[1].split(':');
-            const dataValida = new Date(dataPartes[2], dataPartes[1] - 1, dataPartes[0], tempoPartes[0], tempoPartes[1]);
-            const dataFormatada = dataValida.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+            comentarioCard.className = `d-flex flex-column mb-3 ${alignClass}`;
+            comentarioCard.style.maxWidth = "80%";
 
             comentarioCard.innerHTML = `
-                <div class="card-header bg-light d-flex justify-content-between align-items-center small">
-                    <strong><i class="bi bi-person-circle me-2"></i>${comentario.autor.nome}</strong>
-                    <span class="text-muted">${dataFormatada}</span>
-                </div>
-                <div class="card-body">
-                    <p class="card-text">${comentario.texto}</p>
+                <div class="card shadow-sm ${colorClass}">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1 small text-muted">
+                            <strong class="${isMe ? 'text-primary' : 'text-dark'}">${comentario.autor.nome}</strong>
+                            <span class="ms-2" style="font-size: 0.75rem;">${comentario.dataHora}</span>
+                        </div>
+                        <p class="card-text mb-0" style="white-space: pre-wrap;">${comentario.texto}</p>
+                    </div>
                 </div>
             `;
             modalBody.appendChild(comentarioCard);
+        });
+
+        // Rola para o topo (ou fundo se preferir)
+        modalBody.scrollTop = 0;
+    }
+
+    // LISTENER PARA SALVAR NOVO COMENTÁRIO
+    const btnSalvarComentario = document.getElementById('btnSalvarComentario');
+    if (btnSalvarComentario) {
+        btnSalvarComentario.addEventListener('click', async function () {
+            const btn = this;
+            const lancamentoId = btn.dataset.id;
+            const texto = document.getElementById('novoComentarioTexto').value.trim();
+            const usuarioId = localStorage.getItem('usuarioId');
+
+            if (!texto) {
+                mostrarToast('Digite um comentário para enviar.', 'warning');
+                return;
+            }
+
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${lancamentoId}/comentarios`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usuarioId: usuarioId, texto: texto })
+                });
+
+                if (!response.ok) throw new Error('Erro ao salvar comentário.');
+
+                // Atualiza a lista de comentários sem fechar o modal
+                // Busca o lançamento atualizado individualmente para ser mais rápido
+                const resLancamento = await fetchComAuth(`${API_BASE_URL}/lancamentos/${lancamentoId}`);
+                if (resLancamento.ok) {
+                    const lancamentoAtualizado = await resLancamento.json();
+
+                    // Atualiza o objeto na lista global (todosLancamentos) para manter a consistência se fechar e abrir de novo
+                    const index = todosLancamentos.findIndex(l => l.id == lancamentoId);
+                    if (index !== -1) {
+                        todosLancamentos[index] = lancamentoAtualizado;
+                    }
+
+                    // Re-renderiza o modal
+                    exibirComentarios(lancamentoAtualizado);
+                    mostrarToast('Comentário enviado!', 'success');
+                }
+
+            } catch (error) {
+                console.error(error);
+                mostrarToast('Falha ao enviar comentário.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         });
     }
 
@@ -1365,21 +1550,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>`;
         }
-
-        document.addEventListener('click', async (e) => {
-            if (e.target.closest('.btn-receber-doc')) {
-                const id = e.target.closest('.btn-receber-doc').dataset.id;
-                if (confirm("Confirmar recebimento da documentação?")) {
-                    try {
-                        await fetchComAuth(`http://localhost:8080/lancamentos/${id}/documentacao/receber`, { method: 'POST' });
-                        mostrarToast("Documentação recebida!", "success");
-                        carregarLancamentos(); // Recarrega
-                    } catch (err) {
-                        mostrarToast("Erro ao receber.", "error");
-                    }
-                }
-            }
-        });
 
         function inicializarChoicesTransporte(element) {
             new Choices(element, {

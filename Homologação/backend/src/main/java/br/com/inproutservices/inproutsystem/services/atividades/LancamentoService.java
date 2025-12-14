@@ -77,4 +77,8 @@ public interface LancamentoService {
     Lancamento finalizarDocumentacao(Long lancamentoId, String assuntoEmail);
 
     Lancamento receberDocumentacao(Long lancamentoId, Long usuarioId, String comentario);
+
+    void adicionarComentario(Long lancamentoId, Long usuarioId, String texto);
+
+    void receberDocumentacaoEmLote(List<Long> ids, Long usuarioId, String comentario);
 }

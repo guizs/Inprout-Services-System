@@ -425,4 +425,26 @@ public class LancamentoController {
         Lancamento lancamento = lancamentoService.finalizarDocumentacao(id, assunto);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
+
+    @PostMapping("/{id}/comentarios")
+    public ResponseEntity<Void> adicionarComentario(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        String texto = (String) payload.get("texto");
+
+        lancamentoService.adicionarComentario(id, usuarioId, texto);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/lote/documentacao/receber")
+    public ResponseEntity<Void> receberDocumentacaoEmLote(@RequestBody Map<String, Object> payload) {
+        // Extrai a lista de IDs
+        List<Integer> idsRaw = (List<Integer>) payload.get("ids");
+        List<Long> ids = idsRaw.stream().map(Long::valueOf).collect(Collectors.toList());
+
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        String comentario = (String) payload.get("comentario");
+
+        lancamentoService.receberDocumentacaoEmLote(ids, usuarioId, comentario);
+        return ResponseEntity.ok().build();
+    }
 }

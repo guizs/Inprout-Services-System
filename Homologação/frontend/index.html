@@ -236,9 +236,11 @@
           </button>
         </li>
         <li class="nav-item" role="presentation" id="nav-item-pendente-doc" style="display: none;">
-          <button class="nav-link" id="pendente-doc-tab" data-bs-toggle="tab" data-bs-target="#pendente-doc-pane"
-            type="button">
-            Pendente Doc. <span id="badge-pendente-doc" class="badge bg-danger rounded-pill"
+          <button class="nav-link position-relative" id="pendente-doc-tab" data-bs-toggle="tab"
+            data-bs-target="#pendente-doc-pane" type="button">
+            Pendente Doc.
+            <span id="badge-pendente-doc"
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
               style="display:none">0</span>
           </button>
         </li>
@@ -279,6 +281,15 @@
         </div>
 
       </div>
+    </div>
+
+    <div id="acoes-lote-doc" class="d-none align-items-center bg-light border rounded p-2 mb-2">
+      <span class="fw-bold text-primary me-3">
+        <i class="bi bi-check-all"></i> <span id="contador-selecao-doc">0</span> itens selecionados
+      </span>
+      <button id="btnReceberLoteDoc" class="btn btn-sm btn-primary">
+        <i class="bi bi-file-earmark-check-fill me-1"></i> Confirmar Recebimento em Lote
+      </button>
     </div>
 
     <div class="content-loader-container">
@@ -587,16 +598,23 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="modalComentariosLabel">
-            <i class="bi bi-chat-left-text-fill"></i> Comentários do Lançamento
+            <i class="bi bi-chat-left-text-fill me-2"></i> Histórico de Comentários
           </h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
         </div>
-        <div class="modal-body" id="modalComentariosBody">
+
+        <div class="modal-body bg-light" id="modalComentariosBody" style="min-height: 200px;">
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="bi bi-x-circle"></i> Fechar
-          </button>
+
+        <div class="modal-footer d-block bg-white">
+          <label for="novoComentarioTexto" class="form-label fw-bold small text-muted">Adicionar novo comentário /
+            observação</label>
+          <div class="input-group">
+            <textarea class="form-control" id="novoComentarioTexto" rows="2" placeholder="Digite aqui..."></textarea>
+            <button class="btn btn-primary" type="button" id="btnSalvarComentario">
+              <i class="bi bi-send-fill"></i> Enviar
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -290,6 +290,42 @@ public class LancamentoServiceImpl implements LancamentoService {
 
     @Override
     @Transactional
+    public void adicionarComentario(Long lancamentoId, Long usuarioId, String texto) {
+        Lancamento lancamento = lancamentoRepository.findById(lancamentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Lançamento não encontrado com o ID: " + lancamentoId));
+
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com ID: " + usuarioId));
+
+        if (texto == null || texto.isBlank()) {
+            throw new BusinessException("O comentário não pode estar vazio.");
+        }
+
+        Comentario comentario = new Comentario();
+        comentario.setLancamento(lancamento);
+        comentario.setAutor(usuario);
+        comentario.setTexto(texto);
+
+        lancamento.getComentarios().add(comentario);
+        lancamento.setUltUpdate(LocalDateTime.now());
+
+        lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional
+    public void receberDocumentacaoEmLote(List<Long> ids, Long usuarioId, String comentario) {
+        for (Long id : ids) {
+            try {
+                receberDocumentacao(id, usuarioId, comentario);
+            } catch (Exception e) {
+                throw new BusinessException("Erro ao processar lançamento ID " + id + ": " + e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    @Transactional
     public void aprovarPrazoLotePeloController(List<Long> lancamentoIds, Long controllerId) {
         Usuario controller = usuarioRepository.findById(controllerId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário Controller não encontrado."));

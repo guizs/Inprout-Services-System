@@ -937,6 +937,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            const btnConfirmarRecebimentoDoc = document.getElementById('btnConfirmarRecebimentoDoc');
+            if (btnConfirmarRecebimentoDoc) {
+                btnConfirmarRecebimentoDoc.addEventListener('click', async function () {
+                    const btn = this;
+                    const id = document.getElementById('idLancamentoReceberDoc').value;
+                    const comentario = document.getElementById('comentarioRecebimento').value;
+                    const usuarioId = localStorage.getItem('usuarioId');
+
+                    if (!id) return;
+
+                    const modalEl = document.getElementById('modalReceberDoc');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+
+                    try {
+                        btn.disabled = true;
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
+
+                        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/receber`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ usuarioId: usuarioId, comentario: comentario })
+                        });
+
+                        if (!response.ok) throw new Error("Erro ao receber documentação");
+
+                        mostrarToast("Documentação recebida com sucesso!", "success");
+
+                        if (modalInstance) modalInstance.hide();
+                        await carregarLancamentos(); // Atualiza a tabela
+
+                    } catch (error) {
+                        console.error(error);
+                        mostrarToast(error.message, "error");
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-check-lg"></i> Confirmar';
+                    }
+                });
+            }
+
             document.getElementById('detalheDiario').value = lancamento.detalheDiario || '';
             document.getElementById('valor').value = (lancamento.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             document.getElementById('situacao').value = lancamento.situacao || '';
@@ -1052,19 +1092,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 new bootstrap.Modal(document.getElementById('modalConfirmarSubmissao')).show();
             } else if (btnReceberDoc) {
                 const id = btnReceberDoc.dataset.id;
-                if (confirm("Confirmar recebimento da documentação?")) {
-                    try {
-                        toggleLoader(true);
-                        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/receber`, { method: 'POST' });
-                        if (!response.ok) throw new Error("Erro ao receber documentação");
-                        mostrarToast("Documentação recebida com sucesso!", "success");
-                        await carregarLancamentos();
-                    } catch (error) {
-                        mostrarToast(error.message, "error");
-                    } finally {
-                        toggleLoader(false);
-                    }
-                }
+                document.getElementById('idLancamentoReceberDoc').value = id;
+                document.getElementById('comentarioRecebimento').value = ''; // Limpa comentário anterior
+                new bootstrap.Modal(document.getElementById('modalReceberDoc')).show();
             } else if (e.target.closest('.btn-excluir-lancamento')) {
                 const lancamentoId = e.target.closest('.btn-excluir-lancamento').dataset.id;
                 document.getElementById('deleteLancamentoId').value = lancamentoId;

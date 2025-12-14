@@ -411,8 +411,11 @@ public class LancamentoController {
     }
 
     @PostMapping("/{id}/documentacao/receber")
-    public ResponseEntity<LancamentoResponseDTO> receberDocumentacao(@PathVariable Long id) {
-        Lancamento lancamento = lancamentoService.receberDocumentacao(id);
+    public ResponseEntity<LancamentoResponseDTO> receberDocumentacao(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        String comentario = (String) payload.get("comentario");
+
+        Lancamento lancamento = lancamentoService.receberDocumentacao(id, usuarioId, comentario);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
 

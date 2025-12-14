@@ -74,7 +74,7 @@ public interface LancamentoService {
 
     Lancamento solicitarAdiantamentoCoordenador(Long lancamentoId, Long coordenadorId, BigDecimal valor, String justificativa);
 
-    Lancamento receberDocumentacao(Long lancamentoId);
-
     Lancamento finalizarDocumentacao(Long lancamentoId, String assuntoEmail);
+
+    Lancamento receberDocumentacao(Long lancamentoId, Long usuarioId, String comentario);
 }

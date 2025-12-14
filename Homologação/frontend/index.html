@@ -983,6 +983,33 @@
     </div>
   </div>
 
+  <div class="modal fade" id="modalReceberDoc" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-file-earmark-check me-2"></i>Confirmar Recebimento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p>Deseja confirmar o recebimento da documentação para este lançamento?</p>
+          <div class="mb-3">
+            <label for="comentarioRecebimento" class="form-label">Comentário / Observação <small
+                class="text-muted">(Opcional)</small></label>
+            <textarea class="form-control" id="comentarioRecebimento" rows="3"
+              placeholder="Ex: Documentos entregues via malote..."></textarea>
+          </div>
+          <input type="hidden" id="idLancamentoReceberDoc">
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnConfirmarRecebimentoDoc">
+            <i class="bi bi-check-lg"></i> Confirmar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal fade" id="modalConfirmarSubmissao" tabindex="-1" aria-labelledby="modalConfirmarSubmissaoLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">

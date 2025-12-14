@@ -196,7 +196,15 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setPrestador(prestador);
         lancamento.setEtapaDetalhada(etapaDetalhada);
         lancamento.setDataAtividade(dto.dataAtividade());
-        lancamento.setSituacaoAprovacao(SituacaoAprovacao.RASCUNHO);
+
+        SituacaoAprovacao situacao = dto.situacaoAprovacao() != null ? dto.situacaoAprovacao() : SituacaoAprovacao.RASCUNHO;
+        lancamento.setSituacaoAprovacao(situacao);
+
+        if (situacao == SituacaoAprovacao.PENDENTE_COORDENADOR) {
+            lancamento.setDataSubmissao(LocalDateTime.now());
+            lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
+        }
+
         lancamento.setUltUpdate(LocalDateTime.now());
         lancamento.setEquipe(dto.equipe());
         lancamento.setVistoria(dto.vistoria());
@@ -214,6 +222,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setValor(dto.valor());
         lancamento.setSituacao(dto.situacao());
 
+        // Lógica de Documentação
         if (dto.tipoDocumentacaoId() != null && dto.documentistaId() != null) {
             TipoDocumentacao tipoDoc = tipoDocumentacaoRepository.findById(dto.tipoDocumentacaoId())
                     .orElseThrow(() -> new EntityNotFoundException("Tipo de Documentação não encontrado"));
@@ -231,9 +240,12 @@ public class LancamentoServiceImpl implements LancamentoService {
         return lancamentoRepository.save(lancamento);
     }
 
+    @Override
     @Transactional
-    public Lancamento receberDocumentacao(Long lancamentoId) {
+    public Lancamento receberDocumentacao(Long lancamentoId, Long usuarioId, String textoComentario) {
         Lancamento lancamento = getLancamentoById(lancamentoId);
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado com ID: " + usuarioId));
 
         if (lancamento.getStatusDocumentacao() != StatusDocumentacao.PENDENTE_RECEBIMENTO) {
             throw new BusinessException("Status inválido para recebimento.");
@@ -242,9 +254,16 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setStatusDocumentacao(StatusDocumentacao.EM_ANALISE);
         lancamento.setDataRecebimentoDoc(LocalDateTime.now());
 
-        // Calcula prazo de 48h úteis (2 dias úteis)
         LocalDate prazo = prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 2);
         lancamento.setDataPrazoDoc(prazo);
+
+        if (textoComentario != null && !textoComentario.isBlank()) {
+            Comentario comentario = new Comentario();
+            comentario.setLancamento(lancamento);
+            comentario.setAutor(usuario);
+            comentario.setTexto("RECEBIMENTO DOC: " + textoComentario);
+            lancamento.getComentarios().add(comentario);
+        }
 
         lancamento.setUltUpdate(LocalDateTime.now());
         return lancamentoRepository.save(lancamento);
@@ -703,10 +722,6 @@ public class LancamentoServiceImpl implements LancamentoService {
     @Transactional(readOnly = true)
     public List<Lancamento> getAllLancamentos(LocalDate inicio, LocalDate fim) {
 
-        // --- CORREÇÃO: Definir padrão aqui, ANTES da consulta ---
-        if (inicio == null) inicio = LocalDate.now().minusDays(90);
-        if (fim == null) fim = LocalDate.now();
-
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String userEmail;
         if (principal instanceof UserDetails) {
@@ -716,22 +731,34 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         if ("anonymousUser".equals(userEmail)) {
-            // Se for anônimo (não deveria acontecer se protegido), retorna lista vazia
             return List.of();
         }
 
         Usuario usuarioLogado = usuarioRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new EntityNotFoundException("Usuário '" + userEmail + "' não encontrado no banco de dados."));
 
-        // Busca com as datas já garantidas
-        List<Lancamento> todosLancamentos = lancamentoRepository.findAllWithDetailsByPeriodo(inicio, fim);
+        List<Lancamento> todosLancamentos;
+
+        // === CORREÇÃO: Lógica de Filtro ===
+        // Se NÃO vier data nenhuma, carrega TUDO (para não esconder Rascunhos futuros ou Pendências antigas)
+        if (inicio == null && fim == null) {
+            todosLancamentos = lancamentoRepository.findAllWithDetails();
+        } else {
+            // Se o usuário preencheu o filtro na tela, respeita as datas
+            // Define defaults apenas se uma das pontas estiver solta
+            if (inicio == null) inicio = LocalDate.now().minusDays(90);
+            if (fim == null) fim = LocalDate.now().plusDays(30);
+
+            todosLancamentos = lancamentoRepository.findAllWithDetailsByPeriodo(inicio, fim);
+        }
+        // ===================================
 
         Role role = usuarioLogado.getRole();
         if (role == Role.ADMIN || role == Role.CONTROLLER || role == Role.ASSISTANT) {
             return todosLancamentos;
         }
 
-        // Filtra para Managers e Coordinators
+        // Filtra para Managers e Coordinators baseado no segmento
         if (role == Role.MANAGER || role == Role.COORDINATOR) {
             Set<Long> segmentosDoUsuario = usuarioLogado.getSegmentos().stream()
                     .map(Segmento::getId)
@@ -1093,6 +1120,20 @@ public class LancamentoServiceImpl implements LancamentoService {
             if (situacao == SituacaoAprovacao.PENDENTE_COORDENADOR) {
                 lancamento.setDataSubmissao(LocalDateTime.now());
                 lancamento.setDataPrazo(prazoService.calcularPrazoEmDiasUteis(LocalDate.now(), 3));
+            }
+
+            if (dto.tipoDocumentacaoId() != null && dto.documentistaId() != null) {
+                TipoDocumentacao tipoDoc = tipoDocumentacaoRepository.findById(dto.tipoDocumentacaoId())
+                        .orElseThrow(() -> new EntityNotFoundException("Tipo de Documentação não encontrado ID: " + dto.tipoDocumentacaoId()));
+                Usuario documentista = usuarioRepository.findById(dto.documentistaId())
+                        .orElseThrow(() -> new EntityNotFoundException("Documentista não encontrado ID: " + dto.documentistaId()));
+
+                lancamento.setTipoDocumentacao(tipoDoc);
+                lancamento.setDocumentista(documentista);
+                lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
+                lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
+            } else {
+                lancamento.setStatusDocumentacao(StatusDocumentacao.NAO_APLICAVEL);
             }
 
             novosLancamentos.add(lancamento);

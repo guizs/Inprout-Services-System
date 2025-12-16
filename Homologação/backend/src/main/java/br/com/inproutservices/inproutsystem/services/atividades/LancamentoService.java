@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
+import br.com.inproutservices.inproutsystem.dtos.documentacao.CarteiraDocumentistaDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.Lancamento;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -81,4 +82,6 @@ public interface LancamentoService {
     void adicionarComentario(Long lancamentoId, Long usuarioId, String texto);
 
     void receberDocumentacaoEmLote(List<Long> ids, Long usuarioId, String comentario);
+
+    CarteiraDocumentistaDTO getCarteiraDocumentista(Long usuarioId, LocalDate inicio, LocalDate fim);
 }

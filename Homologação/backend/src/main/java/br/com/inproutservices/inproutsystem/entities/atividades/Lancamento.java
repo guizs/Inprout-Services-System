@@ -142,6 +142,9 @@ public class Lancamento {
     @Column(name = "assunto_email_doc")
     private String assuntoEmailDoc;
 
+    @Column(name = "valor_documentista", precision = 10, scale = 2)
+    private BigDecimal valorDocumentista;
+
     /**
      * O Controller que marcou o lançamento como "PAGO".
      */
@@ -176,6 +179,14 @@ public class Lancamento {
         if (this.situacaoAprovacao == null) {
             this.situacaoAprovacao = SituacaoAprovacao.RASCUNHO;
         }
+    }
+
+    public BigDecimal getValorDocumentista() {
+        return valorDocumentista;
+    }
+
+    public void setValorDocumentista(BigDecimal valorDocumentista) {
+        this.valorDocumentista = valorDocumentista;
     }
 
     public BigDecimal getValorPagamento() {

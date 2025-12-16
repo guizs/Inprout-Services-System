@@ -447,4 +447,17 @@ public class LancamentoController {
         lancamentoService.receberDocumentacaoEmLote(ids, usuarioId, comentario);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/documentacao/carteira")
+    public ResponseEntity<br.com.inproutservices.inproutsystem.dtos.documentacao.CarteiraDocumentistaDTO> getCarteiraDocumentista(
+            @RequestParam("usuarioId") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        if (inicio == null) inicio = LocalDate.now().minusMonths(6);
+        if (fim == null) fim = LocalDate.now().plusMonths(6);
+
+        var carteira = lancamentoService.getCarteiraDocumentista(usuarioId, inicio, fim);
+        return ResponseEntity.ok(carteira);
+    }
 }

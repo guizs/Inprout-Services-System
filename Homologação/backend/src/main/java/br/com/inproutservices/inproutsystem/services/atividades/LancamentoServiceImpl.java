@@ -1,6 +1,7 @@
 package br.com.inproutservices.inproutsystem.services.atividades;
 
 import br.com.inproutservices.inproutsystem.dtos.atividades.*;
+import br.com.inproutservices.inproutsystem.dtos.documentacao.CarteiraDocumentistaDTO;
 import br.com.inproutservices.inproutsystem.entities.atividades.*;
 import br.com.inproutservices.inproutsystem.entities.index.*;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
@@ -231,6 +232,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             lancamento.setTipoDocumentacao(tipoDoc);
             lancamento.setDocumentista(documentista);
+            lancamento.setValorDocumentista(tipoDoc.getValor());
             lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
             lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
         } else {
@@ -581,6 +583,7 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             lancamento.setTipoDocumentacao(tipoDoc);
             lancamento.setDocumentista(documentista);
+            lancamento.setValorDocumentista(tipoDoc.getValor());
 
             if (lancamento.getStatusDocumentacao() == StatusDocumentacao.NAO_APLICAVEL) {
                 lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
@@ -615,6 +618,71 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         return lancamentoRepository.save(lancamento);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CarteiraDocumentistaDTO getCarteiraDocumentista(Long usuarioId, LocalDate inicio, LocalDate fim) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+
+        List<Lancamento> lancamentos;
+
+        // Se for Documentista, vê só os dele. Se for Admin/Assistant, vê tudo.
+        if (usuario.getRole() == Role.DOCUMENTIST) {
+            lancamentos = lancamentoRepository.findLancamentosCarteiraDocumentista(usuarioId, inicio, fim);
+        } else {
+            // Regra para Admin/Assistant/Controller
+            lancamentos = lancamentoRepository.findAllLancamentosCarteiraGeral(inicio, fim);
+        }
+
+        BigDecimal totalPrevisto = BigDecimal.ZERO;
+        BigDecimal totalFinalizado = BigDecimal.ZERO;
+
+        // Mapa para agrupar por mês (Chave: "MM/yyyy")
+        Map<String, CarteiraDocumentistaDTO.ResumoMensalDTO> agrupamento = new TreeMap<>();
+        // Nota: TreeMap não ordena datas string corretamente (01/2024 vem antes de 12/2023),
+        // idealmente usaríamos YearMonth, mas para simplificar vamos iterar.
+
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MM/yyyy");
+
+        for (Lancamento l : lancamentos) {
+            BigDecimal valor = l.getValorDocumentista() != null ? l.getValorDocumentista() : BigDecimal.ZERO;
+            boolean finalizado = l.getStatusDocumentacao() == StatusDocumentacao.FINALIZADO;
+
+            if (finalizado) {
+                totalFinalizado = totalFinalizado.add(valor);
+            } else {
+                totalPrevisto = totalPrevisto.add(valor);
+            }
+
+            // Agrupamento Mensal (pela data da atividade ou competência)
+            LocalDate dataRef = l.getDataAtividade();
+            String chaveMes = dataRef.format(fmt);
+
+            agrupamento.compute(chaveMes, (key, resumo) -> {
+                if (resumo == null) {
+                    return new CarteiraDocumentistaDTO.ResumoMensalDTO(key,
+                            finalizado ? BigDecimal.ZERO : valor,
+                            finalizado ? valor : BigDecimal.ZERO,
+                            1L);
+                } else {
+                    return new CarteiraDocumentistaDTO.ResumoMensalDTO(key,
+                            resumo.valorPrevisto().add(finalizado ? BigDecimal.ZERO : valor),
+                            resumo.valorFinalizado().add(finalizado ? valor : BigDecimal.ZERO),
+                            resumo.quantidadeDocs() + 1
+                    );
+                }
+            });
+        }
+
+        return new CarteiraDocumentistaDTO(
+                totalPrevisto,
+                totalFinalizado,
+                totalPrevisto.add(totalFinalizado),
+                new ArrayList<>(agrupamento.values())
+        );
+    }
+
 
     @Override
     @Transactional

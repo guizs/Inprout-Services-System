@@ -277,4 +277,20 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
     List<Lancamento> findByStatusDocumentacao(StatusDocumentacao status);
 
     List<Lancamento> findByDocumentistaIdAndStatusDocumentacaoIn(Long documentistaId, List<StatusDocumentacao> status);
+
+    @Query("SELECT l FROM Lancamento l " +
+            "WHERE l.documentista.id = :documentistaId " +
+            "AND l.statusDocumentacao <> 'NAO_APLICAVEL' " +
+            "AND l.dataAtividade BETWEEN :inicio AND :fim")
+    List<Lancamento> findLancamentosCarteiraDocumentista(
+            @Param("documentistaId") Long documentistaId,
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim);
+
+    @Query("SELECT l FROM Lancamento l " +
+            "WHERE l.statusDocumentacao <> 'NAO_APLICAVEL' " +
+            "AND l.dataAtividade BETWEEN :inicio AND :fim")
+    List<Lancamento> findAllLancamentosCarteiraGeral(
+            @Param("inicio") LocalDate inicio,
+            @Param("fim") LocalDate fim);
 }

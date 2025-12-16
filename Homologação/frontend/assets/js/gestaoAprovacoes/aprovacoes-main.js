@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
             else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
             else if (painelAtivoId === '#minhas-docs-pane') renderizarTabelaDocs(window.minhasDocsPendentes || []);
+            else if (painelAtivoId === '#minhas-docs-pane') {
+                initDocumentacaoTab();
+            }
         }
     });
 
@@ -68,6 +71,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Abas CPS (possuem lógica própria)
             else if (targetPaneId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
             else if (targetPaneId === '#cps-historico-pane') { initFiltrosCPS(); carregarHistoricoCPS(); }
+            else if (targetPaneId === '#minhas-docs-pane') {
+                initDocumentacaoTab();
+            }
         });
     });
 
@@ -190,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =================================================================
     // BOTÃO FINALIZAR DOC
     // =================================================================
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         if (e.target.classList.contains('btn-finalizar-doc')) {
             const id = e.target.dataset.id;
             const modalFinalizar = new bootstrap.Modal(document.getElementById('modalFinalizarDoc'));
@@ -200,11 +206,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    document.getElementById('btnConfirmarFinalizarDoc')?.addEventListener('click', async function() {
+    document.getElementById('btnConfirmarFinalizarDoc')?.addEventListener('click', async function () {
         const id = document.getElementById('finalizarDocId').value;
         const assunto = document.getElementById('assuntoEmailDoc').value;
 
-        if(!assunto) {
+        if (!assunto) {
             mostrarToast("O assunto do e-mail é obrigatório.", "warning");
             return;
         }
@@ -212,12 +218,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const btn = this;
         setButtonLoading(btn, true);
         try {
-            await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/finalizar`, { 
-                method: 'POST', 
-                body: JSON.stringify({ assuntoEmail: assunto }) 
+            await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/finalizar`, {
+                method: 'POST',
+                body: JSON.stringify({ assuntoEmail: assunto })
             });
             mostrarToast("Documentação finalizada!", "success");
-            
+
             // Fecha modal
             const modalEl = document.getElementById('modalFinalizarDoc');
             const modal = bootstrap.Modal.getInstance(modalEl);
@@ -279,6 +285,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
         event.preventDefault();
+
         const btn = document.getElementById('btnConfirmarRecusa');
         const isAcaoEmLote = modalRecusar._element.dataset.acaoEmLote === 'true';
         const ids = isAcaoEmLote ? Array.from(document.querySelectorAll('#accordion-pendencias .linha-checkbox:checked')).map(cb => cb.dataset.id) : [document.getElementById('recusarLancamentoId').value];
@@ -595,11 +602,11 @@ async function carregarDashboardEBadges() {
         window.todosOsLancamentosGlobais = await resGeral.json();
         // === FILTRO DA SEPARAÇÃO (DOCS x ATIVIDADES) ===
         const todasPendenciasGerais = await resPendAtiv.json();
-        
+
         // Separa o que é documentação do que é atividade normal
         // Assumindo que statusDocumentacao != null e != 'NAO_APLICAVEL' e documentistaId == userId indica item de doc
         window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL' && l.documentistaId == userId);
-        
+
         // O restante (incluindo aprovações operacionais) vai para atividades
         // (Você pode refinar esse filtro se um mesmo item puder aparecer em ambos, mas geralmente quem aprova operação não é o documentista)
         window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.documentistaId != userId);
@@ -609,10 +616,10 @@ async function carregarDashboardEBadges() {
         window.todasPendenciasComplementares = await resPendCompl.json();
 
         renderizarCardsDashboard(window.todosOsLancamentosGlobais, pendenciasPorCoordenador, window.todasPendenciasMateriais.length, window.todasPendenciasComplementares.length);
-        
+
         atualizarBadge('#materiais-tab', window.todasPendenciasMateriais.length);
         atualizarBadge('#complementares-tab', window.todasPendenciasComplementares.length);
-        
+
         // Atualiza badge de docs se houver
         atualizarBadge('#minhas-docs-tab', window.minhasDocsPendentes.length);
 
@@ -755,8 +762,8 @@ function atualizarEstadoAcoesLoteComplementar() {
 
 function renderizarTabelaDocs(lancamentos) {
     const tbody = document.getElementById('tbody-minhas-docs');
-    if(!tbody) return; // Segurança caso a aba não exista no HTML
-    
+    if (!tbody) return; // Segurança caso a aba não exista no HTML
+
     tbody.innerHTML = '';
     let saldo = 0;
 
@@ -769,21 +776,21 @@ function renderizarTabelaDocs(lancamentos) {
     lancamentos.forEach(l => {
         if (l.statusDocumentacao === 'FINALIZADO') {
             saldo += l.valor || 0;
-            return; 
+            return;
         }
 
         const hoje = new Date();
         // Converte string 'yyyy-mm-dd' para Date, se vier assim
         const prazo = l.dataPrazoDoc ? new Date(l.dataPrazoDoc) : null;
-        
+
         let corSla = 'bg-secondary';
         let textoPrazo = '-';
 
-        if(prazo) {
+        if (prazo) {
             textoPrazo = formatarData(l.dataPrazoDoc);
             // Zera horas para comparação justa de dias
-            const hojeZero = new Date(hoje.setHours(0,0,0,0));
-            const prazoZero = new Date(prazo.setHours(0,0,0,0));
+            const hojeZero = new Date(hoje.setHours(0, 0, 0, 0));
+            const prazoZero = new Date(prazo.setHours(0, 0, 0, 0));
 
             if (hojeZero > prazoZero) {
                 corSla = 'bg-danger'; // Atrasado

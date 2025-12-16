@@ -3,6 +3,8 @@ package br.com.inproutservices.inproutsystem.entities.atividades;
 import br.com.inproutservices.inproutsystem.entities.usuario.Usuario;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,6 +27,9 @@ public class TipoDocumentacao {
     @JsonIgnoreProperties({"tiposDocumentacao", "senha", "roles", "segmentos", "authorities", "enabled", "accountNonExpired", "accountNonLocked", "credentialsNonExpired"})
     private Set<Usuario> documentistas = new HashSet<>();
 
+    @Column(name = "valor", precision = 10, scale = 2)
+    private java.math.BigDecimal valor;
+
     public TipoDocumentacao() {}
     public TipoDocumentacao(String nome) { this.nome = nome; }
 
@@ -39,5 +44,13 @@ public class TipoDocumentacao {
 
     public void setDocumentistas(Set<Usuario> documentistas) {
         this.documentistas = documentistas;
+    }
+
+    public BigDecimal getValor() {
+        return valor;
+    }
+
+    public void setValor(BigDecimal valor) {
+        this.valor = valor;
     }
 }

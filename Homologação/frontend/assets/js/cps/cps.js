@@ -178,47 +178,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 { key: 'valorAdiantamento', label: 'ADIANTAMENTO' }
             ];
 
+            // CORREÇÃO 1: Removido o check de mostrarAcoes no cabeçalho
             tableHead.innerHTML = `<tr>
-                ${headers.map(h => {
+        ${headers.map(h => {
                 const isSorted = sortConfig.key === h.key;
                 const icon = isSorted ? (sortConfig.direction === 'asc' ? 'bi-sort-up' : 'bi-sort-down') : 'bi-arrow-down-up';
                 return `<th class="sortable" data-sort-key="${h.key}">${h.label} <i class="bi ${icon}"></i></th>`;
             }).join('')}
-                ${mostrarAcoes ? '<th>AÇÕES</th>' : ''}
-            </tr>`;
+    </tr>`;
 
             tableBody.innerHTML = '';
             if (lancamentos && lancamentos.length > 0) {
                 lancamentos.forEach(lanc => {
-                    // --- NOVA LÓGICA DE CORES E BLOQUEIO ---
                     const isPago = lanc.statusPagamento === 'FECHADO';
                     const isAdiantado = (parseFloat(lanc.valorAdiantamento) || 0) > 0;
 
                     let rowClass = '';
                     if (isPago) {
-                        rowClass = 'table-success'; // Verde Claro
+                        rowClass = 'table-success';
                     } else if (isAdiantado) {
-                        rowClass = 'table-warning'; // Amarelo Claro
+                        rowClass = 'table-warning';
                     }
 
-                    const acoesCell = mostrarAcoes ? `<td>
-                        ${exibirBotoesNestaLinha ? `
-                            <button class="btn btn-sm btn-outline-primary btn-alterar-valor" data-id="${lanc.id}" title="Alterar Valor Pago"><i class="bi bi-pencil-square"></i></button>
-                            <button class="btn btn-sm btn-outline-warning btn-adiantamento" data-id="${lanc.id}" title="Registrar Adiantamento"><i class="bi bi-cash-coin"></i></button>
-                        ` : (isPago ? '<span class="badge bg-success">Pago</span>' : (isAdiantado ? '<span class="badge bg-warning text-dark">Adiantado</span>' : '-'))}
-                    </td>` : '';
-
-                    // Adicionei a rowClass na TR
                     tableBody.innerHTML += `<tr class="${rowClass}">
-                        <td>${lanc.dataAtividade || 'N/A'}</td> <td>${lanc.os || 'N/A'}</td> <td>${lanc.site || 'N/A'}</td>
-                        <td>${lanc.contrato || 'N/A'}</td> <td>${lanc.segmento || 'N/A'}</td>
-                        <td>${formatCurrency(lanc.valorTotal)}</td> <td>${lanc.prestador || 'N/A'}</td>
-                        <td>${formatCurrency(lanc.valor)}</td> <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
-                        ${acoesCell}
+                        <td>${lanc.dataAtividade || 'N/A'}</td> 
+                        <td>${lanc.os || 'N/A'}</td> 
+                        <td>${lanc.site || 'N/A'}</td>
+                        <td>${lanc.contrato || 'N/A'}</td> 
+                        <td>${lanc.segmento || 'N/A'}</td>
+                        <td>${formatCurrency(lanc.valorTotal)}</td> 
+                        <td>${lanc.prestador || 'N/A'}</td>
+                        <td>${formatCurrency(lanc.valor)}</td> 
+                        <td class="text-danger fw-bold">${formatCurrency(lanc.valorAdiantamento)}</td>
                     </tr>`;
                 });
             } else {
-                const colspan = headers.length + (mostrarAcoes ? 1 : 0);
+                // Ajuste no colspan para manter a tabela alinhada sem a coluna de ações
+                const colspan = headers.length;
                 tableBody.innerHTML = `<tr><td colspan="${colspan}" class="text-center text-muted p-4">Nenhum lançamento encontrado.</td></tr>`;
             }
         }

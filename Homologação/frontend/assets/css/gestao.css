@@ -668,3 +668,7 @@ body {
     color: var(--primary-color);
     text-decoration: underline;
 }
+
+body:has(.overview-card[style*="display: none"]) .container-fluid.my-4 {
+    margin-top: 10px !important;
+}

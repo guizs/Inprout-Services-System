@@ -28,28 +28,28 @@ fetch(sidebarPath)
         if (isIndex) {
             const linkIndex = document.querySelector('#sidebar a[href="../index.html"]');
             if (linkIndex) linkIndex.setAttribute('href', 'index.html');
-            
+
             const linkCps = document.querySelector('#sidebar a[href="cps.html"]');
             if (linkCps) linkCps.setAttribute('href', 'pages/cps.html');
 
             const linkCms = document.querySelector('#sidebar a[href="cms.html"]');
             if (linkCms) linkCms.setAttribute('href', 'pages/cms.html');
-            
+
             const linkRegistros = document.querySelector('#sidebar a[href="registros.html"]');
             if (linkRegistros) linkRegistros.setAttribute('href', 'pages/registros.html');
-            
+
             const linkIndexDB = document.querySelector('#sidebar a[href="indexDB.html"]');
             if (linkIndexDB) linkIndexDB.setAttribute('href', 'pages/indexDB.html');
-            
+
             const linkGestao = document.querySelector('#sidebar a[href="gestaoAprovacoes.html"]');
             if (linkGestao) linkGestao.setAttribute('href', 'pages/gestaoAprovacoes.html');
-            
+
             // --- INÍCIO DA VERIFICAÇÃO (PARA LINKS COMENTADOS) ---
             const faturamentoLinkIndex = document.querySelector('#sidebar a[href="faturamento.html"]');
             if (faturamentoLinkIndex) {
                 faturamentoLinkIndex.setAttribute('href', 'pages/faturamento.html');
             }
-            
+
             const gateReportLinkIndex = document.querySelector('#sidebar a[href="gateReport.html"]');
             if (gateReportLinkIndex) {
                 gateReportLinkIndex.setAttribute('href', 'pages/gateReport.html');
@@ -92,6 +92,13 @@ fetch(sidebarPath)
                     gateReportLink.parentElement.style.display = 'none';
                 }
             }
+            if (userRole === 'DOCUMENTIST') {
+                const linksParaEsconder = ['index.html', 'cps.html', 'cms.html', 'registros.html', 'indexDB.html'];
+                linksParaEsconder.forEach(href => {
+                    const link = document.querySelector(`#sidebar a[href*="${href}"]`);
+                    if (link) link.parentElement.style.display = 'none';
+                });
+            }
         } catch (error) {
             console.error("Falha ao configurar a visibilidade da sidebar:", error);
         }
@@ -109,10 +116,10 @@ fetch(sidebarPath)
         // Adiciona um listener para CADA link dentro da sidebar
         const sidebarLinks = sidebar.querySelectorAll('a');
         sidebarLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
+            link.addEventListener('click', function (e) {
                 // 1. Previne o comportamento "estranho" que você está vendo
                 e.preventDefault();
-                
+
                 // 2. Força o navegador a carregar a página do link
                 window.location.href = this.href;
             });

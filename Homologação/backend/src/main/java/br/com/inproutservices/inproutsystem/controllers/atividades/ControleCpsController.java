@@ -101,58 +101,62 @@ public class ControleCpsController {
     }
 
     private List<LancamentoResponseDTO> enriquecerComTotais(List<Lancamento> lancamentos) {
-        if (lancamentos.isEmpty()) return List.of();
+        if (lancamentos == null || lancamentos.isEmpty()) return List.of();
 
+        // 1. Coleta IDs de OS de forma segura (ignora se OS for nula)
         Set<Long> osIds = lancamentos.stream()
+                .filter(l -> l.getOs() != null)
                 .map(l -> l.getOs().getId())
                 .collect(Collectors.toSet());
 
-        // Busca detalhes da LPU para total da OS
-        List<OsLpuDetalhe> detalhes = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds));
+        if (osIds.isEmpty()) return List.of();
 
-        // Busca TODOS os lançamentos da OS, não só os 'Aprovados'
+        // 2. Busca dados complementares
+        List<OsLpuDetalhe> detalhes = osLpuDetalheRepository.findAllByOsIdIn(new ArrayList<>(osIds));
         List<Lancamento> todosLancamentosDaOs = lancamentoRepository.findByOsIdIn(new ArrayList<>(osIds));
 
+        // 3. Mapas de Totais com filtragem de nulos (groupingBy não aceita chave null)
         Map<Long, BigDecimal> totalOsMap = detalhes.stream()
+                .filter(d -> d.getOs() != null)
                 .collect(Collectors.groupingBy(
                         d -> d.getOs().getId(),
                         Collectors.mapping(d -> d.getValorTotal() != null ? d.getValorTotal() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // Total CPS (Apenas o que está de fato APROVADO operacionalmente)
         List<SituacaoAprovacao> statusAprovado = List.of(SituacaoAprovacao.APROVADO, SituacaoAprovacao.APROVADO_CPS_LEGADO);
+
         Map<Long, BigDecimal> totalCpsMap = todosLancamentosDaOs.stream()
-                .filter(l -> statusAprovado.contains(l.getSituacaoAprovacao()))
+                .filter(l -> l.getOs() != null && statusAprovado.contains(l.getSituacaoAprovacao()))
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
                         Collectors.mapping(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
-        // Total PAGO
         Map<Long, BigDecimal> totalPagoMap = todosLancamentosDaOs.stream()
-                .filter(l -> l.getStatusPagamento() == StatusPagamento.PAGO)
+                .filter(l -> l.getOs() != null && l.getStatusPagamento() == StatusPagamento.PAGO)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getId(),
                         Collectors.mapping(l -> l.getValorPagamento() != null ? l.getValorPagamento() : (l.getValor() != null ? l.getValor() : BigDecimal.ZERO),
                                 Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
+        // 4. Mapeamento final para DTO com verificações de segurança
         return lancamentos.stream().map(l -> {
-            Long osId = l.getOs().getId();
-            BigDecimal totalOs = totalOsMap.getOrDefault(osId, BigDecimal.ZERO);
-            BigDecimal valorCps = totalCpsMap.getOrDefault(osId, BigDecimal.ZERO);
-            BigDecimal valorPendente = BigDecimal.ZERO;
-            BigDecimal totalPago = totalPagoMap.getOrDefault(osId, BigDecimal.ZERO);
+            Long osId = (l.getOs() != null) ? l.getOs().getId() : null;
+            BigDecimal totalOs = (osId != null) ? totalOsMap.getOrDefault(osId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            BigDecimal valorCps = (osId != null) ? totalCpsMap.getOrDefault(osId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            BigDecimal totalPago = (osId != null) ? totalPagoMap.getOrDefault(osId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            BigDecimal valorPendente = BigDecimal.ZERO; // Lógica a ser implementada se necessário
 
             return new LancamentoResponseDTO(
                     l.getId(),
-                    new LancamentoResponseDTO.OsSimpleDTO(l.getOs()),
-                    new LancamentoResponseDTO.OsLpuDetalheSimpleDTO(l.getOsLpuDetalhe()),
-                    (l.getPrestador() != null) ? new PrestadorSimpleDTO(l.getPrestador()) : null,
-                    new LancamentoResponseDTO.EtapaInfoDTO(l.getEtapaDetalhada()),
-                    new LancamentoResponseDTO.ManagerSimpleDTO(l.getManager()),
+                    (l.getOs() != null) ? new LancamentoResponseDTO.OsSimpleDTO(l.getOs()) : null,
+                    (l.getOsLpuDetalhe() != null) ? new LancamentoResponseDTO.OsLpuDetalheSimpleDTO(l.getOsLpuDetalhe()) : null,
+                    (l.getPrestador() != null) ? new br.com.inproutservices.inproutsystem.dtos.index.PrestadorSimpleDTO(l.getPrestador()) : null,
+                    (l.getEtapaDetalhada() != null) ? new LancamentoResponseDTO.EtapaInfoDTO(l.getEtapaDetalhada()) : null,
+                    (l.getManager() != null) ? new LancamentoResponseDTO.ManagerSimpleDTO(l.getManager()) : null,
                     l.getValor(),
                     l.getSituacaoAprovacao(),
                     l.getDataAtividade(),
@@ -160,7 +164,7 @@ public class ControleCpsController {
                     l.getDataCriacao(),
                     l.getDataPrazo(),
                     l.getDataPrazoProposta(),
-                    l.getComentarios().stream().map(LancamentoResponseDTO.ComentarioDTO::new).collect(Collectors.toList()),
+                    (l.getComentarios() != null) ? l.getComentarios().stream().map(LancamentoResponseDTO.ComentarioDTO::new).collect(Collectors.toList()) : List.of(),
                     l.getEquipe(), l.getVistoria(), l.getPlanoVistoria(), l.getDesmobilizacao(),
                     l.getPlanoDesmobilizacao(), l.getInstalacao(), l.getPlanoInstalacao(),
                     l.getAtivacao(), l.getPlanoAtivacao(), l.getDocumentacao(), l.getPlanoDocumentacao(),
@@ -177,7 +181,7 @@ public class ControleCpsController {
                     l.getValorAdiantamento(),
                     l.getValorSolicitadoAdiantamento(),
 
-                    // === CORREÇÃO: ADICIONADOS OS CAMPOS FALTANTES ===
+                    // Campos de Documentação
                     l.getTipoDocumentacao() != null ? l.getTipoDocumentacao().getId() : null,
                     l.getTipoDocumentacao() != null ? l.getTipoDocumentacao().getNome() : null,
                     l.getDocumentista() != null ? l.getDocumentista().getId() : null,

@@ -641,13 +641,53 @@ function atualizarBadge(selector, count) {
 }
 
 function configurarVisibilidadePorRole() {
-    if (userRole === 'MANAGER') {
+    // Pega a role limpando espaços e garantindo maiúsculas
+    const currentRole = (localStorage.getItem("role") || "").trim().toUpperCase();
+
+    if (currentRole === 'MANAGER') {
         ['atividades-tab', 'materiais-tab', 'complementares-tab', 'cps-pendencias-tab', 'cps-historico-tab'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.parentElement.style.display = 'none';
         });
         const histTab = document.getElementById('historico-atividades-tab');
         if (histTab) new bootstrap.Tab(histTab).show();
+    } 
+    
+    else if (currentRole === 'DOCUMENTIST') {
+        // 1. REMOVE O DASHBOARD DO TOPO (O "Visão geral de aprovações")
+        const dashboardSuperior = document.querySelector('.overview-card');
+        if (dashboardSuperior) dashboardSuperior.style.setProperty('display', 'none', 'important');
+
+        // 2. REMOVE A LINHA DE CARDS E GRÁFICO DENTRO DA ABA (O "espação" interno)
+        // Isso remove os cards "A Receber", "Finalizado" e o Gráfico de Evolução
+        const kpiRow = document.querySelector('#minhas-docs-pane .row.mb-4');
+        if (kpiRow) kpiRow.style.setProperty('display', 'none', 'important');
+
+        // 3. ESCONDE TODAS AS OUTRAS ABAS
+        const abasParaEsconder = [
+            'atividades-tab', 'historico-atividades-tab', 'cps-pendencias-tab', 
+            'cps-historico-tab', 'complementares-tab', 'historico-complementares-tab', 
+            'materiais-tab', 'historico-materiais-tab'
+        ];
+        abasParaEsconder.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.parentElement) el.parentElement.style.display = 'none';
+        });
+
+        // 4. RENOMEIA E ATIVA A ABA DE DOCUMENTAÇÃO COMO PRINCIPAL
+        const docTab = document.getElementById('minhas-docs-tab');
+        if (docTab) {
+            docTab.innerHTML = '<i class="bi bi-folder-check me-1"></i> Controle de documentação';
+            
+            // Força a ativação da aba
+            const tabTrigger = new bootstrap.Tab(docTab);
+            tabTrigger.show();
+
+            // Garante que o painel de Atividades (padrão no HTML) seja escondido
+            document.getElementById('atividades-pane')?.classList.remove('show', 'active');
+            // Garante que o painel de Documentação apareça no topo
+            document.getElementById('minhas-docs-pane')?.classList.add('show', 'active');
+        }
     }
 }
 

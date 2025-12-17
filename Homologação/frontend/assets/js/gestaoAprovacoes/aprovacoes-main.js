@@ -768,8 +768,9 @@ function renderizarTabelaDocs(lancamentos) {
     let saldo = 0;
 
     if (!lancamentos || lancamentos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma documentação pendente.</td></tr>';
-        document.getElementById('saldo-documentista').innerText = 'R$ 0,00';
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma documentação pendente neste filtro.</td></tr>';
+        const elSaldo = document.getElementById('doc-carteira-previsto');
+        if (elSaldo) elSaldo.innerText = 'R$ 0,00';
         return;
     }
 
@@ -821,5 +822,6 @@ function renderizarTabelaDocs(lancamentos) {
     // O saldo aqui poderia ser "Total Pendente" ou "Total Finalizado", ajuste conforme a regra.
     // Se for "A Receber", seria a soma dos pendentes.
     const totalPendente = lancamentos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
-    document.getElementById('saldo-documentista').innerText = formatarMoeda(totalPendente);
+    const elSaldo = document.getElementById('doc-carteira-previsto');
+    if (elSaldo) elSaldo.innerText = formatarMoeda(totalPendente);
 }

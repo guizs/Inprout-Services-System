@@ -1,18 +1,16 @@
 /* =================================================================== */
-/* CSS ESPECÍFICO PARA A PÁGNIA DE GESTÃO DE APROVAÇÕES
-/* Contém apenas estilos que adicionam ou modificam o global.css
+/* CSS ESPECÍFICO PARA A PÁGINA DE GESTÃO DE APROVAÇÕES
 /* =================================================================== */
 
-/* Define o fundo específico para esta página */
+/* --- 1. CONFIGURAÇÕES GERAIS --- */
 body {
     background-color: #f8f9fa;
+    /* Garante rolagem correta mesmo se houver conflito com outros CSS */
+    overflow-y: auto !important;
+    height: auto !important;
 }
 
-/* =================================================================== */
-/* ============= NAVEGAÇÃO POR ABAS (TABS) ============= */
-/* Componente específico desta página
-/* =================================================================== */
-
+/* --- 2. NAVEGAÇÃO POR ABAS (TABS) --- */
 .nav-tabs {
     border-bottom: 1px solid #dee2e6;
 }
@@ -40,25 +38,32 @@ body {
     font-weight: 600;
 }
 
+/* Correção de Scroll: Aumentada a especificidade para vencer o controle-cps.css */
+.tab-content .custom-scroll,
 .custom-scroll {
-    max-height: calc(100vh - 250px);
+    max-height: calc(100vh - 280px) !important; /* Ajuste fino para telas menores */
     overflow-y: auto;
     border: 1px solid #ccc;
     border-radius: 8px;
+    background-color: #fff;
 }
 
-/* =================================================================== */
-/* ============= LAYOUT DE CARDS ============= */
-/* Componente específico desta página
-/* =================================================================== */
-
+/* --- 3. LAYOUT E CARDS --- */
 .card {
     border: none;
     border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Sutil sombra padrão */
+}
+
+/* Remove padding de cards vazios para evitar espaços fantasmas */
+.card-body:empty {
+    padding: 0 !important;
+    display: none !important;
 }
 
 .card-header {
     border-bottom: 1px solid #f0f0f0;
+    background-color: #fff;
 }
 
 .card-title-modern {
@@ -69,74 +74,44 @@ body {
     align-items: center;
 }
 
-/* ======================================== */
-/* ======== CORES DOS CARDS DO DASHBOARD ======== */
-/* ======================================== */
-
+/* --- 4. DASHBOARD CARDS (Visão Geral) --- */
 .dashboard-cards .card-stat {
     flex: 1 1 calc(25% - 8px);
-    /* 4 cards por linha */
     min-width: 180px;
+    transition: transform 0.2s;
 }
 
-/* Cor Padrão (Azulada/Secundária) */
-.card-stat.card-planejamento {
-    background-color: var(--card-secondary) !important;
-    border-left: 5px solid #889ca3;
+.dashboard-cards .card-stat:hover {
+    transform: translateY(-2px);
 }
 
-/* Cor de Alerta (Amarela) */
-.card-stat.card-alerta {
-    background-color: var(--card-warning) !important;
-    border-left: 5px solid #d1b154;
-}
-
-/* Cor de Perigo/Ação Urgente (Laranja/Vermelho do seu root) */
-.card-stat.card-perigo {
-    background-color: #ffab91 !important;
-    /* Um tom de laranja/vermelho claro */
-    border-left: 5px solid var(--bs-orange);
-}
-
-.card-stat.card-perigo p,
-.card-stat.card-perigo h5 {
-    color: #b95000 !important;
-    font-weight: 600;
-}
+/* Variações de cores */
+.card-stat.card-planejamento { background-color: var(--card-secondary) !important; border-left: 5px solid #889ca3; }
+.card-stat.card-alerta { background-color: var(--card-warning) !important; border-left: 5px solid #d1b154; }
+.card-stat.card-perigo { background-color: #ffab91 !important; border-left: 5px solid var(--bs-orange); }
+.card-stat.card-perigo p, .card-stat.card-perigo h5 { color: #b95000 !important; font-weight: 600; }
+.card-stat.card-sucesso { background-color: var(--card-success) !important; border-left: 5px solid #6b9b6d; }
+.card-stat.card-info { background-color: #bbdefb !important; border-left: 5px solid #64b5f6; }
 
 
-/* Cor de Sucesso (Verde) */
-.card-stat.card-sucesso {
-    background-color: var(--card-success) !important;
-    border-left: 5px solid #6b9b6d;
-}
-
-/* Cor de Informação (Azul do seu tema) */
-.card-stat.card-info {
-    background-color: #bbdefb !important;
-    /* Um azul claro para diferenciar */
-    border-left: 5px solid #64b5f6;
-}
-
-/* =================================================================== */
-/* ======== ESTILO CONSISTENTE PARA TABELAS MODERNAS ========= */
-/* Adicionado para padronizar com o resto do sistema
-/* =================================================================== */
-
+/* --- 5. TABELAS MODERNAS --- */
 .modern-table {
     font-size: 0.9rem;
     background-color: #fff;
+    width: 100%;
+    margin-bottom: 0;
 }
 
 .modern-table thead th {
-    background-color: var(--primary-color);
-    color: var(--text-color);
+    background-color: var(--primary-color, #198754);
+    color: #fff; /* Força texto branco no cabeçalho */
     font-weight: 600;
     text-transform: uppercase;
     font-size: 0.85rem;
     padding: 0.75rem 1rem;
     text-align: center;
     border-bottom: 1px solid #e2e8e4;
+    white-space: nowrap;
 }
 
 .modern-table tbody td {
@@ -147,54 +122,23 @@ body {
     vertical-align: middle;
 }
 
-.modern-table tbody tr:nth-child(even) {
-    background-color: #f9f9f9;
-}
+.modern-table tbody tr:nth-child(even) { background-color: #f9f9f9; }
+.modern-table tbody tr:hover { background-color: #e6f3ec; }
 
-.modern-table tbody tr:hover {
-    background-color: #e6f3ec;
-}
-
+/* Correção para tabelas dentro de abas não estourarem */
 .tab-pane .table-responsive,
 .tab-pane .modern-table {
     min-width: 100% !important;
     max-width: none !important;
 }
 
-/* 1. Definição das Cores */
-.btn-lote-success {
-    --btn-color-borda: #198754;
-    /* Verde do Bootstrap */
-    --btn-color-fundo-hover: #198754;
-    --btn-color-texto-hover: white;
-}
-
-.btn-lote-danger {
-    --btn-color-borda: #dc3545;
-    /* Vermelho do Bootstrap */
-    --btn-color-fundo-hover: #dc3545;
-    --btn-color-texto-hover: white;
-}
-
-.btn-lote-warning {
-    --btn-color-borda: #ffc107;
-    /* Amarelo do Bootstrap */
-    --btn-color-fundo-hover: #ffc107;
-    --btn-color-texto-hover: #212529;
-    /* Texto escuro para contraste */
-}
-
-/* 2. Estilo Base e Efeito Hover */
+/* --- 6. BOTÕES DE AÇÃO EM LOTE --- */
 .btn-acao-lote {
     font-size: 0.8rem;
-    /* Pequeno para não ocupar muito espaço */
     padding: 0.4rem 0.9rem;
     border-radius: 50px;
-    /* Arredondado como outros botões do sistema */
     font-weight: 500;
     transition: all 0.2s ease-in-out;
-
-    /* Aplica as variáveis de cor */
     background-color: transparent;
     border: 1px solid var(--btn-color-borda);
     color: var(--btn-color-borda);
@@ -207,108 +151,13 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-/* =================================================================== */
-/* ============= ESTILOS RESPONSIVOS (MOBILE) ============= */
-/* Bloco inteiro é específico para o layout de cards desta página
-/* =================================================================== */
+/* Variações de botões */
+.btn-lote-success { --btn-color-borda: #198754; --btn-color-fundo-hover: #198754; --btn-color-texto-hover: white; }
+.btn-lote-danger { --btn-color-borda: #dc3545; --btn-color-fundo-hover: #dc3545; --btn-color-texto-hover: white; }
+.btn-lote-warning { --btn-color-borda: #ffc107; --btn-color-fundo-hover: #ffc107; --btn-color-texto-hover: #212529; }
 
-@media (max-width: 768px) {
-    .modern-table thead {
-        display: none;
-    }
 
-    .modern-table tbody,
-    .modern-table tr,
-    .modern-table td {
-        display: block;
-        width: 100%;
-    }
-
-    .modern-table tbody tr {
-        margin-bottom: 1rem;
-        border: 1px solid #e9ecef;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        box-shadow: none;
-    }
-
-    .modern-table td {
-        padding-left: 50%;
-        position: relative;
-        text-align: right;
-        border: none;
-        border-bottom: 1px solid #f0f0f0;
-    }
-
-    .modern-table tr td:first-child {
-        padding-top: 1rem;
-    }
-
-    .modern-table tr td:last-child {
-        border-bottom: none;
-        padding-bottom: 1rem;
-    }
-
-    .modern-table td::before {
-        content: attr(data-label);
-        position: absolute;
-        left: 1.25rem;
-        width: calc(50% - 2rem);
-        text-align: left;
-        font-weight: 600;
-        color: #6c757d;
-        text-transform: uppercase;
-        font-size: 0.7rem;
-    }
-}
-
-#accordion-pendencias .accordion-body .btn-sm {
-    padding: 0.2rem 0.5rem;
-    /* Reduz o espaçamento interno */
-    font-size: 0.8rem;
-    /* Diminui o tamanho do ícone */
-}
-
-.accordion-button-vencido {
-    background-color: #f8d7da !important;
-    color: #58151c !important;
-}
-
-.accordion-button-vencido:not(.collapsed) {
-    background-color: #f8d7da !important;
-    color: #58151c !important;
-}
-
-.accordion-button-vencido::after {
-    filter: invert(1) brightness(0.5);
-}
-
-/* 1. Define o container como o "limite" para o loader */
-.content-loader-container {
-    position: relative;
-    /* Essencial para conter o loader */
-    min-height: 300px;
-    /* Altura mínima para o loader ser visível em conteúdo vazio */
-}
-
-/* 2. Regra específica que SOBRESCREVE qualquer outra definição global */
-/* Esta regra só se aplica a um .overlay-loader que está DENTRO de um .content-loader-container */
-.content-loader-container .overlay-loader {
-    position: absolute;
-    /* MUITO IMPORTANTE: Garante que ele fique dentro do container */
-    z-index: 1040;
-    /* CORREÇÃO: Valor menor que o z-index dos modais (1050+) */
-    border-radius: 0.75rem;
-    /* Opcional: arredonda as bordas do loader igual ao card */
-}
-
-.text-danger-emphasis {
-    color: #dc3545 !important;
-    /* Cor vermelha do Bootstrap */
-    font-weight: 700 !important;
-    /* Deixa o texto em negrito para mais destaque */
-}
-
+/* --- 7. ACORDEÃO (Accordion) --- */
 .accordion-item {
     border: 1px solid #dee2e6;
     border-radius: 0.5rem !important;
@@ -317,218 +166,102 @@ body {
     background-color: #fff;
 }
 
-/* Cabeçalho do Acordeão */
 .accordion-header .accordion-button {
     background-color: #f8f9fa;
     padding: 0.8rem 1.2rem;
     font-weight: 500;
     color: #212529;
     box-shadow: none;
-    transition: background-color 0.2s ease;
-}
-
-.accordion-header .accordion-button.header-selected {
-    background-color: #e9ecef !important;
-    /* Mesma cor de quando está aberto */
-    color: #000 !important;
 }
 
 .accordion-header .accordion-button:not(.collapsed) {
     background-color: #e9ecef;
-    /* Cinza mais escuro quando aberto */
     color: #000;
     box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .125);
 }
 
-.header-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
+.accordion-button-vencido { background-color: #f8d7da !important; color: #58151c !important; }
+
+/* Estilização interna do header do acordeão */
+.header-content { display: flex; align-items: center; gap: 1rem; width: 100%; padding-right: 1rem; }
+.header-title-wrapper { display: flex; flex-direction: column; line-height: 1.2; text-align: left; }
+.header-title-project { font-size: 0.75rem; font-weight: 600; color: #6c757d; text-transform: uppercase; }
+.header-title-os { font-size: 1rem; font-weight: 700; color: #212529; }
+.header-badge { margin-left: 1rem; font-size: 0.75rem; padding: 0.4em 0.8em; border-radius: 50rem; }
+
+/* KPIs no Header do Acordeão */
+.header-kpi-wrapper { display: flex; align-items: center; gap: 1.5rem; margin-left: auto; }
+.kpi-group { display: flex; gap: 1.2rem; align-items: flex-end; }
+.kpi-divider { width: 1px; height: 30px; background-color: #cfd8dc; margin: 0 0.5rem; align-self: center; }
+.header-kpi { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.kpi-label { font-size: 0.65rem; text-transform: uppercase; color: #6c757d; font-weight: 600; margin-bottom: 2px; }
+.kpi-value { font-size: 0.95rem; font-weight: 700; color: #343a40; }
+.kpi-forecast-group .kpi-label, .kpi-forecast-group .kpi-value { color: #0d6efd; }
+
+.accordion-body { padding: 0; background-color: #fff; }
+.accordion-body .table { margin-bottom: 0; }
+
+
+/* --- 8. CONTAINER DE CARREGAMENTO E LOADER --- */
+.content-loader-container {
+    position: relative;
+    /* Removemos altura fixa forçada para permitir que o conteúdo dite a altura, 
+       mas mantemos min-height para o loader não ficar espremido se vazio */
+    min-height: 200px; 
+    height: auto;
     width: 100%;
-    padding-right: 1rem;
 }
 
-.header-title-wrapper {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.2;
-    text-align: left;
-}
-
-.header-title-project {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #6c757d;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.header-title-os {
-    font-size: 1rem;
-    font-weight: 700;
-    color: #212529;
-}
-
-/* Badge no cabeçalho */
-.header-badge {
-    margin-left: 1rem;
-    font-size: 0.75rem;
-    padding: 0.4em 0.8em;
-    border-radius: 50rem;
-}
-
-/* Corpo do Acordeão */
-.accordion-body {
-    padding: 0;
-    /* Remove padding para a tabela encostar nas bordas */
-    background-color: #fff;
-}
-
-.accordion-body .table {
-    margin-bottom: 0;
-}
-
-.accordion-body thead th {
-    background-color: var(--primary-color) !important;
-    /* Garante o verde */
-    color: var(--text-color) !important;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    font-weight: 600;
-    border-bottom: 1px solid #dee2e6;
-    padding: 0.75rem 1rem;
-    white-space: nowrap;
-}
-
-.accordion-body tbody td {
-    padding: 0.75rem;
-    vertical-align: middle;
-    font-size: 0.9rem;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.accordion-body tbody tr:last-child td {
-    border-bottom: none;
-}
-
-/* ========================================================== */
-/* ======== MELHORIAS NO HEADER DO ACORDEÃO (KPIs) ========== */
-/* ========================================================== */
-
-/* Container Principal dos KPIs no Header */
-.header-kpi-wrapper {
+.content-loader-container .overlay-loader {
+    position: absolute;
+    z-index: 1040; /* Abaixo do Modal (1050), acima do conteúdo */
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
     display: flex;
     align-items: center;
-    gap: 1.5rem; /* Espaço entre grupos */
-    margin-left: auto;
-    background-color: transparent;
+    justify-content: center;
+    border-radius: 0.75rem;
+    backdrop-filter: blur(2px);
 }
 
-/* Grupos de Informação (Separados por Divider) */
-.kpi-group {
-    display: flex;
-    gap: 1.2rem; /* Espaço entre itens do mesmo grupo */
-    align-items: flex-end;
-}
 
-/* Divisor Vertical Elegante */
-.kpi-divider {
-    width: 1px;
-    height: 30px;
-    background-color: #cfd8dc; /* Cinza suave */
-    margin: 0 0.5rem;
-    align-self: center;
-}
-
-/* Estilização da Previsão (Destaque) */
-.kpi-forecast-group .kpi-label {
-    color: #0d6efd; /* Azul Primary Bootstrap */
-    font-weight: 700;
-    opacity: 0.9;
-}
-
-.kpi-forecast-group .kpi-value {
-    color: #0d6efd;
-    font-weight: 800;
-}
-
-/* Ajuste Geral dos Labels e Values */
-.header-kpi {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    line-height: 1.1;
-}
-
-.kpi-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    color: #6c757d; /* Cinza médio */
-    font-weight: 600;
-    margin-bottom: 2px;
-}
-
-.kpi-value {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #343a40; /* Cinza escuro */
-}
-
-/* Animação suave para hover */
-.accordion-button:hover .header-kpi-wrapper {
-    opacity: 1;
-}
-
-/* ========================================================== */
-/* ======== ESTILOS PARA SCROLL HORIZONTAL DAS ABAS (V2) ==== */
-/* ========================================================== */
-
+/* --- 9. ABAS COM SCROLL HORIZONTAL (Wrapper) --- */
 .tabs-wrapper-scroll {
     background-color: #fff;
     border-bottom: 1px solid #dee2e6;
     border-radius: 8px 8px 0 0;
     padding: 0 5px;
     position: relative;
-    height: 75px;
-}
-
-.tabs-scroll-container {
-    height: 100%;
+    /* CORREÇÃO: Usar min-height e height auto para evitar cortes */
+    min-height: 75px;
+    height: auto; 
     display: flex;
     align-items: center;
 }
 
-.tabs-wrapper-scroll .nav-link .badge {
-    left: auto !important;
-    /* Anula o comando que joga ela longe (start-100) */
-    right: 5px !important;
-    /* Fixa ela no cantinho direito DENTRO do botão */
-    top: 5px !important;
-    /* Ajuste fino da altura */
-    transform: none !important;
-    /* Remove a centralização que jogava ela para fora */
+.tabs-scroll-container {
+    flex-grow: 1;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+    margin: 0 35px; /* Espaço para as setas */
+    white-space: nowrap;
 }
+.tabs-scroll-container::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 .tabs-wrapper-scroll .nav-tabs {
     border-bottom: none;
     display: flex;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    padding-top: 25px !important;
+    margin-bottom: 0;
+    padding-top: 15px;
     padding-bottom: 10px;
-
-    align-items: flex-start;
-    height: 100%;
 }
 
-/* Esconde barra de rolagem no Chrome/Safari */
-.tabs-wrapper-scroll .nav-tabs::-webkit-scrollbar {
-    display: none;
-}
-
-/* Estilo dos botões de seta */
+/* Botões de Scroll Lateral */
 .btn-scroll-tab {
     z-index: 10;
     border-radius: 50%;
@@ -538,137 +271,91 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-    /* Sombra um pouco mais forte */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     background-color: #fff;
     border: 1px solid #dee2e6;
-    color: var(--accent-color);
-    /* Já deixar na cor do tema */
-    transition: all 0.3s ease;
-    flex-shrink: 0;
+    color: var(--accent-color, #2a8a65);
     position: absolute;
-    /* Fixa a posição dentro do wrapper */
-    top: 55%;
+    top: 50%;
     transform: translateY(-50%);
+    cursor: pointer;
 }
+.btn-scroll-tab:hover {
+    background-color: var(--accent-color, #2a8a65);
+    color: #fff;
+}
+.btn-scroll-tab.left { left: 5px; }
+.btn-scroll-tab.right { right: 5px; }
 
-/* ========================================================== */
-/* ======== NOVOS CARDS DE KPI NO CABEÇALHO (ESTILO INDEX) == */
-/* ========================================================== */
 
+/* --- 10. CARDS KPI NO HEADER DA ABA (Estilo Index) --- */
 .kpi-header-wrapper {
     display: flex;
     gap: 1rem;
     align-items: center;
     margin-left: auto;
-    /* Empurra para a direita */
     margin-right: 1rem;
-    /* Espaço do botão de ação */
 }
 
 .card-kpi-header {
-    min-width: 140px;
-    padding: 0.5rem 1rem;
-    border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-    border: none;
+    min-width: 120px;
+    padding: 0.5rem 0.8rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid #eee;
+    background-color: #fff;
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: center;
-    text-align: center;
-    line-height: 1.2;
-    transition: transform 0.2s;
+}
+.card-kpi-header .kpi-title { font-size: 0.7rem; color: #6c757d; font-weight: 600; text-transform: uppercase; }
+.card-kpi-header .kpi-value { font-size: 1rem; font-weight: 700; color: #212529; }
+
+.card-kpi-info { border-left: 4px solid #64b5f6; background-color: #e3f2fd; }
+.card-kpi-success { border-left: 4px solid #81c784; background-color: #e8f5e9; }
+
+
+/* --- 11. AJUSTES RESPONSIVOS (MOBILE) --- */
+@media (max-width: 768px) {
+    .modern-table thead { display: none; }
+    .modern-table tbody tr, .modern-table tbody td { display: block; width: 100%; }
+    .modern-table tbody tr { margin-bottom: 1rem; border: 1px solid #e9ecef; border-radius: 0.5rem; }
+    .modern-table td { text-align: right; padding-left: 50%; position: relative; border-bottom: 1px solid #f0f0f0; }
+    .modern-table td::before {
+        content: attr(data-label);
+        position: absolute; left: 1rem; width: 45%; text-align: left; font-weight: 600; color: #6c757d; font-size: 0.75rem;
+    }
+    
+    .kpi-header-wrapper { display: none !important; } /* Esconde KPIs complexos no mobile */
 }
 
-.card-kpi-header:hover {
-    transform: translateY(-2px);
-}
-
-.card-kpi-header .kpi-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: #555;
-    margin-bottom: 2px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.card-kpi-header .kpi-value {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: #333;
-}
-
-/* Cores Específicas (Baseadas no Index) */
-.card-kpi-info {
-    background-color: #e3f2fd;
-    /* Azul claro */
-    border-left: 4px solid #64b5f6;
-}
-
-.card-kpi-success {
-    background-color: #e8f5e9;
-    /* Verde claro */
-    border-left: 4px solid #81c784;
-}
-
-.tabs-wrapper-scroll .nav-link {
-    padding-right: 35px !important;
-    /* Espaço extra na direita do texto */
-    position: relative !important;
-}
-
-.btn-scroll-tab:hover {
-    background-color: var(--accent-color);
-    color: #fff;
-    transform: translateY(-50%) scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* Posicionamento absoluto das setas nas pontas */
-.btn-scroll-tab.left {
-    left: 0;
-    margin-right: 0;
-}
-
-.btn-scroll-tab.right {
-    right: 0;
-    margin-left: 0;
-}
-
-/* Espaçamento para o conteúdo não ficar embaixo dos botões */
-.tabs-scroll-container {
-    margin: 0 35px;
-    /* Espaço para as setas não cobrirem o texto */
-    width: calc(100% - 70px);
-}
-
-.nav-tabs .nav-item {
-    flex-shrink: 0;
-}
-
-.nav-tabs .nav-link {
-    white-space: nowrap;
-    margin-right: 5px;
-    /* Ajuste visual para o badge não ficar colado */
-    position: relative;
-}
-
+/* --- 12. UTILITÁRIOS ESPECÍFICOS --- */
+.text-danger-emphasis { color: #dc3545 !important; font-weight: 700 !important; }
 .detalhe-diario-truncate {
-    max-width: 250px; /* Ajuste este valor conforme necessário */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    cursor: pointer;
-    color: #495057;
-    transition: color 0.2s;
+    max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #495057;
 }
+.detalhe-diario-truncate:hover { color: var(--primary-color); text-decoration: underline; }
 
-.detalhe-diario-truncate:hover {
-    color: var(--primary-color);
-    text-decoration: underline;
-}
-
+/* Ajuste de margem quando o dashboard superior está oculto (ex: Documentista) */
 body:has(.overview-card[style*="display: none"]) .container-fluid.my-4 {
     margin-top: 10px !important;
+}
+
+.tab-pane:not(.active) {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Garante que o container de conteúdo não tenha margens fantasmas */
+.tab-content {
+    width: 100%;
+    position: relative;
+    clear: both;
+}
+
+/* Remove min-height exagerado que pode estar empurrando o conteúdo */
+.content-loader-container {
+    min-height: auto !important; 
 }

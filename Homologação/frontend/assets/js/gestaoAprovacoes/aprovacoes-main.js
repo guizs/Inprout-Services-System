@@ -2,7 +2,10 @@
 // 3. LÓGICA PRINCIPAL (aprovacoes-main.js)
 // ==========================================================
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
+
+    await carregarComponentesHTML();
+
     configurarVisibilidadePorRole();
     initScrollAbas();
 
@@ -584,6 +587,22 @@ document.addEventListener('DOMContentLoaded', function () {
         window.histDataInicio.setDate(window.histDataInicio.getDate() - 30);
         carregarDadosHistoricoAtividades(true);
     });
+
+    async function carregarComponentesHTML() {
+        const containers = document.querySelectorAll('[data-include]');
+
+        for (const el of containers) {
+            const file = el.getAttribute('data-include');
+            try {
+                const response = await fetch(file);
+                if (!response.ok) throw new Error(`Falha ao carregar ${file}`);
+                const html = await response.text();
+                el.innerHTML = html;
+            } catch (error) {
+                console.error("Erro na modularização:", error);
+            }
+        }
+    }
 });
 
 async function carregarDashboardEBadges() {
@@ -651,8 +670,8 @@ function configurarVisibilidadePorRole() {
         });
         const histTab = document.getElementById('historico-atividades-tab');
         if (histTab) new bootstrap.Tab(histTab).show();
-    } 
-    
+    }
+
     else if (currentRole === 'DOCUMENTIST') {
         // 1. REMOVE O DASHBOARD DO TOPO (O "Visão geral de aprovações")
         const dashboardSuperior = document.querySelector('.overview-card');
@@ -665,20 +684,29 @@ function configurarVisibilidadePorRole() {
 
         // 3. ESCONDE TODAS AS OUTRAS ABAS
         const abasParaEsconder = [
-            'atividades-tab', 'historico-atividades-tab', 'cps-pendencias-tab', 
-            'cps-historico-tab', 'complementares-tab', 'historico-complementares-tab', 
+            'atividades-tab', 'historico-atividades-tab', 'cps-pendencias-tab',
+            'cps-historico-tab', 'complementares-tab', 'historico-complementares-tab',
             'materiais-tab', 'historico-materiais-tab'
         ];
+
+        // Garante que o painel de Documentação seja o ÚNICO visível
+        const docPane = document.getElementById('minhas-docs-pane');
+        if (docPane) {
+            docPane.style.setProperty('display', 'block', 'important');
+        }
+
         abasParaEsconder.forEach(id => {
             const el = document.getElementById(id);
-            if (el && el.parentElement) el.parentElement.style.display = 'none';
+            if (el) {
+                el.style.setProperty('display', 'none', 'important'); // Força o desaparecimento
+            }
         });
 
         // 4. RENOMEIA E ATIVA A ABA DE DOCUMENTAÇÃO COMO PRINCIPAL
         const docTab = document.getElementById('minhas-docs-tab');
         if (docTab) {
             docTab.innerHTML = '<i class="bi bi-folder-check me-1"></i> Controle de documentação';
-            
+
             // Força a ativação da aba
             const tabTrigger = new bootstrap.Tab(docTab);
             tabTrigger.show();
@@ -864,4 +892,6 @@ function renderizarTabelaDocs(lancamentos) {
     const totalPendente = lancamentos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
     const elSaldo = document.getElementById('doc-carteira-previsto');
     if (elSaldo) elSaldo.innerText = formatarMoeda(totalPendente);
+
+
 }

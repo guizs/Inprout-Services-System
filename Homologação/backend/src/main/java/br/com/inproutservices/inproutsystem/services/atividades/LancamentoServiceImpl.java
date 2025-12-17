@@ -908,12 +908,16 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         Role role = usuario.getRole();
 
+        // Status que representam pendência para o Documentista
+        List<StatusDocumentacao> statusDocPendentes = List.of(
+                StatusDocumentacao.PENDENTE_RECEBIMENTO,
+                StatusDocumentacao.EM_ANALISE
+        );
+
         if (role == Role.COORDINATOR) {
             List<SituacaoAprovacao> statusPendentes = List.of(SituacaoAprovacao.PENDENTE_COORDENADOR);
             Set<Segmento> segmentosDoUsuario = usuario.getSegmentos();
-            if (segmentosDoUsuario.isEmpty()) {
-                return List.of();
-            }
+            if (segmentosDoUsuario.isEmpty()) return List.of();
             return lancamentoRepository.findBySituacaoAprovacaoInAndOsSegmentoIn(statusPendentes, segmentosDoUsuario);
 
         } else if (role == Role.CONTROLLER) {
@@ -924,14 +928,26 @@ public class LancamentoServiceImpl implements LancamentoService {
             );
             return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
 
+        } else if (role == Role.DOCUMENTIST) {
+            // NOVO: Retorna as docs atribuídas a ele que não estão finalizadas
+            return lancamentoRepository.findByDocumentistaIdAndStatusDocumentacaoIn(usuarioId, statusDocPendentes);
+
         } else if (role == Role.ADMIN) {
+            // AJUSTE: Admin deve ver pendências de aprovação operacional E pendências de documentação
             List<SituacaoAprovacao> statusPendentes = List.of(
                     SituacaoAprovacao.PENDENTE_COORDENADOR,
                     SituacaoAprovacao.PENDENTE_CONTROLLER,
                     SituacaoAprovacao.AGUARDANDO_EXTENSAO_PRAZO,
                     SituacaoAprovacao.PRAZO_VENCIDO
             );
-            return lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
+
+            // Busca ambos e combina (ou use uma query customizada no Repository para performance)
+            List<Lancamento> pendenciasAprovacao = lancamentoRepository.findBySituacaoAprovacaoIn(statusPendentes);
+            List<Lancamento> pendenciasDoc = lancamentoRepository.findByStatusDocumentacaoIn(statusDocPendentes);
+
+            Set<Lancamento> todos = new HashSet<>(pendenciasAprovacao);
+            todos.addAll(pendenciasDoc);
+            return new ArrayList<>(todos);
         }
 
         return List.of();

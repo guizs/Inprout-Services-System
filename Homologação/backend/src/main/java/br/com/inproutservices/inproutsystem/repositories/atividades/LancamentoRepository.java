@@ -276,6 +276,8 @@ public interface LancamentoRepository extends JpaRepository<Lancamento, Long> {
 
     List<Lancamento> findByStatusDocumentacao(StatusDocumentacao status);
 
+    List<Lancamento> findByStatusDocumentacaoIn(List<StatusDocumentacao> status);
+
     List<Lancamento> findByDocumentistaIdAndStatusDocumentacaoIn(Long documentistaId, List<StatusDocumentacao> status);
 
     @Query("SELECT l FROM Lancamento l " +

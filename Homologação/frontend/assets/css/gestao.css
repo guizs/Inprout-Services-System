@@ -48,6 +48,20 @@ body {
     background-color: #fff;
 }
 
+/* Oculta abas inativas para evitar conflitos de layout */
+.tab-pane:not(.active) {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* Garante que o container de conteúdo não tenha margens fantasmas */
+.tab-content {
+    width: 100%;
+    position: relative;
+    clear: both;
+}
+
 /* --- 3. LAYOUT E CARDS --- */
 .card {
     border: none;
@@ -189,7 +203,7 @@ body {
 .header-title-os { font-size: 1rem; font-weight: 700; color: #212529; }
 .header-badge { margin-left: 1rem; font-size: 0.75rem; padding: 0.4em 0.8em; border-radius: 50rem; }
 
-/* KPIs no Header do Acordeão */
+/* KPIs no Header do Acordeão (Atividades) */
 .header-kpi-wrapper { display: flex; align-items: center; gap: 1.5rem; margin-left: auto; }
 .kpi-group { display: flex; gap: 1.2rem; align-items: flex-end; }
 .kpi-divider { width: 1px; height: 30px; background-color: #cfd8dc; margin: 0 0.5rem; align-self: center; }
@@ -205,9 +219,9 @@ body {
 /* --- 8. CONTAINER DE CARREGAMENTO E LOADER --- */
 .content-loader-container {
     position: relative;
-    /* Removemos altura fixa forçada para permitir que o conteúdo dite a altura, 
-       mas mantemos min-height para o loader não ficar espremido se vazio */
-    min-height: 200px; 
+    /* Ajustado para auto para evitar problemas de layout, 
+       mas mantemos a estrutura relativa para o loader funcionar */
+    min-height: auto !important;
     height: auto;
     width: 100%;
 }
@@ -235,7 +249,6 @@ body {
     border-radius: 8px 8px 0 0;
     padding: 0 5px;
     position: relative;
-    /* CORREÇÃO: Usar min-height e height auto para evitar cortes */
     min-height: 75px;
     height: auto; 
     display: flex;
@@ -332,30 +345,13 @@ body {
 
 /* --- 12. UTILITÁRIOS ESPECÍFICOS --- */
 .text-danger-emphasis { color: #dc3545 !important; font-weight: 700 !important; }
+
 .detalhe-diario-truncate {
     max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #495057;
 }
 .detalhe-diario-truncate:hover { color: var(--primary-color); text-decoration: underline; }
 
-/* Ajuste de margem quando o dashboard superior está oculto (ex: Documentista) */
+/* Ajuste de margem quando o dashboard superior está oculto (ex: Documentista ou via JS) */
 body:has(.overview-card[style*="display: none"]) .container-fluid.my-4 {
     margin-top: 10px !important;
-}
-
-.tab-pane:not(.active) {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-}
-
-/* Garante que o container de conteúdo não tenha margens fantasmas */
-.tab-content {
-    width: 100%;
-    position: relative;
-    clear: both;
-}
-
-/* Remove min-height exagerado que pode estar empurrando o conteúdo */
-.content-loader-container {
-    min-height: auto !important; 
 }

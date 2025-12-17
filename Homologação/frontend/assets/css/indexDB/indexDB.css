@@ -634,3 +634,130 @@
     max-width: calc(33.333% - 0.5rem);
   }
 }
+
+/* --- Estilos do Modal de Tipo de Documentação --- */
+
+/* Container com rolagem fixa */
+/* 1. Container com rolagem e borda */
+.doc-scroll-container {
+    height: 300px; /* Um pouco mais alto para ver mais itens */
+    overflow-y: auto;
+    overflow-x: hidden; /* Evita barra de rolagem horizontal desnecessária */
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+}
+
+/* 2. Cabeçalho Fixo (Sticky) */
+.doc-scroll-container thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa; /* Cinza claro do Bootstrap */
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Sombra sutil para destacar do corpo */
+}
+
+/* 3. Tabela com Layout Fixo */
+.table-doc-config {
+    table-layout: fixed; /* Essencial para respeitar as larguras abaixo */
+    width: 100%;
+    margin-bottom: 0;
+}
+
+/* 4. Larguras das Colunas (Ajuste Fino) */
+.table-doc-config .col-ativo {
+    width: 60px; /* Largura fixa para o checkbox */
+    text-align: center;
+}
+
+.table-doc-config .col-valor {
+    width: 160px; /* Espaço suficiente para "R$ 0.000,00" */
+}
+
+.table-doc-config .col-nome {
+    /* Sem width definido, ele ocupa o espaço restante (comportamento padrão de tabelas) */
+    width: auto; 
+}
+
+/* 5. Ajuste visual dos inputs dentro da tabela */
+.table-doc-config input.form-control-sm {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Cabeçalho da Lista */
+.mdoc-header-row {
+    display: flex;
+    align-items: center;
+    background-color: #f1f3f5; /* Cinza bem suave */
+    padding: 10px 5px;
+    border-radius: 6px 6px 0 0;
+    border: 1px solid #dee2e6;
+    border-bottom: 2px solid #ced4da; /* Linha mais forte embaixo do header */
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #495057;
+    text-transform: uppercase;
+}
+
+/* Corpo da Lista (Scroll) */
+.mdoc-body-scroll {
+    height: 300px;           /* Altura fixa */
+    overflow-y: auto;        /* Scroll vertical */
+    border: 1px solid #dee2e6;
+    border-top: none;        /* Já tem a borda do header */
+    border-radius: 0 0 6px 6px;
+    background-color: #fff;
+}
+
+/* Item da Lista (Linha) */
+.mdoc-item-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 5px;
+    border-bottom: 1px solid #f1f3f5;
+    transition: background-color 0.2s;
+}
+
+.mdoc-item-row:last-child {
+    border-bottom: none;
+}
+
+.mdoc-item-row:hover {
+    background-color: #f8f9fa;
+}
+
+/* --- COLUNAS (Tamanhos Fixos e Flexíveis) --- */
+
+/* 1. Checkbox (Fixo pequeno) */
+.mdoc-col-check {
+    width: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 2. Valor (Fixo para caber o input) */
+.mdoc-col-valor {
+    width: 140px;
+    padding-right: 10px;
+}
+
+/* 3. Nome (Ocupa o resto do espaço) */
+.mdoc-col-nome {
+    flex: 1; /* Cresce para ocupar o espaço vazio */
+    padding: 0 10px;
+    font-size: 0.9rem;
+    color: #212529;
+    white-space: nowrap; /* Não quebra linha */
+    overflow: hidden;
+    text-overflow: ellipsis; /* ... se for muito grande */
+}
+
+/* Inputs customizados dentro da lista */
+.mdoc-input-valor {
+    font-size: 0.85rem !important;
+    padding: 4px 8px !important;
+    text-align: right;
+}

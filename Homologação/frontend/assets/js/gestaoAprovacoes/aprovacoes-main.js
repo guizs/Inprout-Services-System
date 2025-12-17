@@ -619,39 +619,28 @@ async function carregarDashboardEBadges() {
         if (!resGeral.ok) throw new Error('Falha no dashboard.');
 
         window.todosOsLancamentosGlobais = await resGeral.json();
-        // === FILTRO DA SEPARAÇÃO (DOCS x ATIVIDADES) ===
-        // 1. No método carregarDashboardEBadges, altere a separação:
         const todasPendenciasGerais = await resPendAtiv.json();
 
-        // Filtro Inteligente: Admin vê tudo, Documentista vê só o dele
-        if (userRole === 'DOCUMENTIST') {
-            window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL' && String(l.documentistaId) === String(userId));
-        } else {
-            window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL');
-        }
+        // === CORREÇÃO DO FILTRO DE DOCUMENTAÇÃO ===
+        // Verifica se o item é de documentação e se pertence ao usuário logado.
+        // Usa l.documentista.id para garantir que pega o ID dentro do objeto.
+        window.minhasDocsPendentes = todasPendenciasGerais.filter(l => {
+            const temStatusDoc = l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL';
 
-        // O restante vai para atividades
-        window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.statusDocumentacao === 'NAO_APLICAVEL');
-
-        // 2. No final do carregarDashboardEBadges, corrija a inicialização:
-        if (abaAtivaAgora) {
-            const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
-            if (painelAtivoId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
-            else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
-            else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
-            else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
-            else if (painelAtivoId === '#minhas-docs-pane') {
-                initDocumentacaoTab(); // CHAMA APENAS ESTA FUNÇÃO
+            // Se for Documentista, filtra estritamente pelo ID dele
+            if (userRole === 'DOCUMENTIST') {
+                const docId = l.documentista ? l.documentista.id : l.documentistaId;
+                return temStatusDoc && String(docId) === String(userId);
             }
-        }
 
-        // Separa o que é documentação do que é atividade normal
-        // Assumindo que statusDocumentacao != null e != 'NAO_APLICAVEL' e documentistaId == userId indica item de doc
-        window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL' && l.documentistaId == userId);
+            // Outros perfis (Admin, etc) veem tudo que tem status de doc
+            return temStatusDoc;
+        });
 
-        // O restante (incluindo aprovações operacionais) vai para atividades
-        // (Você pode refinar esse filtro se um mesmo item puder aparecer em ambos, mas geralmente quem aprova operação não é o documentista)
-        window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.documentistaId != userId);
+        // O restante vai para atividades (Itens sem documentação ou "Não Aplicável")
+        // Nota: Um item pode aparecer em ambos se tiver pendência Operacional E Documental. 
+        // Aqui assumimos que para a aba "Atividades" queremos o fluxo operacional.
+        window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.statusDocumentacao === 'NAO_APLICAVEL');
 
         const pendenciasPorCoordenador = await resPendCoord.json();
         window.todasPendenciasMateriais = await resPendMat.json();
@@ -661,9 +650,20 @@ async function carregarDashboardEBadges() {
 
         atualizarBadge('#materiais-tab', window.todasPendenciasMateriais.length);
         atualizarBadge('#complementares-tab', window.todasPendenciasComplementares.length);
-
-        // Atualiza badge de docs se houver
         atualizarBadge('#minhas-docs-tab', window.minhasDocsPendentes.length);
+
+        // Renderiza a aba ativa no momento do carregamento
+        const abaAtivaAgora = document.querySelector('#aprovacoesTab .nav-link.active');
+        if (abaAtivaAgora) {
+            const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
+            if (painelAtivoId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+            else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
+            else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+            else if (painelAtivoId === '#minhas-docs-pane') {
+                initDocumentacaoTab();
+            }
+        }
 
     } catch (e) { console.error(e); }
     finally { toggleLoader(false, '.overview-card'); }
@@ -672,12 +672,19 @@ async function carregarDashboardEBadges() {
 function atualizarBadge(selector, count) {
     const tab = document.querySelector(selector);
     if (!tab) return;
+
+    if (!tab.classList.contains('position-relative')) {
+        tab.classList.add('position-relative');
+    }
+
     let badge = tab.querySelector('.badge');
     if (!badge) {
         badge = document.createElement('span');
+        // Ajustei as classes do Bootstrap para ficar bem no cantinho superior direito
         badge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger';
         tab.appendChild(badge);
     }
+
     badge.textContent = count > 9 ? '9+' : count;
     badge.style.display = count > 0 ? '' : 'none';
 }
@@ -853,68 +860,120 @@ function atualizarEstadoAcoesLoteComplementar() {
 
 function renderizarTabelaDocs(lancamentos) {
     const tbody = document.getElementById('tbody-minhas-docs');
-    if (!tbody) return; // Segurança caso a aba não exista no HTML
+    if (!tbody) return;
 
     tbody.innerHTML = '';
-    let saldo = 0;
 
+    // 1. CÁLCULO DA CARTEIRA (DASHBOARD)
+    // Filtra e soma apenas o valor que o documentista vai receber (valorDocumentista)
+    // Se valorDocumentista for nulo, usamos 0.
+    const totalCarteira = lancamentos ? lancamentos.reduce((acc, l) => {
+        const valorItem = l.valorDocumentista != null ? l.valorDocumentista : (l.valor || 0);
+        return acc + valorItem;
+    }, 0) : 0;
+
+    // Atualiza o card de valor no topo (se existir o elemento)
+    const elSaldo = document.getElementById('doc-carteira-previsto');
+    if (elSaldo) elSaldo.innerText = formatarMoeda(totalCarteira);
+
+    // Atualiza o contador de pendências
+    const elQtd = document.getElementById('doc-qtd-pendente');
+    if (elQtd) elQtd.innerText = lancamentos ? lancamentos.length : 0;
+
+
+    // 2. RENDERIZAÇÃO DA TABELA
     if (!lancamentos || lancamentos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma documentação pendente neste filtro.</td></tr>';
-        const elSaldo = document.getElementById('doc-carteira-previsto');
-        if (elSaldo) elSaldo.innerText = 'R$ 0,00';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Nenhuma documentação pendente na sua carteira.</td></tr>';
         return;
     }
 
     lancamentos.forEach(l => {
-        if (l.statusDocumentacao === 'FINALIZADO') {
-            saldo += l.valor || 0;
-            return;
-        }
+        // --- PREPARAÇÃO DOS DADOS ---
 
-        const hoje = new Date();
-        // Converte string 'yyyy-mm-dd' para Date, se vier assim
+        // A. Prazo (SLA)
         const prazo = l.dataPrazoDoc ? new Date(l.dataPrazoDoc) : null;
-
-        let corSla = 'bg-secondary';
-        let textoPrazo = '-';
-
+        let htmlPrazo = '-';
         if (prazo) {
-            textoPrazo = formatarData(l.dataPrazoDoc);
-            // Zera horas para comparação justa de dias
-            const hojeZero = new Date(hoje.setHours(0, 0, 0, 0));
-            const prazoZero = new Date(prazo.setHours(0, 0, 0, 0));
+            const hoje = new Date();
+            hoje.setHours(0, 0, 0, 0);
+            const dataPrazo = new Date(prazo);
+            dataPrazo.setHours(0, 0, 0, 0);
 
-            if (hojeZero > prazoZero) {
-                corSla = 'bg-danger'; // Atrasado
-            } else if (hojeZero.getTime() === prazoZero.getTime()) {
-                corSla = 'bg-warning text-dark'; // Vence hoje
-            } else {
-                corSla = 'bg-success'; // No prazo
-            }
+            let cor = 'bg-success';
+            if (hoje > dataPrazo) cor = 'bg-danger'; // Atrasado
+            else if (hoje.getTime() === dataPrazo.getTime()) cor = 'bg-warning text-dark'; // Vence hoje
+
+            htmlPrazo = `<span class="badge ${cor}">${formatarData(l.dataPrazoDoc)}</span>`;
         }
 
+        // B. Status
+        let statusBadge = `<span class="badge bg-secondary">${l.statusDocumentacao || 'Indefinido'}</span>`;
+        if (l.statusDocumentacao === 'EM_ANALISE') statusBadge = `<span class="badge bg-primary">Em Análise</span>`;
+        if (l.statusDocumentacao === 'PENDENTE_RECEBIMENTO') statusBadge = `<span class="badge bg-warning text-dark">Pendente Envio</span>`;
+        if (l.statusDocumentacao === 'APROVADO') statusBadge = `<span class="badge bg-success">Aprovado</span>`;
+
+        // C. Valor (Prioriza o valor específico do documentista)
+        const valorExibir = l.valorDocumentista != null ? l.valorDocumentista : 0;
+
+        // D. Item (LPU)
+        // Tenta pegar do detalhe (itemLpu), senão pega da LPU geral, senão traço.
+        const descricaoItem = l.itemLpu ? l.itemLpu.descricao : (l.lpu ? l.lpu.descricao : '-');
+
+        // E. Responsável
+        const nomeResponsavel = l.documentista ? l.documentista.nome : '-';
+
+        // F. Assunto Email
+        const assunto = l.assuntoEmail || '-';
+
+        // G. Botões de Ação
+        let botoes = '';
+        if (l.statusDocumentacao === 'EM_ANALISE' || l.statusDocumentacao === 'PENDENTE_RECEBIMENTO') {
+            botoes = `
+                <div class="d-flex justify-content-center gap-1">
+                    <button class="btn btn-sm btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Aprovar/Finalizar" onclick="aprovarDocumentacao('${l.id}')">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editarDoc('${l.id}')" title="Editar">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+            `;
+        } else {
+            botoes = `<span class="text-muted small">-</span>`;
+        }
+
+        // --- MONTAGEM HTML (ORDEM NOVA) ---
         const tr = `
             <tr>
-                <td>${l.os ? l.os.os : '-'}</td>
-                <td>${l.tipoDocumentacaoNome || '-'}</td>
-                <td>${l.dataRecebimentoDoc ? new Date(l.dataRecebimentoDoc).toLocaleDateString('pt-BR') : '-'}</td>
-                <td><span class="badge ${corSla}">${textoPrazo}</span></td>
-                <td>${formatarMoeda(l.valor)}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary btn-finalizar-doc" data-id="${l.id}">
-                        <i class="bi bi-check2-all"></i> Finalizar
-                    </button>
+                <td class="align-middle text-center">
+                    ${botoes}
+                </td>
+
+                <td class="align-middle text-center">${statusBadge}</td>
+                
+                <td class="align-middle text-truncate" style="max-width: 200px;" title="${descricaoItem}">
+                    ${descricaoItem}
+                </td>
+                
+                <td class="align-middle">
+                    <span class="fw-medium">${l.tipoDocumentacaoNome || l.tipoDocumentacao?.nome || '-'}</span>
+                </td>
+                
+                <td class="align-middle text-center">${htmlPrazo}</td>
+                
+                <td class="align-middle text-end fw-bold text-secondary">
+                    ${formatarMoeda(valorExibir)}
+                </td>
+                
+                <td class="align-middle">
+                    <small>${nomeResponsavel}</small>
+                </td>
+                
+                <td class="align-middle small text-muted text-truncate" style="max-width: 150px;" title="${assunto}">
+                    ${assunto}
                 </td>
             </tr>
         `;
         tbody.innerHTML += tr;
     });
-
-    // O saldo aqui poderia ser "Total Pendente" ou "Total Finalizado", ajuste conforme a regra.
-    // Se for "A Receber", seria a soma dos pendentes.
-    const totalPendente = lancamentos.reduce((acc, curr) => acc + (curr.valor || 0), 0);
-    const elSaldo = document.getElementById('doc-carteira-previsto');
-    if (elSaldo) elSaldo.innerText = formatarMoeda(totalPendente);
-
-
 }

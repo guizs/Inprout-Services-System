@@ -11,16 +11,12 @@ import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
-import br.com.inproutservices.inproutsystem.repositories.atividades.ComentarioRepository;
-import br.com.inproutservices.inproutsystem.repositories.atividades.LancamentoRepository;
-import br.com.inproutservices.inproutsystem.repositories.atividades.OsLpuDetalheRepository;
-import br.com.inproutservices.inproutsystem.repositories.atividades.OsRepository;
+import br.com.inproutservices.inproutsystem.repositories.atividades.*;
 import br.com.inproutservices.inproutsystem.repositories.index.*;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
 import br.com.inproutservices.inproutsystem.services.config.PrazoService;
 import jakarta.persistence.EntityNotFoundException;
 import org.apache.poi.ss.usermodel.*;
-import br.com.inproutservices.inproutsystem.repositories.atividades.TipoDocumentacaoRepository;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -55,12 +51,15 @@ public class LancamentoServiceImpl implements LancamentoService {
     private final ContratoRepository contratoRepository;
     private final SegmentoRepository segmentoRepository;
     private final TipoDocumentacaoRepository tipoDocumentacaoRepository;
+    private final PrecoDocumentacaoRepository precoDocumentacaoRepository;
 
     public LancamentoServiceImpl(LancamentoRepository lancamentoRepository, OsRepository osRepository,
                                  UsuarioRepository usuarioRepository, PrazoService prazoService,
                                  ComentarioRepository comentarioRepository, PrestadorRepository prestadorRepository,
                                  EtapaDetalhadaRepository etapaDetalhadaRepository, LpuRepository lpuRepository,
-                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService,ContratoRepository contratoRepository, SegmentoRepository segmentoRepository, TipoDocumentacaoRepository tipoDocumentacaoRepository) {
+                                 OsLpuDetalheRepository osLpuDetalheRepository, OsService osService,ContratoRepository contratoRepository,
+                                 SegmentoRepository segmentoRepository, TipoDocumentacaoRepository tipoDocumentacaoRepository,
+                                 PrecoDocumentacaoRepository precoDocumentacaoRepository) {
         this.lancamentoRepository = lancamentoRepository;
         this.osRepository = osRepository;
         this.usuarioRepository = usuarioRepository;
@@ -74,6 +73,7 @@ public class LancamentoServiceImpl implements LancamentoService {
         this.contratoRepository = contratoRepository;
         this.segmentoRepository = segmentoRepository;
         this.tipoDocumentacaoRepository = tipoDocumentacaoRepository;
+        this.precoDocumentacaoRepository = precoDocumentacaoRepository;
     }
 
     @Override
@@ -232,7 +232,8 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             lancamento.setTipoDocumentacao(tipoDoc);
             lancamento.setDocumentista(documentista);
-            lancamento.setValorDocumentista(tipoDoc.getValor());
+            BigDecimal valorFinal = obterValorDocumentacao(documentista, tipoDoc);
+            lancamento.setValorDocumentista(valorFinal);
             lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
             lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
         } else {
@@ -583,7 +584,8 @@ public class LancamentoServiceImpl implements LancamentoService {
 
             lancamento.setTipoDocumentacao(tipoDoc);
             lancamento.setDocumentista(documentista);
-            lancamento.setValorDocumentista(tipoDoc.getValor());
+            BigDecimal valorFinal = obterValorDocumentacao(documentista, tipoDoc);
+            lancamento.setValorDocumentista(valorFinal);
 
             if (lancamento.getStatusDocumentacao() == StatusDocumentacao.NAO_APLICAVEL) {
                 lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
@@ -1250,6 +1252,8 @@ public class LancamentoServiceImpl implements LancamentoService {
 
                 lancamento.setTipoDocumentacao(tipoDoc);
                 lancamento.setDocumentista(documentista);
+                BigDecimal valorFinal = obterValorDocumentacao(documentista, tipoDoc);
+                lancamento.setValorDocumentista(valorFinal);
                 lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
                 lancamento.setDataSolicitacaoDoc(LocalDateTime.now());
             } else {
@@ -1553,6 +1557,19 @@ public class LancamentoServiceImpl implements LancamentoService {
 
         // AQUI: O serviço usa o REPOSITÓRIO
         return lancamentoRepository.save(lancamento);
+    }
+
+    private BigDecimal obterValorDocumentacao(Usuario documentista, TipoDocumentacao tipoDoc) {
+        // 1. Tenta buscar um preço específico para este documentista neste tipo de doc
+        Optional<PrecoDocumentacao> precoEspecifico = precoDocumentacaoRepository
+                .findByDocumentistaIdAndTipoDocumentacaoId(documentista.getId(), tipoDoc.getId());
+
+        if (precoEspecifico.isPresent()) {
+            return precoEspecifico.get().getValor();
+        }
+
+        // 2. Se não achar, retorna o valor base do Tipo de Documentação
+        return tipoDoc.getValor();
     }
 
 }

@@ -248,8 +248,9 @@
                             <thead>
                                 <tr>
                                     <th>Nome do Documento</th>
-                                    <th>Documentista Padrão</th>
-                                    <th style="width: 140px;">Ações</th>
+                                    <th style="width: 120px;">Valor Padrão</th>
+                                    <th>Documentistas</th>
+                                    <th style="width: 100px;">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="tbody-tipos-doc"></tbody>
@@ -363,39 +364,60 @@
 
     <div class="modal fade" id="modalTipoDoc" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold" id="modalTipoDocLabel">Tipo de Documentação</h5>
+            <div class="modal-content border-0 shadow-lg">
+
+                <div class="modal-header bg-white border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-primary" id="modalTipoDocLabel">Tipo de Documentação</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body p-4">
                     <form id="formTipoDoc">
                         <input type="hidden" id="tipoDocId">
 
                         <div class="mb-3">
-                            <label for="tipoDocNome"
-                                class="form-label fw-medium small text-uppercase text-secondary">Nome do
+                            <label class="form-label fw-bold small text-uppercase text-secondary">Nome do
                                 Documento</label>
-                            <input type="text" class="form-control form-control-lg" id="tipoDocNome"
+                            <input type="text" class="form-control" id="tipoDocNome"
                                 placeholder="Ex: Relatório Fotográfico" required>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="tipoDocResponsavel"
-                                class="form-label fw-medium small text-uppercase text-secondary">Documentistas
-                                Autorizados</label>
-                            <select class="form-select" id="tipoDocResponsavel" multiple style="height: 120px;">
-                            </select>
-                            <div class="form-text">Segure a tecla <strong>Ctrl</strong> para selecionar mais de
-                                um.</div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small text-uppercase text-secondary">Valor Padrão
+                                (R$)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted">R$</span>
+                                <input type="number" step="0.01" class="form-control" id="tipoDocValorPadrao"
+                                    placeholder="0,00">
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold small text-uppercase text-secondary mb-2">
+                                Configuração por Documentista
+                            </label>
+
+                            <div class="mdoc-header-row">
+                                <div class="mdoc-col-check">Ativo</div>
+                                <div class="mdoc-col-nome">Documentista</div>
+                                <div class="mdoc-col-valor">Valor (R$)</div>
+                            </div>
+
+                            <div class="mdoc-body-scroll" id="listaDocumentistasConfig">
+                            </div>
+
+                            <div class="form-text mt-2 small text-end">
+                                <i class="bi bi-info-circle me-1"></i> Se desmarcado, o documentista não vê este tipo.
+                            </div>
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer bg-light border-top-0">
-                    <button type="button" class="btn btn-link text-decoration-none text-secondary"
-                        data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary px-4" onclick="salvarTipoDoc()">Salvar
-                        Configuração</button>
+
+                <div class="modal-footer border-top-0 pt-0 pb-4 pe-4">
+                    <button type="button" class="btn btn-light text-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="salvarTipoDoc()">
+                        Salvar
+                    </button>
                 </div>
             </div>
         </div>

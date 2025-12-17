@@ -59,11 +59,11 @@ function alternarSubsecao(tipo) {
 
     if (tipo === 'docs') {
         document.getElementById('subsecao-docs').classList.remove('d-none');
-        if(botoes[0]) botoes[0].classList.add('active');
+        if (botoes[0]) botoes[0].classList.add('active');
         carregarTiposDoc();
     } else if (tipo === 'bancos') {
         document.getElementById('subsecao-bancos').classList.remove('d-none');
-        if(botoes[1]) botoes[1].classList.add('active');
+        if (botoes[1]) botoes[1].classList.add('active');
         carregarBancos();
     }
 }
@@ -114,7 +114,7 @@ async function carregarBancos() {
 
 function abrirModalBanco() {
     document.getElementById('formBanco').reset();
-    document.getElementById('bancoId').value = ''; 
+    document.getElementById('bancoId').value = '';
     document.querySelector('#modalBanco .modal-title').textContent = 'Novo Banco';
     modalBancoInstance.show();
 }
@@ -203,7 +203,7 @@ async function confirmarDeletarBanco() {
 
 async function carregarTiposDoc() {
     const tbody = document.getElementById('tbody-tipos-doc');
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-5"><div class="spinner-border text-primary"></div></td></tr>';
 
     try {
         const response = await fetchComAuth(API_GERAL_URL);
@@ -211,7 +211,7 @@ async function carregarTiposDoc() {
         tbody.innerHTML = '';
 
         if (dados.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Nenhum registro encontrado.</td></tr>`;
             return;
         }
 
@@ -220,23 +220,43 @@ async function carregarTiposDoc() {
         dados.forEach(tipo => {
             const tr = document.createElement('tr');
 
+            // Formata o valor padrão
+            const valorFormatado = tipo.valorPadrao
+                ? tipo.valorPadrao.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                : '-';
+
+            // Cria badges para os documentistas
             let docBadges = '';
-            if (tipo.documentistas && tipo.documentistas.length > 0) {
-                docBadges = '<div class="d-flex flex-wrap gap-2 justify-content-center">' +
-                    tipo.documentistas.map(d => `<span class="badge doc-badge">${d.nome}</span>`).join('') +
-                    '</div>';
+            if (tipo.configuracoes && tipo.configuracoes.length > 0) {
+                docBadges = '<div class="d-flex flex-wrap gap-1 justify-content-center">';
+                tipo.configuracoes.forEach(c => {
+                    // Encontra o nome do documentista no cache
+                    const docInfo = listaDocumentistasCache.find(d => d.id === c.documentistaId);
+                    const nome = docInfo ? docInfo.nome.split(' ')[0] : 'ID:' + c.documentistaId;
+                    const styleClass = c.valor ? 'bg-success' : 'bg-secondary'; // Verde se tiver preço especial
+                    const title = c.valor ? `Valor especial: R$ ${c.valor}` : 'Valor padrão';
+
+                    docBadges += `<span class="badge ${styleClass}" title="${title}">${nome}</span>`;
+                });
+                docBadges += '</div>';
             } else {
-                docBadges = '<span class="text-muted small fst-italic">Todos habilitados (Padrão)</span>';
+                docBadges = '<span class="text-muted small">Nenhum habilitado</span>';
             }
 
-            // Escapamos as aspas para evitar erros no JSON.stringify dentro do HTML
-            const docIds = tipo.documentistas ? JSON.stringify(tipo.documentistas.map(d => d.id)).replace(/"/g, "&quot;") : '[]';
+            // Prepara dados para edição (atenção as aspas)
+            const jsonConfigs = JSON.stringify(tipo.configuracoes).replace(/"/g, "&quot;");
 
             tr.innerHTML = `
-                <td class="fw-semibold text-dark">${tipo.nome}</td>
-                <td>${docBadges}</td>
-                <td>
-                    <button class="btn-icon-modern edit" onclick='editarTipoDoc(${tipo.id}, "${tipo.nome}", ${docIds})' title="Editar">
+                <td class="fw-semibold text-dark align-middle">${tipo.nome}</td>
+                
+                <td class="align-middle">${valorFormatado}</td>
+                
+                <td class="align-middle text-center">
+                    ${docBadges}
+                </td>
+                
+                <td class="align-middle text-end">
+                    <button class="btn-icon-modern edit" onclick='editarTipoDoc(${tipo.id}, "${tipo.nome}", ${tipo.valorPadrao}, ${jsonConfigs})' title="Editar">
                         <i class="bi bi-pencil-square"></i>
                     </button>
                     <button class="btn-icon-modern delete" onclick="prepararDeletarTipoDoc(${tipo.id}, '${tipo.nome}')" title="Excluir">
@@ -249,35 +269,75 @@ async function carregarTiposDoc() {
     } catch (e) { console.error(e); }
 }
 
+function renderizarListaConfig(configsExistentes = []) {
+    const container = document.getElementById('listaDocumentistasConfig');
+    container.innerHTML = '';
+
+    if (!listaDocumentistasCache || listaDocumentistasCache.length === 0) {
+        container.innerHTML = '<div class="p-3 text-center text-muted">Nenhum documentista encontrado.</div>';
+        return;
+    }
+
+    listaDocumentistasCache.forEach(doc => {
+        // Verifica configuração existente
+        const config = configsExistentes.find(c => c.documentistaId === doc.id);
+        const isChecked = !!config;
+        const valorEspecifico = config && config.valor !== null ? config.valor : '';
+
+        // Cria o elemento da linha (div .mdoc-item-row)
+        const row = document.createElement('div');
+        row.className = 'mdoc-item-row';
+
+        // Monta o HTML interno usando as classes mdoc-
+        row.innerHTML = `
+            <div class="mdoc-col-check">
+                <input type="checkbox" class="form-check-input chk-doc-habilitar" 
+                    value="${doc.id}" ${isChecked ? 'checked' : ''} 
+                    style="cursor: pointer;"
+                    onchange="toggleInputValor(this)">
+            </div>
+            
+            <div class="mdoc-col-nome" title="${doc.nome}">
+                ${doc.nome}
+            </div>
+            
+            <div class="mdoc-col-valor">
+                <input type="number" step="0.01" class="form-control mdoc-input-valor input-doc-valor" 
+                    placeholder="Padrão" value="${valorEspecifico}" 
+                    ${!isChecked ? 'disabled' : ''}>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+}
+
+window.toggleInputValor = function (checkbox) {
+    // Busca o input dentro da mesma linha (.mdoc-item-row)
+    const row = checkbox.closest('.mdoc-item-row');
+    const input = row.querySelector('.input-doc-valor');
+    if (input) {
+        input.disabled = !checkbox.checked;
+        if (!checkbox.checked) input.value = '';
+    }
+}
+
 function abrirModalTipoDoc() {
     document.getElementById('formTipoDoc').reset();
     document.getElementById('tipoDocId').value = '';
     document.getElementById('modalTipoDocLabel').textContent = 'Novo Tipo de Documentação';
 
-    const select = document.getElementById('tipoDocResponsavel');
-    if (select) {
-        Array.from(select.options).forEach(opt => opt.selected = false);
-        if (select.options.length <= 0 && listaDocumentistasCache.length > 0) {
-            listaDocumentistasCache.forEach(doc => select.add(new Option(doc.nome, doc.id)));
-        }
-    }
+    // Renderiza a lista vazia (nenhum marcado)
+    renderizarListaConfig([]);
     modalTipoDocInstance.show();
 }
 
-function editarTipoDoc(id, nome, idsDocumentistas) {
+function editarTipoDoc(id, nome, valorPadrao, configs) {
     document.getElementById('tipoDocId').value = id;
     document.getElementById('tipoDocNome').value = nome;
+    document.getElementById('tipoDocValorPadrao').value = valorPadrao || '';
 
-    const select = document.getElementById('tipoDocResponsavel');
-    if (select.options.length <= 0 && listaDocumentistasCache.length > 0) {
-        listaDocumentistasCache.forEach(doc => select.add(new Option(doc.nome, doc.id)));
-    }
-
-    if (idsDocumentistas && Array.isArray(idsDocumentistas)) {
-        Array.from(select.options).forEach(option => {
-            option.selected = idsDocumentistas.includes(parseInt(option.value));
-        });
-    }
+    // configs vem do objeto DTO no carregarTiposDoc
+    renderizarListaConfig(configs);
 
     document.getElementById('modalTipoDocLabel').textContent = 'Editar Tipo de Documentação';
     modalTipoDocInstance.show();
@@ -285,30 +345,44 @@ function editarTipoDoc(id, nome, idsDocumentistas) {
 
 async function salvarTipoDoc() {
     const id = document.getElementById('tipoDocId').value;
-    const nome = document.getElementById('tipoDocNome').value;
-    const select = document.getElementById('tipoDocResponsavel');
+    const nome = document.getElementById('tipoDocNome').value.trim();
+    const valorPadrao = document.getElementById('tipoDocValorPadrao').value;
 
-    if (!nome.trim()) {
+    if (!nome) {
         mostrarToast("O nome é obrigatório.", "warning");
         return;
     }
 
-    const selectedIds = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
+    // Coleta configurações
+    const configuracoes = [];
+    // Seleciona todas as linhas geradas
+    const rows = document.querySelectorAll('#listaDocumentistasConfig .mdoc-item-row');
+
+    rows.forEach(row => {
+        const checkbox = row.querySelector('.chk-doc-habilitar');
+        const inputValor = row.querySelector('.input-doc-valor');
+
+        if (checkbox && checkbox.checked) {
+            const valor = inputValor.value ? parseFloat(inputValor.value) : null;
+            configuracoes.push({
+                documentistaId: parseInt(checkbox.value),
+                valor: valor
+            });
+        }
+    });
 
     const payload = {
+        id: id ? parseInt(id) : null,
         nome: nome,
-        documentistas: selectedIds.map(id => ({ id: id }))
+        valorPadrao: valorPadrao ? parseFloat(valorPadrao) : null,
+        configuracoes: configuracoes
     };
 
-    const method = id ? 'PUT' : 'POST';
-    const url = id ? `${API_GERAL_URL}/${id}` : API_GERAL_URL;
-
-    // Loader ON
     toggleLoader(true);
 
     try {
-        const response = await fetchComAuth(url, {
-            method: method,
+        const response = await fetchComAuth(API_GERAL_URL, { // Confirme se API_GERAL_URL está apontando para /tipos-documentacao
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
@@ -318,13 +392,13 @@ async function salvarTipoDoc() {
             mostrarToast("Salvo com sucesso!", "success");
             await carregarTiposDoc();
         } else {
-            mostrarToast("Erro ao salvar.", "error");
+            const txt = await response.text();
+            mostrarToast("Erro ao salvar: " + txt, "error");
         }
     } catch (error) {
         console.error(error);
         mostrarToast("Erro de conexão.", "error");
     } finally {
-        // Loader OFF
         toggleLoader(false);
     }
 }

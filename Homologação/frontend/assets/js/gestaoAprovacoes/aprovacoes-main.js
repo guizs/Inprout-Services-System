@@ -620,7 +620,30 @@ async function carregarDashboardEBadges() {
 
         window.todosOsLancamentosGlobais = await resGeral.json();
         // === FILTRO DA SEPARAÇÃO (DOCS x ATIVIDADES) ===
+        // 1. No método carregarDashboardEBadges, altere a separação:
         const todasPendenciasGerais = await resPendAtiv.json();
+
+        // Filtro Inteligente: Admin vê tudo, Documentista vê só o dele
+        if (userRole === 'DOCUMENTIST') {
+            window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL' && String(l.documentistaId) === String(userId));
+        } else {
+            window.minhasDocsPendentes = todasPendenciasGerais.filter(l => l.statusDocumentacao && l.statusDocumentacao !== 'NAO_APLICAVEL');
+        }
+
+        // O restante vai para atividades
+        window.todasPendenciasAtividades = todasPendenciasGerais.filter(l => !l.statusDocumentacao || l.statusDocumentacao === 'NAO_APLICAVEL');
+
+        // 2. No final do carregarDashboardEBadges, corrija a inicialização:
+        if (abaAtivaAgora) {
+            const painelAtivoId = abaAtivaAgora.getAttribute('data-bs-target');
+            if (painelAtivoId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
+            else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
+            else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
+            else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
+            else if (painelAtivoId === '#minhas-docs-pane') {
+                initDocumentacaoTab(); // CHAMA APENAS ESTA FUNÇÃO
+            }
+        }
 
         // Separa o que é documentação do que é atividade normal
         // Assumindo que statusDocumentacao != null e != 'NAO_APLICAVEL' e documentistaId == userId indica item de doc

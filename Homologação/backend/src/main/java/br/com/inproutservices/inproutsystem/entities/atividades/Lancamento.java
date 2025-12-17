@@ -33,6 +33,7 @@ public class Lancamento {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "os_lpu_detalhe_id", nullable = false)
+    @JsonIgnore
     private OsLpuDetalhe osLpuDetalhe;
 
     // --- CAMPOS DO FLUXO DE APROVAÇÃO ---

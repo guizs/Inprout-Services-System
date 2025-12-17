@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app-backend:
+    build: .
+    container_name: inprout-monolito
+    ports:
+      - "8080:8080" # Mapeia a porta 8080 do container para a 8080 do servidor
+    environment:
+      - DB_URL=jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
+      - DB_USER=postgres
+      - DB_PASS=inpservices123
+      - JWT_SECRET=bWV1cHJvamV0b2lucHJvdXRzZWd1cmFuY2EyMDI1Y29tY2hhdmVzdXBlcmZvcnRl
+    restart: always

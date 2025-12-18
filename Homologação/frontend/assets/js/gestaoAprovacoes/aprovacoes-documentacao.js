@@ -9,8 +9,7 @@ let chartCarteiraInstance = null;
  * Chamado pelo aprovacoes-main.js ao entrar na aba
  */
 async function initDocumentacaoTab() {
-    console.log("Inicializando aba Documentação...");
-    
+
     // 1. Configura os listeners dos filtros (Radio Buttons)
     document.querySelectorAll('input[name="filtroDocStatus"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -99,7 +98,7 @@ function renderizarGraficoCarteira(dadosMensais) {
                 legend: { display: false }, // Esconde legenda pra economizar espaço
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             return formatarMoeda(context.raw);
                         }
                     }
@@ -137,21 +136,31 @@ function filtrarERenderizarDocs() {
  */
 function renderizarTabelaDocsVisual(lista) {
     const tbody = document.getElementById('tbody-minhas-docs');
-    const msgVazio = document.getElementById('msg-sem-docs');
-    
+    const msgVazio = document.getElementById('msg-sem-docs'); // O elemento que estava faltando
+
+    // Se não achar a tabela, para tudo para não dar erro
+    if (!tbody) return;
+
     tbody.innerHTML = '';
 
+    // Verifica se a lista está vazia
     if (lista.length === 0) {
-        msgVazio.classList.remove('d-none');
+        // Só tenta remover a classe se o elemento existir
+        if (msgVazio) {
+            msgVazio.classList.remove('d-none');
+        }
         return;
     } else {
-        msgVazio.classList.add('d-none');
+        // Só tenta adicionar a classe se o elemento existir
+        if (msgVazio) {
+            msgVazio.classList.add('d-none');
+        }
     }
 
     lista.forEach(l => {
         // Cálculo do SLA (Visual)
         const slaInfo = calcularSlaVisual(l.dataPrazoDoc);
-        
+
         // Definição do Badge de Status
         let statusBadge = '';
         if (l.statusDocumentacao === 'PENDENTE_RECEBIMENTO') {
@@ -165,7 +174,6 @@ function renderizarTabelaDocsVisual(lista) {
         // Botões de Ação
         let botoes = '';
         if (l.statusDocumentacao === 'EM_ANALISE') {
-            // Documentista pode finalizar ou devolver
             botoes = `
                 <div class="btn-group btn-group-sm">
                     <button class="btn btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Finalizar/Aprovar">
@@ -177,13 +185,13 @@ function renderizarTabelaDocsVisual(lista) {
                 </div>
             `;
         } else if (l.statusDocumentacao === 'PENDENTE_RECEBIMENTO') {
-            // Apenas visualiza, pois o Manager ainda não enviou
             botoes = `<span class="text-muted small fst-italic">Aguardando Gestor</span>`;
         }
 
         const tr = `
             <tr>
-                <td class="fw-bold text-muted">#${l.id}</td>
+                <td class="text-center">${botoes}</td>
+                <td class="text-center">${statusBadge}</td>
                 <td>
                     <div class="d-flex flex-column">
                         <span class="fw-bold text-dark">${l.os ? l.os.os : 'N/A'}</span>
@@ -195,18 +203,17 @@ function renderizarTabelaDocsVisual(lista) {
                         ${l.tipoDocumentacaoNome || 'Não Def.'}
                     </span>
                 </td>
-                <td>${statusBadge}</td>
-                <td>
+                <td class="text-center">
                     ${slaInfo.html}
                 </td>
-                <td class="fw-bold text-secondary">${formatarMoeda(l.valor)}</td>
+                <td class="fw-bold text-end text-secondary">${formatarMoeda(l.valor)}</td>
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="bi bi-person-circle text-secondary me-2"></i>
                         <span class="small">${l.manager ? l.manager.nome : '-'}</span>
                     </div>
                 </td>
-                <td class="text-end">${botoes}</td>
+                <td><span class="small text-muted">${l.assuntoEmail || '-'}</span></td>
             </tr>
         `;
         tbody.innerHTML += tr;
@@ -220,9 +227,9 @@ function calcularSlaVisual(dataPrazo) {
     if (!dataPrazo) return { html: '<span class="text-muted">-</span>' };
 
     const hoje = new Date();
-    hoje.setHours(0,0,0,0);
+    hoje.setHours(0, 0, 0, 0);
     const prazo = new Date(dataPrazo);
-    prazo.setHours(0,0,0,0);
+    prazo.setHours(0, 0, 0, 0);
 
     const diffTime = prazo - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -252,7 +259,7 @@ function attachDocButtonListeners() {
     // Finalizar (Já existia no main.js, mas vamos reforçar aqui ou deixar lá)
     // O main.js captura via 'document.addEventListener', então não precisamos reatar se usarmos delegação.
     // Mas para o botão "Devolver" (Novo), precisamos criar a lógica.
-    
+
     document.querySelectorAll('.btn-devolver-doc').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.id;
@@ -268,16 +275,16 @@ function abrirModalDevolverDoc(id) {
     const inputId = document.getElementById('recusarLancamentoId');
     const txtMotivo = document.getElementById('motivoRecusa');
     const modalTitle = document.getElementById('modalRecusarLabel');
-    
-    if(modalEl) {
+
+    if (modalEl) {
         inputId.value = id;
         txtMotivo.value = '';
         modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
         txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento errado...)";
-        
+
         // Marcamos um flag no form para o main.js saber que é uma recusa de DOC
         form.dataset.tipoRecusa = 'DOCUMENTACAO';
-        
+
         const modal = new bootstrap.Modal(modalEl);
         modal.show();
     }

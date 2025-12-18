@@ -707,11 +707,6 @@ function configurarVisibilidadePorRole() {
         const dashboardSuperior = document.querySelector('.overview-card');
         if (dashboardSuperior) dashboardSuperior.style.setProperty('display', 'none', 'important');
 
-        // 2. REMOVE A LINHA DE CARDS E GRÁFICO DENTRO DA ABA (O "espação" interno)
-        // Isso remove os cards "A Receber", "Finalizado" e o Gráfico de Evolução
-        const kpiRow = document.querySelector('#minhas-docs-pane .row.mb-4');
-        if (kpiRow) kpiRow.style.setProperty('display', 'none', 'important');
-
         // 3. ESCONDE TODAS AS OUTRAS ABAS
         const abasParaEsconder = [
             'atividades-tab', 'historico-atividades-tab', 'cps-pendencias-tab',

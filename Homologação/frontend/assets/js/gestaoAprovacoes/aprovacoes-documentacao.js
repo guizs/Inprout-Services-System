@@ -36,22 +36,34 @@ async function initDocumentacaoTab() {
  * Busca dados financeiros e atualiza Cards + Gráfico
  */
 async function carregarCarteiraDoc() {
+    const userId = localStorage.getItem('usuarioId'); 
+    
     try {
+        if (!userId) {
+            console.warn("Usuário não identificado para carregar carteira.");
+            return;
+        }
+
         // Usa o endpoint novo que criamos no Backend
         const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
         const carteira = await response.json();
 
         // 1. Atualiza Cards
-        document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
-        document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
-        document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
+        if(document.getElementById('doc-carteira-previsto'))
+            document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
+        
+        if(document.getElementById('doc-carteira-finalizado'))
+            document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
+        
+        if(document.getElementById('doc-carteira-total'))
+            document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
 
         // 2. Renderiza Gráfico
         renderizarGraficoCarteira(carteira.historicoMensal);
 
     } catch (error) {
         console.error("Erro ao carregar carteira:", error);
-        mostrarToast("Não foi possível carregar os dados financeiros.", "error");
+        // Não mostrar erro na tela para não assustar o user se for apenas delay
     }
 }
 
@@ -95,7 +107,7 @@ function renderizarGraficoCarteira(dadosMensais) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false }, // Esconde legenda pra economizar espaço
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
                         label: function (context) {
@@ -106,7 +118,7 @@ function renderizarGraficoCarteira(dadosMensais) {
             },
             scales: {
                 x: { stacked: true, grid: { display: false } },
-                y: { stacked: true, display: false } // Esconde eixo Y pra ficar limpo
+                y: { stacked: true, display: false }
             }
         }
     });
@@ -117,7 +129,8 @@ function renderizarGraficoCarteira(dadosMensais) {
  */
 function filtrarERenderizarDocs() {
     const listaCompleta = window.minhasDocsPendentes || [];
-    const filtro = document.querySelector('input[name="filtroDocStatus"]:checked').value;
+    const filtroEl = document.querySelector('input[name="filtroDocStatus"]:checked');
+    const filtro = filtroEl ? filtroEl.value : 'TODOS';
 
     let listaFiltrada = listaCompleta;
 
@@ -126,42 +139,49 @@ function filtrarERenderizarDocs() {
     } else if (filtro === 'PENDENTE_RECEBIMENTO') {
         listaFiltrada = listaCompleta.filter(l => l.statusDocumentacao === 'PENDENTE_RECEBIMENTO');
     }
-    // Se for 'TODOS', não filtra nada (mostra tudo que é pendente)
 
     renderizarTabelaDocsVisual(listaFiltrada);
 }
 
 /**
- * Renderiza o HTML da tabela
+ * Renderiza o HTML da tabela (Versão Corrigida)
  */
 function renderizarTabelaDocsVisual(lista) {
     const tbody = document.getElementById('tbody-minhas-docs');
-    const msgVazio = document.getElementById('msg-sem-docs'); // O elemento que estava faltando
+    const msgVazio = document.getElementById('msg-sem-docs');
 
-    // Se não achar a tabela, para tudo para não dar erro
     if (!tbody) return;
 
     tbody.innerHTML = '';
 
-    // Verifica se a lista está vazia
+    // Verifica se a lista está vazia e mostra mensagem
     if (lista.length === 0) {
-        // Só tenta remover a classe se o elemento existir
-        if (msgVazio) {
-            msgVazio.classList.remove('d-none');
-        }
+        if (msgVazio) msgVazio.classList.remove('d-none');
         return;
     } else {
-        // Só tenta adicionar a classe se o elemento existir
-        if (msgVazio) {
-            msgVazio.classList.add('d-none');
-        }
+        if (msgVazio) msgVazio.classList.add('d-none');
     }
 
     lista.forEach(l => {
         // Cálculo do SLA (Visual)
         const slaInfo = calcularSlaVisual(l.dataPrazoDoc);
+        
+        // CORREÇÃO 1: Mapeamento do Item LPU
+        // Tenta pegar do detalhe (Item + Descrição), senão pega a OS, senão traço
+        let itemLpuTexto = '-';
+        if (l.detalhe) {
+            const itemCode = l.detalhe.item || '';
+            const itemDesc = l.detalhe.objetoContratado || '';
+            itemLpuTexto = `<span class="fw-bold text-dark">${itemCode}</span><br><span class="small text-muted text-truncate d-inline-block" style="max-width: 200px;" title="${itemDesc}">${itemDesc}</span>`;
+        } else if (l.os) {
+            itemLpuTexto = `<span class="fw-bold">${l.os.os}</span>`;
+        }
 
-        // Definição do Badge de Status
+        // CORREÇÃO 2: Mapeamento do Responsável (Documentista ou Manager)
+        // Prioriza o nome do documentista
+        const responsavelNome = l.documentistaNome || (l.manager ? l.manager.nome : '-');
+
+        // Status Badge
         let statusBadge = '';
         if (l.statusDocumentacao === 'PENDENTE_RECEBIMENTO') {
             statusBadge = `<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Aguardando Envio</span>`;
@@ -172,11 +192,12 @@ function renderizarTabelaDocsVisual(lista) {
         }
 
         // Botões de Ação
+        // Adicionei classes específicas para capturar o clique e mostrar loading
         let botoes = '';
         if (l.statusDocumentacao === 'EM_ANALISE') {
             botoes = `
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Finalizar/Aprovar">
+                    <button class="btn btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Aprovar Documentação">
                         <i class="bi bi-check-lg"></i>
                     </button>
                     <button class="btn btn-outline-danger btn-devolver-doc" data-id="${l.id}" title="Devolver/Rejeitar">
@@ -193,10 +214,8 @@ function renderizarTabelaDocsVisual(lista) {
                 <td class="text-center">${botoes}</td>
                 <td class="text-center">${statusBadge}</td>
                 <td>
-                    <div class="d-flex flex-column">
-                        <span class="fw-bold text-dark">${l.os ? l.os.os : 'N/A'}</span>
-                        <small class="text-muted" style="font-size: 0.75rem;">ID: ${l.id}</small>
-                    </div>
+                    ${itemLpuTexto}
+                    <div class="small text-muted mt-1">OS: ${l.os ? l.os.os : 'N/A'} | ID: ${l.id}</div>
                 </td>
                 <td>
                     <span class="badge bg-light text-dark border">
@@ -206,11 +225,11 @@ function renderizarTabelaDocsVisual(lista) {
                 <td class="text-center">
                     ${slaInfo.html}
                 </td>
-                <td class="fw-bold text-end text-secondary">${formatarMoeda(l.valor)}</td>
+                <td class="fw-bold text-end text-secondary">${formatarMoeda(l.valor || 0)}</td>
                 <td>
                     <div class="d-flex align-items-center">
                         <i class="bi bi-person-circle text-secondary me-2"></i>
-                        <span class="small">${l.manager ? l.manager.nome : '-'}</span>
+                        <span class="small">${responsavelNome}</span>
                     </div>
                 </td>
                 <td><span class="small text-muted">${l.assuntoEmail || '-'}</span></td>
@@ -219,7 +238,7 @@ function renderizarTabelaDocsVisual(lista) {
         tbody.innerHTML += tr;
     });
 
-    // Reata listeners dos botões recém-criados
+    // Reata listeners
     attachDocButtonListeners();
 }
 
@@ -239,15 +258,15 @@ function calcularSlaVisual(dataPrazo) {
     let texto = formatarData(dataPrazo);
 
     if (diffDays < 0) {
-        classe = 'bg-danger'; // Atrasado
+        classe = 'bg-danger'; 
         icone = 'bi-exclamation-triangle';
-        texto += ` (${Math.abs(diffDays)}d atraso)`;
+        texto += ` (${Math.abs(diffDays)}d)`;
     } else if (diffDays === 0) {
-        classe = 'bg-warning text-dark'; // Vence hoje
+        classe = 'bg-warning text-dark';
         icone = 'bi-alarm';
-        texto = 'Vence Hoje!';
+        texto = 'Hoje';
     } else if (diffDays <= 2) {
-        classe = 'bg-info text-dark'; // Perto
+        classe = 'bg-info text-dark';
     }
 
     return {
@@ -256,10 +275,29 @@ function calcularSlaVisual(dataPrazo) {
 }
 
 function attachDocButtonListeners() {
-    // Finalizar (Já existia no main.js, mas vamos reforçar aqui ou deixar lá)
-    // O main.js captura via 'document.addEventListener', então não precisamos reatar se usarmos delegação.
-    // Mas para o botão "Devolver" (Novo), precisamos criar a lógica.
+    // CORREÇÃO 4: Feedback Visual de Carregamento (Loading)
+    // Quando clicar em Aprovar, muda o ícone para um spinner enquanto abre o modal
+    document.querySelectorAll('.btn-finalizar-doc').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            // O listener global do main.js vai capturar isso também para abrir o modal,
+            // aqui só cuidamos da estética para o usuário sentir que funcionou.
+            const icon = this.querySelector('i');
+            if(icon) {
+                icon.classList.remove('bi-check-lg');
+                icon.classList.add('spinner-border', 'spinner-border-sm');
+                this.disabled = true; // Evita duplo clique
+                
+                // Restaura o botão após 3 segundos (caso o modal demore ou falhe)
+                setTimeout(() => {
+                    icon.classList.remove('spinner-border', 'spinner-border-sm');
+                    icon.classList.add('bi-check-lg');
+                    this.disabled = false;
+                }, 3000);
+            }
+        });
+    });
 
+    // Lógica do botão Devolver (Rejeitar)
     document.querySelectorAll('.btn-devolver-doc').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.id;
@@ -269,8 +307,7 @@ function attachDocButtonListeners() {
 }
 
 function abrirModalDevolverDoc(id) {
-    // Reutiliza o modal de Recusa genérico, mas adapta os textos
-    const modalEl = document.getElementById('modalRecusarLancamento'); // Usando o modal de recusa existente
+    const modalEl = document.getElementById('modalRecusarLancamento');
     const form = document.getElementById('formRecusarLancamento');
     const inputId = document.getElementById('recusarLancamentoId');
     const txtMotivo = document.getElementById('motivoRecusa');
@@ -278,11 +315,10 @@ function abrirModalDevolverDoc(id) {
 
     if (modalEl) {
         inputId.value = id;
-        txtMotivo.value = '';
-        modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
-        txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento errado...)";
+        if(txtMotivo) txtMotivo.value = '';
+        if(modalTitle) modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
+        if(txtMotivo) txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento incorreto...)";
 
-        // Marcamos um flag no form para o main.js saber que é uma recusa de DOC
         form.dataset.tipoRecusa = 'DOCUMENTACAO';
 
         const modal = new bootstrap.Modal(modalEl);

@@ -1,3 +1,32 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const userRole = localStorage.getItem('userRole');
+    
+    if (userRole === 'DOCUMENTIST') {
+        // Seleciona o link que envolve a logo na navbar (busca pela imagem com a classe logo-navbar)
+        const logoImg = document.querySelector('img.logo-navbar');
+        if (logoImg) {
+            const linkLogo = logoImg.closest('a');
+            if (linkLogo) {
+                // Remove o href original
+                linkLogo.removeAttribute('href');
+                linkLogo.style.cursor = 'pointer';
+                
+                // Adiciona evento de clique para redirecionar para a tela permitida
+                linkLogo.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Redireciona para gestão de aprovações (ajustando caminho relativo se necessário)
+                    const currentPath = window.location.pathname;
+                    if (currentPath.includes('pages/')) {
+                        window.location.href = 'gestaoAprovacoes.html';
+                    } else {
+                        window.location.href = 'pages/gestaoAprovacoes.html';
+                    }
+                });
+            }
+        }
+    }
+});
+
 // Verifica a URL atual para ajustar o caminho do arquivo sidebar.html
 let sidebarPath;
 

@@ -252,25 +252,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-    if (userRole === 'DOCUMENTIST') {
-        // Seleciona o link que envolve a logo (ajuste o seletor '.navbar-brand' ou '#logo-link' conforme seu HTML)
-        const logoLink = document.querySelector('.navbar-brand, .sidebar-brand, a[href="index.html"], a[href="../index.html"]');
-
-        if (logoLink) {
-            // Remove o href padrão e força o redirecionamento para gestão
-            logoLink.removeAttribute('href');
-            logoLink.style.cursor = 'pointer';
-            logoLink.addEventListener('click', function (e) {
-                e.preventDefault();
-                // Verifica se já não está na página para evitar reload desnecessário (opcional)
-                if (!window.location.pathname.includes('gestaoAprovacoes.html')) {
-                    window.location.href = 'pages/gestaoAprovacoes.html'; // Ajuste o caminho relativo se necessário
-                }
-            });
-        }
-    }
-
 });
 
 // Corrige cache quando navega com botão "voltar" do navegador

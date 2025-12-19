@@ -50,9 +50,18 @@ document.getElementById('formLogin').addEventListener('submit', async (event) =>
             localStorage.setItem('segmentos', JSON.stringify(data.segmentos));
 
             mostrarMensagem('Login bem-sucedido! Redirecionando...', 'success');
+
             setTimeout(() => {
-                window.location.href = 'index.html';
+
+                if (data.role === 'DOCUMENTIST') {
+                    window.location.href = 'pages/gestaoAprovacoes.html';
+                } else {
+
+                    window.location.href = 'index.html';
+                }
+                // ----------------------
             }, 1000);
+
         } else {
             const erroTexto = await response.text(); // Pega a mensagem de erro do backend
             mostrarMensagem(erroTexto || 'E-mail ou senha inválidos!', 'error');

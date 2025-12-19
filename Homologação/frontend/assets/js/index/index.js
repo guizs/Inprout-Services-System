@@ -17,26 +17,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const allowedRoles = ['MANAGER', 'ADMIN'];
 
-    // --- AJUSTE 3: Visibilidade da Aba Docs. Pendentes ---
+    // --- CORREÇÃO: Visibilidade da Aba Docs. Pendentes ---
     if (!allowedRoles.includes(userRole)) {
+        // Tenta achar pelo ID (caso você adicione no HTML)
         let tabDocs = document.getElementById('tab-docs-pendentes');
 
+        // Se não achar pelo ID, procura pelo texto dentro das abas
         if (!tabDocs) {
-            const allTabs = document.querySelectorAll('.nav-tabs .nav-link, .nav-tabs li');
+            const allTabs = document.querySelectorAll('.nav-tabs .nav-link');
             allTabs.forEach(tab => {
-                if (tab.innerText.includes('Docs. Pendentes') || tab.innerText.includes('Documentações Pendentes')) {
+                const text = tab.textContent.trim().toLowerCase();
+                // Verifica variações do nome
+                if (text.includes('docs. pendentes') || text.includes('pendentes doc') || text.includes('documentação')) {
                     tabDocs = tab;
                 }
             });
         }
 
-        // Oculta a aba se encontrada
+        // Remove a aba (o botão) e o painel correspondente se existirem
         if (tabDocs) {
-            tabDocs.style.display = 'none'; // Esconde visualmente
-            // Se for um <li>, esconde o pai
-            if (tabDocs.tagName === 'A') {
-                tabDocs.parentElement.style.display = 'none';
-            }
+            // Esconde o botão da aba (li ou button)
+            const liParent = tabDocs.closest('li');
+            if (liParent) liParent.style.display = 'none';
+            else tabDocs.style.display = 'none';
         }
     }
 

@@ -24,26 +24,16 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const userRole = localStorage.getItem('userRole');
 
-    const tabDocumentacao = document.getElementById('tab-documentacao') ||
-        document.querySelector('a[href="#documentacao"]'); // Seletor alternativo pelo href
+    // Busca a aba pelo ID que acabamos de colocar/confirmar no HTML
+    const tabDocumentacao = document.getElementById('minhas-docs-tab');
 
     if (tabDocumentacao) {
         if (userRole === 'DOCUMENTIST') {
-            // Para documentista: "Minhas documentações"
-            // Mantém o ícone se houver (assumindo que o texto é o último nó ou usando innerHTML com cuidado)
-            if (tabDocumentacao.querySelector('i')) {
-                // Se tem ícone, muda apenas o nó de texto
-                tabDocumentacao.innerHTML = tabDocumentacao.innerHTML.replace(/Documentação|Minhas documentações/g, 'Minhas documentações');
-            } else {
-                tabDocumentacao.innerText = 'Minhas documentações';
-            }
+            // Documentista: Ícone + "Minhas documentações"
+            tabDocumentacao.innerHTML = '<i class="bi bi-folder2-open me-1"></i> Minhas documentações';
         } else {
-            // Para outros (Gestor, Coordenador): "Documentação"
-            if (tabDocumentacao.querySelector('i')) {
-                tabDocumentacao.innerHTML = tabDocumentacao.innerHTML.replace(/Minhas documentações|Documentação/g, 'Documentação');
-            } else {
-                tabDocumentacao.innerText = 'Documentação';
-            }
+            // Outros: Ícone + "Documentação"
+            tabDocumentacao.innerHTML = '<i class="bi bi-folder2-open me-1"></i> Documentação';
         }
     }
 

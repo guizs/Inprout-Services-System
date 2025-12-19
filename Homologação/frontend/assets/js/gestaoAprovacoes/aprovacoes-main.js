@@ -22,6 +22,31 @@ document.addEventListener('DOMContentLoaded', async function () {
         });
     }
 
+    const userRole = localStorage.getItem('userRole');
+
+    const tabDocumentacao = document.getElementById('tab-documentacao') ||
+        document.querySelector('a[href="#documentacao"]'); // Seletor alternativo pelo href
+
+    if (tabDocumentacao) {
+        if (userRole === 'DOCUMENTIST') {
+            // Para documentista: "Minhas documentações"
+            // Mantém o ícone se houver (assumindo que o texto é o último nó ou usando innerHTML com cuidado)
+            if (tabDocumentacao.querySelector('i')) {
+                // Se tem ícone, muda apenas o nó de texto
+                tabDocumentacao.innerHTML = tabDocumentacao.innerHTML.replace(/Documentação|Minhas documentações/g, 'Minhas documentações');
+            } else {
+                tabDocumentacao.innerText = 'Minhas documentações';
+            }
+        } else {
+            // Para outros (Gestor, Coordenador): "Documentação"
+            if (tabDocumentacao.querySelector('i')) {
+                tabDocumentacao.innerHTML = tabDocumentacao.innerHTML.replace(/Minhas documentações|Documentação/g, 'Documentação');
+            } else {
+                tabDocumentacao.innerText = 'Documentação';
+            }
+        }
+    }
+
     // 2. Carregamento Inicial
     const abaInicial = document.querySelector('#aprovacoesTab .nav-link.active');
     if (abaInicial) {

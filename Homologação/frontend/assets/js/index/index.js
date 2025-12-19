@@ -15,6 +15,31 @@ document.addEventListener('DOMContentLoaded', () => {
         direction: 'desc'
     };
 
+    const allowedRoles = ['MANAGER', 'ADMIN'];
+
+    // --- AJUSTE 3: Visibilidade da Aba Docs. Pendentes ---
+    if (!allowedRoles.includes(userRole)) {
+        let tabDocs = document.getElementById('tab-docs-pendentes');
+
+        if (!tabDocs) {
+            const allTabs = document.querySelectorAll('.nav-tabs .nav-link, .nav-tabs li');
+            allTabs.forEach(tab => {
+                if (tab.innerText.includes('Docs. Pendentes') || tab.innerText.includes('Documentações Pendentes')) {
+                    tabDocs = tab;
+                }
+            });
+        }
+
+        // Oculta a aba se encontrada
+        if (tabDocs) {
+            tabDocs.style.display = 'none'; // Esconde visualmente
+            // Se for um <li>, esconde o pai
+            if (tabDocs.tagName === 'A') {
+                tabDocs.parentElement.style.display = 'none';
+            }
+        }
+    }
+
     const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
     const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 

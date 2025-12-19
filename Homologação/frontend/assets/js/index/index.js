@@ -15,34 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
         direction: 'desc'
     };
 
-    const allowedRoles = ['MANAGER', 'ADMIN'];
-
-    // --- CORREÇÃO: Visibilidade da Aba Docs. Pendentes ---
-    if (!allowedRoles.includes(userRole)) {
-        // Tenta achar pelo ID (caso você adicione no HTML)
-        let tabDocs = document.getElementById('tab-docs-pendentes');
-
-        // Se não achar pelo ID, procura pelo texto dentro das abas
-        if (!tabDocs) {
-            const allTabs = document.querySelectorAll('.nav-tabs .nav-link');
-            allTabs.forEach(tab => {
-                const text = tab.textContent.trim().toLowerCase();
-                // Verifica variações do nome
-                if (text.includes('docs. pendentes') || text.includes('pendentes doc') || text.includes('documentação')) {
-                    tabDocs = tab;
-                }
-            });
-        }
-
-        // Remove a aba (o botão) e o painel correspondente se existirem
-        if (tabDocs) {
-            // Esconde o botão da aba (li ou button)
-            const liParent = tabDocs.closest('li');
-            if (liParent) liParent.style.display = 'none';
-            else tabDocs.style.display = 'none';
-        }
-    }
-
     const formatarMoeda = (valor) => (valor || valor === 0) ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor) : '';
     const formatarData = (data) => data ? data.split('-').reverse().join('/') : '';
 
@@ -180,6 +152,34 @@ document.addEventListener('DOMContentLoaded', () => {
             if (kpiPendenteContainer) {
                 kpiPendenteContainer.classList.remove('d-none');
                 kpiPendenteContainer.classList.add('d-flex');
+            }
+        }
+
+        const allowedRoles = ['MANAGER', 'ADMIN'];
+
+        // --- CORREÇÃO: Visibilidade da Aba Docs. Pendentes ---
+        if (!allowedRoles.includes(userRole)) {
+            // Tenta achar pelo ID (caso você adicione no HTML)
+            let tabDocs = document.getElementById('tab-docs-pendentes');
+
+            // Se não achar pelo ID, procura pelo texto dentro das abas
+            if (!tabDocs) {
+                const allTabs = document.querySelectorAll('.nav-tabs .nav-link');
+                allTabs.forEach(tab => {
+                    const text = tab.textContent.trim().toLowerCase();
+                    // Verifica variações do nome
+                    if (text.includes('docs. pendentes') || text.includes('pendentes doc') || text.includes('documentação')) {
+                        tabDocs = tab;
+                    }
+                });
+            }
+
+            // Remove a aba (o botão) e o painel correspondente se existirem
+            if (tabDocs) {
+                // Esconde o botão da aba (li ou button)
+                const liParent = tabDocs.closest('li');
+                if (liParent) liParent.style.display = 'none';
+                else tabDocs.style.display = 'none';
             }
         }
 

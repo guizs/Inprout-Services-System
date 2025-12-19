@@ -252,6 +252,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    function desabilitarLinkLogoParaDocumentista() {
+        const role = localStorage.getItem('role'); // Pega a permissão salva
+
+        if (role === 'DOCUMENTIST') {
+            // Seletor padrão do Bootstrap para a logo (.navbar-brand)
+            // Se sua logo tiver um ID específico, use: document.getElementById('id-da-logo')
+            const logos = document.querySelectorAll('.navbar-brand, .sidebar-brand, a.logo-link');
+
+            logos.forEach(logo => {
+                if (logo) {
+                    // Remove o destino do link
+                    logo.removeAttribute('href');
+                    // Remove visualmente o cursor de clique
+                    logo.style.cursor = 'default';
+                    // Impede eventos de clique via CSS
+                    logo.style.pointerEvents = 'none';
+                    // Opcional: Adiciona um title explicando
+                    logo.setAttribute('title', 'Navegação desabilitada para este perfil');
+                }
+            });
+        }
+    }
+
+    desabilitarLinkLogoParaDocumentista();
+
 });
 
 // Corrige cache quando navega com botão "voltar" do navegador
@@ -261,4 +286,3 @@ window.addEventListener('pageshow', (event) => {
         window.location.reload();
     }
 });
-

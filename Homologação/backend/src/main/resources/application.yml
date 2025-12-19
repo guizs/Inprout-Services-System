@@ -1,15 +1,18 @@
 spring:
-  #datasource:
-    #url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
-    #username: ${DB_USER:postgres}
-    #password: ${DB_PASS:inpservices123}
-    #driver-class-name: org.postgresql.Driver
-
   datasource:
-    url: ${DB_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASS:inpservices123}
-    driver-class-name: org.postgresql.Driver
+    # Configuração do Banco Principal (Lê as vars DB_...)
+    primary:
+      jdbc-url: ${DB_URL:jdbc:postgresql://localhost:5432/inpdatabase_v1}
+      username: ${DB_USER:postgres}
+      password: ${DB_PASS:inpservices123}
+      driver-class-name: org.postgresql.Driver
+
+    # Configuração do Banco Homologação (Lê as vars DB_HOMOLOG_...)
+    homolog:
+      jdbc-url: ${DB_HOMOLOG_URL:jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog}
+      username: ${DB_HOMOLOG_USER:postgres}
+      password: ${DB_HOMOLOG_PASS:inpservices123}
+      driver-class-name: org.postgresql.Driver
 
   hikari:
     maximum-pool-size: 10

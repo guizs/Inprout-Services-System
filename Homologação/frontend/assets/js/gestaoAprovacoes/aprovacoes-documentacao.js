@@ -64,14 +64,17 @@ async function initDocumentacaoTab() {
  * Carrega a lista de usuários 'DOCUMENTIST' no select para o ADMIN filtrar
  */
 async function carregarComboDocumentistas() {
-    const role = localStorage.getItem('userRole');
+    // --- CORREÇÃO AQUI: Mudamos de 'userRole' para 'role' ---
+    const role = localStorage.getItem('role'); 
+    
     const container = document.getElementById('container-filtro-documentista');
     const select = document.getElementById('filtro-documentista-carteira');
 
-    // Se não tiver permissão ou os elementos não existirem, aborta
-    if (!['ADMIN', 'CONTROLLER', 'MANAGER'].includes(role)) {
+    // Só exibe para ADMIN, CONTROLLER ou MANAGER
+    if (!role || !['ADMIN', 'CONTROLLER', 'MANAGER'].includes(role.toUpperCase())) {
         return;
     }
+
     if (!container || !select) return;
 
     container.classList.remove('d-none'); // Mostra o filtro

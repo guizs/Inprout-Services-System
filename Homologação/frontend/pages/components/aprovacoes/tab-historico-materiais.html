@@ -18,3 +18,48 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="modalAprovarLoteMateriais" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-all me-2"></i>Aprovar Materiais</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">Deseja realmente aprovar <strong id="qtd-aprovar-materiais">0</strong> solicitações selecionadas?</p>
+                <p class="text-muted small mt-2">Essa ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success btn-sm" onclick="confirmarAprovacaoLoteMateriais()">
+                    Confirmar Aprovação
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalRejeitarLoteMateriais" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-x-circle me-2"></i>Rejeitar Materiais</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Você está rejeitando <strong id="qtd-rejeitar-materiais">0</strong> solicitações.</p>
+                <div class="mb-3">
+                    <label for="motivoRejeicaoLoteMateriais" class="form-label">Motivo da Rejeição <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="motivoRejeicaoLoteMateriais" rows="3" placeholder="Digite o motivo..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger btn-sm" onclick="confirmarRejeicaoLoteMateriais()">
+                    Confirmar Rejeição
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

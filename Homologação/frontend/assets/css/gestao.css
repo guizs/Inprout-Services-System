@@ -355,9 +355,3 @@ body {
 body:has(.overview-card[style*="display: none"]) .container-fluid.my-4 {
     margin-top: 10px !important;
 }
-
-#acoes-lote-container {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}

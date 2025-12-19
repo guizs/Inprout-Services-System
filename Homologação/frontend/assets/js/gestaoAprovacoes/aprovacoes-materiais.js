@@ -3,6 +3,10 @@
 // ==========================================================
 
 let selecionadosMateriais = [];
+window.aprovarLoteMateriais = aprovarLoteMateriais;
+window.rejeitarLoteMateriais = rejeitarLoteMateriais;
+window.confirmarAprovacaoLoteMateriais = confirmarAprovacaoLoteMateriais;
+window.confirmarRejeicaoLoteMateriais = confirmarRejeicaoLoteMateriais;
 
 async function carregarDadosMateriais() {
     const tbodyPendentesMateriais = document.getElementById('tbody-pendentes-materiais');
@@ -49,7 +53,7 @@ async function carregarDadosHistoricoMateriais() {
 function renderizarTabelaPendentesMateriais() {
     const tbody = document.getElementById('tbody-pendentes-materiais');
     const thead = document.getElementById('thead-pendentes-materiais');
-    const acoesLoteContainer = document.getElementById('acoes-lote-container');
+    const acoesLoteContainer = document.getElementById('acoes-lote-materiais-container');
 
     if (!tbody || !thead) return;
 
@@ -268,27 +272,52 @@ function atualizarArraySelecao(id, checked) {
 }
 
 function atualizarUISelecao() {
-    const container = document.getElementById('acoes-lote-container');
+    const container = document.getElementById('acoes-lote-materiais-container');
     const contador = document.getElementById('contador-selecionados');
 
     console.log("Atualizando UI. Selecionados:", selecionadosMateriais.length);
 
-    if (!container) return;
+    if (!container) {
+        console.error("Container de ações em lote não encontrado!");
+        return;
+    }
 
     if (selecionadosMateriais.length > 0) {
+        // 1. Remove a classe que esconde
         container.classList.remove('d-none');
+        
+        // 2. FORÇA o display flex via estilo direto (Isso garante que apareça)
+        container.style.display = 'flex';
+        container.style.alignItems = 'center'; // Alinha verticalmente o texto e botões
+        
         if (contador) contador.innerText = `${selecionadosMateriais.length} selecionados`;
     } else {
+        // Esconde novamente
         container.classList.add('d-none');
+        container.style.display = 'none'; 
     }
 }
 
 // --- FUNÇÕES DE API PARA LOTE ---
 
-async function aprovarLoteMateriais() {
+function aprovarLoteMateriais() {
     if (selecionadosMateriais.length === 0) return;
 
-    if (!confirm(`Confirma a aprovação de ${selecionadosMateriais.length} solicitações?`)) return;
+    // Atualiza o texto do modal com a quantidade
+    const spanQtd = document.getElementById('qtd-aprovar-materiais');
+    if (spanQtd) spanQtd.innerText = selecionadosMateriais.length;
+
+    // Abre o modal do Bootstrap
+    const modalEl = document.getElementById('modalAprovarLoteMateriais');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function confirmarAprovacaoLoteMateriais() {
+    // Fecha o modal
+    const modalEl = document.getElementById('modalAprovarLoteMateriais');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
 
     toggleLoader(true, '#materiais-pane');
 
@@ -314,7 +343,7 @@ async function aprovarLoteMateriais() {
         if (!response.ok) throw new Error("Erro ao processar aprovação em lote.");
 
         mostrarToast("Solicitações aprovadas com sucesso!", "success");
-        await carregarDadosMateriais();
+        await carregarDadosMateriais(); // Recarrega a tabela
 
     } catch (error) {
         console.error(error);
@@ -324,15 +353,34 @@ async function aprovarLoteMateriais() {
     }
 }
 
-async function rejeitarLoteMateriais() {
+function rejeitarLoteMateriais() {
     if (selecionadosMateriais.length === 0) return;
 
-    const motivo = prompt("Digite o motivo para rejeitar as solicitações selecionadas:");
-    if (motivo === null) return;
-    if (!motivo.trim()) {
+    // Atualiza quantidade e limpa o campo de texto
+    const spanQtd = document.getElementById('qtd-rejeitar-materiais');
+    if (spanQtd) spanQtd.innerText = selecionadosMateriais.length;
+    
+    document.getElementById('motivoRejeicaoLoteMateriais').value = '';
+
+    // Abre o modal
+    const modalEl = document.getElementById('modalRejeitarLoteMateriais');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+// 4. Função chamada ao clicar em "Confirmar" DENTRO do modal de Rejeição
+async function confirmarRejeicaoLoteMateriais() {
+    const motivo = document.getElementById('motivoRejeicaoLoteMateriais').value;
+
+    if (!motivo || !motivo.trim()) {
         mostrarToast("O motivo é obrigatório para rejeição.", "warning");
         return;
     }
+
+    // Fecha o modal
+    const modalEl = document.getElementById('modalRejeitarLoteMateriais');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
 
     toggleLoader(true, '#materiais-pane');
 

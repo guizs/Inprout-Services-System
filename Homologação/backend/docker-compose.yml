@@ -8,16 +8,14 @@ services:
       - "8080:8080"
     environment:
       # --- Conexão 1 (Local/Principal) ---
-      # Nota: Dentro do Docker, 'localhost' refere-se ao container.
-      # Para acessar o banco da sua máquina host, use 'host.docker.internal' (Windows/Mac) ou o IP da rede.
-      #- DB_URL=jdbc:postgresql://host.docker.internal:5432/inpdatabase_v1
-      #- DB_USER=postgres
-      #- DB_PASS=inpservices123
+      - DB_URL=jdbc:postgresql://host.docker.internal:5432/inpdatabase_v1
+      - DB_USER=postgres
+      - DB_PASS=inpservices123
 
       # --- Conexão 2 (Homologação/Remoto) ---
-      - DB_HOMOLOG_URL=jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
-      - DB_HOMOLOG_USER=postgres
-      - DB_HOMOLOG_PASS=inpservices123
+      #- DB_HOMOLOG_URL=jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
+      #- DB_HOMOLOG_USER=postgres
+      #- DB_HOMOLOG_PASS=inpservices123
 
       # --- Outras Configurações ---
       - JWT_SECRET=bWV1cHJvamV0b2lucHJvdXRzZWd1cmFuY2EyMDI1Y29tY2hhdmVzdXBlcmZvcnRl

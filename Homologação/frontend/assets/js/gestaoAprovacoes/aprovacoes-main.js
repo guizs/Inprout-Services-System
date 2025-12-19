@@ -43,7 +43,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             else if (painelAtivoId === '#materiais-pane') renderizarTabelaPendentesMateriais();
             else if (painelAtivoId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
             else if (painelAtivoId === '#cps-pendencias-pane') { initFiltrosCPS(); carregarPendenciasCPS(); }
-            else if (painelAtivoId === '#minhas-docs-pane') renderizarTabelaDocs(window.minhasDocsPendentes || []);
             else if (painelAtivoId === '#minhas-docs-pane') {
                 initDocumentacaoTab();
             }
@@ -61,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (targetPaneId === '#atividades-pane') renderizarAcordeonPendencias(window.todasPendenciasAtividades);
             else if (targetPaneId === '#materiais-pane') renderizarTabelaPendentesMateriais();
             else if (targetPaneId === '#complementares-pane') renderizarTabelaPendentesComplementares(window.todasPendenciasComplementares);
-            else if (targetPaneId === '#minhas-docs-pane') renderizarTabelaDocs(window.minhasDocsPendentes || []);
 
             // Abas de Histórico (carregam sob demanda)
             else if (targetPaneId === '#historico-atividades-pane' && targetPane.dataset.loaded !== 'true') {

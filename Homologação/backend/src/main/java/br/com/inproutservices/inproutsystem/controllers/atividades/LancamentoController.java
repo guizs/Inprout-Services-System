@@ -151,8 +151,9 @@ public class LancamentoController {
                     dto.dataCompetencia(),
                     dto.valorAdiantamento(),
                     dto.valorSolicitadoAdiantamento(),
+                    dto.valorDocumentista(), // <--- CAMPO ADICIONADO AQUI
 
-                    // --- NOVOS CAMPOS QUE FALTAVAM ---
+                    // --- CAMPOS DE DOCUMENTAÇÃO ---
                     dto.tipoDocumentacaoId(),
                     dto.tipoDocumentacaoNome(),
                     dto.documentistaId(),
@@ -459,5 +460,14 @@ public class LancamentoController {
 
         var carteira = lancamentoService.getCarteiraDocumentista(usuarioId, inicio, fim);
         return ResponseEntity.ok(carteira);
+    }
+
+    @PostMapping("/{id}/documentacao/devolver")
+    public ResponseEntity<LancamentoResponseDTO> devolverDocumentacao(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+        Long usuarioId = Long.valueOf(payload.get("usuarioId").toString());
+        String motivo = (String) payload.get("motivo");
+
+        Lancamento lancamento = lancamentoService.devolverDocumentacao(id, usuarioId, motivo);
+        return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
 }

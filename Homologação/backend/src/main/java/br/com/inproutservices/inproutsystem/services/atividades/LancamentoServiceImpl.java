@@ -11,6 +11,7 @@ import br.com.inproutservices.inproutsystem.enums.atividades.StatusDocumentacao;
 import br.com.inproutservices.inproutsystem.enums.atividades.StatusPagamento;
 import br.com.inproutservices.inproutsystem.enums.usuarios.Role;
 import br.com.inproutservices.inproutsystem.exceptions.materiais.BusinessException;
+import br.com.inproutservices.inproutsystem.exceptions.materiais.ResourceNotFoundException;
 import br.com.inproutservices.inproutsystem.repositories.atividades.*;
 import br.com.inproutservices.inproutsystem.repositories.index.*;
 import br.com.inproutservices.inproutsystem.repositories.usuarios.UsuarioRepository;
@@ -1264,6 +1265,30 @@ public class LancamentoServiceImpl implements LancamentoService {
         }
 
         return lancamentoRepository.saveAll(novosLancamentos);
+    }
+
+    @Override
+    @Transactional
+    public Lancamento devolverDocumentacao(Long id, Long usuarioId, String motivo) {
+        Lancamento lancamento = getLancamentoById(id);
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado"));
+
+        // 1. Volta o status para PENDENTE_RECEBIMENTO (para aparecer pro Gestor de novo)
+        lancamento.setStatusDocumentacao(StatusDocumentacao.PENDENTE_RECEBIMENTO);
+
+        // 2. Limpa a data de recebimento para forçar um novo fluxo de data
+        lancamento.setDataRecebimentoDoc(null);
+
+        // 3. Adiciona comentário com o motivo (Isso gera histórico com data)
+        Comentario comentario = new Comentario();
+        comentario.setLancamento(lancamento);
+        comentario.setAutor(usuario);
+        comentario.setDataHora(LocalDateTime.now());
+        comentario.setTexto("DOCUMENTAÇÃO DEVOLVIDA: " + motivo);
+        comentarioRepository.save(comentario);
+
+        return lancamentoRepository.save(lancamento);
     }
 
     @Override

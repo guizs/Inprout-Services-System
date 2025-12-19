@@ -285,16 +285,16 @@ function atualizarUISelecao() {
     if (selecionadosMateriais.length > 0) {
         // 1. Remove a classe que esconde
         container.classList.remove('d-none');
-        
+
         // 2. FORÇA o display flex via estilo direto (Isso garante que apareça)
         container.style.display = 'flex';
         container.style.alignItems = 'center'; // Alinha verticalmente o texto e botões
-        
+
         if (contador) contador.innerText = `${selecionadosMateriais.length} selecionados`;
     } else {
         // Esconde novamente
         container.classList.add('d-none');
-        container.style.display = 'none'; 
+        container.style.display = 'none';
     }
 }
 
@@ -307,8 +307,17 @@ function aprovarLoteMateriais() {
     const spanQtd = document.getElementById('qtd-aprovar-materiais');
     if (spanQtd) spanQtd.innerText = selecionadosMateriais.length;
 
-    // Abre o modal do Bootstrap
+    // Pega o elemento do modal
     const modalEl = document.getElementById('modalAprovarLoteMateriais');
+
+    // --- CORREÇÃO IMPORTANTE ---
+    // Move o modal para o document.body para garantir que ele fique SOBRE o fundo escuro
+    if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    // ---------------------------
+
+    // Abre o modal
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
 }
@@ -359,11 +368,21 @@ function rejeitarLoteMateriais() {
     // Atualiza quantidade e limpa o campo de texto
     const spanQtd = document.getElementById('qtd-rejeitar-materiais');
     if (spanQtd) spanQtd.innerText = selecionadosMateriais.length;
-    
-    document.getElementById('motivoRejeicaoLoteMateriais').value = '';
+
+    const inputMotivo = document.getElementById('motivoRejeicaoLoteMateriais');
+    if (inputMotivo) inputMotivo.value = '';
+
+    // Pega o elemento do modal
+    const modalEl = document.getElementById('modalRejeitarLoteMateriais');
+
+    // --- CORREÇÃO IMPORTANTE ---
+    // Move o modal para o document.body para garantir que ele fique SOBRE o fundo escuro
+    if (modalEl && modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    // ---------------------------
 
     // Abre o modal
-    const modalEl = document.getElementById('modalRejeitarLoteMateriais');
     const modal = new bootstrap.Modal(modalEl);
     modal.show();
 }

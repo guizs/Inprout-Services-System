@@ -180,6 +180,7 @@ public class ControleCpsController {
                     l.getDataCompetencia(),
                     l.getValorAdiantamento(),
                     l.getValorSolicitadoAdiantamento(),
+                    l.getValorDocumentista(), // <--- CAMPO ADICIONADO AQUI
 
                     // Campos de Documentação
                     l.getTipoDocumentacao() != null ? l.getTipoDocumentacao().getId() : null,

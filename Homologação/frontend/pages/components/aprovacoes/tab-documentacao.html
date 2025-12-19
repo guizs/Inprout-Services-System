@@ -43,17 +43,24 @@
 
     <div class="card shadow-sm">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h5 class="mb-0 card-title-modern"><i class="bi bi-folder2-open me-2"></i> Minha Fila de Documentação</h5>
+            <h5 class="mb-0 card-title-modern"><i class="bi bi-folder2-open me-2"></i> Minha fila de documentação</h5>
             <div class="d-flex gap-2">
-                <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="filtroDocStatus" id="filtroDocTodos"
-                        value="TODOS"><label class="btn btn-outline-secondary btn-sm" for="filtroDocTodos">Todos</label>
+                <div class="btn-group" role="group" aria-label="Filtro Status Documentação">
+                    <input type="radio" class="btn-check" name="filtroDocStatus" id="filtroDocTodos" value="TODOS"
+                        checked>
+                    <label class="btn btn-outline-primary btn-sm" for="filtroDocTodos">Todos</label>
+
                     <input type="radio" class="btn-check" name="filtroDocStatus" id="filtroDocAnalise"
-                        value="EM_ANALISE" checked><label class="btn btn-outline-primary btn-sm"
-                        for="filtroDocAnalise">Em Análise</label>
+                        value="EM_ANALISE">
+                    <label class="btn btn-outline-primary btn-sm" for="filtroDocAnalise">Em Análise</label>
+
                     <input type="radio" class="btn-check" name="filtroDocStatus" id="filtroDocPendente"
-                        value="PENDENTE_RECEBIMENTO"><label class="btn btn-outline-warning btn-sm"
-                        for="filtroDocPendente">Aguardando Envio</label>
+                        value="PENDENTE_RECEBIMENTO">
+                    <label class="btn btn-outline-primary btn-sm" for="filtroDocPendente">Aguardando Envio</label>
+
+                    <input type="radio" class="btn-check" name="filtroDocStatus" id="filtroDocHistorico"
+                        value="HISTORICO">
+                    <label class="btn btn-outline-secondary btn-sm" for="filtroDocHistorico">Histórico (2 Meses)</label>
                 </div>
                 <button class="btn btn-light btn-sm border" id="btn-atualizar-docs"><i
                         class="bi bi-arrow-clockwise"></i></button>

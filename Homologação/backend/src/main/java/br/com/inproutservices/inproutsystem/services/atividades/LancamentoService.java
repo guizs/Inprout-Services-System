@@ -84,4 +84,7 @@ public interface LancamentoService {
     void receberDocumentacaoEmLote(List<Long> ids, Long usuarioId, String comentario);
 
     CarteiraDocumentistaDTO getCarteiraDocumentista(Long usuarioId, LocalDate inicio, LocalDate fim);
+
+    Lancamento devolverDocumentacao(Long id, Long usuarioId, String motivo);
+
 }

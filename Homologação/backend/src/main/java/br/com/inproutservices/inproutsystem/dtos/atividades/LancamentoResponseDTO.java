@@ -60,6 +60,7 @@ public record LancamentoResponseDTO(
         @JsonFormat(pattern = "MM/yyyy") LocalDate dataCompetencia,
         BigDecimal valorAdiantamento,
         BigDecimal valorSolicitadoAdiantamento,
+        BigDecimal valorDocumentista, // <--- ADICIONADO AQUI
 
         Long tipoDocumentacaoId,
         String tipoDocumentacaoNome,
@@ -114,6 +115,7 @@ public record LancamentoResponseDTO(
                 lancamento.getDataCompetencia(),
                 lancamento.getValorAdiantamento(),
                 lancamento.getValorSolicitadoAdiantamento(),
+                lancamento.getValorDocumentista(), // <--- ADICIONADO AQUI
 
                 lancamento.getTipoDocumentacao()!= null ? lancamento.getTipoDocumentacao().getId() : null,
                 lancamento.getTipoDocumentacao() != null ? lancamento.getTipoDocumentacao().getNome() : null,

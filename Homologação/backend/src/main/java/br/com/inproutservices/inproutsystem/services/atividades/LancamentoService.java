@@ -87,4 +87,5 @@ public interface LancamentoService {
 
     Lancamento devolverDocumentacao(Long id, Long usuarioId, String motivo);
 
+    List<Lancamento> getHistoricoDocumentacao(Long usuarioId, LocalDate inicio, LocalDate fim);
 }

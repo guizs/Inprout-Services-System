@@ -285,6 +285,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (event) {
+        if (this.dataset.tipoRecusa === 'DOCUMENTACAO') return;
         event.preventDefault();
 
         const btn = document.getElementById('btnConfirmarRecusa');

@@ -277,6 +277,11 @@ public class LancamentoServiceImpl implements LancamentoService {
     public Lancamento finalizarDocumentacao(Long lancamentoId, String assuntoEmail) {
         Lancamento lancamento = getLancamentoById(lancamentoId);
 
+        if (lancamento.getStatusDocumentacao() == StatusDocumentacao.FINALIZADO) {
+            return lancamento;
+        }
+        // ------------------------------
+
         if (lancamento.getStatusDocumentacao() != StatusDocumentacao.EM_ANALISE) {
             throw new BusinessException("A documentação precisa ser recebida antes de finalizar.");
         }
@@ -290,6 +295,19 @@ public class LancamentoServiceImpl implements LancamentoService {
         lancamento.setUltUpdate(LocalDateTime.now());
 
         return lancamentoRepository.save(lancamento);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lancamento> getHistoricoDocumentacao(Long usuarioId, LocalDate inicio, LocalDate fim) {
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário não encontrado"));
+
+        if (usuario.getRole() == Role.DOCUMENTIST) {
+            return lancamentoRepository.findLancamentosCarteiraDocumentista(usuarioId, inicio, fim);
+        } else {
+            return lancamentoRepository.findAllLancamentosCarteiraGeral(inicio, fim);
+        }
     }
 
     @Override

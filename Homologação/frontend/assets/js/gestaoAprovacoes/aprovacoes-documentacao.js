@@ -17,19 +17,19 @@ async function initDocumentacaoTab() {
         // Usa o loader global
         toggleLoader(true, '#minhas-docs-pane');
         try {
-            await carregarDashboardEBadges(); 
-            await carregarCarteiraDoc();     
-            
+            await carregarDashboardEBadges();
+            await carregarCarteiraDoc();
+
             // Recarrega a lista padrão (pendentes/em análise)
             const userId = localStorage.getItem('usuarioId');
-            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`); 
+            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
             // Nota: Se houver um endpoint específico de lista, use-o aqui. 
             // Assumindo que o main.js popula 'window.minhasDocsPendentes', vamos apenas re-renderizar.
-            
+
             // Reseta para o filtro 'TODOS' ao atualizar
             document.getElementById('filtroDocTodos').checked = true;
             renderizarTabelaDocsVisual(window.minhasDocsPendentes || []);
-            
+
         } catch (error) {
             console.error(error);
         } finally {
@@ -46,13 +46,13 @@ async function initDocumentacaoTab() {
  */
 async function handleFiltroChange(filtro) {
     toggleLoader(true, '#minhas-docs-pane');
-    
+
     try {
         if (filtro === 'HISTORICO') {
             await carregarHistoricoDocs();
         } else {
             // Usa a lista que já está em memória (Pendentes e Em Análise)
-            filtrarERenderizarDocs(); 
+            filtrarERenderizarDocs();
         }
     } catch (e) {
         console.error("Erro ao filtrar", e);
@@ -67,20 +67,25 @@ async function handleFiltroChange(filtro) {
 async function carregarHistoricoDocs() {
     const userId = localStorage.getItem('usuarioId');
     
-    // Calcula datas (Hoje e 2 meses atrás)
+    // Datas: Hoje e 2 meses atrás
     const fim = new Date().toISOString().split('T')[0];
     const inicioDate = new Date();
     inicioDate.setMonth(inicioDate.getMonth() - 2);
     const inicio = inicioDate.toISOString().split('T')[0];
 
     try {
-        // Chama endpoint de histórico (reaproveitando o do Controller de Lancamentos)
-        // Precisamos garantir que este endpoint traga finalizados.
-        const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/historico/${userId}?inicio=${inicio}&fim=${fim}`);
+        // --- CORREÇÃO AQUI ---
+        // Mudamos para o novo endpoint específico de documentação
+        const url = `${API_BASE_URL}/lancamentos/documentacao/historico-lista?usuarioId=${userId}&inicio=${inicio}&fim=${fim}`;
+        
+        const response = await fetchComAuth(url);
         const historico = await response.json();
         
-        // Filtra apenas o que é relevante para documentação (opcional, se o endpoint trouxer tudo)
-        const historicoDoc = historico.filter(l => l.statusDocumentacao === 'FINALIZADO' || l.statusDocumentacao === 'FINALIZADO_COM_RESSALVA');
+        // Filtra apenas os finalizados para exibir na tabela de histórico
+        const historicoDoc = historico.filter(l => 
+            l.statusDocumentacao === 'FINALIZADO' || 
+            l.statusDocumentacao === 'FINALIZADO_COM_RESSALVA'
+        );
         
         renderizarTabelaDocsVisual(historicoDoc);
         
@@ -93,15 +98,15 @@ async function carregarHistoricoDocs() {
 async function carregarCarteiraDoc() {
     // ... (Mantenha sua função de gráfico igual, não mudou) ...
     // Apenas certifique-se de não quebrar o código existente
-    const userId = localStorage.getItem('usuarioId'); 
+    const userId = localStorage.getItem('usuarioId');
     if (!userId) return;
     try {
         const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
         const carteira = await response.json();
-        
-        if(document.getElementById('doc-carteira-previsto')) document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
-        if(document.getElementById('doc-carteira-finalizado')) document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
-        if(document.getElementById('doc-carteira-total')) document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
+
+        if (document.getElementById('doc-carteira-previsto')) document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
+        if (document.getElementById('doc-carteira-finalizado')) document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
+        if (document.getElementById('doc-carteira-total')) document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
 
         renderizarGraficoCarteira(carteira.historicoMensal);
     } catch (error) { console.error(error); }
@@ -114,7 +119,7 @@ function filtrarERenderizarDocs() {
 
     // Se for histórico, a função handleFiltroChange já cuidou disso. 
     // Aqui cuidamos dos filtros de memória.
-    if (filtro === 'HISTORICO') return; 
+    if (filtro === 'HISTORICO') return;
 
     let listaFiltrada = listaCompleta;
 
@@ -143,17 +148,17 @@ function renderizarTabelaDocsVisual(lista) {
 
     lista.forEach(l => {
         const slaInfo = calcularSlaVisual(l.dataPrazoDoc);
-        
+
         // Item (LPU)
         let itemLpuContent = '-';
         if (l.detalhe) {
             const lpuObj = l.detalhe.lpu || {};
-            const lpuCodigo = lpuObj.codigoLpu || lpuObj.nomeLpu || ''; 
+            const lpuCodigo = lpuObj.codigoLpu || lpuObj.nomeLpu || '';
             const objeto = l.detalhe.objetoContratado || '';
             const textoFinal = lpuCodigo ? `${lpuCodigo} - ${objeto}` : objeto;
             itemLpuContent = `<span class="fw-bold text-dark" title="${objeto}">${textoFinal}</span>`;
         } else if (l.os) {
-             itemLpuContent = `<span class="fw-bold">${l.os.os}</span>`;
+            itemLpuContent = `<span class="fw-bold">${l.os.os}</span>`;
         }
 
         const valorDoc = l.valorDocumentista != null ? l.valorDocumentista : 0;
@@ -177,16 +182,16 @@ function renderizarTabelaDocsVisual(lista) {
         if (l.statusDocumentacao === 'EM_ANALISE') {
             botoes = `
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Aprovar Documentação">
+                    <button type="button" class="btn btn-outline-success btn-finalizar-doc" data-id="${l.id}" title="Aprovar Documentação">
                         <i class="bi bi-check-lg"></i>
                     </button>
-                    <button class="btn btn-outline-danger btn-devolver-doc" data-id="${l.id}" title="Devolver ao Gestor">
+                    <button type="button" class="btn btn-outline-danger btn-devolver-doc" data-id="${l.id}" title="Devolver ao Gestor">
                         <i class="bi bi-arrow-return-left"></i>
                     </button>
                 </div>
             `;
         } else {
-             botoes = `<span class="text-muted small">-</span>`;
+            botoes = `<span class="text-muted small">-</span>`;
         }
 
         const tr = `
@@ -212,15 +217,15 @@ function calcularSlaVisual(dataPrazo) {
     const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
     const prazo = new Date(dataPrazo); prazo.setHours(0, 0, 0, 0);
     if (isNaN(prazo.getTime())) return { html: `<span class="text-muted">${dataPrazo}</span>` };
-    
+
     const diffTime = prazo - hoje;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     let classe = 'bg-success';
     let icone = 'bi-calendar-check';
     let texto = typeof formatarData === 'function' ? formatarData(dataPrazo) : prazo.toLocaleDateString('pt-BR');
 
-    if (diffDays < 0) { classe = 'bg-danger'; icone = 'bi-exclamation-triangle'; } 
-    else if (diffDays === 0) { classe = 'bg-warning text-dark'; icone = 'bi-alarm'; texto = 'Hoje'; } 
+    if (diffDays < 0) { classe = 'bg-danger'; icone = 'bi-exclamation-triangle'; }
+    else if (diffDays === 0) { classe = 'bg-warning text-dark'; icone = 'bi-alarm'; texto = 'Hoje'; }
     else if (diffDays <= 2) { classe = 'bg-info text-dark'; }
 
     return { html: `<span class="badge ${classe}" title="Prazo: ${texto}"><i class="bi ${icone}"></i> ${texto}</span>` };
@@ -230,9 +235,11 @@ function calcularSlaVisual(dataPrazo) {
 function attachDocButtonListeners() {
     // Aprovar
     document.querySelectorAll('.btn-finalizar-doc').forEach(btn => {
-        btn.addEventListener('click', async function(e) {
+        btn.addEventListener('click', async function (e) {
+            e.preventDefault(); 
+            e.stopPropagation();
             const id = this.dataset.id;
-            
+
             // UI Loading no botão
             const icon = this.querySelector('i');
             const originalIcon = icon.className;
@@ -243,9 +250,8 @@ function attachDocButtonListeners() {
             toggleLoader(true, '#minhas-docs-pane');
 
             try {
-                // Chama função global (se existir) ou implementa fetch aqui
-                // Exemplo direto:
-                 await confirmarAprovacaoDoc(id); 
+                this.disabled = true;
+                await confirmarAprovacaoDoc(id);
             } catch (err) {
                 console.error(err);
                 icon.className = originalIcon;
@@ -270,10 +276,10 @@ function attachDocButtonListeners() {
 async function confirmarAprovacaoDoc(id) {
     const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/finalizar`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assuntoEmail: 'Finalizado via Sistema' })
     });
-    if(response.ok) {
+    if (response.ok) {
         mostrarToast("Documentação finalizada!", "success");
         // Recarrega
         document.getElementById('btn-atualizar-docs').click();
@@ -289,16 +295,16 @@ function abrirModalDevolverDoc(id) {
     const inputId = document.getElementById('recusarLancamentoId');
     const txtMotivo = document.getElementById('motivoRecusa');
     const modalTitle = document.getElementById('modalRecusarLabel');
-    
+
     // Configura o modal para "Documentação"
     if (modalEl) {
         // Z-Index fix
         if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
 
         inputId.value = id;
-        if(txtMotivo) txtMotivo.value = '';
-        if(modalTitle) modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
-        if(txtMotivo) txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento incorreto...)";
+        if (txtMotivo) txtMotivo.value = '';
+        if (modalTitle) modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
+        if (txtMotivo) txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento incorreto...)";
 
         // Importante: Define o tipo para o handler do formulário saber o que fazer
         form.dataset.tipoRecusa = 'DOCUMENTACAO';
@@ -310,9 +316,9 @@ function abrirModalDevolverDoc(id) {
 
 // Handler do Formulário de Recusa (Você deve ter isso em algum lugar global ou adicionar aqui)
 // Adicione este listener APENAS SE AINDA NÃO EXISTIR no aprovacoes-main.js
-document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function(e) {
+document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (e) {
     if (this.dataset.tipoRecusa !== 'DOCUMENTACAO') return; // Deixa outros handlers cuidarem se não for doc
-    
+
     e.preventDefault();
     const id = document.getElementById('recusarLancamentoId').value;
     const motivo = document.getElementById('motivoRecusa').value;
@@ -328,7 +334,7 @@ document.getElementById('formRecusarLancamento')?.addEventListener('submit', asy
     try {
         const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/devolver`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ usuarioId: userId, motivo: motivo })
         });
 

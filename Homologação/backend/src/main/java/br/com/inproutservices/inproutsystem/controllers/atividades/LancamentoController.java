@@ -470,4 +470,23 @@ public class LancamentoController {
         Lancamento lancamento = lancamentoService.devolverDocumentacao(id, usuarioId, motivo);
         return ResponseEntity.ok(new LancamentoResponseDTO(lancamento));
     }
+
+    @GetMapping("/documentacao/historico-lista")
+    public ResponseEntity<List<LancamentoResponseDTO>> getHistoricoDocumentacao(
+            @RequestParam("usuarioId") Long usuarioId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim
+    ) {
+        // Define padrão se não vier data
+        if (inicio == null) inicio = LocalDate.now().minusMonths(2);
+        if (fim == null) fim = LocalDate.now();
+
+        // Chama o novo método do serviço (que vamos criar abaixo)
+        List<Lancamento> lancamentos = lancamentoService.getHistoricoDocumentacao(usuarioId, inicio, fim);
+
+        // Converte para DTO (reaproveitando seu método existente de enriquecimento)
+        List<LancamentoResponseDTO> dtos = enriquecerLancamentosComValores(lancamentos);
+
+        return ResponseEntity.ok(dtos);
+    }
 }

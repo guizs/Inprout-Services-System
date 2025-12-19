@@ -1,55 +1,111 @@
 // ==========================================================
-// LÓGICA ESPECÍFICA DA ABA DE DOCUMENTAÇÃO (CORRIGIDO)
+// LÓGICA ESPECÍFICA DA ABA DE DOCUMENTAÇÃO (CORRIGIDO v3.0)
 // ==========================================================
 
 let chartCarteiraInstance = null;
 
 async function initDocumentacaoTab() {
-    // Listener dos filtros
+    // 1. Carrega o combo de documentistas (apenas se for ADMIN/CONTROLLER)
+    // Precisamos definir essa função antes de chamar ou garantir que ela exista no arquivo.
+    if (typeof carregarComboDocumentistas === 'function') {
+        await carregarComboDocumentistas();
+    }
+
+    // Listener dos filtros de status (Radio Buttons)
     document.querySelectorAll('input[name="filtroDocStatus"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             handleFiltroChange(e.target.value);
         });
     });
 
-    await carregarComboDocumentistas();
-
-    // Botão Atualizar (Leve ajuste para pegar o ID correto)
+    // Botão Atualizar
     document.getElementById('btn-atualizar-docs')?.addEventListener('click', async () => {
+        // Usa o loader global
         toggleLoader(true, '#minhas-docs-pane');
         try {
-            // Lógica para definir QUAL ID buscar
+            // Verifica qual usuário está selecionado no filtro (ou o logado)
             const selectDoc = document.getElementById('filtro-documentista-carteira');
-            const userIdReal = localStorage.getItem('usuarioId');
-            // Se tiver selecionado alguém no combo, usa ele. Senão, usa o logado.
-            const targetId = (selectDoc && selectDoc.value) ? selectDoc.value : userIdReal;
+            const userId = (selectDoc && selectDoc.value) ? selectDoc.value : localStorage.getItem('usuarioId');
 
-            await carregarDashboardEBadges(); 
+            // Atualiza Dashboard Global (se a função existir no main.js)
+            if (typeof carregarDashboardEBadges === 'function') {
+                await carregarDashboardEBadges(); 
+            }
             
-            // Passamos o targetId para carregarCarteiraDoc (precisa atualizar a assinatura da função ou ela ler o DOM)
-            await carregarCarteiraDoc(); 
+            // Atualiza Carteira (Gráfico e Valores)
+            await carregarCarteiraDoc();
 
-            // Recarrega a lista
-            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${targetId}`);
-            // ... resto do código igual ...
+            // Recarrega a lista de lançamentos
+            // Nota: O endpoint de carteira as vezes traz apenas totais. 
+            // Se você precisar da LISTA de itens, garanta que está buscando a lista correta.
+            // Aqui assumimos que o 'carregarDashboardEBadges' ou lógica similar popula 'window.minhasDocsPendentes'
+            // Se não, você pode forçar uma busca aqui:
+            // const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
             
-            // IMPORTANTE: Se o endpoint `carteira` retornar apenas valores e não a lista de itens pendentes,
-            // você precisará garantir que `window.minhasDocsPendentes` seja atualizado com os itens DO OUTRO usuário.
-            // O ideal é que o `carregarDashboardEBadges` trate isso ou você busque a lista explicitamente aqui.
+            // Reseta para o filtro 'TODOS' ao atualizar visualmente
+            const filtroTodos = document.getElementById('filtroDocTodos');
+            if (filtroTodos) filtroTodos.checked = true;
+            
+            filtrarERenderizarDocs();
 
         } catch (error) {
-             console.error(error);
+            console.error(error);
         } finally {
             toggleLoader(false, '#minhas-docs-pane');
         }
     });
 
+    // Carregamento inicial
     carregarCarteiraDoc();
-    filtrarERenderizarDocs(); // Renderiza inicial
+    filtrarERenderizarDocs(); 
 }
 
 /**
- * Controla a mudança de filtros (Incluindo Histórico)
+ * Carrega a lista de usuários 'DOCUMENTIST' no select para o ADMIN filtrar
+ */
+async function carregarComboDocumentistas() {
+    const role = localStorage.getItem('userRole');
+    const container = document.getElementById('container-filtro-documentista');
+    const select = document.getElementById('filtro-documentista-carteira');
+
+    // Se não tiver permissão ou os elementos não existirem, aborta
+    if (!['ADMIN', 'CONTROLLER', 'MANAGER'].includes(role)) {
+        return;
+    }
+    if (!container || !select) return;
+
+    container.classList.remove('d-none'); // Mostra o filtro
+
+    try {
+        // Busca usuários
+        const response = await fetchComAuth(`${API_BASE_URL}/usuarios`); 
+        const usuarios = await response.json();
+
+        // Filtra Documentistas
+        const documentistas = usuarios.filter(u => u.role === 'DOCUMENTIST');
+
+        // Limpa e popula o select
+        select.innerHTML = '<option value="">Minha Carteira (Padrão)</option>';
+        documentistas.forEach(doc => {
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = doc.nome || doc.email;
+            select.appendChild(option);
+        });
+
+        // Listener: Ao trocar o documentista, simula o clique no botão Atualizar
+        select.addEventListener('change', () => {
+            const btnAtualizar = document.getElementById('btn-atualizar-docs');
+            if (btnAtualizar) btnAtualizar.click();
+        });
+
+    } catch (e) {
+        console.error("Erro ao carregar combo de documentistas", e);
+    }
+}
+
+/**
+ * Controla a mudança de filtros de STATUS (Pendente, Em Análise, Histórico)
  */
 async function handleFiltroChange(filtro) {
     toggleLoader(true, '#minhas-docs-pane');
@@ -72,8 +128,10 @@ async function handleFiltroChange(filtro) {
  * Busca o histórico dos últimos 2 meses
  */
 async function carregarHistoricoDocs() {
-    const userId = localStorage.getItem('usuarioId');
-
+    // Verifica filtro de documentista
+    const selectDoc = document.getElementById('filtro-documentista-carteira');
+    const userId = (selectDoc && selectDoc.value) ? selectDoc.value : localStorage.getItem('usuarioId');
+    
     // Datas: Hoje e 2 meses atrás
     const fim = new Date().toISOString().split('T')[0];
     const inicioDate = new Date();
@@ -81,34 +139,35 @@ async function carregarHistoricoDocs() {
     const inicio = inicioDate.toISOString().split('T')[0];
 
     try {
-        // --- CORREÇÃO AQUI ---
-        // Mudamos para o novo endpoint específico de documentação
         const url = `${API_BASE_URL}/lancamentos/documentacao/historico-lista?usuarioId=${userId}&inicio=${inicio}&fim=${fim}`;
-
+        
         const response = await fetchComAuth(url);
         const historico = await response.json();
-
+        
         // Filtra apenas os finalizados para exibir na tabela de histórico
-        const historicoDoc = historico.filter(l =>
-            l.statusDocumentacao === 'FINALIZADO' ||
+        const historicoDoc = historico.filter(l => 
+            l.statusDocumentacao === 'FINALIZADO' || 
             l.statusDocumentacao === 'FINALIZADO_COM_RESSALVA'
         );
-
+        
         renderizarTabelaDocsVisual(historicoDoc);
-
+        
     } catch (error) {
         console.error("Erro ao carregar histórico", error);
         mostrarToast("Erro ao buscar histórico.", "error");
     }
 }
 
+/**
+ * Carrega os valores da carteira (Dashboard Financeiro da Aba)
+ */
 async function carregarCarteiraDoc() {
     let userId = localStorage.getItem('usuarioId');
 
-    // VERIFICAÇÃO NOVA:
+    // SELETOR DE DOCUMENTISTA (Para Admin/Controller)
     const selectDoc = document.getElementById('filtro-documentista-carteira');
     if (selectDoc && selectDoc.value) {
-        userId = selectDoc.value; // Usa o ID do documentista selecionado
+        userId = selectDoc.value;
     }
 
     if (!userId) return;
@@ -117,7 +176,7 @@ async function carregarCarteiraDoc() {
         const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
         const carteira = await response.json();
 
-        // Atualiza os Cards (Valores)
+        // Atualiza Cards de Valores
         if (document.getElementById('doc-carteira-previsto')) document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
         if (document.getElementById('doc-carteira-finalizado')) document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
         if (document.getElementById('doc-carteira-total')) document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
@@ -126,21 +185,34 @@ async function carregarCarteiraDoc() {
     } catch (error) { console.error(error); }
 }
 
+/**
+ * Filtra a lista global `window.minhasDocsPendentes` e renderiza
+ */
 function filtrarERenderizarDocs() {
     let listaCompleta = window.minhasDocsPendentes || [];
     
-    // FILTRO NOVO: Se tiver documentista selecionado, filtra a lista global por ele
+    // 1. Filtra pelo Documentista Selecionado (se houver filtro ativo e a lista tiver essa info)
     const selectDoc = document.getElementById('filtro-documentista-carteira');
     if (selectDoc && selectDoc.value) {
-        // Filtra os itens onde o documentista.id seja igual ao selecionado
-        listaCompleta = listaCompleta.filter(l => l.documentista && String(l.documentista.id) === String(selectDoc.value));
+        const idAlvo = selectDoc.value;
+        // Filtra itens onde item.documentista.id == idAlvo (ou item.documentistaId)
+        listaCompleta = listaCompleta.filter(l => {
+            // Verifica estrutura do objeto (pode vir como objeto ou id direto)
+            const docId = l.documentista ? l.documentista.id : l.documentistaId;
+            return String(docId) === String(idAlvo);
+        });
+    } else {
+        // Se NÃO tem filtro selecionado e sou ADMIN, talvez eu queira ver MINHA carteira ou TUDO?
+        // Se a lógica padrão for "Minha Carteira", mantemos.
+        // Se o Admin não tiver carteira, a lista pode vir vazia, o que é correto.
+        // Se quiser ver TUDO quando vazio, não fazemos filtro extra aqui.
     }
-    
+
+    // 2. Filtra pelo Status (Radio Buttons)
     const filtroEl = document.querySelector('input[name="filtroDocStatus"]:checked');
     const filtro = filtroEl ? filtroEl.value : 'TODOS';
 
-    // Se for histórico, a função handleFiltroChange já cuidou disso. 
-    // Aqui cuidamos dos filtros de memória.
+    // Se for histórico, a função handleFiltroChange já cuidou disso.
     if (filtro === 'HISTORICO') return;
 
     let listaFiltrada = listaCompleta;
@@ -163,15 +235,17 @@ function renderizarTabelaDocsVisual(lista) {
 
     if (!lista || lista.length === 0) {
         if (msgVazio) msgVazio.classList.remove('d-none');
+        if (msgVazio) msgVazio.classList.add('d-block');
         return;
     } else {
         if (msgVazio) msgVazio.classList.add('d-none');
+        if (msgVazio) msgVazio.classList.remove('d-block');
     }
 
     lista.forEach(l => {
         const slaInfo = calcularSlaVisual(l.dataPrazoDoc);
 
-        // Item (LPU)
+        // Item (LPU ou OS)
         let itemLpuContent = '-';
         if (l.detalhe) {
             const lpuObj = l.detalhe.lpu || {};
@@ -184,7 +258,7 @@ function renderizarTabelaDocsVisual(lista) {
         }
 
         const valorDoc = l.valorDocumentista != null ? l.valorDocumentista : 0;
-        const responsavelNome = l.documentistaNome || (l.manager ? l.manager.nome : '-');
+        const responsavelNome = l.documentistaNome || (l.documentista ? l.documentista.nome : '-') || (l.manager ? l.manager.nome : '-');
 
         // Status Badge
         let statusBadge = '';
@@ -200,7 +274,7 @@ function renderizarTabelaDocsVisual(lista) {
 
         // Botões de Ação
         let botoes = '';
-        // Só mostra ações se estiver EM_ANALISE (ou conforme regra de negócio)
+        // Mostra ações se estiver EM_ANALISE
         if (l.statusDocumentacao === 'EM_ANALISE') {
             botoes = `
                 <div class="btn-group btn-group-sm">
@@ -255,7 +329,6 @@ function calcularSlaVisual(dataPrazo) {
 
 // Listeners dos botões da tabela
 function attachDocButtonListeners() {
-
     // Devolver (Abre Modal)
     document.querySelectorAll('.btn-devolver-doc').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -263,25 +336,7 @@ function attachDocButtonListeners() {
             abrirModalDevolverDoc(id);
         });
     });
-
-    // NOTA: O listener de aprovar (.btn-finalizar-doc) está no arquivo aprovacoes-main.js 
-    // como listener global (document.addEventListener), então não precisa ser readicionado aqui.
-}
-
-// Função de Confirmação de Aprovação (Exemplo)
-async function confirmarAprovacaoDoc(id) {
-    const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/documentacao/finalizar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assuntoEmail: 'Finalizado via Sistema' })
-    });
-    if (response.ok) {
-        mostrarToast("Documentação finalizada!", "success");
-        // Recarrega
-        document.getElementById('btn-atualizar-docs').click();
-    } else {
-        mostrarToast("Erro ao finalizar.", "error");
-    }
+    // O botão de finalizar (.btn-finalizar-doc) é tratado globalmente no main.js
 }
 
 // Modal de Devolução
@@ -292,17 +347,14 @@ function abrirModalDevolverDoc(id) {
     const txtMotivo = document.getElementById('motivoRecusa');
     const modalTitle = document.getElementById('modalRecusarLabel');
 
-    // Configura o modal para "Documentação"
     if (modalEl) {
-        // Z-Index fix
         if (modalEl.parentElement !== document.body) document.body.appendChild(modalEl);
 
         inputId.value = id;
         if (txtMotivo) txtMotivo.value = '';
         if (modalTitle) modalTitle.innerHTML = '<i class="bi bi-arrow-return-left text-danger me-2"></i>Devolver Documentação';
-        if (txtMotivo) txtMotivo.placeholder = "Motivo da devolução (Ex: Foto ilegível, documento incorreto...)";
+        if (txtMotivo) txtMotivo.placeholder = "Motivo da devolução...";
 
-        // Importante: Define o tipo para o handler do formulário saber o que fazer
         form.dataset.tipoRecusa = 'DOCUMENTACAO';
 
         const modal = new bootstrap.Modal(modalEl);
@@ -310,17 +362,15 @@ function abrirModalDevolverDoc(id) {
     }
 }
 
-// Handler do Formulário de Recusa (Você deve ter isso em algum lugar global ou adicionar aqui)
-// Adicione este listener APENAS SE AINDA NÃO EXISTIR no aprovacoes-main.js
+// Handler do Formulário de Recusa
 document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (e) {
-    if (this.dataset.tipoRecusa !== 'DOCUMENTACAO') return; // Deixa outros handlers cuidarem se não for doc
+    if (this.dataset.tipoRecusa !== 'DOCUMENTACAO') return; 
 
     e.preventDefault();
     const id = document.getElementById('recusarLancamentoId').value;
     const motivo = document.getElementById('motivoRecusa').value;
     const userId = localStorage.getItem('usuarioId');
 
-    // Fecha modal
     const modalEl = document.getElementById('modalRecusarLancamento');
     const modal = bootstrap.Modal.getInstance(modalEl);
     modal.hide();
@@ -336,8 +386,8 @@ document.getElementById('formRecusarLancamento')?.addEventListener('submit', asy
 
         if (response.ok) {
             mostrarToast("Documentação devolvida ao gestor.", "success");
-            // Atualiza a tabela
-            document.getElementById('btn-atualizar-docs').click();
+            const btnAtualizar = document.getElementById('btn-atualizar-docs');
+            if (btnAtualizar) btnAtualizar.click();
         } else {
             throw new Error("Erro ao devolver.");
         }
@@ -353,11 +403,10 @@ function renderizarGraficoCarteira(dadosMensais) {
     if (!ctx) return;
 
     // Prepara dados para o Chart.js
-    const labels = dadosMensais.map(d => d.mesAno); // Ex: "09/2023"
+    const labels = dadosMensais.map(d => d.mesAno); 
     const valoresPrevistos = dadosMensais.map(d => d.valorPrevisto);
     const valoresFinalizados = dadosMensais.map(d => d.valorFinalizado);
 
-    // Destrói gráfico anterior se existir para não sobrepor
     if (chartCarteiraInstance) {
         chartCarteiraInstance.destroy();
     }
@@ -370,13 +419,13 @@ function renderizarGraficoCarteira(dadosMensais) {
                 {
                     label: 'Finalizado',
                     data: valoresFinalizados,
-                    backgroundColor: '#198754', // Verde Success
+                    backgroundColor: '#198754',
                     borderRadius: 4
                 },
                 {
                     label: 'A Receber',
                     data: valoresPrevistos,
-                    backgroundColor: '#ffc107', // Amarelo Warning
+                    backgroundColor: '#ffc107',
                     borderRadius: 4
                 }
             ]
@@ -400,56 +449,4 @@ function renderizarGraficoCarteira(dadosMensais) {
             }
         }
     });
-
-    async function carregarComboDocumentistas() {
-        const role = localStorage.getItem('userRole');
-        const container = document.getElementById('container-filtro-documentista');
-        const select = document.getElementById('filtro-documentista-carteira');
-
-        // Só exibe para ADMIN, CONTROLLER ou MANAGER
-        if (!['ADMIN', 'CONTROLLER', 'MANAGER'].includes(role)) {
-            return;
-        }
-
-        if (container) container.classList.remove('d-none');
-
-        try {
-            // Busca todos os usuários (assumindo que existe este endpoint)
-            // Se tiver um endpoint específico de documentistas, melhor ainda.
-            const response = await fetchComAuth(`${API_BASE_URL}/usuarios`);
-            const usuarios = await response.json();
-
-            // Filtra apenas quem é DOCUMENTIST
-            const documentistas = usuarios.filter(u => u.role === 'DOCUMENTIST');
-
-            if (select) {
-                // Limpa mantendo a opção padrão
-                select.innerHTML = '<option value="">Minha Carteira (Visão Padrão)</option>';
-
-                documentistas.forEach(doc => {
-                    const option = document.createElement('option');
-                    option.value = doc.id;
-                    option.textContent = doc.nome || doc.email;
-                    select.appendChild(option);
-                });
-
-                // Listener para recarregar tudo ao mudar o documentista
-                select.addEventListener('change', async () => {
-                    toggleLoader(true, '#minhas-docs-pane');
-                    await carregarDashboardEBadges(); // Atualiza contadores globais
-                    await carregarCarteiraDoc();     // Atualiza gráfico e cards de valores
-                    // Atualiza a lista filtrada
-                    const idSelecionado = select.value || localStorage.getItem('usuarioId');
-
-                    // Recarrega a lista específica do usuário selecionado
-                    const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${idSelecionado}`);
-                    const dados = await res.json();
-
-                    document.getElementById('btn-atualizar-docs')?.click();
-                });
-            }
-        } catch (e) {
-            console.error("Erro ao carregar documentistas", e);
-        }
-    }
 }

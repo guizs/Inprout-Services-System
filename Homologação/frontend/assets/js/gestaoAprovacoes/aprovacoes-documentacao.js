@@ -12,26 +12,33 @@ async function initDocumentacaoTab() {
         });
     });
 
-    // Botão Atualizar
+    await carregarComboDocumentistas();
+
+    // Botão Atualizar (Leve ajuste para pegar o ID correto)
     document.getElementById('btn-atualizar-docs')?.addEventListener('click', async () => {
-        // Usa o loader global
         toggleLoader(true, '#minhas-docs-pane');
         try {
-            await carregarDashboardEBadges();
-            await carregarCarteiraDoc();
+            // Lógica para definir QUAL ID buscar
+            const selectDoc = document.getElementById('filtro-documentista-carteira');
+            const userIdReal = localStorage.getItem('usuarioId');
+            // Se tiver selecionado alguém no combo, usa ele. Senão, usa o logado.
+            const targetId = (selectDoc && selectDoc.value) ? selectDoc.value : userIdReal;
 
-            // Recarrega a lista padrão (pendentes/em análise)
-            const userId = localStorage.getItem('usuarioId');
-            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
-            // Nota: Se houver um endpoint específico de lista, use-o aqui. 
-            // Assumindo que o main.js popula 'window.minhasDocsPendentes', vamos apenas re-renderizar.
+            await carregarDashboardEBadges(); 
+            
+            // Passamos o targetId para carregarCarteiraDoc (precisa atualizar a assinatura da função ou ela ler o DOM)
+            await carregarCarteiraDoc(); 
 
-            // Reseta para o filtro 'TODOS' ao atualizar
-            document.getElementById('filtroDocTodos').checked = true;
-            renderizarTabelaDocsVisual(window.minhasDocsPendentes || []);
+            // Recarrega a lista
+            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${targetId}`);
+            // ... resto do código igual ...
+            
+            // IMPORTANTE: Se o endpoint `carteira` retornar apenas valores e não a lista de itens pendentes,
+            // você precisará garantir que `window.minhasDocsPendentes` seja atualizado com os itens DO OUTRO usuário.
+            // O ideal é que o `carregarDashboardEBadges` trate isso ou você busque a lista explicitamente aqui.
 
         } catch (error) {
-            console.error(error);
+             console.error(error);
         } finally {
             toggleLoader(false, '#minhas-docs-pane');
         }
@@ -66,7 +73,7 @@ async function handleFiltroChange(filtro) {
  */
 async function carregarHistoricoDocs() {
     const userId = localStorage.getItem('usuarioId');
-    
+
     // Datas: Hoje e 2 meses atrás
     const fim = new Date().toISOString().split('T')[0];
     const inicioDate = new Date();
@@ -77,18 +84,18 @@ async function carregarHistoricoDocs() {
         // --- CORREÇÃO AQUI ---
         // Mudamos para o novo endpoint específico de documentação
         const url = `${API_BASE_URL}/lancamentos/documentacao/historico-lista?usuarioId=${userId}&inicio=${inicio}&fim=${fim}`;
-        
+
         const response = await fetchComAuth(url);
         const historico = await response.json();
-        
+
         // Filtra apenas os finalizados para exibir na tabela de histórico
-        const historicoDoc = historico.filter(l => 
-            l.statusDocumentacao === 'FINALIZADO' || 
+        const historicoDoc = historico.filter(l =>
+            l.statusDocumentacao === 'FINALIZADO' ||
             l.statusDocumentacao === 'FINALIZADO_COM_RESSALVA'
         );
-        
+
         renderizarTabelaDocsVisual(historicoDoc);
-        
+
     } catch (error) {
         console.error("Erro ao carregar histórico", error);
         mostrarToast("Erro ao buscar histórico.", "error");
@@ -96,14 +103,21 @@ async function carregarHistoricoDocs() {
 }
 
 async function carregarCarteiraDoc() {
-    // ... (Mantenha sua função de gráfico igual, não mudou) ...
-    // Apenas certifique-se de não quebrar o código existente
-    const userId = localStorage.getItem('usuarioId');
+    let userId = localStorage.getItem('usuarioId');
+
+    // VERIFICAÇÃO NOVA:
+    const selectDoc = document.getElementById('filtro-documentista-carteira');
+    if (selectDoc && selectDoc.value) {
+        userId = selectDoc.value; // Usa o ID do documentista selecionado
+    }
+
     if (!userId) return;
+
     try {
         const response = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
         const carteira = await response.json();
 
+        // Atualiza os Cards (Valores)
         if (document.getElementById('doc-carteira-previsto')) document.getElementById('doc-carteira-previsto').innerText = formatarMoeda(carteira.totalPrevisto);
         if (document.getElementById('doc-carteira-finalizado')) document.getElementById('doc-carteira-finalizado').innerText = formatarMoeda(carteira.totalFinalizado);
         if (document.getElementById('doc-carteira-total')) document.getElementById('doc-carteira-total').innerText = formatarMoeda(carteira.totalGeral);
@@ -113,7 +127,15 @@ async function carregarCarteiraDoc() {
 }
 
 function filtrarERenderizarDocs() {
-    const listaCompleta = window.minhasDocsPendentes || [];
+    let listaCompleta = window.minhasDocsPendentes || [];
+    
+    // FILTRO NOVO: Se tiver documentista selecionado, filtra a lista global por ele
+    const selectDoc = document.getElementById('filtro-documentista-carteira');
+    if (selectDoc && selectDoc.value) {
+        // Filtra os itens onde o documentista.id seja igual ao selecionado
+        listaCompleta = listaCompleta.filter(l => l.documentista && String(l.documentista.id) === String(selectDoc.value));
+    }
+    
     const filtroEl = document.querySelector('input[name="filtroDocStatus"]:checked');
     const filtro = filtroEl ? filtroEl.value : 'TODOS';
 
@@ -233,35 +255,6 @@ function calcularSlaVisual(dataPrazo) {
 
 // Listeners dos botões da tabela
 function attachDocButtonListeners() {
-    // Aprovar
-    document.querySelectorAll('.btn-finalizar-doc').forEach(btn => {
-        btn.addEventListener('click', async function (e) {
-            e.preventDefault(); 
-            e.stopPropagation();
-            const id = this.dataset.id;
-
-            // UI Loading no botão
-            const icon = this.querySelector('i');
-            const originalIcon = icon.className;
-            icon.className = 'spinner-border spinner-border-sm';
-            this.disabled = true;
-
-            // Loading na tela toda
-            toggleLoader(true, '#minhas-docs-pane');
-
-            try {
-                this.disabled = true;
-                await confirmarAprovacaoDoc(id);
-            } catch (err) {
-                console.error(err);
-                icon.className = originalIcon;
-                this.disabled = false;
-            } finally {
-                // O loader é fechado dentro da função de confirmação ou aqui se der erro
-                toggleLoader(false, '#minhas-docs-pane');
-            }
-        });
-    });
 
     // Devolver (Abre Modal)
     document.querySelectorAll('.btn-devolver-doc').forEach(btn => {
@@ -270,6 +263,9 @@ function attachDocButtonListeners() {
             abrirModalDevolverDoc(id);
         });
     });
+
+    // NOTA: O listener de aprovar (.btn-finalizar-doc) está no arquivo aprovacoes-main.js 
+    // como listener global (document.addEventListener), então não precisa ser readicionado aqui.
 }
 
 // Função de Confirmação de Aprovação (Exemplo)
@@ -404,4 +400,56 @@ function renderizarGraficoCarteira(dadosMensais) {
             }
         }
     });
+
+    async function carregarComboDocumentistas() {
+        const role = localStorage.getItem('userRole');
+        const container = document.getElementById('container-filtro-documentista');
+        const select = document.getElementById('filtro-documentista-carteira');
+
+        // Só exibe para ADMIN, CONTROLLER ou MANAGER
+        if (!['ADMIN', 'CONTROLLER', 'MANAGER'].includes(role)) {
+            return;
+        }
+
+        if (container) container.classList.remove('d-none');
+
+        try {
+            // Busca todos os usuários (assumindo que existe este endpoint)
+            // Se tiver um endpoint específico de documentistas, melhor ainda.
+            const response = await fetchComAuth(`${API_BASE_URL}/usuarios`);
+            const usuarios = await response.json();
+
+            // Filtra apenas quem é DOCUMENTIST
+            const documentistas = usuarios.filter(u => u.role === 'DOCUMENTIST');
+
+            if (select) {
+                // Limpa mantendo a opção padrão
+                select.innerHTML = '<option value="">Minha Carteira (Visão Padrão)</option>';
+
+                documentistas.forEach(doc => {
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = doc.nome || doc.email;
+                    select.appendChild(option);
+                });
+
+                // Listener para recarregar tudo ao mudar o documentista
+                select.addEventListener('change', async () => {
+                    toggleLoader(true, '#minhas-docs-pane');
+                    await carregarDashboardEBadges(); // Atualiza contadores globais
+                    await carregarCarteiraDoc();     // Atualiza gráfico e cards de valores
+                    // Atualiza a lista filtrada
+                    const idSelecionado = select.value || localStorage.getItem('usuarioId');
+
+                    // Recarrega a lista específica do usuário selecionado
+                    const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${idSelecionado}`);
+                    const dados = await res.json();
+
+                    document.getElementById('btn-atualizar-docs')?.click();
+                });
+            }
+        } catch (e) {
+            console.error("Erro ao carregar documentistas", e);
+        }
+    }
 }

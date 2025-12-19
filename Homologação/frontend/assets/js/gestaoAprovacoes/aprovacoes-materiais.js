@@ -17,8 +17,6 @@ async function carregarDadosMateriais() {
         if (!pendentesResponse.ok) throw new Error('Falha ao carregar pendências de materiais.');
         window.todasPendenciasMateriais = await pendentesResponse.json();
 
-        // Removida a chamada para popularFiltroSegmento()
-
         renderizarTabelaPendentesMateriais();
 
     } catch (error) {
@@ -57,13 +55,12 @@ function renderizarTabelaPendentesMateriais() {
 
     // Resetar seleção ao renderizar
     selecionadosMateriais = [];
-    atualizarUISelecao();
 
-    // Verifica se usuário pode ver checkboxes (apenas Coordenador ou Admin/Controller dependendo da regra)
-    // Pela sua regra atual, Coordenador vê pendentes coordenador.
+    // Força a atualização da UI para garantir que os botões sumam ao recarregar
+    if (acoesLoteContainer) acoesLoteContainer.classList.add('d-none');
+
     const podeAprovar = (userRole === 'COORDINATOR' || userRole === 'MANAGER' || userRole === 'ADMIN' || userRole === 'CONTROLLER');
 
-    // Cabeçalho com Checkbox "Selecionar Todos"
     thead.innerHTML = `
         <tr>
             ${podeAprovar ? '<th class="text-center"><input type="checkbox" id="check-all-materiais" onclick="toggleAllMateriais(this)"></th>' : ''}
@@ -87,7 +84,6 @@ function renderizarTabelaPendentesMateriais() {
 
     if (solicitacoes.length === 0) {
         tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
-        if (acoesLoteContainer) acoesLoteContainer.classList.add('d-none');
         return;
     }
 
@@ -101,19 +97,17 @@ function renderizarTabelaPendentesMateriais() {
         let statusTexto = s.status ? s.status.replace(/_/g, ' ') : 'N/A';
         let checkboxHtml = '';
 
-        // Definição de Cores e botões individuais (mantendo lógica original)
         if (s.status === 'PENDENTE_COORDENADOR') statusBadgeClass = 'text-bg-info';
         else if (s.status === 'PENDENTE_CONTROLLER') statusBadgeClass = 'text-bg-warning';
 
         const statusHtml = `<span class="badge rounded-pill ${statusBadgeClass}">${statusTexto}</span>`;
 
-        // Lógica de visualização de botões e Checkbox baseada no status e role
         let rowHabilitadaParaLote = false;
 
         if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             if (s.status === 'PENDENTE_CONTROLLER') {
                 acoesHtml = getBotoesAcao(s.id);
-                rowHabilitadaParaLote = false; // Focando no pedido do Coordenador primeiro, mas pode habilitar aqui se quiser
+                rowHabilitadaParaLote = false;
             } else {
                 acoesHtml = `<span class="text-muted small">Aguardando Coord.</span>`;
             }
@@ -126,10 +120,10 @@ function renderizarTabelaPendentesMateriais() {
             }
         }
 
-        // Renderiza checkbox apenas se a linha for "aprovável" pelo usuário atual
         if (podeAprovar) {
             if (rowHabilitadaParaLote) {
-                checkboxHtml = `<td class="text-center"><input type="checkbox" class="form-check-input check-material-item" value="${s.id}" onchange="toggleMaterialItem(${s.id})"></td>`;
+                // CORREÇÃO AQUI: Passamos 'this' para a função toggleMaterialItem
+                checkboxHtml = `<td class="text-center"><input type="checkbox" class="form-check-input check-material-item" value="${s.id}" onchange="toggleMaterialItem(this, ${s.id})"></td>`;
             } else {
                 checkboxHtml = `<td class="text-center"><input type="checkbox" class="form-check-input" disabled></td>`;
             }
@@ -163,12 +157,9 @@ function renderizarTabelaHistoricoMateriais() {
     const tbody = document.getElementById('tbody-historico-materiais');
     if (!tbody) return;
 
-    // Remove filtros se houver (conforme solicitado anteriormente)
     const solicitacoes = window.todosHistoricoMateriais || [];
-
     const thead = tbody.previousElementSibling;
 
-    // Cabeçalho da Tabela de Histórico
     thead.innerHTML = `
     <tr>
         <th>Data Ação</th>
@@ -211,10 +202,8 @@ function renderizarTabelaHistoricoMateriais() {
         const dataAcaoFormatada = dataAcao ? new Date(dataAcao).toLocaleString('pt-BR') : 'Pendente';
         const nomeAprovador = s.nomeAprovadorController || s.nomeAprovadorCoordenador;
 
-        // Monta o texto de justificativa + comentários
         let textoHistorico = s.justificativa || '';
 
-        // Se houver comentários (vindos do novo DTO), adiciona-os
         if (s.comentarios && s.comentarios.length > 0) {
             if (textoHistorico) textoHistorico += '\n\n';
             s.comentarios.forEach(c => {
@@ -245,20 +234,27 @@ function renderizarTabelaHistoricoMateriais() {
 
 // --- LÓGICA DE SELEÇÃO E LOTE ---
 
+// Expor funções globalmente para serem acessadas pelo HTML (Evita erro "not defined")
+window.toggleAllMateriais = toggleAllMateriais;
+window.toggleMaterialItem = toggleMaterialItem;
+window.aprovarLoteMateriais = aprovarLoteMateriais;
+window.rejeitarLoteMateriais = rejeitarLoteMateriais;
+
 function toggleAllMateriais(source) {
+    console.log("Selecionar todos:", source.checked);
     const checkboxes = document.querySelectorAll('.check-material-item');
     checkboxes.forEach(cb => {
         cb.checked = source.checked;
+        // Pega o ID direto do value
         atualizarArraySelecao(cb.value, cb.checked);
     });
     atualizarUISelecao();
 }
 
-function toggleMaterialItem(id) {
-    // O array é atualizado onchange direto no input ou podemos varrer aqui
-    // Vamos garantir a sincronia varrendo os marcados
-    const checkbox = document.querySelector(`.check-material-item[value="${id}"]`);
-    atualizarArraySelecao(id, checkbox.checked);
+// Atualizado para receber o elemento 'source' (this) e evitar busca falha no DOM
+function toggleMaterialItem(source, id) {
+    console.log(`Toggle Item ID: ${id}, Checked: ${source.checked}`);
+    atualizarArraySelecao(id, source.checked);
     atualizarUISelecao();
 }
 
@@ -274,6 +270,8 @@ function atualizarArraySelecao(id, checked) {
 function atualizarUISelecao() {
     const container = document.getElementById('acoes-lote-container');
     const contador = document.getElementById('contador-selecionados');
+
+    console.log("Atualizando UI. Selecionados:", selecionadosMateriais.length);
 
     if (!container) return;
 
@@ -301,12 +299,10 @@ async function aprovarLoteMateriais() {
             observacao: null
         };
 
-        // Define a URL baseada na Role (se futuramente implementar Controller também)
         let endpoint = '';
         if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
             endpoint = `${API_BASE_URL}/solicitacoes/coordenador/aprovar-lote`;
         } else {
-            // Caso queira implementar para controller depois
             throw new Error("Aprovação em lote disponível apenas para Coordenadores no momento.");
         }
 
@@ -318,7 +314,7 @@ async function aprovarLoteMateriais() {
         if (!response.ok) throw new Error("Erro ao processar aprovação em lote.");
 
         mostrarToast("Solicitações aprovadas com sucesso!", "success");
-        await carregarDadosMateriais(); // Recarrega a tabela
+        await carregarDadosMateriais();
 
     } catch (error) {
         console.error(error);
@@ -332,7 +328,7 @@ async function rejeitarLoteMateriais() {
     if (selecionadosMateriais.length === 0) return;
 
     const motivo = prompt("Digite o motivo para rejeitar as solicitações selecionadas:");
-    if (motivo === null) return; // Cancelou
+    if (motivo === null) return;
     if (!motivo.trim()) {
         mostrarToast("O motivo é obrigatório para rejeição.", "warning");
         return;

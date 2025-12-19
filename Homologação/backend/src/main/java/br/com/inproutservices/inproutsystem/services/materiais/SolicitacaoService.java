@@ -241,4 +241,18 @@ public class SolicitacaoService {
 
         return solicitacaoRepository.save(solicitacao);
     }
+
+    @Transactional
+    public void aprovarLotePeloCoordenador(List<Long> ids, Long aprovadorId) {
+        for (Long id : ids) {
+            aprovarPeloCoordenador(id, aprovadorId);
+        }
+    }
+
+    @Transactional
+    public void rejeitarLotePeloCoordenador(List<Long> ids, Long coordenadorId, String motivo) {
+        for (Long id : ids) {
+            rejeitarPeloCoordenador(id, coordenadorId, motivo);
+        }
+    }
 }

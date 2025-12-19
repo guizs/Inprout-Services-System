@@ -2,6 +2,8 @@
 // LÓGICA DE APROVAÇÃO DE MATERIAIS
 // ==========================================================
 
+let selecionadosMateriais = [];
+
 async function carregarDadosMateriais() {
     const tbodyPendentesMateriais = document.getElementById('tbody-pendentes-materiais');
     if (!tbodyPendentesMateriais) return;
@@ -49,13 +51,23 @@ async function carregarDadosHistoricoMateriais() {
 function renderizarTabelaPendentesMateriais() {
     const tbody = document.getElementById('tbody-pendentes-materiais');
     const thead = document.getElementById('thead-pendentes-materiais');
+    const acoesLoteContainer = document.getElementById('acoes-lote-container');
 
     if (!tbody || !thead) return;
 
-    // Cabeçalho fixo
+    // Resetar seleção ao renderizar
+    selecionadosMateriais = [];
+    atualizarUISelecao();
+
+    // Verifica se usuário pode ver checkboxes (apenas Coordenador ou Admin/Controller dependendo da regra)
+    // Pela sua regra atual, Coordenador vê pendentes coordenador.
+    const podeAprovar = (userRole === 'COORDINATOR' || userRole === 'MANAGER' || userRole === 'ADMIN' || userRole === 'CONTROLLER');
+
+    // Cabeçalho com Checkbox "Selecionar Todos"
     thead.innerHTML = `
         <tr>
-            <th class="text-center">Ações</th>
+            ${podeAprovar ? '<th class="text-center"><input type="checkbox" id="check-all-materiais" onclick="toggleAllMateriais(this)"></th>' : ''}
+            <th class="text-center">Ações Individuais</th>
             <th>Data Solicitação</th>
             <th>Solicitante</th>
             <th>OS</th>
@@ -70,13 +82,12 @@ function renderizarTabelaPendentesMateriais() {
         </tr>
     `;
 
-    // REMOVIDA A LEITURA DO FILTRO. Exibe tudo direto.
     const solicitacoes = window.todasPendenciasMateriais || [];
-
     tbody.innerHTML = '';
 
     if (solicitacoes.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" class="text-center text-muted">Nenhuma pendência de material.</td></tr>`;
+        if (acoesLoteContainer) acoesLoteContainer.classList.add('d-none');
         return;
     }
 
@@ -88,29 +99,44 @@ function renderizarTabelaPendentesMateriais() {
         let acoesHtml = '';
         let statusBadgeClass = 'text-bg-secondary';
         let statusTexto = s.status ? s.status.replace(/_/g, ' ') : 'N/A';
+        let checkboxHtml = '';
 
+        // Definição de Cores e botões individuais (mantendo lógica original)
         if (s.status === 'PENDENTE_COORDENADOR') statusBadgeClass = 'text-bg-info';
         else if (s.status === 'PENDENTE_CONTROLLER') statusBadgeClass = 'text-bg-warning';
 
         const statusHtml = `<span class="badge rounded-pill ${statusBadgeClass}">${statusTexto}</span>`;
 
+        // Lógica de visualização de botões e Checkbox baseada no status e role
+        let rowHabilitadaParaLote = false;
+
         if (userRole === 'CONTROLLER' || userRole === 'ADMIN') {
             if (s.status === 'PENDENTE_CONTROLLER') {
-                acoesHtml = `<button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
-                             <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
+                acoesHtml = getBotoesAcao(s.id);
+                rowHabilitadaParaLote = false; // Focando no pedido do Coordenador primeiro, mas pode habilitar aqui se quiser
             } else {
-                acoesHtml = `<span class="text-muted" style="font-size: 0.8rem;">Aguardando Coord.</span>`;
+                acoesHtml = `<span class="text-muted small">Aguardando Coord.</span>`;
             }
         } else if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
             if (s.status === 'PENDENTE_COORDENADOR') {
-                acoesHtml = `<button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${s.id})"><i class="bi bi-check-lg"></i></button>
-                             <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${s.id})"><i class="bi bi-x-lg"></i></button>`;
+                acoesHtml = getBotoesAcao(s.id);
+                rowHabilitadaParaLote = true;
             } else {
-                acoesHtml = `<span class="text-muted" style="font-size: 0.8rem;">Em análise</span>`;
+                acoesHtml = `<span class="text-muted small">Em análise</span>`;
+            }
+        }
+
+        // Renderiza checkbox apenas se a linha for "aprovável" pelo usuário atual
+        if (podeAprovar) {
+            if (rowHabilitadaParaLote) {
+                checkboxHtml = `<td class="text-center"><input type="checkbox" class="form-check-input check-material-item" value="${s.id}" onchange="toggleMaterialItem(${s.id})"></td>`;
+            } else {
+                checkboxHtml = `<td class="text-center"><input type="checkbox" class="form-check-input" disabled></td>`;
             }
         }
 
         tr.innerHTML = `
+            ${checkboxHtml}
             <td class="text-center">${acoesHtml}</td>
             <td>${new Date(s.dataSolicitacao).toLocaleString('pt-BR')}</td>
             <td>${s.nomeSolicitante || 'N/A'}</td>
@@ -126,6 +152,11 @@ function renderizarTabelaPendentesMateriais() {
         `;
         tbody.appendChild(tr);
     });
+}
+
+function getBotoesAcao(id) {
+    return `<button class="btn btn-sm btn-outline-success" title="Aprovar" onclick="aprovarMaterial(${id})"><i class="bi bi-check-lg"></i></button>
+            <button class="btn btn-sm btn-outline-danger" title="Recusar" onclick="recusarMaterial(${id})"><i class="bi bi-x-lg"></i></button>`;
 }
 
 function renderizarTabelaHistoricoMateriais() {
@@ -182,7 +213,7 @@ function renderizarTabelaHistoricoMateriais() {
 
         // Monta o texto de justificativa + comentários
         let textoHistorico = s.justificativa || '';
-        
+
         // Se houver comentários (vindos do novo DTO), adiciona-os
         if (s.comentarios && s.comentarios.length > 0) {
             if (textoHistorico) textoHistorico += '\n\n';
@@ -210,4 +241,133 @@ function renderizarTabelaHistoricoMateriais() {
     `;
         tbody.appendChild(tr);
     });
+}
+
+// --- LÓGICA DE SELEÇÃO E LOTE ---
+
+function toggleAllMateriais(source) {
+    const checkboxes = document.querySelectorAll('.check-material-item');
+    checkboxes.forEach(cb => {
+        cb.checked = source.checked;
+        atualizarArraySelecao(cb.value, cb.checked);
+    });
+    atualizarUISelecao();
+}
+
+function toggleMaterialItem(id) {
+    // O array é atualizado onchange direto no input ou podemos varrer aqui
+    // Vamos garantir a sincronia varrendo os marcados
+    const checkbox = document.querySelector(`.check-material-item[value="${id}"]`);
+    atualizarArraySelecao(id, checkbox.checked);
+    atualizarUISelecao();
+}
+
+function atualizarArraySelecao(id, checked) {
+    id = parseInt(id);
+    if (checked) {
+        if (!selecionadosMateriais.includes(id)) selecionadosMateriais.push(id);
+    } else {
+        selecionadosMateriais = selecionadosMateriais.filter(item => item !== id);
+    }
+}
+
+function atualizarUISelecao() {
+    const container = document.getElementById('acoes-lote-container');
+    const contador = document.getElementById('contador-selecionados');
+
+    if (!container) return;
+
+    if (selecionadosMateriais.length > 0) {
+        container.classList.remove('d-none');
+        if (contador) contador.innerText = `${selecionadosMateriais.length} selecionados`;
+    } else {
+        container.classList.add('d-none');
+    }
+}
+
+// --- FUNÇÕES DE API PARA LOTE ---
+
+async function aprovarLoteMateriais() {
+    if (selecionadosMateriais.length === 0) return;
+
+    if (!confirm(`Confirma a aprovação de ${selecionadosMateriais.length} solicitações?`)) return;
+
+    toggleLoader(true, '#materiais-pane');
+
+    try {
+        const body = {
+            ids: selecionadosMateriais,
+            aprovadorId: userId,
+            observacao: null
+        };
+
+        // Define a URL baseada na Role (se futuramente implementar Controller também)
+        let endpoint = '';
+        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+            endpoint = `${API_BASE_URL}/solicitacoes/coordenador/aprovar-lote`;
+        } else {
+            // Caso queira implementar para controller depois
+            throw new Error("Aprovação em lote disponível apenas para Coordenadores no momento.");
+        }
+
+        const response = await fetchComAuth(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error("Erro ao processar aprovação em lote.");
+
+        mostrarToast("Solicitações aprovadas com sucesso!", "success");
+        await carregarDadosMateriais(); // Recarrega a tabela
+
+    } catch (error) {
+        console.error(error);
+        mostrarToast(error.message, 'error');
+    } finally {
+        toggleLoader(false, '#materiais-pane');
+    }
+}
+
+async function rejeitarLoteMateriais() {
+    if (selecionadosMateriais.length === 0) return;
+
+    const motivo = prompt("Digite o motivo para rejeitar as solicitações selecionadas:");
+    if (motivo === null) return; // Cancelou
+    if (!motivo.trim()) {
+        mostrarToast("O motivo é obrigatório para rejeição.", "warning");
+        return;
+    }
+
+    toggleLoader(true, '#materiais-pane');
+
+    try {
+        const body = {
+            ids: selecionadosMateriais,
+            aprovadorId: userId,
+            observacao: motivo
+        };
+
+        let endpoint = '';
+        if (userRole === 'COORDINATOR' || userRole === 'MANAGER') {
+            endpoint = `${API_BASE_URL}/solicitacoes/coordenador/rejeitar-lote`;
+        } else {
+            throw new Error("Rejeição em lote disponível apenas para Coordenadores no momento.");
+        }
+
+        const response = await fetchComAuth(endpoint, {
+            method: 'POST',
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error("Erro ao processar rejeição em lote.");
+
+        mostrarToast("Solicitações rejeitadas com sucesso!", "success");
+        await carregarDadosMateriais();
+
+    } catch (error) {
+        console.error(error);
+        mostrarToast(error.message, 'error');
+    } finally {
+        toggleLoader(false, '#materiais-pane');
+    }
 }

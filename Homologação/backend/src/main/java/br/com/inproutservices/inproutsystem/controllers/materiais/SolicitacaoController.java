@@ -1,5 +1,6 @@
 package br.com.inproutservices.inproutsystem.controllers.materiais;
 
+import br.com.inproutservices.inproutsystem.dtos.materiais.AprovacaoLoteDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.AprovacaoRejeicaoDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoRequestDTO;
 import br.com.inproutservices.inproutsystem.dtos.materiais.SolicitacaoResponseDTO;
@@ -153,5 +154,17 @@ public class SolicitacaoController {
     public ResponseEntity<SolicitacaoResponseDTO> rejeitarPeloController(@PathVariable Long id, @RequestBody AprovacaoRejeicaoDTO dto) {
         Solicitacao solicitacao = solicitacaoService.rejeitarPeloController(id, dto.aprovadorId(), dto.observacao());
         return ResponseEntity.ok(new SolicitacaoResponseDTO(solicitacao));
+    }
+
+    @PostMapping("/coordenador/aprovar-lote")
+    public ResponseEntity<Void> aprovarLoteCoordenador(@RequestBody AprovacaoLoteDTO dto) {
+        solicitacaoService.aprovarLotePeloCoordenador(dto.ids(), dto.aprovadorId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/coordenador/rejeitar-lote")
+    public ResponseEntity<Void> rejeitarLoteCoordenador(@RequestBody AprovacaoLoteDTO dto) {
+        solicitacaoService.rejeitarLotePeloCoordenador(dto.ids(), dto.aprovadorId(), dto.observacao());
+        return ResponseEntity.ok().build();
     }
 }

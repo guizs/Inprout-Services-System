@@ -113,6 +113,77 @@ public class OsServiceImpl implements OsService {
     }
 
     @Override
+    @Transactional
+    public List<String> importarFinanceiroLegado(MultipartFile file) throws IOException {
+        List<String> logs = new ArrayList<>();
+
+        try (InputStream inputStream = file.getInputStream();
+             Workbook workbook = WorkbookFactory.create(inputStream)) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> rows = sheet.iterator();
+
+            // Pula o cabeçalho se existir
+            if (rows.hasNext()) {
+                rows.next();
+            }
+
+            int linha = 1;
+            while (rows.hasNext()) {
+                linha++;
+                Row currentRow = rows.next();
+                if (isRowEmpty(currentRow)) continue;
+
+                try {
+                    // Coluna A (0) = Número da OS
+                    String numeroOs = getStringCellValue(currentRow, 0);
+
+                    if (numeroOs == null || numeroOs.isBlank()) {
+                        logs.add("Linha " + linha + ": Ignorada (Sem número de OS).");
+                        continue;
+                    }
+
+                    // Busca a OS no banco
+                    Optional<OS> osOpt = osRepository.findByOs(numeroOs);
+
+                    if (osOpt.isEmpty()) {
+                        logs.add("Linha " + linha + ": OS '" + numeroOs + "' não encontrada no sistema.");
+                        continue;
+                    }
+
+                    OS os = osOpt.get();
+
+                    // Coluna B (1) = Valor Material
+                    BigDecimal valorMaterial = getBigDecimalCellValue(currentRow, 1);
+                    if (valorMaterial == null) valorMaterial = BigDecimal.ZERO;
+
+                    // Coluna C (2) = Valor Transporte
+                    BigDecimal valorTransporte = getBigDecimalCellValue(currentRow, 2);
+                    if (valorTransporte == null) valorTransporte = BigDecimal.ZERO;
+
+                    // Atualiza os valores (Sobrescreve para garantir fidelidade ao legado)
+                    os.setCustoTotalMateriais(valorMaterial);
+                    os.setTransporte(valorTransporte);
+
+                    // Campos de auditoria
+                    os.setDataAtualizacao(LocalDateTime.now());
+                    os.setUsuarioAtualizacao("import-financeiro-legado");
+
+                    osRepository.save(os);
+                    // logs.add("Linha " + linha + ": OS '" + numeroOs + "' atualizada com sucesso."); // Descomente se quiser log de sucesso
+
+                } catch (Exception e) {
+                    logs.add("Linha " + linha + ": Erro ao processar - " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            throw new IOException("Falha ao ler o arquivo Excel.", e);
+        }
+
+        return logs;
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<OsResponseDto> getAllOs() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();

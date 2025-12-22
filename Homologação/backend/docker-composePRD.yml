@@ -1,13 +1,13 @@
 services:
   app-backend:
     build: .
-    container_name: inprout-monolito-homolog
+    container_name: inprout-monolito
     ports:
       - "8080:8080"
     environment:
-      # --- CONFIGURAÇÃO DE HOMOLOGAÇÃO ---
-      # Conecta no banco 'inprout.service-homolog' no servidor
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://3.128.248.3:5432/inprout.service-homolog
+      # --- CONFIGURAÇÃO DE PRODUÇÃO ---
+      # Conecta no banco 'inpdatabase_v1' hospedado no servidor 3.128.248.3
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://3.128.248.3:5432/inpdatabase_v1
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=inpservices123
       - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver

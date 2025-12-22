@@ -94,4 +94,7 @@ public interface OsService {
 
     OS atualizarValoresFinanceiros(Long osId, BigDecimal materialAdicional, BigDecimal novoTransporte);
 
+    List<String> importarFinanceiroLegado(MultipartFile file) throws IOException;
+
+
 }

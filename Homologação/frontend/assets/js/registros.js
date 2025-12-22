@@ -1393,6 +1393,109 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const btnImportarFinanceiro = document.getElementById('btnImportarFinanceiro');
+    const importFileFinanceiro = document.getElementById('importFileFinanceiro');
+
+    if (btnImportarFinanceiro && importFileFinanceiro) {
+        // Regra de Permissão: Apenas Admin e Assistant veem esse botão (ajuste se necessário)
+        if (userRole !== 'ADMIN' && userRole !== 'ASSISTANT') {
+            btnImportarFinanceiro.classList.add('d-none');
+        }
+
+        // 1. Clique no botão visual abre o input de arquivo oculto
+        btnImportarFinanceiro.addEventListener('click', () => {
+            importFileFinanceiro.click();
+        });
+
+        // 2. Ao selecionar o arquivo
+        importFileFinanceiro.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Confirmação antes de processar
+            const confirmacao = await Swal.fire({
+                title: 'Importar Financeiro Legado',
+                text: `Deseja processar o arquivo "${file.name}"? Isso irá SOBRESCREVER os valores de "Custo Material" e "Transporte" das OSs listadas.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ffc107',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sim, atualizar valores',
+                cancelButtonText: 'Cancelar'
+            });
+
+            if (!confirmacao.isConfirmed) {
+                importFileFinanceiro.value = ''; // Limpa para permitir re-seleção
+                return;
+            }
+
+            // Prepara o envio
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Mostra Loading
+            Swal.fire({
+                title: 'Processando Planilha...',
+                html: 'Atualizando banco de dados.<br>Isso pode levar alguns segundos.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                // Chama o endpoint NOVO que criamos
+                const response = await fetchComAuth(`${API_BASE_URL}/os/importar-financeiro-legado`, {
+                    method: 'POST',
+                    body: formData
+                    // Não defina Content-Type aqui, o navegador define 'multipart/form-data' automaticamente com boundary
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Falha ao enviar arquivo.');
+                }
+
+                const resultado = await response.json();
+
+                // Monta o relatório de feedback
+                let htmlResultado = `<p class="mb-2">${resultado.mensagem}</p>`;
+
+                if (resultado.logs && resultado.logs.length > 0) {
+                    // Cria uma caixinha com scroll para ver os logs (erros ou sucessos)
+                    htmlResultado += `
+                        <div class="text-start p-2 border rounded bg-light" style="max-height: 200px; overflow-y: auto; font-size: 0.85rem;">
+                            <ul class="list-unstyled mb-0">
+                                ${resultado.logs.map(log => {
+                        const colorClass = log.includes('Erro') || log.includes('não encontrada') ? 'text-danger' : 'text-success';
+                        return `<li class="${colorClass}"><i class="bi bi-caret-right-fill"></i> ${log}</li>`;
+                    }).join('')}
+                            </ul>
+                        </div>`;
+                } else {
+                    htmlResultado += `<p class="text-success fw-bold">Nenhum erro encontrado.</p>`;
+                }
+
+                // Exibe resultado final
+                await Swal.fire({
+                    title: 'Importação Concluída',
+                    html: htmlResultado,
+                    icon: 'info',
+                    width: '600px'
+                });
+
+                // Recarrega a página para atualizar os valores na tabela
+                window.location.reload();
+
+            } catch (error) {
+                console.error(error);
+                Swal.fire('Erro', `Não foi possível importar: ${error.message}`, 'error');
+            } finally {
+                importFileFinanceiro.value = ''; // Limpa o input
+            }
+        });
+    }
+
     function transformarEmGrupos(lista) {
         if (!lista) return [];
 

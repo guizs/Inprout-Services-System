@@ -16,10 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,6 +39,24 @@ public class OsController {
             @RequestParam(defaultValue = "false") boolean completo // Flag para carregar tudo
     ) {
         return ResponseEntity.ok(osService.findAllWithDetails(PageRequest.of(page, size)));
+    }
+
+    @PostMapping("/importar-financeiro-legado")
+    public ResponseEntity<Map<String, Object>> importarFinanceiroLegado(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            throw new BusinessException("Por favor, envie um arquivo!");
+        }
+        try {
+            List<String> resultado = osService.importarFinanceiroLegado(file);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("mensagem", "Processamento concluído.");
+            response.put("logs", resultado); // Retorna lista de erros ou avisos, se houver
+
+            return ResponseEntity.ok(response);
+        } catch (IOException e) {
+            throw new BusinessException("Erro ao processar arquivo: " + e.getMessage());
+        }
     }
 
     @PatchMapping("/{id}/gestor-tim")

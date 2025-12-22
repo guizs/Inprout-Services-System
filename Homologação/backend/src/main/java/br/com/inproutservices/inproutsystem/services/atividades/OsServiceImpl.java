@@ -183,6 +183,8 @@ public class OsServiceImpl implements OsService {
         return logs;
     }
 
+
+
     @Override
     @Transactional(readOnly = true)
     public List<OsResponseDto> getAllOs() {
@@ -1324,26 +1326,35 @@ public class OsServiceImpl implements OsService {
         return null;
     }
 
-    private BigDecimal getBigDecimalCellValue(Row row, int cellIndex) {
-        Cell cell = row.getCell(cellIndex);
-        if (cell == null) return null;
+    private BigDecimal getBigDecimalCellValue(org.apache.poi.ss.usermodel.Row row, int cellIndex) {
+        org.apache.poi.ss.usermodel.Cell cell = row.getCell(cellIndex);
 
-        if (cell.getCellType() == CellType.NUMERIC) {
-            return BigDecimal.valueOf(cell.getNumericCellValue());
+        if (cell == null) {
+            return BigDecimal.ZERO;
         }
-        if (cell.getCellType() == CellType.STRING) {
-            String value = cell.getStringCellValue()
-                    .replaceAll("[^\\d,.-]", "")
-                    .replace(".", "")
-                    .replace(",", ".");
-            if(value.isBlank()) return null;
-            try {
-                return new BigDecimal(value);
-            } catch (NumberFormatException e) {
-                return null;
+
+        try {
+            // Se for NÚMERO (Nativo do Excel)
+            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
+                return BigDecimal.valueOf(cell.getNumericCellValue());
             }
+
+            // Se for TEXTO (Usa sua lógica de Regex inteligente)
+            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
+                String value = cell.getStringCellValue()
+                        .replaceAll("[^\\d,.-]", "") // Mantém apenas números, vírgula, ponto e menos
+                        .replace(".", "")            // Tira ponto de milhar
+                        .replace(",", ".");          // Troca vírgula decimal por ponto
+
+                if (value.isBlank()) return BigDecimal.ZERO;
+
+                return new BigDecimal(value);
+            }
+        } catch (Exception e) {
+            return BigDecimal.ZERO;
         }
-        return null;
+
+        return BigDecimal.ZERO;
     }
 
     private LocalDate getLocalDateCellValue(Row row, int cellIndex) {

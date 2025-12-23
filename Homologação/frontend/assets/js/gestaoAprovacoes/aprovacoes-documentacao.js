@@ -29,9 +29,9 @@ async function initDocumentacaoTab() {
 
             // Atualiza Dashboard Global (se a função existir no main.js)
             if (typeof carregarDashboardEBadges === 'function') {
-                await carregarDashboardEBadges(); 
+                await carregarDashboardEBadges();
             }
-            
+
             // Atualiza Carteira (Gráfico e Valores)
             await carregarCarteiraDoc();
 
@@ -41,11 +41,11 @@ async function initDocumentacaoTab() {
             // Aqui assumimos que o 'carregarDashboardEBadges' ou lógica similar popula 'window.minhasDocsPendentes'
             // Se não, você pode forçar uma busca aqui:
             // const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/documentacao/carteira?usuarioId=${userId}`);
-            
+
             // Reseta para o filtro 'TODOS' ao atualizar visualmente
             const filtroTodos = document.getElementById('filtroDocTodos');
             if (filtroTodos) filtroTodos.checked = true;
-            
+
             filtrarERenderizarDocs();
 
         } catch (error) {
@@ -57,7 +57,7 @@ async function initDocumentacaoTab() {
 
     // Carregamento inicial
     carregarCarteiraDoc();
-    filtrarERenderizarDocs(); 
+    filtrarERenderizarDocs();
 }
 
 /**
@@ -65,8 +65,8 @@ async function initDocumentacaoTab() {
  */
 async function carregarComboDocumentistas() {
     // --- CORREÇÃO AQUI: Mudamos de 'userRole' para 'role' ---
-    const role = localStorage.getItem('role'); 
-    
+    const role = localStorage.getItem('role');
+
     const container = document.getElementById('container-filtro-documentista');
     const select = document.getElementById('filtro-documentista-carteira');
 
@@ -81,7 +81,7 @@ async function carregarComboDocumentistas() {
 
     try {
         // Busca usuários
-        const response = await fetchComAuth(`${API_BASE_URL}/usuarios`); 
+        const response = await fetchComAuth(`${API_BASE_URL}/usuarios`);
         const usuarios = await response.json();
 
         // Filtra Documentistas
@@ -134,7 +134,7 @@ async function carregarHistoricoDocs() {
     // Verifica filtro de documentista
     const selectDoc = document.getElementById('filtro-documentista-carteira');
     const userId = (selectDoc && selectDoc.value) ? selectDoc.value : localStorage.getItem('usuarioId');
-    
+
     // Datas: Hoje e 2 meses atrás
     const fim = new Date().toISOString().split('T')[0];
     const inicioDate = new Date();
@@ -143,18 +143,18 @@ async function carregarHistoricoDocs() {
 
     try {
         const url = `${API_BASE_URL}/lancamentos/documentacao/historico-lista?usuarioId=${userId}&inicio=${inicio}&fim=${fim}`;
-        
+
         const response = await fetchComAuth(url);
         const historico = await response.json();
-        
+
         // Filtra apenas os finalizados para exibir na tabela de histórico
-        const historicoDoc = historico.filter(l => 
-            l.statusDocumentacao === 'FINALIZADO' || 
+        const historicoDoc = historico.filter(l =>
+            l.statusDocumentacao === 'FINALIZADO' ||
             l.statusDocumentacao === 'FINALIZADO_COM_RESSALVA'
         );
-        
+
         renderizarTabelaDocsVisual(historicoDoc);
-        
+
     } catch (error) {
         console.error("Erro ao carregar histórico", error);
         mostrarToast("Erro ao buscar histórico.", "error");
@@ -193,7 +193,7 @@ async function carregarCarteiraDoc() {
  */
 function filtrarERenderizarDocs() {
     let listaCompleta = window.minhasDocsPendentes || [];
-    
+
     // 1. Filtra pelo Documentista Selecionado (se houver filtro ativo e a lista tiver essa info)
     const selectDoc = document.getElementById('filtro-documentista-carteira');
     if (selectDoc && selectDoc.value) {
@@ -367,7 +367,7 @@ function abrirModalDevolverDoc(id) {
 
 // Handler do Formulário de Recusa
 document.getElementById('formRecusarLancamento')?.addEventListener('submit', async function (e) {
-    if (this.dataset.tipoRecusa !== 'DOCUMENTACAO') return; 
+    if (this.dataset.tipoRecusa !== 'DOCUMENTACAO') return;
 
     e.preventDefault();
     const id = document.getElementById('recusarLancamentoId').value;
@@ -406,7 +406,7 @@ function renderizarGraficoCarteira(dadosMensais) {
     if (!ctx) return;
 
     // Prepara dados para o Chart.js
-    const labels = dadosMensais.map(d => d.mesAno); 
+    const labels = dadosMensais.map(d => d.mesAno);
     const valoresPrevistos = dadosMensais.map(d => d.valorPrevisto);
     const valoresFinalizados = dadosMensais.map(d => d.valorFinalizado);
 
@@ -453,3 +453,186 @@ function renderizarGraficoCarteira(dadosMensais) {
         }
     });
 }
+
+// 1. Lógica do Botão CONFIRMAR APROVAÇÃO (Corrigida)
+const btnConfirmarAprov = document.getElementById('btnConfirmarAprovacaoComplementar');
+if (btnConfirmarAprov) {
+    btnConfirmarAprov.addEventListener('click', async function () {
+        const id = this.dataset.id;
+
+        // Determina a rota baseada na role do usuário
+        // Se for ADMIN, assumimos comportamento de Controller para aprovação final, ou ajuste conforme sua regra
+        const tipoAprovador = (userRole === 'COORDINATOR') ? 'coordenador' : 'controller';
+
+        this.disabled = true;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
+
+        try {
+            // CORREÇÃO: URL agora inclui o tipo do aprovador
+            const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/${id}/${tipoAprovador}/aprovar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-User-ID': userId,
+                    'X-User-Role': userRole
+                },
+                // O Backend espera um objeto JSON com o ID do aprovador
+                body: JSON.stringify({ aprovadorId: userId })
+            });
+
+            if (response.ok) {
+                mostrarToast("Solicitação aprovada com sucesso!", "success");
+                if (window.modalAprovarComplementar) window.modalAprovarComplementar.hide();
+                await carregarDadosComplementares();
+            } else {
+                const erroTxt = await response.text();
+                throw new Error("Erro na aprovação: " + erroTxt);
+            }
+        } catch (error) {
+            console.error(error);
+            mostrarToast(error.message, "error");
+        } finally {
+            this.disabled = false;
+            this.innerHTML = 'Confirmar Aprovação';
+        }
+    });
+}
+
+// 2. Lógica do Formulário de RECUSA (Corrigida)
+const formRecusar = document.getElementById('formRecusarComplementar');
+if (formRecusar) {
+    formRecusar.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const id = this.dataset.id;
+        const motivo = document.getElementById('motivoRecusaComplementar').value;
+
+        const tipoAprovador = (userRole === 'COORDINATOR') ? 'coordenador' : 'controller';
+
+        if (!motivo.trim()) { mostrarToast("Motivo é obrigatório", "warning"); return; }
+
+        const btnSubmit = this.querySelector('button[type="submit"]');
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = 'Enviando...';
+
+        try {
+            // CORREÇÃO: URL dinâmica
+            const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/${id}/${tipoAprovador}/rejeitar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-User-ID': userId },
+                body: JSON.stringify({ aprovadorId: userId, motivo: motivo })
+            });
+
+            if (response.ok) {
+                mostrarToast("Recusado com sucesso!", "success");
+                if (window.modalRecusarComplementar) window.modalRecusarComplementar.hide();
+                await carregarDadosComplementares();
+            } else {
+                throw new Error("Erro ao recusar.");
+            }
+        } catch (error) {
+            mostrarToast(error.message, "error");
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = 'Confirmar Recusa';
+        }
+    });
+}
+
+// ==========================================================
+// LISTENERS DE AÇÃO (CONFIRMAÇÃO DOS MODAIS)
+// Adicione isso ao final do arquivo para os botões funcionarem
+// ==========================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    // 1. Lógica do Botão CONFIRMAR APROVAÇÃO (Dentro do Modal)
+    const btnConfirmarAprov = document.getElementById('btnConfirmarAprovacaoComplementar');
+    if (btnConfirmarAprov) {
+        btnConfirmarAprov.addEventListener('click', async function () {
+            const id = this.dataset.id; // Pega o ID salvo no botão ao abrir o modal
+
+            // Efeito de carregamento no botão
+            const textoOriginal = this.innerHTML;
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processando...';
+
+            try {
+                // Faz a requisição para o Backend
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/${id}/aprovar`, {
+                    method: 'POST',
+                    headers: { 'X-User-ID': userId, 'X-User-Role': userRole }
+                });
+
+                if (response.ok) {
+                    mostrarToast("Solicitação aprovada com sucesso!", "success");
+
+                    // Fecha o modal
+                    if (window.modalAprovarComplementar) window.modalAprovarComplementar.hide();
+
+                    // CRUCIAL: Recarrega a tabela para a linha sumir
+                    await carregarDadosComplementares();
+                } else {
+                    const erroTxt = await response.text();
+                    throw new Error(erroTxt || "Erro ao aprovar solicitação.");
+                }
+            } catch (error) {
+                console.error("Erro na aprovação:", error);
+                mostrarToast(error.message, "error");
+            } finally {
+                // Restaura o botão
+                this.disabled = false;
+                this.innerHTML = textoOriginal;
+            }
+        });
+    }
+
+    // 2. Lógica do Formulário de RECUSA (Caso também esteja faltando)
+    const formRecusar = document.getElementById('formRecusarComplementar');
+    if (formRecusar) {
+        formRecusar.addEventListener('submit', async function (e) {
+            e.preventDefault(); // Impede o reload da página
+
+            const id = this.dataset.id;
+            const motivoInput = document.getElementById('motivoRecusaComplementar');
+            const motivo = motivoInput.value;
+            const btnSubmit = this.querySelector('button[type="submit"]');
+
+            if (!motivo.trim()) {
+                mostrarToast("Por favor, informe o motivo da recusa.", "warning");
+                return;
+            }
+
+            // Efeito de carregamento
+            const textoOriginal = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Enviando...';
+
+            try {
+                const response = await fetchComAuth(`${API_BASE_URL}/solicitacoes-complementares/${id}/rejeitar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-User-ID': userId,
+                        'X-User-Role': userRole
+                    },
+                    body: JSON.stringify({ motivo: motivo })
+                });
+
+                if (response.ok) {
+                    mostrarToast("Solicitação recusada com sucesso!", "success");
+                    if (window.modalRecusarComplementar) window.modalRecusarComplementar.hide();
+
+                    // Recarrega a tabela
+                    await carregarDadosComplementares();
+                } else {
+                    throw new Error("Erro ao recusar solicitação.");
+                }
+            } catch (error) {
+                mostrarToast(error.message, "error");
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = textoOriginal;
+            }
+        });
+    }
+});

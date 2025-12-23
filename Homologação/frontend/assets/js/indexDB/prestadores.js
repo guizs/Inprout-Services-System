@@ -108,12 +108,11 @@ async function carregarTabelaPrestadores(camposOriginais) {
         cpf: "CPF",
         cnpj: "CNPJ",
         
-        // --- NOVOS CAMPOS ADICIONADOS AQUI ---
-        banco: "Banco",
+        // 1. Título alterado para "Instituição Financeira"
+        banco: "Instituição Financeira",
         agencia: "Agência",
         conta: "Conta",
         tipoDeConta: "Tipo Conta",
-        // -------------------------------------
 
         telefone: "Telefone",
         email: "E-mail",
@@ -123,7 +122,6 @@ async function carregarTabelaPrestadores(camposOriginais) {
     };
 
     try {
-        // 1. Busca TODOS os prestadores
         const response = await fetchComAuth("http://localhost:8080/index/prestadores");
 
         if (!response.ok) {
@@ -138,7 +136,7 @@ async function carregarTabelaPrestadores(camposOriginais) {
             return;
         }
 
-        // Gera o Cabeçalho (THEAD) usando o mapeamento de títulos
+        // Gera o Cabeçalho (THEAD)
         thead.innerHTML = `
             <tr>
                 ${campos.map(campo => `<th>${titulosFormatados[campo] || campo}</th>`).join("")}
@@ -152,7 +150,17 @@ async function carregarTabelaPrestadores(camposOriginais) {
                     const statusClass = prestador.ativo ? 'active' : 'inactive';
                     return `<td><span class="status-indicator ${statusClass}"></span></td>`;
                 }
-                // Retorna o valor do campo ou vazio se for nulo
+                
+                // 2. Lógica para concatenar Código + Nome na coluna Instituição Financeira (banco)
+                if (campo === 'banco') {
+                    const codigo = prestador.codigoBanco || "";
+                    const nome = prestador.banco || "";
+                    // Se ambos existirem, concatena com hífen; caso contrário, mostra o que estiver disponível
+                    const display = (codigo && nome) ? `${codigo} - ${nome}` : (codigo || nome || "");
+                    return `<td>${display}</td>`;
+                }
+
+                // Retorna o valor padrão para os outros campos
                 return `<td>${prestador[campo] ?? ""}</td>`;
             }).join("");
 

@@ -1333,28 +1333,44 @@ public class OsServiceImpl implements OsService {
             return BigDecimal.ZERO;
         }
 
+        // Tenta obter o valor numérico nativo (funciona para Células Numéricas e Fórmulas Numéricas)
         try {
-            // Se for NÚMERO (Nativo do Excel)
-            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.NUMERIC) {
-                return BigDecimal.valueOf(cell.getNumericCellValue());
-            }
-
-            // Se for TEXTO (Usa sua lógica de Regex inteligente)
-            if (cell.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING) {
-                String value = cell.getStringCellValue()
-                        .replaceAll("[^\\d,.-]", "") // Mantém apenas números, vírgula, ponto e menos
-                        .replace(".", "")            // Tira ponto de milhar
-                        .replace(",", ".");          // Troca vírgula decimal por ponto
-
-                if (value.isBlank()) return BigDecimal.ZERO;
-
-                return new BigDecimal(value);
-            }
+            double valorNumerico = cell.getNumericCellValue();
+            return BigDecimal.valueOf(valorNumerico);
         } catch (Exception e) {
-            return BigDecimal.ZERO;
+            // Se falhar (ex: é Texto ou Fórmula de Texto), continua para a lógica de String
         }
 
-        return BigDecimal.ZERO;
+        try {
+            // DataFormatter resolve o valor visual da célula (executa fórmulas, aplica máscaras)
+            DataFormatter formatter = new DataFormatter();
+            String value = formatter.formatCellValue(cell).trim();
+
+            if (value.isBlank() || value.equals("-")) return BigDecimal.ZERO;
+
+            // Remove R$, espaços e caracteres estranhos, mantendo números, vírgula, ponto e sinal de menos
+            String valorLimpo = value.replaceAll("[^0-9,.-]", "");
+
+            // Lógica para tratamento de pontuação (Prioridade para padrão Brasileiro: 1.000,00)
+            if (valorLimpo.contains(",") && valorLimpo.contains(".")) {
+                // Se tem ambos, assume ponto como milhar e vírgula como decimal (Padrão BR)
+                valorLimpo = valorLimpo.replace(".", "").replace(",", ".");
+            } else if (valorLimpo.contains(",")) {
+                // Se só tem vírgula, assume que é decimal (100,50)
+                valorLimpo = valorLimpo.replace(",", ".");
+            }
+            // Se só tem ponto (ex: 1.000), o BigDecimal aceita direto, mas se for 1.200 (mil e duzentos),
+            // a lógica antiga removia o ponto. Vamos manter a consistência se for formato de texto.
+            else if (valorLimpo.chars().filter(ch -> ch == '.').count() > 1 || (valorLimpo.indexOf('.') == valorLimpo.length() - 4)) {
+                // Heurística simples: se tem mais de um ponto OU o ponto está na casa do milhar (1.000), remove
+                valorLimpo = valorLimpo.replace(".", "");
+            }
+
+            return new BigDecimal(valorLimpo);
+        } catch (Exception e) {
+            // Em caso de erro total de conversão, retorna Zero
+            return BigDecimal.ZERO;
+        }
     }
 
     private LocalDate getLocalDateCellValue(Row row, int cellIndex) {

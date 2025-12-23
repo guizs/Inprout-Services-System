@@ -355,3 +355,7 @@ body {
 body:has(.overview-card[style*="display: none"]) .container-fluid.my-4 {
     margin-top: 10px !important;
 }
+
+.table-primary-light {
+    background-color: #e7f1ff !important;
+}

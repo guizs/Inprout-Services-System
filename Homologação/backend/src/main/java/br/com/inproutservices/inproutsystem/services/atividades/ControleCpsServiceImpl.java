@@ -457,54 +457,44 @@ public class ControleCpsServiceImpl implements ControleCpsService {
     @Override
     @Transactional(readOnly = true)
     public DashboardCpsDTO getDashboard(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {
-        // 1. Reutiliza a lógica de filtragem que já existe no método filtrarLancamentos (ou similar)
-        // Isso garante que os KPIs batam exatamente com o que aparece na lista
         List<Lancamento> lancamentosFiltrados = filtrarLancamentosParaDashboard(usuarioId, inicio, fim, segmentoId, gestorId, prestadorId);
 
-        // 2. Cálculos
         BigDecimal totalCps = BigDecimal.ZERO;
         BigDecimal totalPago = BigDecimal.ZERO;
         BigDecimal totalAdiantado = BigDecimal.ZERO;
+        BigDecimal totalConfirmado = BigDecimal.ZERO; // Fechado + Pago
+        BigDecimal totalPendente = BigDecimal.ZERO;   // Com Controller (Falta Pagar)
 
         for (Lancamento l : lancamentosFiltrados) {
-            // Valor Base do Item (Total CPS)
-            BigDecimal valorItem = l.getValor() != null ? l.getValor() : BigDecimal.ZERO;
-            totalCps = totalCps.add(valorItem);
+            BigDecimal valorOriginal = l.getValor() != null ? l.getValor() : BigDecimal.ZERO;
+            BigDecimal valorFinal = l.getValorPagamento() != null ? l.getValorPagamento() : valorOriginal;
+            BigDecimal valorAdiantado = l.getValorAdiantamento() != null ? l.getValorAdiantamento() : BigDecimal.ZERO;
 
-            // Valor Adiantado
-            BigDecimal adiantadoItem = l.getValorAdiantamento() != null ? l.getValorAdiantamento() : BigDecimal.ZERO;
-            totalAdiantado = totalAdiantado.add(adiantadoItem);
+            // 1. Total CPS (Valor original)
+            totalCps = totalCps.add(valorOriginal);
 
-            // Valor Pago (Considera o valorPagamento se o status for PAGO, senão é 0)
+            // 2. Total Adiantado
+            totalAdiantado = totalAdiantado.add(valorAdiantado);
+
+            // 3. Lógica por Status
             if (l.getStatusPagamento() == StatusPagamento.PAGO) {
-                // Se já foi pago, usamos o valor final pago (que pode ser diferente do valor original)
-                BigDecimal pagoItem = l.getValorPagamento() != null ? l.getValorPagamento() : valorItem;
-                totalPago = totalPago.add(pagoItem);
+                totalPago = totalPago.add(valorFinal);
+                totalConfirmado = totalConfirmado.add(valorFinal);
+            }
+            else if (l.getStatusPagamento() == StatusPagamento.FECHADO || l.getStatusPagamento() == StatusPagamento.ALTERACAO_SOLICITADA) {
+                totalPendente = totalPendente.add(valorFinal);
+                totalConfirmado = totalConfirmado.add(valorFinal);
             }
         }
 
-        // 3. Cálculo do Pendente
-        // Fórmula: Pendente = Total CPS - (O que já foi pago + O que foi adiantado)
-        // Nota: Se o item foi totalmente pago, ele contribui para TotalCPS e TotalPago, logo Pendente tende a 0.
-        BigDecimal totalPendente = totalCps.subtract(totalPago).subtract(totalAdiantado);
-
-        // Evitar números negativos por arredondamento ou inconsistência de dados legados
-        if (totalPendente.compareTo(BigDecimal.ZERO) < 0) {
-            totalPendente = BigDecimal.ZERO;
-        }
-
-        // 4. Quantidade
         Long quantidadeItens = (long) lancamentosFiltrados.size();
 
-        // 5. Agrupamento por Segmento (Mantido do original)
         Map<String, BigDecimal> porSegmento = lancamentosFiltrados.stream()
                 .filter(l -> l.getOs() != null && l.getOs().getSegmento() != null)
                 .collect(Collectors.groupingBy(
                         l -> l.getOs().getSegmento().getNome(),
-                        Collectors.mapping(
-                                l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
-                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
-                        )
+                        Collectors.mapping(l -> l.getValor() != null ? l.getValor() : BigDecimal.ZERO,
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
                 ));
 
         List<ValoresPorSegmentoDTO> listaSegmentos = porSegmento.entrySet().stream()
@@ -512,7 +502,15 @@ public class ControleCpsServiceImpl implements ControleCpsService {
                 .sorted(java.util.Comparator.comparing(ValoresPorSegmentoDTO::segmentoNome))
                 .collect(Collectors.toList());
 
-        return new DashboardCpsDTO(totalCps, totalPago, totalAdiantado, totalPendente, quantidadeItens, listaSegmentos);
+        return new DashboardCpsDTO(
+                totalCps,
+                totalAdiantado,
+                totalConfirmado,
+                totalPendente,
+                totalPago,
+                quantidadeItens,
+                listaSegmentos
+        );
     }
 
     private List<Lancamento> filtrarLancamentos(Long usuarioId, LocalDate inicio, LocalDate fim, Long segmentoId, Long gestorId, Long prestadorId) {

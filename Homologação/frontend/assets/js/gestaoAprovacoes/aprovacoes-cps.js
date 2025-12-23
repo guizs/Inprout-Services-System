@@ -1,21 +1,47 @@
 // ==========================================================
-// LÓGICA DO CONTROLE CPS (Corrigido: Rotas, Modais e Lotes)
+// LÓGICA DO CONTROLE CPS (Versão Final Corrigida - 5 KPIs)
 // ==========================================================
 
-// Variáveis Globais
-let choicesCpsPrestador = null;
-let choicesCpsHistPrestador = null;
-let dadosCpsGlobais = [];
-let dadosCpsHistorico = [];
+// --- Variáveis Globais (Usando var para evitar erro de redeclaração) ---
+var choicesCpsPrestador = null;
+var choicesCpsHistPrestador = null;
+var dadosCpsGlobais = [];
+var dadosCpsHistorico = [];
 
-// Styles
+// Instâncias dos Modais
+var modalAlterarValorCPS;
+var modalRecusarCPS;
+var modalSolicitarAdiantamento;
+var modalAprovarAdiantamento;
+var modalRecusarAdiantamento;
+
+// --- Inicialização ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Inicializa todos os modais de uma vez para garantir que .show() funcione
+    const elAlterar = document.getElementById('modalAlterarValorCPS');
+    const elRecusar = document.getElementById('modalRecusarCPS');
+    const elSolAdiant = document.getElementById('modalSolicitarAdiantamento');
+    const elAprAdiant = document.getElementById('modalAprovarAdiantamento');
+    const elRecAdiant = document.getElementById('modalRecusarAdiantamento');
+
+    if (elAlterar) modalAlterarValorCPS = new bootstrap.Modal(elAlterar);
+    if (elRecusar) modalRecusarCPS = new bootstrap.Modal(elRecusar);
+    if (elSolAdiant) modalSolicitarAdiantamento = new bootstrap.Modal(elSolAdiant);
+    if (elAprAdiant) modalAprovarAdiantamento = new bootstrap.Modal(elAprAdiant);
+    if (elRecAdiant) modalRecusarAdiantamento = new bootstrap.Modal(elRecAdiant);
+});
+
+// --- Styles Dinâmicos ---
 const styleSheet = document.createElement("style");
 styleSheet.innerText = `
   .accordion-item.cps-selected { background-color: #e9ecef !important; border-color: #6c757d !important; }
   .accordion-item.cps-selected .accordion-button { background-color: #dee2e6 !important; color: #212529 !important; }
   .cps-toolbar-floating { position: sticky; top: 0; z-index: 1020; background: white; padding: 10px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-bottom: 1px solid #ddd; margin-bottom: 15px; border-radius: 4px; }
+  /* Cor Azul Claro para itens Confirmados (Com Controller) */
+  .table-primary-light { background-color: #e7f1ff !important; }
 `;
 document.head.appendChild(styleSheet);
+
 
 // ==========================================================
 // FUNÇÕES AUXILIARES DE UI
@@ -33,8 +59,9 @@ function setLoading(btn, isLoading) {
     }
 }
 
+
 // ==========================================================
-// INICIALIZAÇÃO
+// INICIALIZAÇÃO DE FILTROS
 // ==========================================================
 
 function initFiltrosCPS() {
@@ -84,8 +111,9 @@ function initFiltrosCPS() {
     }
 }
 
+
 // ==========================================================
-// CARREGAMENTO
+// CARREGAMENTO E DASHBOARD
 // ==========================================================
 
 async function carregarPendenciasCPS() {
@@ -145,6 +173,7 @@ async function carregarHistoricoCPS(append = false) {
 async function atualizarHeaderKpiCPS() {
     const els = document.querySelectorAll('.kpi-cps-total-mes-value');
     if (!els.length) return;
+    
     const mesVal = document.getElementById('cps-filtro-mes-ref')?.value;
     if (!mesVal) return;
 
@@ -162,14 +191,18 @@ async function atualizarHeaderKpiCPS() {
             const d = await res.json();
             const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
 
+            // ATUALIZAÇÃO: Mapeia os 5 indicadores que vêm do backend
             document.querySelectorAll('.kpi-cps-total-mes-value').forEach(e => e.textContent = fmt(d.valorTotal));
             document.querySelectorAll('.kpi-cps-total-adiantado-value').forEach(e => e.textContent = fmt(d.valorTotalAdiantado));
-            document.querySelectorAll('.kpi-cps-total-pendente-value').forEach(e => e.textContent = fmt(d.valorTotalPendente));
+            document.querySelectorAll('.kpi-cps-total-confirmado-value').forEach(e => e.textContent = fmt(d.valorTotalConfirmado)); 
+            document.querySelectorAll('.kpi-cps-total-pendente-value').forEach(e => e.textContent = fmt(d.valorTotalPendente));     
             document.querySelectorAll('.kpi-cps-total-pago-value').forEach(e => e.textContent = fmt(d.valorTotalPago));
+            
             document.querySelectorAll('.kpi-cps-qtd-itens-value').forEach(e => e.textContent = d.quantidadeItens || 0);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erro dashboard CPS:", e); }
 }
+
 
 // ==========================================================
 // RENDERIZAÇÃO
@@ -183,15 +216,11 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
 
     const userRole = (localStorage.getItem("role") || "").trim().toUpperCase();
 
-    // FILTRAGEM DE VISIBILIDADE
+    // Filtragem de visibilidade
     if (isPendencia) {
         lista = lista.filter(l => {
-            if (['COORDINATOR', 'MANAGER'].includes(userRole)) {
-                return l.statusPagamento === 'EM_ABERTO';
-            }
-            if (userRole === 'CONTROLLER') {
-                return ['FECHADO', 'ALTERACAO_SOLICITADA', 'SOLICITACAO_ADIANTAMENTO'].includes(l.statusPagamento);
-            }
+            if (['COORDINATOR', 'MANAGER'].includes(userRole)) return l.statusPagamento === 'EM_ABERTO';
+            if (userRole === 'CONTROLLER') return ['FECHADO', 'ALTERACAO_SOLICITADA', 'SOLICITACAO_ADIANTAMENTO'].includes(l.statusPagamento);
             return true;
         });
     }
@@ -202,10 +231,28 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
     }
     if (msgDiv) msgDiv.classList.add('d-none');
 
+    // Agrupamento
     const grupos = lista.reduce((acc, l) => {
         const id = l.os?.id || 0;
-        if (!acc[id]) acc[id] = { os: l.os?.os, projeto: l.os?.projeto, totalCps: l.valorCps || 0, totalPago: l.totalPago || 0, totalAdiantado: 0, itens: [] };
+        if (!acc[id]) {
+            acc[id] = { 
+                os: l.os?.os, 
+                projeto: l.os?.projeto, 
+                totalCps: l.valorCps || 0, 
+                totalPago: l.totalPago || 0, // Vem do backend
+                totalAdiantado: 0, 
+                totalConfirmado: 0, 
+                itens: [] 
+            };
+        }
+        
         acc[id].totalAdiantado += parseFloat(l.valorAdiantamento) || 0;
+        
+        // CÁLCULO TOTAL CONFIRMADO DO GRUPO (Tudo que já passou pelo Coord: Fechado, Alt Solicitada, Pago, Concluido)
+        if (['FECHADO', 'ALTERACAO_SOLICITADA', 'PAGO', 'CONCLUIDO'].includes(l.statusPagamento)) {
+            acc[id].totalConfirmado += parseFloat(l.valorPagamento || l.valor) || 0;
+        }
+        
         acc[id].itens.push(l);
         return acc;
     }, {});
@@ -216,9 +263,6 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
         const uid = `cps-${isPendencia ? 'pend' : 'hist'}-${idx}`;
         grp.itens.sort((a, b) => (a.statusPagamento === 'EM_ABERTO' ? -1 : 1));
 
-        const percentual = grp.totalCps > 0 ? (grp.totalPago / grp.totalCps) * 100 : 0;
-        const liquido = grp.totalCps - grp.totalAdiantado;
-
         let showHeaderCheck = false;
         if (isPendencia) {
             if (userRole === 'ADMIN') showHeaderCheck = true;
@@ -226,21 +270,21 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
             else if (userRole === 'CONTROLLER' && grp.itens.some(i => ['FECHADO', 'ALTERACAO_SOLICITADA', 'SOLICITACAO_ADIANTAMENTO'].includes(i.statusPagamento))) showHeaderCheck = true;
         }
 
-        const checkHtml = showHeaderCheck ? `<div class="position-absolute top-50 start-0 translate-middle-y ms-3 check-container-header" style="z-index: 5;"><input class="form-check-input cps-select-all shadow-sm" type="checkbox" data-target-body="collapse-${uid}" style="cursor: pointer;"></div>` : '';
+        const checkHtml = showHeaderCheck ? `<div class="position-absolute top-50 start-0 translate-middle-y ms-3 check-container-header" style="z-index: 5;"><input class="form-check-input cps-select-all shadow-sm" type="checkbox" data-target-body="collapse-${uid}"></div>` : '';
         const pl = showHeaderCheck ? 'ps-5' : 'ps-3';
 
+        // CABEÇALHO ATUALIZADO (5 KPIs)
         const headerHtml = `
             <div class="header-content w-100">
                 <div class="header-title-wrapper">
                     <span class="header-title-project">${grp.projeto || '-'}</span>
                     <span class="header-title-os">${grp.os || '-'}</span>
                 </div>
-                <div class="header-kpi-wrapper" style="gap: 1rem;">
-                    <div class="header-kpi"><span class="kpi-label">TOTAL</span><span class="kpi-value">${fmt(grp.totalCps)}</span></div>
+                <div class="header-kpi-wrapper d-flex gap-3">
+                    <div class="header-kpi"><span class="kpi-label">TOTAL CPS</span><span class="kpi-value">${fmt(grp.totalCps)}</span></div>
+                    <div class="header-kpi"><span class="kpi-label text-primary">CONFIRMADO</span><span class="kpi-value text-primary">${fmt(grp.totalConfirmado)}</span></div>
                     <div class="header-kpi"><span class="kpi-label text-warning">ADIANTADO</span><span class="kpi-value text-warning">${fmt(grp.totalAdiantado)}</span></div>
-                    <div class="header-kpi border-start border-end px-2 mx-1"><span class="kpi-label text-primary">LÍQUIDO</span><span class="kpi-value text-primary fw-bold">${fmt(liquido)}</span></div>
                     <div class="header-kpi"><span class="kpi-label text-success">PAGO</span><span class="kpi-value text-success">${fmt(grp.totalPago)}</span></div>
-                    <div class="header-kpi ps-2"><span class="kpi-value">${percentual.toFixed(1)}%</span></div>
                 </div>
             </div>`;
 
@@ -248,23 +292,18 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
             let btns = `<button class="btn btn-sm btn-outline-info me-1" title="Ver" onclick="verComentarios(${l.id})"><i class="bi bi-eye"></i></button>`;
             let showRowCheck = false;
 
-            // --- LÓGICA DE CORES E ESTADOS ---
+            // Lógica de Cores da Linha
+            const isConfirmado = l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA';
             const isAdiantado = (parseFloat(l.valorAdiantamento) || 0) > 0;
-            const isPago = l.statusPagamento === 'FECHADO';
+            const isPago = l.statusPagamento === 'PAGO' || l.statusPagamento === 'CONCLUIDO'; 
 
-            // Define a classe da linha baseada no estado
             let rowClass = '';
-            if (isPago) {
-                rowClass = 'table-success'; // Verde claro (Bootstrap)
-            } else if (isAdiantado) {
-                rowClass = 'table-warning'; // Amarelo claro (Bootstrap)
-            }
+            if (isPago) rowClass = 'table-success'; 
+            else if (isConfirmado) rowClass = 'table-primary-light'; // Azul para confirmado (Fila Controller)
+            else if (isAdiantado) rowClass = 'table-warning';
 
             if (isPendencia) {
-                // COORDENADOR: Só mostra botões se estiver EM ABERTO e NÃO tiver sido Adiantado/Pago
                 if (['COORDINATOR', 'MANAGER', 'ADMIN'].includes(userRole) && l.statusPagamento === 'EM_ABERTO') {
-
-                    // AQUI A MÁGICA: Se já foi adiantado (amarelo), não mostra os botões de ação
                     if (!isAdiantado) {
                         btns += `<button class="btn btn-sm btn-outline-success me-1" title="Fechar" onclick="abrirModalCpsValor(${l.id}, 'fechar')"><i class="bi bi-check-circle"></i></button>`;
                         btns += `<button class="btn btn-sm btn-outline-primary me-1" title="Adiantar" onclick="abrirModalSolicitarAdiantamento(${l.id}, ${l.valor}, ${l.valorAdiantamento || 0})"><i class="bi bi-cash-stack"></i></button>`;
@@ -277,18 +316,18 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
                         btns += `<button class="btn btn-sm btn-outline-success me-1" onclick="aprovarAdiantamento(${l.id}, ${l.valorSolicitadoAdiantamento})"><i class="bi bi-check-lg"></i></button>`;
                         btns += `<button class="btn btn-sm btn-outline-danger" onclick="recusarAdiantamento(${l.id})"><i class="bi bi-x-lg"></i></button>`;
                         showRowCheck = true;
-                    } else if (l.statusPagamento === 'FECHADO' || l.statusPagamento === 'ALTERACAO_SOLICITADA') {
+                    } else if (isConfirmado) { // Botão de recusa para itens fechados/alteração solicitada
                         btns += `<button class="btn btn-sm btn-outline-danger" onclick="abrirModalCpsRecusarController(${l.id})"><i class="bi bi-arrow-counterclockwise"></i></button>`;
                         showRowCheck = true;
                     }
                 }
             }
 
-            const checkHtml = showRowCheck ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}" data-status="${l.statusPagamento}"></td>` : (isPendencia ? '<td></td>' : '');
+            const checkTd = showRowCheck ? `<td><input type="checkbox" class="form-check-input cps-check" data-id="${l.id}" data-status="${l.statusPagamento}"></td>` : (isPendencia ? '<td></td>' : '');
 
             return `
             <tr class="${rowClass}">
-                ${checkHtml}
+                ${checkTd}
                 <td class="text-center bg-transparent">${btns}</td>
                 <td class="bg-transparent"><span class="badge text-bg-secondary">${(l.statusPagamento || '').replace(/_/g, ' ')}</span></td>
                 <td class="bg-transparent">${l.dataAtividade || '-'}</td>
@@ -309,7 +348,7 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
                     ${headerHtml}
                 </button>
             </h2>
-            <div id="collapse-${uid}" class="accordion-collapse collapse" data-bs-parent="#${containerId}">
+            <div id="collapse-${uid}" class="accordion-collapse collapse">
                 <div class="accordion-body p-0">
                     <div class="table-responsive">
                         <table class="table mb-0 align-middle small table-hover">
@@ -330,6 +369,7 @@ function renderizarAcordeonCPS(lista, containerId, msgVazioId, isPendencia) {
         configurarBuscaCps('input-busca-cps-historico', 'accordionHistoricoCPS');
     }
 }
+
 
 // ==========================================================
 // AÇÕES EM LOTE
@@ -370,7 +410,7 @@ function atualizarBotoesLoteCPS() {
         const s = cb.dataset.status;
         if (s === 'EM_ABERTO') temEmAberto = true;
         if (s === 'SOLICITACAO_ADIANTAMENTO') temAdiantamento = true;
-        if (s === 'FECHADO' || s === 'ALTERACAO_SOLICITADA') temFechado = true;
+        if (['FECHADO', 'ALTERACAO_SOLICITADA'].includes(s)) temFechado = true;
     });
 
     let htmlBtns = '';
@@ -414,8 +454,8 @@ window.executarAcaoLote = function (acao) {
     const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id));
     if (!ids.length) return;
 
-    if (typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'true';
-    if (typeof modalRecusarCPS !== 'undefined') modalRecusarCPS._element.dataset.acaoEmLote = 'true';
+    if (modalAlterarValorCPS) modalAlterarValorCPS._element.dataset.acaoEmLote = 'true';
+    if (modalRecusarCPS) modalRecusarCPS._element.dataset.acaoEmLote = 'true';
 
     // 1. COORDENADOR: FECHAR
     if (acao === 'fechar') {
@@ -430,19 +470,20 @@ window.executarAcaoLote = function (acao) {
         const btn = document.getElementById('btnConfirmarAcaoCPS');
         btn.className = 'btn btn-success';
         btn.textContent = "Confirmar Lote";
-        modalAlterarValorCPS.show();
+        if (modalAlterarValorCPS) modalAlterarValorCPS.show();
     }
 
     // 2. COORDENADOR: ADIANTAR LOTE
     else if (acao === 'solicitarAdiantamento') {
-        const m = new bootstrap.Modal(document.getElementById('modalSolicitarAdiantamento'));
         const modalEl = document.getElementById('modalSolicitarAdiantamento');
-        modalEl.dataset.acaoEmLote = 'true';
-        document.getElementById('adiantamentoValorTotalDisplay').innerText = "Vários Itens";
-        document.getElementById('adiantamentoValorJaPagoDisplay').innerText = "-";
-        document.getElementById('valorSolicitadoInput').value = '';
-        document.getElementById('justificativaAdiantamentoInput').value = '';
-        m.show();
+        if (modalEl) {
+            modalEl.dataset.acaoEmLote = 'true';
+            document.getElementById('adiantamentoValorTotalDisplay').innerText = "Vários Itens";
+            document.getElementById('adiantamentoValorJaPagoDisplay').innerText = "-";
+            document.getElementById('valorSolicitadoInput').value = '';
+            document.getElementById('justificativaAdiantamentoInput').value = '';
+            if (modalSolicitarAdiantamento) modalSolicitarAdiantamento.show();
+        }
     }
 
     // 3. COORDENADOR: RECUSAR LOTE
@@ -457,7 +498,7 @@ window.executarAcaoLote = function (acao) {
         const btn = document.getElementById('btnConfirmarAcaoCPS');
         btn.className = 'btn btn-danger';
         btn.textContent = "Recusar Lote";
-        modalAlterarValorCPS.show();
+        if (modalAlterarValorCPS) modalAlterarValorCPS.show();
     }
 
     // 4. CONTROLLER: PAGAR
@@ -484,17 +525,20 @@ window.executarAcaoLote = function (acao) {
     else if (acao === 'recusarController') {
         const modal = modalRecusarCPS;
         document.getElementById('cpsMotivoRecusaInput').value = '';
-        modalRecusarCPS._element.dataset.acaoEmLote = 'true';
-        modal.show();
+        if (modal) {
+            modal._element.dataset.acaoEmLote = 'true';
+            modal.show();
+        }
     }
 
     // 6. CONTROLLER: RECUSAR ADIANTAMENTO
     else if (acao === 'recusarAdiantamento') {
-        const m = new bootstrap.Modal(document.getElementById('modalRecusarAdiantamento'));
         const modalEl = document.getElementById('modalRecusarAdiantamento');
-        modalEl.dataset.acaoEmLote = 'true';
-        document.getElementById('motivoRecusaAdiantamento').value = '';
-        m.show();
+        if (modalEl) {
+            modalEl.dataset.acaoEmLote = 'true';
+            document.getElementById('motivoRecusaAdiantamento').value = '';
+            if (modalRecusarAdiantamento) modalRecusarAdiantamento.show();
+        }
     }
 };
 
@@ -514,57 +558,61 @@ async function processarAcaoControllerDireta(endpoint, body, modalInstance) {
     finally { setLoading(btn, false); }
 }
 
+
 // ==========================================================
-// HANDLERS UNITÁRIOS E FORMULÁRIOS (COM LÓGICA DE LOTE)
+// HANDLERS UNITÁRIOS E FORMULÁRIOS
 // ==========================================================
 
 // Listener Solicitação Adiantamento (Submit do Modal)
-document.getElementById('formSolicitarAdiantamento').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btnConfirmarSolicitacaoAdiantamento');
-    setLoading(btn, true);
+const formSolAdiant = document.getElementById('formSolicitarAdiantamento');
+if (formSolAdiant) {
+    formSolAdiant.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnConfirmarSolicitacaoAdiantamento');
+        setLoading(btn, true);
 
-    const isLote = document.getElementById('modalSolicitarAdiantamento').dataset.acaoEmLote === 'true';
-    const valor = parseFloat(document.getElementById('valorSolicitadoInput').value.replace(/\./g, '').replace(',', '.'));
-    const just = document.getElementById('justificativaAdiantamentoInput').value;
-    const uId = localStorage.getItem('usuarioId');
+        const modalEl = document.getElementById('modalSolicitarAdiantamento');
+        const isLote = modalEl.dataset.acaoEmLote === 'true';
+        const valor = parseFloat(document.getElementById('valorSolicitadoInput').value.replace(/\./g, '').replace(',', '.'));
+        const just = document.getElementById('justificativaAdiantamentoInput').value;
+        const uId = localStorage.getItem('usuarioId');
 
-    try {
-        if (isLote) {
-            const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => c.dataset.id);
-            for (const id of ids) {
-                await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/solicitar-adiantamento`, {
+        try {
+            if (isLote) {
+                const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => c.dataset.id);
+                for (const id of ids) {
+                    await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/solicitar-adiantamento`, {
+                        method: 'POST',
+                        body: JSON.stringify({ valor: valor, usuarioId: uId, justificativa: just })
+                    });
+                }
+                mostrarToast("Solicitações em lote enviadas!", "success");
+            } else {
+                const id = document.getElementById('adiantamentoLancamentoId').value;
+                const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/solicitar-adiantamento`, {
                     method: 'POST',
                     body: JSON.stringify({ valor: valor, usuarioId: uId, justificativa: just })
                 });
+                if (!res.ok) throw new Error("Erro na solicitação.");
+                mostrarToast("Solicitação enviada!", "success");
             }
-            mostrarToast("Solicitações em lote enviadas!", "success");
-        } else {
-            const id = document.getElementById('adiantamentoLancamentoId').value;
-            const res = await fetchComAuth(`${API_BASE_URL}/lancamentos/${id}/solicitar-adiantamento`, {
-                method: 'POST',
-                body: JSON.stringify({ valor: valor, usuarioId: uId, justificativa: just })
-            });
-            if (!res.ok) throw new Error("Erro na solicitação.");
-            mostrarToast("Solicitação enviada!", "success");
-        }
 
-        bootstrap.Modal.getInstance(document.getElementById('modalSolicitarAdiantamento')).hide();
-        carregarPendenciasCPS();
-    } catch (e) {
-        mostrarToast("Erro: " + e.message, "error");
-    } finally {
-        setLoading(btn, false);
-        delete document.getElementById('modalSolicitarAdiantamento').dataset.acaoEmLote;
-    }
-});
+            if (modalSolicitarAdiantamento) modalSolicitarAdiantamento.hide();
+            carregarPendenciasCPS();
+        } catch (e) {
+            mostrarToast("Erro: " + e.message, "error");
+        } finally {
+            setLoading(btn, false);
+            delete modalEl.dataset.acaoEmLote;
+        }
+    });
+}
 
 // Listener Recusa Adiantamento Controller (Submit do Modal)
 const btnConfRecAdiant = document.getElementById('btnConfirmarRecusaAdiantamento');
 if (btnConfRecAdiant) {
     btnConfRecAdiant.addEventListener('click', async () => {
         const modalEl = document.getElementById('modalRecusarAdiantamento');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
         const isLote = modalEl.dataset.acaoEmLote === 'true';
         const motivo = document.getElementById('motivoRecusaAdiantamento').value;
         const uId = localStorage.getItem('usuarioId');
@@ -576,7 +624,6 @@ if (btnConfRecAdiant) {
         try {
             if (isLote) {
                 const ids = Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id));
-                // Loop manual para batch recusar adiantamento
                 for (const id of ids) {
                     await fetchComAuth(`${API_BASE_URL}/controle-cps/${id}/recusar-adiantamento`, {
                         method: 'POST',
@@ -593,21 +640,19 @@ if (btnConfRecAdiant) {
                 if (!res.ok) throw new Error("Erro");
                 mostrarToast("Recusado!", "success");
             }
-            modalInstance.hide();
+            if (modalRecusarAdiantamento) modalRecusarAdiantamento.hide();
             carregarPendenciasCPS();
         } catch (e) { mostrarToast(e.message, "error"); }
         finally { setLoading(btnConfRecAdiant, false); delete modalEl.dataset.acaoEmLote; }
     });
 }
 
-// Listener Aprovar Adiantamento (Single) - Para batch usa modal genérico
+// Listener Aprovar Adiantamento
 const btnAprovarAdiant = document.getElementById('btnConfirmarAprovarAdiantamento');
 if (btnAprovarAdiant) {
     btnAprovarAdiant.addEventListener('click', async function () {
         const id = document.getElementById('idAdiantamentoAprovar').value;
-        const modalEl = document.getElementById('modalAprovarAdiantamento');
-        const modalInstance = bootstrap.Modal.getInstance(modalEl);
-
+        
         setLoading(this, true);
         toggleLoader(true, '#cps-pendencias-pane');
 
@@ -621,7 +666,7 @@ if (btnAprovarAdiant) {
             if (!response.ok) throw new Error("Erro ao processar pagamento.");
 
             mostrarToast("Adiantamento pago com sucesso!", "success");
-            modalInstance.hide();
+            if (modalAprovarAdiantamento) modalAprovarAdiantamento.hide();
             carregarPendenciasCPS();
         } catch (error) {
             mostrarToast(error.message, 'error');
@@ -633,44 +678,47 @@ if (btnAprovarAdiant) {
 }
 
 // Listener Fechamento/Recusa (Coordenador)
-document.getElementById('formAlterarValorCPS').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn = document.getElementById('btnConfirmarAcaoCPS');
-    setLoading(btn, true);
+const formAlterar = document.getElementById('formAlterarValorCPS');
+if (formAlterar) {
+    formAlterar.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnConfirmarAcaoCPS');
+        setLoading(btn, true);
 
-    const isLote = modalAlterarValorCPS._element.dataset.acaoEmLote === 'true';
-    const acao = document.getElementById('cpsAcaoCoordenador').value;
-    const ids = isLote ? Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id)) : [parseInt(document.getElementById('cpsLancamentoIdAcao').value)];
-    const uId = localStorage.getItem('usuarioId');
+        const isLote = modalAlterarValorCPS._element.dataset.acaoEmLote === 'true';
+        const acao = document.getElementById('cpsAcaoCoordenador').value;
+        const ids = isLote ? Array.from(document.querySelectorAll('.cps-check:checked')).map(c => parseInt(c.dataset.id)) : [parseInt(document.getElementById('cpsLancamentoIdAcao').value)];
+        const uId = localStorage.getItem('usuarioId');
 
-    let url = '', body = {};
-    if (acao === 'recusar') {
-        url = isLote ? '/controle-cps/recusar-lote' : '/controle-cps/recusar';
-        body = { lancamentoIds: ids, lancamentoId: ids[0], coordenadorId: uId, justificativa: document.getElementById('cpsJustificativaInput').value };
-    } else {
-        url = isLote ? '/controle-cps/fechar-lote' : '/controle-cps/fechar';
-        const val = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
-        body = {
-            lancamentoIds: ids, lancamentoId: ids[0],
-            coordenadorId: uId,
-            competencia: document.getElementById('cpsCompetenciaInput').value,
-            valorPagamento: isLote ? null : val,
-            justificativa: document.getElementById('cpsJustificativaInput').value
-        };
-    }
-
-    try {
-        const res = await fetchComAuth(`${API_BASE_URL}${url}`, { method: 'POST', body: JSON.stringify(body) });
-        if (res.ok) {
-            mostrarToast("Ação realizada!", "success");
-            modalAlterarValorCPS.hide();
-            carregarPendenciasCPS();
+        let url = '', body = {};
+        if (acao === 'recusar') {
+            url = isLote ? '/controle-cps/recusar-lote' : '/controle-cps/recusar';
+            body = { lancamentoIds: ids, lancamentoId: ids[0], coordenadorId: uId, justificativa: document.getElementById('cpsJustificativaInput').value };
         } else {
-            throw new Error((await res.json()).message || "Erro");
+            url = isLote ? '/controle-cps/fechar-lote' : '/controle-cps/fechar';
+            const val = parseFloat(document.getElementById('cpsValorPagamentoInput').value.replace(/\./g, '').replace(',', '.'));
+            body = {
+                lancamentoIds: ids, lancamentoId: ids[0],
+                coordenadorId: uId,
+                competencia: document.getElementById('cpsCompetenciaInput').value,
+                valorPagamento: isLote ? null : val,
+                justificativa: document.getElementById('cpsJustificativaInput').value
+            };
         }
-    } catch (err) { mostrarToast(err.message, "error"); }
-    finally { setLoading(btn, false); }
-});
+
+        try {
+            const res = await fetchComAuth(`${API_BASE_URL}${url}`, { method: 'POST', body: JSON.stringify(body) });
+            if (res.ok) {
+                mostrarToast("Ação realizada!", "success");
+                if (modalAlterarValorCPS) modalAlterarValorCPS.hide();
+                carregarPendenciasCPS();
+            } else {
+                throw new Error((await res.json()).message || "Erro");
+            }
+        } catch (err) { mostrarToast(err.message, "error"); }
+        finally { setLoading(btn, false); }
+    });
+}
 
 // Listener Recusa Controller (Submit do Modal)
 const formRecu = document.getElementById('formRecusarCPS');
@@ -695,7 +743,7 @@ if (formRecu) {
             const res = await fetchComAuth(`${API_BASE_URL}${url}`, { method: 'POST', body: JSON.stringify(payload) });
             if (res.ok) {
                 mostrarToast("Devolvido!", "success");
-                modalRecusarCPS.hide();
+                if (modalRecusarCPS) modalRecusarCPS.hide();
                 carregarPendenciasCPS();
             } else throw new Error("Erro.");
         } catch (err) { mostrarToast(err.message, "error"); }
@@ -703,17 +751,18 @@ if (formRecu) {
     });
 }
 
+
 // ==========================================================
-// HELPERS UNITÁRIOS
+// HELPERS UNITÁRIOS (FUNÇÕES GLOBAIS DE ABERTURA)
 // ==========================================================
 
 window.abrirModalCpsValor = function (id, acao) {
     const l = dadosCpsGlobais.find(x => x.id == id);
-    if (!l) return;
+    if (!l || !modalAlterarValorCPS) return;
 
     document.getElementById('cpsLancamentoIdAcao').value = id;
     document.getElementById('cpsAcaoCoordenador').value = acao;
-    if (typeof modalAlterarValorCPS !== 'undefined') modalAlterarValorCPS._element.dataset.acaoEmLote = 'false';
+    modalAlterarValorCPS._element.dataset.acaoEmLote = 'false';
 
     const btn = document.getElementById('btnConfirmarAcaoCPS');
     const inputJust = document.getElementById('cpsJustificativaInput');
@@ -725,7 +774,7 @@ window.abrirModalCpsValor = function (id, acao) {
     inputVal.disabled = false;
     document.querySelector('#modalAlterarValorCPS .modal-title').innerText = acao === 'recusar' ? 'Recusar Pagamento' : 'Fechar Pagamento';
 
-    // PREENCHE O VALOR PRIMEIRO
+    // PREENCHE O VALOR
     const val = l.valorPagamento !== null ? l.valorPagamento : l.valor;
     inputVal.value = val.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 
@@ -750,7 +799,7 @@ window.abrirModalCpsValor = function (id, acao) {
 
 window.abrirModalCpsRecusarController = function (id) {
     document.getElementById('cpsLancamentoIdRecusar').value = id;
-    if (typeof modalRecusarCPS !== 'undefined') {
+    if (modalRecusarCPS) {
         modalRecusarCPS._element.dataset.acaoEmLote = 'false';
         document.getElementById('cpsMotivoRecusaInput').value = '';
         modalRecusarCPS.show();
@@ -762,26 +811,25 @@ window.abrirModalSolicitarAdiantamento = function (id, valorTotal, valorJaAdiant
     document.getElementById('adiantamentoValorTotalDisplay').innerText = (valorTotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('adiantamentoValorJaPagoDisplay').innerText = (valorJaAdiantado || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     document.getElementById('valorSolicitadoInput').value = '';
-    const m = new bootstrap.Modal(document.getElementById('modalSolicitarAdiantamento'));
-    m.show();
+    if (modalSolicitarAdiantamento) modalSolicitarAdiantamento.show();
 };
 
 window.aprovarAdiantamento = function (id, valor) {
-    const m = new bootstrap.Modal(document.getElementById('modalAprovarAdiantamento'));
     document.getElementById('idAdiantamentoAprovar').value = id;
     document.getElementById('displayValorAdiantamento').innerText = (valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    // Remove flag de lote
-    delete document.getElementById('modalAprovarAdiantamento').dataset.acaoEmLote;
-    m.show();
+    if (modalAprovarAdiantamento) {
+        delete modalAprovarAdiantamento._element.dataset.acaoEmLote;
+        modalAprovarAdiantamento.show();
+    }
 };
 
 window.recusarAdiantamento = function (id) {
-    const m = new bootstrap.Modal(document.getElementById('modalRecusarAdiantamento'));
     document.getElementById('idAdiantamentoRecusar').value = id;
     document.getElementById('motivoRecusaAdiantamento').value = '';
-    // Remove flag de lote
-    delete document.getElementById('modalRecusarAdiantamento').dataset.acaoEmLote;
-    m.show();
+    if (modalRecusarAdiantamento) {
+        delete modalRecusarAdiantamento._element.dataset.acaoEmLote;
+        modalRecusarAdiantamento.show();
+    }
 };
 
 function gerarOpcoesCompetencia() {
